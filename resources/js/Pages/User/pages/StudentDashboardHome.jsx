@@ -1,0 +1,229 @@
+import { TrendingUp, Award, Trophy, FolderKanban, Calendar, Star, Target, Zap } from 'lucide-react';
+
+export function StudentDashboardHome({ onNavigate }) {
+  return (
+    <div className="space-y-6 pb-6">
+      {/* Welcome Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-[20px] p-8 text-white shadow-lg">
+        <h1 className="text-white mb-2">Welcome back, Student!</h1>
+        <p className="text-blue-100 mb-6">Track your progress and stay updated</p>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+            <TrendingUp className="w-6 h-6 mb-2" />
+            <p className="text-2xl mb-1">500</p>
+            <p className="text-xs text-blue-100">Total Points</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+            <Award className="w-6 h-6 mb-2" />
+            <p className="text-2xl mb-1">12</p>
+            <p className="text-xs text-blue-100">Badges Earned</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+            <Trophy className="w-6 h-6 mb-2" />
+            <p className="text-2xl mb-1">#24</p>
+            <p className="text-xs text-blue-100">Leaderboard Rank</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+            <Star className="w-6 h-6 mb-2" />
+            <p className="text-2xl mb-1">Level 5</p>
+            <p className="text-xs text-blue-100">Engagement Level</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <button
+          onClick={() => onNavigate('projects')}
+          className="p-4 bg-white rounded-[20px] border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-left"
+        >
+          <FolderKanban className="w-8 h-8 text-blue-600 mb-2" />
+          <p className="text-sm text-gray-900">View Projects</p>
+          <p className="text-xs text-gray-500 mt-1">12 active</p>
+        </button>
+
+        <button
+          onClick={() => onNavigate('meetings')}
+          className="p-4 bg-white rounded-[20px] border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-left"
+        >
+          <Calendar className="w-8 h-8 text-blue-600 mb-2" />
+          <p className="text-sm text-gray-900">Meetings</p>
+          <p className="text-xs text-gray-500 mt-1">3 upcoming</p>
+        </button>
+
+        <button
+          onClick={() => onNavigate('points')}
+          className="p-4 bg-white rounded-[20px] border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all text-left"
+        >
+          <Zap className="w-8 h-8 text-purple-600 mb-2" />
+          <p className="text-sm text-gray-900">My Points</p>
+          <p className="text-xs text-gray-500 mt-1">View history</p>
+        </button>
+      </div>
+
+      {/* Active Projects */}
+      <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-gray-900">Active Projects</h2>
+          <button
+            onClick={() => onNavigate('projects')}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            View All
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {[
+            {
+              title: 'Community Outreach Program',
+              status: 'In Progress',
+              rating: 4.8,
+              participants: 150,
+              deadline: 'Dec 15, 2024',
+              progress: 75,
+              color: 'green'
+            },
+            {
+              title: 'Annual Sports Fest',
+              status: 'Planning',
+              rating: 4.5,
+              participants: 320,
+              deadline: 'Jan 20, 2025',
+              progress: 45,
+              color: 'blue'
+            },
+            {
+              title: 'Campus Sustainability Initiative',
+              status: 'In Progress',
+              rating: 4.9,
+              participants: 200,
+              deadline: 'Nov 30, 2024',
+              progress: 90,
+              color: 'purple'
+            },
+          ].map((project, index) => (
+            <div key={index} className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <p className="text-sm text-gray-900 mb-1">{project.title}</p>
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span>Due: {project.deadline}</span>
+                    <span>•</span>
+                    <span>{project.participants} participants</span>
+                  </div>
+                </div>
+                {/* Badge replacement */}
+                <span className="inline-flex items-center rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-800">
+                  {project.status}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-3 h-3 ${
+                        i < Math.floor(project.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-gray-600">{project.rating}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all"
+                    style={{ width: `${project.progress}%` }}
+                  ></div>
+                </div>
+                <span className="text-xs text-gray-600">{project.progress}%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent Badges & Upcoming Events */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-gray-900">Recent Badges</h2>
+            <button
+              onClick={() => onNavigate('badges')}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              View All
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { name: 'Active Participant', icon: '🌟', color: 'bg-yellow-100' },
+              { name: 'Project Supporter', icon: '🎯', color: 'bg-blue-100' },
+              { name: 'Meeting Regular', icon: '📅', color: 'bg-green-100' },
+              { name: 'Top Contributor', icon: '🏆', color: 'bg-blue-100' },
+              { name: 'Rising Star', icon: '⭐', color: 'bg-purple-100' },
+              { name: 'Team Player', icon: '🤝', color: 'bg-pink-100' },
+            ].map((badge, index) => (
+              <div key={index} className={`${badge.color} rounded-xl p-3 text-center`}>
+                <p className="text-2xl mb-1">{badge.icon}</p>
+                <p className="text-xs text-gray-700">{badge.name}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-gray-900">Upcoming Meetings</h2>
+            <button
+              onClick={() => onNavigate('meetings')}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              View All
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              { title: 'General Assembly', date: 'Nov 28', time: '2:00 PM', location: 'Auditorium' },
+              { title: 'Budget Presentation', date: 'Dec 2', time: '10:00 AM', location: 'Room 301' },
+              { title: 'Project Kickoff', date: 'Dec 5', time: '3:00 PM', location: 'Online' },
+            ].map((meeting, index) => (
+              <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex flex-col items-center justify-center flex-shrink-0">
+                  <p className="text-xs text-blue-600">{meeting.date.split(' ')[0]}</p>
+                  <p className="text-xs text-blue-900">{meeting.date.split(' ')[1]}</p>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-900">{meeting.title}</p>
+                  <p className="text-xs text-gray-500">{meeting.time} • {meeting.location}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Progress to Next Level */}
+      <div className="p-6 rounded-[20px] border-0 shadow-sm bg-gradient-to-r from-blue-50 to-purple-50">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm text-gray-600">Progress to Level 6</p>
+            <p className="text-xs text-gray-500">You need 100 more points</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Target className="w-5 h-5 text-blue-600" />
+            <span className="text-sm text-blue-600">83%</span>
+          </div>
+        </div>
+        <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full" style={{ width: '83%' }}></div>
+        </div>
+      </div>
+    </div>
+  );
+}
