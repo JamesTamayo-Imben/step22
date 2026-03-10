@@ -39,7 +39,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
     if (p.startsWith('/adviser/role-permissions')) return 'feedback-review';
     if (p.startsWith('/adviser/ratings')) return 'ratings-analytics';
     if (p.startsWith('/adviser/system-logs')) return 'system-logs';
-    if (p.startsWith('/profile')) return 'profile';
+    if (p.startsWith('/adviser/profile')) return 'profile';
     if (p === '/adviser' || p.startsWith('/adviser')) return 'dashboard';
     return 'dashboard';
   }
@@ -125,7 +125,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                             'feedback-review': '/adviser/role-permissions',
                             'ratings-analytics': '/adviser/ratings',
                             'system-logs': '/adviser/system-logs',
-                            profile: '/profile',
+                            profile: '/adviser/profile',
                           };
                           const url = map[item.id] || '/adviser';
                           Inertia.visit(url);
@@ -196,7 +196,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                         'feedback-review': '/adviser/role-permissions',
                         'ratings-analytics': '/adviser/ratings',
                         'system-logs': '/adviser/system-logs',
-                        profile: '/profile',
+                        profile: '/adviser/profile',  
                       };
                       const url = map[item.id] || '/adviser';
                       Inertia.visit(url);
