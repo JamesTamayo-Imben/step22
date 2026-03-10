@@ -1,11 +1,18 @@
+import React from 'react';
+import { Card } from '@/Components/ui/card';
 import { StudentDashboardHome } from './pages/StudentDashboardHome';
-import { StudentProjectsPage } from './pages/StudentProjectsPage';
-import { StudentMeetingsPage } from './pages/StudentMeetingsPage';
-import { StudentPointsPage } from './pages/StudentPointsPage';
-import { StudentBadgesPage } from './pages/StudentBadgesPage';
-import { StudentLeaderboardPage } from './pages/StudentLeaderboardPage';
-import { StudentNotificationsPage } from './pages/StudentNotificationsPage';
-import { StudentProfilePage } from './pages/StudentProfilePage';
+
+function Placeholder({ title }) {
+  return <Card className="p-8 rounded-[20px] border-0 shadow-sm bg-white">{title} (placeholder)</Card>;
+}
+
+function StudentProjectsPage() { return <Placeholder title="Projects" />; }
+function StudentMeetingsPage() { return <Placeholder title="Meetings" />; }
+function StudentPointsPage() { return <Placeholder title="Points" />; }
+function StudentBadgesPage() { return <Placeholder title="Badges" />; }
+function StudentLeaderboardPage() { return <Placeholder title="Leaderboard" />; }
+function StudentNotificationsPage() { return <Placeholder title="Notifications" />; }
+function StudentProfilePage() { return <Placeholder title="Profile" />; }
 
 export function StudentDashboard({ currentView, onNavigate }) {
   switch (currentView) {

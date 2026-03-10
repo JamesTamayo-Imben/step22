@@ -23,6 +23,51 @@ Route::get('/sadmin', function () {
     return Inertia::render('SAdmin/Dashboard');
 })->name('sadmin.dashboard');
 
+// Superadmin sub-pages
+Route::get('/sadmin/users', function () {
+    return Inertia::render('SAdmin/UserManagement');
+})->name('sadmin.users');
+
+Route::get('/sadmin/roles', function () {
+    return Inertia::render('SAdmin/RolesPermissions');
+})->name('sadmin.roles');
+
+Route::get('/sadmin/data-backup', function () {
+    return Inertia::render('SAdmin/DataBackup');
+})->name('sadmin.data-backup');
+
+Route::get('/sadmin/organizations', function () {
+    return Inertia::render('SAdmin/Organizations');
+})->name('sadmin.organizations');
+
+Route::get('/sadmin/settings', function () {
+    return Inertia::render('SAdmin/SystemSettings');
+})->name('sadmin.settings');
+
+Route::get('/sadmin/audit-logs', function () {
+    return Inertia::render('SAdmin/AuditLogs');
+})->name('sadmin.audit-logs');
+
+Route::get('/sadmin/engagement-rules', function () {
+    return Inertia::render('SAdmin/EngagementRules');
+})->name('sadmin.engagement-rules');
+
+Route::get('/sadmin/master-data', function () {
+    return Inertia::render('SAdmin/MasterData');
+})->name('sadmin.master-data');
+
+Route::get('/sadmin/global-reports', function () {
+    return Inertia::render('SAdmin/GlobalReports');
+})->name('sadmin.global-reports');
+
+Route::get('/sadmin/notifications', function () {
+    return Inertia::render('SAdmin/Notifications');
+})->name('sadmin.notifications');
+
+Route::get('/sadmin/profile', function () {
+    return Inertia::render('SAdmin/Profile');
+})->name('sadmin.profile');
+
 Route::get('/adviser', function () {
     return Inertia::render('Adviser/Dashboard');
 })->name('adviser.dashboard');
@@ -35,9 +80,22 @@ Route::get('/adviser/ledger', function () {
     return Inertia::render('Adviser/Ledger');
 })->name('adviser.ledger');
 
-Route::get('/adviser/permission', function () {
+Route::get('/adviser/role-permissions', function () {
     return Inertia::render('Adviser/Permission');
-})->name('adviser.permission');
+})->name('adviser.role-permissions');
+
+    Route::get('/adviser/ratings', function () {
+        return Inertia::render('Adviser/Ratings');
+    })->name('adviser.ratings');
+
+// system-logs
+Route::get('/adviser/system-logs', function () {
+    return Inertia::render('Adviser/SystemLog');
+})->name('adviser.system-logs');
+
+Route::get('/adviser/profile', function () {
+    return Inertia::render('Adviser/Profile');
+})->name('adviser.profile');
 
 Route::get('/csg', function () {
     return Inertia::render('CSG/Dashboard');
