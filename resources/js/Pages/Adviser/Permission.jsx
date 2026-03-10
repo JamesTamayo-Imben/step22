@@ -150,21 +150,21 @@ export function RolePermissionsPage() {
   const [selectedUser, setSelectedUser] = useState(null);
 
   const mockUsers = [
-    { id: '1', name: 'Maria Santos', email: 'maria.santos@kld.edu', studentId: '2021-00123', avatar: 'MS', currentRole: 'Student' },
-    { id: '2', name: 'Carlos De Leon', email: 'carlos.delon@kld.edu', studentId: '2021-00456', avatar: 'CD', currentRole: 'CSG Officer' },
-    { id: '3', name: 'Ana Martinez', email: 'ana.martinez@kld.edu', studentId: '2021-00789', avatar: 'AM', currentRole: 'Student' },
-    { id: '4', name: 'John Reyes', email: 'john.reyes@kld.edu', studentId: '2021-00234', avatar: 'JR', currentRole: 'CSG Officer' },
-    { id: '5', name: 'Sofia Garcia', email: 'sofia.garcia@kld.edu', studentId: '2021-00567', avatar: 'SG', currentRole: 'Student' },
-    { id: '6', name: 'Miguel Torres', email: 'miguel.torres@kld.edu', studentId: '2021-00890', avatar: 'MT', currentRole: 'Student' },
-    { id: '7', name: 'Isabel Cruz', email: 'isabel.cruz@kld.edu', studentId: '2021-00345', avatar: 'IC', currentRole: 'Student' },
-    { id: '8', name: 'Rafael Mendoza', email: 'rafael.mendoza@kld.edu', studentId: '2021-00678', avatar: 'RM', currentRole: 'Student' },
+    { id: '1', name: 'Maria Santos', email: 'maria.santos@kld.edu.ph', studentId: '2021-00123', avatar: 'MS', currentRole: 'Student' },
+    { id: '2', name: 'Carlos De Leon', email: 'carlos.delon@kld.edu.ph', studentId: '2021-00456', avatar: 'CD', currentRole: 'CSG Officer' },
+    { id: '3', name: 'Ana Martinez', email: 'ana.martinez@kld.edu.ph', studentId: '2021-00789', avatar: 'AM', currentRole: 'Student' },
+    { id: '4', name: 'John Reyes', email: 'john.reyes@kld.edu.ph', studentId: '2021-00234', avatar: 'JR', currentRole: 'CSG Officer' },
+    { id: '5', name: 'Sofia Garcia', email: 'sofia.garcia@kld.edu.ph', studentId: '2021-00567', avatar: 'SG', currentRole: 'Student' },
+    { id: '6', name: 'Miguel Torres', email: 'miguel.torres@kld.edu.ph', studentId: '2021-00890', avatar: 'MT', currentRole: 'Student' },
+    { id: '7', name: 'Isabel Cruz', email: 'isabel.cruz@kld.edu.ph', studentId: '2021-00345', avatar: 'IC', currentRole: 'Student' },
+    { id: '8', name: 'Rafael Mendoza', email: 'rafael.mendoza@kld.edu.ph', studentId: '2021-00678', avatar: 'RM', currentRole: 'Student' },
   ];
 
   const [councilOfficers, setCouncilOfficers] = useState([
-    { position: 'president', name: 'John Reyes', userId: '4', email: 'john.reyes@kld.edu' },
-    { position: 'vp-internal', name: 'Maria Santos', userId: '1', email: 'maria.santos@kld.edu' },
-    { position: 'treasurer', name: 'Carlos De Leon', userId: '2', email: 'carlos.delon@kld.edu' },
-    { position: 'secretary', name: 'Ana Martinez', userId: '3', email: 'ana.martinez@kld.edu' },
+    { position: 'president', name: 'John Reyes', userId: '4', email: 'john.reyes@kld.edu.ph' },
+    { position: 'vp-internal', name: 'Maria Santos', userId: '1', email: 'maria.santos@kld.edu.ph' },
+    { position: 'treasurer', name: 'Carlos De Leon', userId: '2', email: 'carlos.delon@kld.edu.ph' },
+    { position: 'secretary', name: 'Ana Martinez', userId: '3', email: 'ana.martinez@kld.edu.ph' },
     { position: 'auditor', name: '', userId: '', email: '' },
   ]);
 
@@ -561,7 +561,7 @@ export function RolePermissionsPage() {
             <h1 className="text-2xl font-semibold text-gray-900">Roles & Permissions</h1>
             <p className="text-gray-500">Configure role-based access control</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <Button onClick={handleReset} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
             <RotateCcw className="w-4 h-4 mr-2" />
             Reset to Default
@@ -924,7 +924,7 @@ export default function AdviserPermissionPage() {
   return (
     <AuthenticatedLayout>
       <Head title="Role Permissions" />
-      <div className="py-8">
+      <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           <RolePermissionsPage />
         </div>

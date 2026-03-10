@@ -18,6 +18,10 @@ import {
   XCircle,
   Upload,
   Lock,
+  Users,
+  Shield,
+  Database,
+  Activity,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -82,7 +86,7 @@ function Textarea({ className = '', rows = 4, ...props }) {
     <textarea
       rows={rows}
       className={[
-        'w-full px-3 py-2 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300',
+        'w-full px-3 py-2 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300',
         className,
       ].join(' ')}
       {...props}
@@ -90,7 +94,7 @@ function Textarea({ className = '', rows = 4, ...props }) {
   );
 }
 
-function AdminProfilePageInner() {
+function SAdminProfilePageInner() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [showChangePhotoModal, setShowChangePhotoModal] = useState(false);
@@ -98,13 +102,13 @@ function AdminProfilePageInner() {
   const fileInputRef = useRef(null);
 
   const [profile, setProfile] = useState({
-    name: 'Admin User',
-    position: 'Admin & Adviser',
-    email: 'admin@kld.edu.ph',
+    name: 'Super Admin',
+    position: 'Super Administrator',
+    email: 'superadmin@kld.edu.ph',
     phone: '+63 912 345 6789',
-    bio: 'Dedicated adviser committed to transparency and excellence in student governance. Overseeing approval processes and ensuring compliance with university policies.',
+    bio: 'System administrator overseeing the entire STEP platform. Responsible for user management, system configuration, and ensuring optimal platform performance and security.',
     joinedDate: 'January 2026',
-    department: 'Student Affairs Office',
+    department: 'System Administration',
     location: 'Kolehiyo ng Lungsod ng Dasmariñas',
     photo: null,
   });
@@ -117,17 +121,17 @@ function AdminProfilePageInner() {
   });
 
   const activityStats = {
-    projectsApproved: 24,
-    ledgerApproved: 58,
-    proofsValidated: 42,
-    meetingsReviewed: 15,
+    usersManaged: 156,
+    rolesCreated: 24,
+    systemLogs: 1250,
+    auditTrails: 892,
   };
 
-  const recentApprovals = [
-    { id: 1, type: 'Project', title: 'Mental Health Awareness Week', status: 'Approved', date: '2024-11-20' },
-    { id: 2, type: 'Ledger', title: 'Transportation Expenses - TXN-2024-003', status: 'Approved', date: '2024-11-20' },
-    { id: 3, type: 'Proof', title: 'Transport Invoice - PROOF-002', status: 'Approved', date: '2024-11-20' },
-    { id: 4, type: 'Project', title: 'Gaming Tournament', status: 'Rejected', date: '2024-11-18' },
+  const recentActivities = [
+    { id: 1, type: 'User', action: 'Created new user account', target: 'adviser@kld.edu.ph', date: '2024-11-20', status: 'Success' },
+    { id: 2, type: 'Role', action: 'Updated user permissions', target: 'Adviser Role', date: '2024-11-20', status: 'Success' },
+    { id: 3, type: 'System', action: 'System backup completed', target: 'Full Database Backup', date: '2024-11-20', status: 'Success' },
+    { id: 4, type: 'Security', action: 'Password policy updated', target: 'System Settings', date: '2024-11-18', status: 'Success' },
   ];
 
   const handleEditProfile = () => {
@@ -189,9 +193,9 @@ function AdminProfilePageInner() {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'Approved':
+      case 'Success':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'Rejected':
+      case 'Failed':
         return <XCircle className="w-4 h-4 text-red-600" />;
       case 'Pending':
         return <Clock className="w-4 h-4 text-yellow-600" />;
@@ -202,9 +206,9 @@ function AdminProfilePageInner() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Approved':
+      case 'Success':
         return 'bg-green-100 text-green-700';
-      case 'Rejected':
+      case 'Failed':
         return 'bg-red-100 text-red-700';
       case 'Pending':
         return 'bg-yellow-100 text-yellow-700';
@@ -293,63 +297,63 @@ function AdminProfilePageInner() {
       </Card>
 
       <Card className="rounded-[20px] border-0 shadow-sm p-6">
-        <h2 className="text-gray-900 text-lg font-semibold mb-6">Approval Activity</h2>
+        <h2 className="text-gray-900 text-lg font-semibold mb-6">System Activity</h2>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 rounded-xl p-4">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mb-3">
-              <CheckCircle className="w-5 h-5 text-white" />
-            </div>
-            <p className="text-2xl text-gray-900 mb-1">{activityStats.projectsApproved}</p>
-            <p className="text-sm text-gray-600">Projects Approved</p>
-          </div>
-
-          <div className="bg-green-50 rounded-xl p-4">
-            <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center mb-3">
-              <CheckCircle className="w-5 h-5 text-white" />
-            </div>
-            <p className="text-2xl text-gray-900 mb-1">{activityStats.ledgerApproved}</p>
-            <p className="text-sm text-gray-600">Ledger Approved</p>
-          </div>
-
           <div className="bg-purple-50 rounded-xl p-4">
             <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center mb-3">
-              <CheckCircle className="w-5 h-5 text-white" />
+              <Users className="w-5 h-5 text-white" />
             </div>
-            <p className="text-2xl text-gray-900 mb-1">{activityStats.proofsValidated}</p>
-            <p className="text-sm text-gray-600">Proofs Validated</p>
+            <p className="text-2xl text-gray-900 mb-1">{activityStats.usersManaged}</p>
+            <p className="text-sm text-gray-600">Users Managed</p>
           </div>
 
-          <div className="bg-orange-50 rounded-xl p-4">
-            <div className="w-10 h-10 bg-orange-600 rounded-lg flex items-center justify-center mb-3">
-              <CheckCircle className="w-5 h-5 text-white" />
+          <div className="bg-blue-50 rounded-xl p-4">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mb-3">
+              <Shield className="w-5 h-5 text-white" />
             </div>
-            <p className="text-2xl text-gray-900 mb-1">{activityStats.meetingsReviewed}</p>
-            <p className="text-sm text-gray-600">Meetings Reviewed</p>
+            <p className="text-2xl text-gray-900 mb-1">{activityStats.rolesCreated}</p>
+            <p className="text-sm text-gray-600">Roles Created</p>
+          </div>
+
+          <div className="bg-indigo-50 rounded-xl p-4">
+            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center mb-3">
+              <Activity className="w-5 h-5 text-white" />
+            </div>
+            <p className="text-2xl text-gray-900 mb-1">{activityStats.systemLogs}</p>
+            <p className="text-sm text-gray-600">System Logs</p>
+          </div>
+
+          <div className="bg-cyan-50 rounded-xl p-4">
+            <div className="w-10 h-10 bg-cyan-600 rounded-lg flex items-center justify-center mb-3">
+              <Database className="w-5 h-5 text-white" />
+            </div>
+            <p className="text-2xl text-gray-900 mb-1">{activityStats.auditTrails}</p>
+            <p className="text-sm text-gray-600">Audit Trails</p>
           </div>
         </div>
       </Card>
 
       <Card className="rounded-[20px] border-0 shadow-sm p-6">
-        <h2 className="text-gray-900 text-lg font-semibold mb-6">Recent Approvals</h2>
+        <h2 className="text-gray-900 text-lg font-semibold mb-6">Recent Activities</h2>
 
         <div className="space-y-3">
-          {recentApprovals.map((approval) => (
+          {recentActivities.map((activity) => (
             <div
-              key={approval.id}
+              key={activity.id}
               className="p-4 bg-gray-50 rounded-xl flex items-center justify-between hover:bg-gray-100 transition-all"
             >
               <div className="flex items-center gap-3 flex-1">
-                {getStatusIcon(approval.status)}
-                <div>
-                  <p className="text-sm text-gray-900">{approval.title}</p>
+                {getStatusIcon(activity.status)}
+                <div className="flex-1">
+                  <p className="text-sm text-gray-900">{activity.action}</p>
                   <p className="text-xs text-gray-500">
-                    {approval.type} • {approval.date}
+                    {activity.type} • {activity.target} • {activity.date}
                   </p>
                 </div>
               </div>
-              <div className={`px-3 py-1 rounded-lg text-xs ${getStatusColor(approval.status)}`}>
-                {approval.status}
+              <div className={`px-3 py-1 rounded-lg text-xs ${getStatusColor(activity.status)}`}>
+                {activity.status}
               </div>
             </div>
           ))}
@@ -442,30 +446,28 @@ function AdminProfilePageInner() {
             <FieldLabel>Current Password</FieldLabel>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="password"
-              placeholder="Minimum 8 characters"
-              value={passwordForm.currentPassword}
-              onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-              className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-            />
+              <input
+                type="password"
+                placeholder="Minimum 8 characters"
+                value={passwordForm.currentPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+              />
             </div>
-            
           </div>
 
           <div>
             <FieldLabel>New Password</FieldLabel>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={passwordForm.newPassword}
-              onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-              className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-            />
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+              />
             </div>
-            
             <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters</p>
           </div>
 
@@ -473,15 +475,14 @@ function AdminProfilePageInner() {
             <FieldLabel>Confirm New Password</FieldLabel>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={passwordForm.confirmPassword}
-              onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-              className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-            />
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+              />
             </div>
-            
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -564,13 +565,13 @@ function AdminProfilePageInner() {
   );
 }
 
-export default function AdviserProfilePage(props) {
+export default function SAdminProfilePage(props) {
   return (
     <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Profile</h2>}>
-      <Head title="Adviser Profile" />
+      <Head title="Super Admin Profile" />
       <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <AdminProfilePageInner {...props} />
+          <SAdminProfilePageInner {...props} />
         </div>
       </div>
     </AuthenticatedLayout>

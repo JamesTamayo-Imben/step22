@@ -519,7 +519,7 @@ export default function AdviserSystemLogsPage() {
   return (
     <AuthenticatedLayout>
       <Head title="System Logs" />
-      <div className="py-8">
+      <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           <SystemLogsPage />
         </div>

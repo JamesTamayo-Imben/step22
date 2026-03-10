@@ -210,7 +210,7 @@ export default function AdviserApprovalsPage() {
     <AuthenticatedLayout>
       <Head title="Approvals" />
 
-      <div className="py-8">
+      <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
