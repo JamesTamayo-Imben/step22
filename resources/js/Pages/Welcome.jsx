@@ -1,10 +1,70 @@
-import { ArrowRight, Shield, FileCheck, Users, CheckCircle, Sparkles } from 'lucide-react';
+import { ArrowRight, Shield, FileCheck, Users, CheckCircle, Sparkles, Play } from 'lucide-react';
 import { Link } from '@inertiajs/react';
+import { useRef, useState } from 'react';
+
+const animationStyles = `
+  @keyframes moveGradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .animated-gradient {
+    background: linear-gradient(-45deg, #2563EA, #1e3a8a, #3b82f6, #1e40af);
+    background-size: 400% 400%;
+    animation: moveGradient 8s ease infinite;
+  }
+
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  .fade-out {
+    animation: fadeOut 0.5s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .fade-in {
+    animation: fadeIn 0.5s ease-in forwards;
+  }
+`;
 
 export default function Welcome() {
+  const howItWorksRef = useRef(null);
+  const videoRef = useRef(null);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+
+  const scrollToHowItWorks = () => {
+    howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const playVideo = () => {
+    setIsVideoPlaying(true);
+    // Video will autoplay once isVideoPlaying state changes
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
+      <style>{animationStyles}</style>
       {/* Navigation Bar */}
       <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-gray-200 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
@@ -39,7 +99,7 @@ export default function Welcome() {
                 Login
               </Link>
               <Link
-                href={route('register')}
+                href="/register"
                 className="bg-[#2563EB] hover:bg-blue-700 text-white px-4 py-2 rounded-xl"
                 style={{background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)"}}
               >
@@ -95,19 +155,19 @@ export default function Welcome() {
           </div> */}
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href={route('register')}
+            <button
+              onClick={scrollToHowItWorks}
               className="bg-[#2563EB] hover:bg-blue-700 text-white px-6 py-3 text-base rounded-xl flex items-center justify-center gap-2"
               style={{background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)"}}
             >
               Get Started <ArrowRight className="w-5 h-5" />
-            </Link>
-            <Link
+            </button>
+            {/* <Link
               href={route('login')}
               className="border-2 border-[#2563EB] text-[#2563EB] hover:bg-blue-50 px-6 py-3 text-base rounded-xl flex items-center justify-center gap-2"
             >
               Login to Your Account
-            </Link>
+            </Link> */}
           </div>
         </div>
       </section>
@@ -161,14 +221,16 @@ export default function Welcome() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      <section ref={howItWorksRef} className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl text-gray-900 mb-4">How It Works</h2>
             <p className="text-xl text-gray-600">Three simple steps to transparent governance</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 lg:mb-16 mb-12">
             {/* Step 1 */}
             <div className="text-center">
               <div className="relative mb-6">
@@ -213,6 +275,36 @@ export default function Welcome() {
               </p>
             </div>
           </div>
+
+          {/* Video Tutorial Section */}
+          
+
+          <div className="w-full flex  justify-center align-center">
+              <div className="rounded-[20px] overflow-hidden shadow-xl lg:w-[calc(100vw-300px)] w-full">
+            {!isVideoPlaying ? (
+              <div className="relative animated-gradient w-full aspect-video flex items-center justify-center cursor-pointer" onClick={playVideo}>
+                <div className="absolute inset-0 bg-black/20"></div>
+                <div className="relative z-10 text-center flex flex-col items-center">
+                  <button className="lg:w-20 lg:h-20 w-14 h-14 bg-white rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-lg">
+                    <Play className="lg:w-8 lg:h-8 w-5 h-5 text-blue-600 ml-1" />
+                  </button>
+                  <p className="text-white text-lg mt-4">Watch STEP Tutorial</p>
+                </div>
+              </div>
+            ) : (
+              <video
+                ref={videoRef}
+                src="/videos/tutorial.mp4"
+                controls
+                className="w-full h-full fade-in"
+                autoPlay
+              />
+            )}
+          </div>
+          </div>
+
+
+
         </div>
       </section>
 
@@ -275,7 +367,7 @@ export default function Welcome() {
             Join schools already using STEP for transparent, accountable, and engaging student councils.
           </p>
           <Link
-            href={route('register')}
+            href="/register"
             className="bg-white text-[#2563EB] hover:bg-gray-100 px-6 py-3 text-base rounded-xl flex items-center justify-center gap-2 mx-auto"
           >
             Create Your Account <ArrowRight className="w-5 h-5" />
