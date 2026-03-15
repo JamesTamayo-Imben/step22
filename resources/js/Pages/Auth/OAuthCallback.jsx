@@ -27,8 +27,8 @@ export default function OAuthCallback() {
             return;
           }
 
-          // Email is valid - now sync with Laravel backend
-          await syncUserWithBackend(user);
+          // Email is valid, redirect to dashboard
+          router.visit('/user');
         } else {
           throw new Error('No user session found after Google sign-in');
         }
@@ -45,62 +45,6 @@ export default function OAuthCallback() {
 
     handleCallback();
   }, [loading, user, validateGoogleEmailDomain, signOut]);
-
-  /**
-   * Sync user data with Laravel backend and Supabase
-   */
-  const syncUserWithBackend = async (supabaseUser) => {
-    try {
-      // Get CSRF token from meta tag
-      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-
-      if (!csrfToken) {
-        throw new Error('CSRF token not found. Please refresh the page.');
-      }
-
-      // Prepare user data for backend
-      const userData = {
-        email: supabaseUser.email,
-        name: supabaseUser.user_metadata?.full_name || supabaseUser.email.split('@')[0],
-        provider: 'google',
-        provider_id: supabaseUser.id,
-        avatar_url: supabaseUser.user_metadata?.avatar_url || null,
-      };
-
-      // Send to Laravel backend to sync with database and Supabase
-      const response = await fetch('/oauth/store', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
-        },
-        body: JSON.stringify(userData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to sync user data');
-      }
-
-      if (data.success) {
-        // Redirect to the appropriate page
-        if (data.redirect) {
-          // Add a small delay to ensure session is set
-          setTimeout(() => {
-            window.location.href = data.redirect;
-          }, 500);
-        } else {
-          router.visit('/dashboard');
-        }
-      } else {
-        throw new Error(data.message || 'Failed to process authentication');
-      }
-    } catch (err) {
-      console.error('Backend sync error:', err);
-      throw err;
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 relative overflow-hidden">

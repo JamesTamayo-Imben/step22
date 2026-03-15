@@ -9,6 +9,7 @@ import { Card } from '@/Components/ui/card';
 // import { FolderKanban, Calendar, DollarSign, Star, Users, Plus } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
+<<<<<<< HEAD
 // import CSGProjectsPage from '/Projects';
 import { 
   FolderKanban,
@@ -37,6 +38,11 @@ import {
   AlertCircle,
   Lock,
 } from 'lucide-react';
+=======
+import React from 'react';
+import ProjectsPage from './Projects';
+import LedgerPage from './ledger';
+>>>>>>> 2fdd804 (sobrang dami bago)
 
 // Small inline Badge component (keeps this file self-contained)
 function Badge({ children, variant = 'secondary', className = '' }) {
@@ -52,6 +58,7 @@ function Badge({ children, variant = 'secondary', className = '' }) {
   );
 }
 
+<<<<<<< HEAD
 function showToast(message, type = 'success') {
   const id = `simple-toast-${Date.now()}`;
   const el = document.createElement('div');
@@ -160,6 +167,15 @@ function CSGMeetingsPage() { return <Card className="p-8">Meetings (placeholder)
 function CSGRatingsPage() { return <Card className="p-8">Ratings (placeholder)</Card>; }
 function CSGPerformancePage() { return <Card className="p-8">Performance (placeholder)</Card>; }
 function CSGProfilePage() { return <Card className="p-8">Profile (placeholder)</Card>; }
+=======
+// Placeholder sub-pages (project can replace with full implementations)
+// function LedgerPage() { return <Card className="p-8">Ledger (placeholder)</Card>; }
+function ProofPage() { return <Card className="p-8">Proof Documents (placeholder)</Card>; }
+function MeetingsPage() { return <Card className="p-8">Meetings (placeholder)</Card>; }
+function RatingsPage() { return <Card className="p-8">Ratings (placeholder)</Card>; }
+function PerformancePage() { return <Card className="p-8">Performance Panel (placeholder)</Card>; }
+function ProfilePage() { return <Card className="p-8">Profile (placeholder)</Card>; }
+>>>>>>> 2fdd804 (sobrang dami bago)
 
 export function CSGOfficerDashboard({ currentView, onNavigate }) {
  const [showCreateModal, setShowCreateModal] = useState(false);

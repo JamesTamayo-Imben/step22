@@ -1,0 +1,270 @@
+# Quick Reference - Users & Roles
+
+## Current Database Status
+
+### ✅ Roles (4 total)
+```sql
+SELECT * FROM roles;
+
+ID | Name         | Slug          | Description
+1  | Student      | student       | Regular student user
+2  | Adviser      | adviser       | Faculty adviser or counselor
+3  | CSG Officer  | csg_officer   | CSG Leadership Officer
+4  | Superadmin   | superadmin    | System administrator
+```
+
+### ✅ Users (2 total)
+```sql
+SELECT id, name, email, department, year_level, role_id FROM users;
+
+ID | Name      | Email                  | Department        | Year Level | Role ID
+1  | Test User | test@example.com       | NULL               | NULL       | NULL
+2  | ako jim   | jimj8731@gmail.com     | Computer Science   | Junior     | 1 (Student)
+```
+
+---
+
+## Adding More Users from Supabase
+
+### Method 1: Direct SQL Insert
+```sql
+INSERT INTO users (name, email, password, department, year_level, role_id, provider, provider_id, avatar_url, is_active, created_at, updated_at)
+VALUES (
+  'User Name',
+  'user@example.com',
+  '$2y$12$...hashed_password...',
+  'Computer Science',
+  'Junior',
+  1,  -- role_id for Student
+  'google',
+  'google_uid_from_supabase',
+  'https://...',
+  1,
+  NOW(),
+  NOW()
+);
+```
+
+### Method 2: Using Seeder
+Edit `database/seeders/CreateSupabaseUsersSeeder.php`:
+
+```php
+User::firstOrCreate(
+    ['email' => 'new_user@example.com'],
+    [
+        'name' => 'New User Name',
+        'password' => Hash::make('password123'),
+        'provider' => 'google',
+        'provider_id' => 'google_uid',
+        'avatar_url' => 'https://...',
+        'department' => 'Computer Science',
+        'year_level' => 'Junior',
+        'role_id' => Role::where('slug', 'student')->first()?->id,
+        'is_active' => true,
+    ]
+);
+```
+
+Then run:
+```bash
+php artisan db:seed --class=CreateSupabaseUsersSeeder
+```
+
+### Method 3: In Laravel Code
+```php
+use App\Models\User;
+use App\Models\Role;
+
+$user = User::create([
+    'name' => 'User Name',
+    'email' => 'user@example.com',
+    'password' => Hash::make('password'),
+    'provider' => 'google',
+    'provider_id' => 'google_uid',
+    'avatar_url' => 'https://...',
+    'department' => 'Computer Science',
+    'year_level' => 'Junior',
+    'role_id' => Role::where('slug', 'student')->first()->id,
+    'is_active' => true,
+]);
+```
+
+---
+
+## Role IDs Reference
+
+Use these in your queries:
+
+```php
+// Get role ID by slug
+Role::where('slug', 'student')->first()->id;        // 1
+Role::where('slug', 'adviser')->first()->id;        // 2
+Role::where('slug', 'csg_officer')->first()->id;    // 3
+Role::where('slug', 'superadmin')->first()->id;     // 4
+
+// Or use the model directly
+$studentRole = Role::where('slug', 'student')->first();
+$user->update(['role_id' => $studentRole->id]);
+```
+
+---
+
+## Common Queries
+
+### Get All Students
+```php
+$students = User::where('role_id', 1)->get();
+// or
+$students = User::whereHas('role', fn($q) => $q->where('slug', 'student'))->get();
+```
+
+### Get User's Role Name
+```php
+$user = User::find(2);
+$user->role->name;  // "Student"
+$user->role->slug;  // "student"
+```
+
+### Check User's Role
+```php
+$user = User::find(2);
+$user->hasRole('student');              // true
+$user->hasRole('adviser');              // false
+$user->hasAnyRole(['adviser', 'admin']); // false
+```
+
+### Change User's Role
+```php
+$user = User::find(2);
+$user->update(['role_id' => 2]); // Change to Adviser
+```
+
+### Count Users by Role
+```sql
+SELECT roles.name, COUNT(users.id) as count
+FROM roles
+LEFT JOIN users ON roles.id = users.role_id
+GROUP BY roles.id, roles.name;
+```
+
+---
+
+## Getting Supabase User Info
+
+From your Supabase user (ako jim):
+- **Email**: jimj8731@gmail.com
+- **UID**: 724671fb-4142-40bf-a430-cc0530888f8
+- **Display Name**: ako jim
+- **Created At**: 15 Mar, 2026 22:02
+
+**Already in Database**: ✅ Yes (ID: 2)
+
+---
+
+## Linking Supabase Users to Database
+
+When user logs in with Google OAuth:
+
+```php
+// In OAuth callback controller
+$googleUser = Socialite::driver('google')->user();
+
+$user = User::firstOrCreate(
+    ['email' => $googleUser->email],
+    [
+        'name' => $googleUser->name,
+        'provider' => 'google',
+        'provider_id' => $googleUser->id,
+        'avatar_url' => $googleUser->avatar,
+        'role_id' => Role::where('slug', 'student')->first()->id,
+    ]
+);
+
+Auth::login($user);
+```
+
+---
+
+## Files to Update for New Users
+
+1. **Seeder**: `database/seeders/CreateSupabaseUsersSeeder.php`
+2. **Migration**: Create new migration if schema changes
+3. **Model**: `app/Models/User.php` (already configured)
+
+---
+
+## Troubleshooting
+
+### User creation failed
+- Check email is unique
+- Check role_id exists in roles table
+- Verify password is hashed
+
+### Role not found
+```php
+// Check roles exist
+Role::all();
+
+// Seed roles if missing
+php artisan db:seed --class=RoleSeeder
+```
+
+### User can't login
+- Check `is_active` is true
+- Check `email` matches Supabase email
+- Check password is hashed with Hash::make()
+
+---
+
+## Quick Commands
+
+```bash
+# View all users and roles
+php artisan tinker
+>>> User::with('role')->get();
+>>> Role::all();
+
+# Seed users
+php artisan db:seed --class=CreateSupabaseUsersSeeder
+
+# Check database
+mysql -u root step_database
+> SELECT * FROM users;
+> SELECT * FROM roles;
+
+# Fresh start
+php artisan migrate:fresh --seed
+```
+
+---
+
+## Schema
+
+```
+users table:
+- id (PK)
+- name
+- email (UNIQUE)
+- password (nullable)
+- department (nullable)
+- year_level (nullable)
+- bio (nullable)
+- role_id (FK → roles.id)  ← Direct foreign key
+- provider (nullable)
+- provider_id (nullable, UNIQUE)
+- avatar_url (nullable)
+- last_login_at (nullable)
+- is_active (boolean)
+- created_at, updated_at
+
+roles table:
+- id (PK)
+- name (UNIQUE)
+- slug (UNIQUE)
+- description (nullable)
+- created_at, updated_at
+```
+
+---
+
+**Need more help?** Check `DATABASE_SETUP_COMPLETE.md`

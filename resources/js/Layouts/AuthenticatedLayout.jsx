@@ -7,7 +7,11 @@ import { useState, useEffect } from 'react';
 import AdminAdviserSidebar from '@/Components/AdminAdviserSidebar';
 import SuperadminSidebar from '@/Components/SuperadminSidebar';
 import PageTransition from '@/Components/PageTransition';
+<<<<<<< HEAD
 import CSGOfficerSidebar from '@/Components/CSGOfficerSidebar';
+=======
+import CSGTRY from '@/Components/CSGAdminAdviserSidebar copy';
+>>>>>>> 2fdd804 (sobrang dami bago)
 
 export default function AuthenticatedLayout({ header, children, ...props }) {
     const inertia = usePage();
@@ -51,10 +55,14 @@ export default function AuthenticatedLayout({ header, children, ...props }) {
                 <SuperadminSidebar />
             )}
 
+<<<<<<< HEAD
             {/* Render sidebar for csg routes */}
             {(typeof window !== 'undefined' && window.location.pathname.startsWith('/csg')) && (
                 <CSGOfficerSidebar />
             )}
+=======
+            
+>>>>>>> 2fdd804 (sobrang dami bago)
 
             <div className={(typeof window !== 'undefined' && (window.location.pathname.startsWith('/adviser') || window.location.pathname.startsWith('/sadmin') || window.location.pathname.startsWith('/csg'))) ? 'lg:ml-64' : ''}>
                 <main className="pt-14 lg:pt-0">

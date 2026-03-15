@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Link } from '@inertiajs/react';
 import { User, Lock, Eye, EyeOff } from "lucide-react";
+import { useSupabase } from "../../context/SupabaseContext";
 
 export default function LoginPage({ onLogin, onNavigateToRegister }) {
+  const { signIn, signInWithGoogle, validateGoogleEmailDomain, user } = useSupabase();
+  
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -15,53 +18,68 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
     setError("");
     setIsLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const uname = username.trim();
+      if (!uname) {
+        throw new Error("Please enter your email");
+      }
 
-    const uname = username.trim();
-    if (!uname) {
-      setError("Please enter a username");
+      // Validate email domain
+      if (!uname.endsWith("@kld.edu.ph")) {
+        throw new Error("Email must be a valid KLD school email (@kld.edu.ph)");
+      }
+
+      if (!password) {
+        throw new Error("Please enter your password");
+      }
+
+      // Sign in with Supabase (using email as username)
+      const result = await signIn(uname, password);
+
+      // Store remember me preference
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+        localStorage.setItem('rememberedEmail', uname);
+      }
+
+      // Call onLogin callback if provided
+      if (onLogin) {
+        // Determine role from metadata or default to 'user'
+        const role = result.user?.user_metadata?.role || 'user';
+        onLogin(role, uname);
+      } else {
+        // Fallback: navigate to dashboard
+        window.location.href = "/user";
+      }
+    } catch (err) {
+      setError(err.message || "Login failed. Please check your credentials.");
+      console.error("Login error:", err);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    // Accept any password but only specific usernames map to roles
-    const key = uname.toLowerCase();
-    const allowed = {
-      sadmin: "SAdmin",
-      adviser: "Adviser",
-      csg: "CSG",
-      user: "user",
-    };
-
-    if (!Object.keys(allowed).includes(key)) {
-      setError("Invalid username. Use SAdmin, Adviser, CSG, or user.");
-      setIsLoading(false);
-      return;
-    }
-
-    const role = allowed[key];
-
-    // If parent provided a handler, call it with (role, username)
-    if (onLogin) {
-      onLogin(role, username);
-      return;
-    }
-
-    // Otherwise navigate to role-specific path
-    // paths: /sadmin, /adviser, /csg, /user
-    window.location.href = `/${key}`;
   };
 
-  const handleGoogleLogin = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      // treat Google login as a regular user in this demo
-      if (onLogin) {
-        onLogin("user", "google");
-        return;
+  const handleGoogleLogin = async () => {
+    try {
+      setError("");
+      setIsLoading(true);
+      
+      // Initiate Google OAuth sign-in with Supabase
+      // This will redirect to Google login page
+      const { error } = await signInWithGoogle();
+      
+      if (error) {
+        throw error;
       }
-      window.location.href = "/user";
-    }, 1200);
+      
+      // Note: Execution stops here and redirects to Google
+      // User will be redirected back to /auth/callback after Google login
+      // Do NOT add code after signInWithGoogle() - it won't execute!
+    } catch (err) {
+      setError(err.message || "Google login failed. Please try again.");
+      console.error("Google login error:", err);
+      setIsLoading(false);
+    }
   };
 
   const goToRegister = () => {
@@ -173,13 +191,13 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
 
             <div>
               <label className="block text-sm text-gray-600 mb-1">
-                Username
+                Email Address
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
-                  placeholder="Enter your username"
-                  type="text"
+                  placeholder="your.name@kld.edu.ph"
+                  type="email"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"

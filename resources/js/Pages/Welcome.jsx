@@ -1,4 +1,5 @@
 import { ArrowRight, Shield, FileCheck, Users, CheckCircle, Sparkles, Play } from 'lucide-react';
+import { Link } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 
 const animationStyles = `
@@ -91,19 +92,19 @@ export default function Welcome() {
             </div>
           </div>
             <div className="flex items-center gap-3">
-              <a
-                href="/login"
+              <Link
+                href={route('login')}
                 className="text-gray-700 hover:text-[#2563EB] hover:bg-blue-50 px-4 py-2 rounded-xl"
               >
                 Login
-              </a>
-              <a
-                href="/register"
+              </Link>
+              <Link
+                href={route('register')}
                 className="bg-[#2563EB] hover:bg-blue-700 text-white px-4 py-2 rounded-xl"
                 style={{background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)"}}
               >
                 Register
-              </a>
+              </Link>
             </div>
         </div>
       </nav>
@@ -365,12 +366,12 @@ export default function Welcome() {
           <p className="text-xl text-blue-100 mb-10">
             Join schools already using STEP for transparent, accountable, and engaging student councils.
           </p>
-          <a
-            href="/register"
-            className="bg-white text-[#2563EB] hover:bg-gray-100 px-6 py-3 text-base rounded-xl flex items-center justify-center gap-2 mx-auto w-fit"
+          <Link
+            href={route('register')}
+            className="bg-white text-[#2563EB] hover:bg-gray-100 px-6 py-3 text-base rounded-xl flex items-center justify-center gap-2 mx-auto"
           >
             Create Your Account <ArrowRight className="w-5 h-5" />
-          </a>
+          </Link>
 
         </div>
       </section>

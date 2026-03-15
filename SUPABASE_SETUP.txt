@@ -1,0 +1,291 @@
+# Supabase Integration Guide
+
+This document guides you through setting up Supabase authentication and file storage for the STEP platform.
+
+## Prerequisites
+
+- Node.js and npm installed
+- Supabase account (https://app.supabase.com)
+
+## 1. Create a Supabase Project
+
+1. Go to https://app.supabase.com
+2. Click "New project"
+3. Enter project details:
+   - **Name**: STEP (or your project name)
+   - **Database Password**: Create a strong password
+   - **Region**: Choose closest to your location
+4. Click "Create new project" and wait for setup (2-3 minutes)
+
+## 2. Get Your API Keys
+
+1. Once project is created, go to **Settings → API**
+2. Copy the following values:
+   - **Project URL** (e.g., `https://your-project.supabase.co`)
+   - **Anon public key** (under "Project API keys")
+
+## 3. Configure Environment Variables
+
+1. Open `.env` file in your project root
+2. Add/update these lines:
+   ```bash
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-anon-key-here
+   ```
+3. Save the file
+
+## 4. Enable Email Authentication (Optional)
+
+1. In Supabase dashboard, go to **Authentication → Providers**
+2. Email provider should be enabled by default
+3. Go to **Authentication → Email Templates** to customize confirmation emails (optional)
+
+## 5. Set Up File Storage Buckets
+
+For file uploads (profile pictures, documents, etc.):
+
+1. Go to **Storage** in the Supabase dashboard
+2. Create new buckets:
+
+   ### Bucket 1: `avatars` (Profile Pictures)
+   - Name: `avatars`
+   - Privacy: **Public** (so images can be viewed)
+   - Click "Create bucket"
+
+   ### Bucket 2: `documents` (Student Documents)
+   - Name: `documents`
+   - Privacy: **Public** (or **Private** if sensitive)
+   - Click "Create bucket"
+
+   ### Bucket 3: `videos` (Tutorial Videos)
+   - Name: `videos`
+   - Privacy: **Public**
+   - Click "Create bucket"
+
+## 6. Configure Storage Policies (Optional but Recommended)
+
+For better security, set up Row Level Security (RLS) on storage:
+
+1. In **Storage**, click the bucket (e.g., `avatars`)
+2. Click the **Policies** tab
+3. Add policies:
+   - Allow public read access
+   - Allow authenticated users to upload/update their own files
+
+Example policies (in SQL):
+```sql
+-- Allow public read access
+CREATE POLICY "Public read access" ON storage.objects
+FOR SELECT USING (bucket_id = 'avatars');
+
+-- Allow authenticated users to upload
+CREATE POLICY "Allow authenticated uploads" ON storage.objects
+FOR INSERT WITH CHECK (
+  bucket_id = 'avatars' AND
+  auth.role() = 'authenticated'
+);
+```
+
+## 7. Database Setup (Optional)
+
+If you want to sync Supabase users with your Laravel database:
+
+1. Create a table in Supabase for extended user data:
+
+   ```sql
+   CREATE TABLE profiles (
+     id UUID REFERENCES auth.users ON DELETE CASCADE,
+     first_name TEXT,
+     last_name TEXT,
+     institute TEXT,
+     avatar_url TEXT,
+     created_at TIMESTAMP DEFAULT NOW(),
+     updated_at TIMESTAMP DEFAULT NOW(),
+     PRIMARY KEY (id)
+   );
+
+   -- Enable RLS
+   ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+   -- Allow users to view their own profile
+   CREATE POLICY "Users can view their own profile"
+     ON profiles FOR SELECT
+     USING (auth.uid() = id);
+
+   -- Allow users to update their own profile
+   CREATE POLICY "Users can update their own profile"
+     ON profiles FOR UPDATE
+     USING (auth.uid() = id);
+   ```
+
+## 8. Using Supabase in Your App
+
+### Register a New User
+
+```javascript
+import { useSupabase } from '@/context/SupabaseContext';
+
+function MyComponent() {
+  const { signUp } = useSupabase();
+
+  const handleRegister = async () => {
+    try {
+      const result = await signUp('user@example.com', 'password123', {
+        firstName: 'John',
+        lastName: 'Doe',
+        institute: 'Institute Name'
+      });
+      console.log('User created:', result.user);
+    } catch (error) {
+      console.error('Registration failed:', error);
+    }
+  };
+
+  return <button onClick={handleRegister}>Register</button>;
+}
+```
+
+### Login
+
+```javascript
+const { signIn } = useSupabase();
+
+const handleLogin = async () => {
+  try {
+    const result = await signIn('user@example.com', 'password123');
+    console.log('Logged in:', result.user);
+  } catch (error) {
+    console.error('Login failed:', error);
+  }
+};
+```
+
+### Logout
+
+```javascript
+const { signOut } = useSupabase();
+
+const handleLogout = async () => {
+  try {
+    await signOut();
+    console.log('Logged out');
+  } catch (error) {
+    console.error('Logout failed:', error);
+  }
+};
+```
+
+### Upload a File
+
+```javascript
+import { uploadFileUpsert } from '@/utils/supabaseStorage';
+
+async function uploadAvatar(file, userId) {
+  try {
+    const path = `${userId}/avatar.${file.name.split('.').pop()}`;
+    const { url, path: filePath } = await uploadFileUpsert('avatars', file, path);
+    
+    console.log('File uploaded:', url);
+    return url;
+  } catch (error) {
+    console.error('Upload failed:', error);
+  }
+}
+```
+
+### Get Current User
+
+```javascript
+const { user, session, isAuthenticated } = useSupabase();
+
+function MyComponent() {
+  return (
+    <div>
+      {isAuthenticated ? (
+        <p>Welcome, {user?.email}</p>
+      ) : (
+        <p>Please log in</p>
+      )}
+    </div>
+  );
+}
+```
+
+## 9. Syncing with Laravel (Optional)
+
+If you want to keep your Laravel database in sync:
+
+1. Create a Laravel webhook to listen for Supabase auth events
+2. When a user signs up with Supabase, also create a record in your Laravel `users` table
+3. Use the Supabase User ID as a foreign key
+
+Example webhook endpoint in Laravel:
+```php
+Route::post('/webhooks/supabase', function (Request $request) {
+    $event = $request->input('type');
+    $user = $request->input('data.user');
+
+    if ($event === 'user_signup') {
+        User::firstOrCreate(
+            ['email' => $user['email']],
+            [
+                'name' => $user['user_metadata']['firstName'] ?? '',
+                'supabase_id' => $user['id'],
+            ]
+        );
+    }
+
+    return response()->json(['success' => true]);
+});
+```
+
+## 10. Testing
+
+1. Start your development server:
+   ```bash
+   npm run dev
+   ```
+
+2. Navigate to the Register page (`/register`)
+3. Create a test account with Supabase
+4. Check Supabase dashboard under **Authentication → Users** to verify the user was created
+
+## Troubleshooting
+
+### "VITE_SUPABASE_URL not configured"
+- Check that `.env` file has the correct Supabase URL
+- Restart your development server after adding env variables
+
+### "Invalid API Key"
+- Make sure you're using the **Anon public key**, not the service role key
+- Anon key is safe to expose in frontend code
+
+### File Upload Fails
+- Ensure bucket exists and is public (or has proper RLS policies)
+- Check file size limits (default: 50MB per file)
+
+### Authentication Not Working
+- Verify email authentication is enabled in Supabase
+- Check browser console for error messages
+- Ensure SupabaseProvider wraps your entire app
+
+## Resources
+
+- [Supabase Documentation](https://supabase.com/docs)
+- [Supabase Auth Guide](https://supabase.com/docs/guides/auth)
+- [Supabase Storage Guide](https://supabase.com/docs/guides/storage)
+- [Supabase JavaScript Client](https://supabase.com/docs/reference/javascript/introduction)
+
+## Next Steps
+
+1. ✅ Create Supabase project
+2. ✅ Add environment variables
+3. ✅ Set up storage buckets
+4. ✅ Test registration and login
+5. 📋 Optional: Sync with Laravel database
+6. 📋 Optional: Configure email templates
+7. 📋 Optional: Set up Google OAuth
+
+---
+
+**Need help?** Check the Supabase documentation or community forums.

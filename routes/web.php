@@ -97,11 +97,16 @@ Route::get('/adviser/profile', function () {
     return Inertia::render('Adviser/Profile');
 })->name('adviser.profile');
 
+<<<<<<< HEAD
 // CSG routes
+=======
+//CSG
+>>>>>>> 2fdd804 (sobrang dami bago)
 Route::get('/csg', function () {
     return Inertia::render('CSG/Dashboard');
 })->name('csg.dashboard');
 
+<<<<<<< HEAD
 Route::get('/csg/projects', function () {
     return Inertia::render('CSG/Projects');
 })->name('csg.projects');
@@ -129,10 +134,49 @@ Route::get('/csg/performance-panel', function () {
 Route::get('/csg/profile', function () {
     return Inertia::render('CSG/Profile');
 })->name('csg.profile');
+=======
+
+>>>>>>> 2fdd804 (sobrang dami bago)
 
 Route::get('/user', function () {
     return Inertia::render('User/Dashboard');
 })->name('user.dashboard');
+
+Route::get('/user/projects', function () {
+    return Inertia::render('User/Dashboard', ['page' => 'projects']);
+})->name('user.projects');
+
+Route::get('/user/projects/{id}', function ($id) {
+    return Inertia::render('User/Dashboard', ['page' => 'project-details', 'projectId' => $id]);
+})->name('user.project-details');
+
+Route::get('/user/meetings', function () {
+    return Inertia::render('User/Dashboard', ['page' => 'meetings']);
+})->name('user.meetings');
+
+Route::get('/user/profile', function () {
+    return Inertia::render('User/Dashboard', ['page' => 'profile']);
+})->name('user.profile');
+
+Route::get('/user/points', function () {
+    return Inertia::render('User/Dashboard', ['page' => 'points']);
+})->name('user.points');
+
+Route::get('/user/badges', function () {
+    return Inertia::render('User/Dashboard', ['page' => 'badges']);
+})->name('user.badges');
+
+Route::get('/user/leaderboard', function () {
+    return Inertia::render('User/Dashboard', ['page' => 'leaderboard']);
+})->name('user.leaderboard');
+
+Route::get('/user/badges', function () {
+    return Inertia::render('User/Dashboard', ['page' => 'badges']);
+})->name('user.badges');
+
+Route::get('/user/notifications', function () {
+    return Inertia::render('User/Dashboard', ['page' => 'notifications']);
+})->name('user.notifications');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
