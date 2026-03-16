@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
@@ -107,6 +106,7 @@ function Tabs({ defaultValue, children, className = '' }) {
   return (
     <div className={className}>
       {React.Children.map(children, (child) => {
+        if (!child) return null; // guard against null children from conditionals
         if (child.type === TabsList) {
           return React.cloneElement(child, { activeTab, setActiveTab });
         }
@@ -123,6 +123,7 @@ function TabsList({ children, activeTab, setActiveTab, className = '' }) {
   return (
     <div className={`flex flex-wrap gap-2 bg-white rounded-xl p-1 shadow-sm border-0 ${className}`}>
       {React.Children.map(children, (child) => {
+        if (!child) return null; // guard against null children from conditionals
         return React.cloneElement(child, { activeTab, setActiveTab });
       })}
     </div>
@@ -185,18 +186,24 @@ function Switch({ checked, onCheckedChange, label }) {
   );
 }
 
-// Mock data (in real app, would fetch based on projectId)
+// FIX #1: Mock data now uses 'Draft' approvalStatus so isEditable works correctly.
+// Previously 'Pending Adviser Approval' made edit/delete/submit buttons never render.
 const mockProject = {
   id: 1,
   title: 'Community Outreach Program',
   category: 'Social',
   description: 'A comprehensive program to reach out to local communities and provide educational support to underprivileged children.',
-  status: 'Ongoing',
+  // FIX #1: Changed from 'Ongoing' — status and approvalStatus are now aligned.
+  status: 'Draft',
+  // FIX #1: Changed from 'Pending Adviser Approval' to 'Draft' so isEditable = true
+  // and the Edit / Delete / Submit buttons are visible.
+  approvalStatus: 'Draft',
   progress: 75,
   budget: 50000,
   startDate: '2024-11-01',
   endDate: '2024-12-15',
   createdAt: '2024-10-25',
+  proposedBy: 'Sarah Chen, Ling, Argus, Ikaw, Ako, Sila, Tayo',
 };
 
 const mockLedgerEntries = [
@@ -322,16 +329,15 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
   const [filePreview, setFilePreview] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Add newProject state for file upload
-  const [newProject, setNewProject] = useState({
-    projectFile: ''
-  });
+  // FIX #3: Renamed newProject → ledgerFileData to clarify this belongs to
+  // the Add Ledger modal only, not the Upload Proof modal.
+  const [ledgerFileData, setLedgerFileData] = useState({ projectFile: '' });
 
-  // Handle file upload
+  // Handle file upload for Add Ledger modal
   const handleFileUpload = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    
+
     if (file.size > 10 * 1024 * 1024) {
       showToast('File size must be less than 10MB', 'error');
       return;
@@ -342,11 +348,10 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
       size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
       type: file.type,
     });
-    
-    setNewProject({ 
-      ...newProject, 
-      projectFile: file.name 
-    });
+
+    // FIX #3: Uses ledgerFileData instead of newProject to avoid confusion
+    // with the separate Upload Proof modal's file state.
+    setLedgerFileData({ projectFile: file.name });
   };
 
   // Modal states
@@ -363,37 +368,39 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
   const [selectedLedger, setSelectedLedger] = useState(null);
   const [selectedProof, setSelectedProof] = useState(null);
 
-  // Budget items state
+  // Budget items — used for the Overview display
   const [budgetItems, setBudgetItems] = useState([
-    { 
-      id: 1, 
-      item: 'Venue Rental', 
-      total: 5000,
-      category: 'Facilities',
-      notes: 'University auditorium'
-    },
-    { 
-      id: 2, 
-      item: 'Tarpaulins',  
-      total: 1750,
-      category: 'Printing',
-      notes: '3x6 ft event banners'
-    },
-    { 
-      id: 3, 
-      item: 'Food Packs', 
-      total: 15000,
-      category: 'Catering',
-      notes: 'For volunteers and participants'
-    },
+    { id: 1, item: 'Venue Rental', amount: 5000, notes: 'University auditorium' },
+    { id: 2, item: 'Tarpaulins', amount: 1750, notes: '3x6 ft event banners' },
+    { id: 3, item: 'Food Packs', amount: 15000, notes: 'For volunteers and participants' },
   ]);
 
-  const calculateGrandTotal = () => {
-    return budgetItems.reduce((sum, item) => sum + item.total, 0);
-  };
+  // Unified total — used by Overview display and Edit modal
+  const calculateGrandTotal = (items = budgetItems) =>
+    items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
 
-  // Form states
-  const [editForm, setEditForm] = useState({ ...project });
+  // Edit modal has its own isolated copy so edits don't affect Overview until saved
+  const [editBudgetItems, setEditBudgetItems] = useState([]);
+
+  const updateEditBudgetItem = (id, field, value) =>
+    setEditBudgetItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    );
+
+  const addEditBudgetItem = () =>
+    setEditBudgetItems((prev) => [
+      ...prev,
+      { id: Date.now(), item: '', amount: '' },
+    ]);
+
+  const removeEditBudgetItem = (id) =>
+    setEditBudgetItems((prev) => prev.filter((item) => item.id !== id));
+
+  // FIX #5: editForm is initialised lazily and re-synced explicitly when the
+  // edit modal opens (see setEditForm({ ...project }) in the button onClick),
+  // preventing stale state from a previous edit session being carried forward.
+  const [editForm, setEditForm] = useState(() => ({ ...mockProject }));
+
   const [ledgerForm, setLedgerForm] = useState({
     type: 'Expense',
     amount: '',
@@ -402,6 +409,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
     referenceNumber: '',
     requiresProof: true,
   });
+
   const [proofForm, setProofForm] = useState({
     linkedTransaction: '',
     fileName: '',
@@ -409,64 +417,66 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Draft':
-        return 'bg-gray-100 text-gray-700';
-      case 'Pending Adviser Approval':
-        return 'bg-yellow-100 text-yellow-700';
+      case 'Draft': return 'bg-gray-100 text-gray-700';
+      case 'Pending Adviser Approval': return 'bg-yellow-100 text-yellow-700';
       case 'Approved':
-      case 'Ongoing':
-        return 'bg-blue-100 text-blue-700';
-      case 'Completed':
-        return 'bg-green-100 text-green-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
+      case 'Ongoing': return 'bg-blue-100 text-blue-700';
+      case 'Completed': return 'bg-green-100 text-green-700';
+      case 'Rejected': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
   const getLedgerStatusColor = (status) => {
     switch (status) {
-      case 'Draft':
-        return 'bg-gray-100 text-gray-700';
-      case 'Pending Adviser Approval':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'Approved':
-        return 'bg-green-100 text-green-700';
-      case 'Rejected':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
+      case 'Draft': return 'bg-gray-100 text-gray-700';
+      case 'Pending Adviser Approval': return 'bg-yellow-100 text-yellow-700';
+      case 'Approved': return 'bg-green-100 text-green-700';
+      case 'Rejected': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'Approved':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'Pending Adviser Approval':
-        return <Clock className="w-4 h-4 text-yellow-600" />;
-      case 'Draft':
-        return <Clock className="w-4 h-4 text-gray-600" />;
-      default:
-        return null;
+      case 'Approved': return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'Pending Adviser Approval': return <Clock className="w-4 h-4 text-yellow-600" />;
+      case 'Draft': return <Clock className="w-4 h-4 text-gray-600" />;
+      default: return null;
     }
   };
 
   const handleEditProject = () => {
-    setProject(editForm);
-    onUpdate(editForm);
+    // Persist the edited budget items back to the main budgetItems state
+    setBudgetItems(editBudgetItems);
+    const updatedProject = { ...editForm, budget: calculateGrandTotal(editBudgetItems) };
+    setProject(updatedProject);
+    onUpdate?.(updatedProject);
     setShowEditModal(false);
     showToast('Project updated successfully', 'success');
   };
 
+  // FIX #4: Added onBack() call after deletion so the user is navigated away
+  // from the now-deleted project page instead of remaining on a stale view.
   const handleDeleteProject = () => {
-    onDelete(project.id);
+    onDelete?.(project.id);
+    setShowDeleteConfirm(false);
     showToast('Project deleted successfully', 'success');
+    onBack?.();
   };
 
+  // FIX #6: handleSubmitForApproval now updates BOTH status and approvalStatus
+  // so they stay in sync. Previously only approvalStatus was checked for
+  // isApprovedOrPending, while status remained as 'Draft', causing the
+  // progress bar and adviser notes to not render after submission.
   const handleSubmitForApproval = () => {
-    const updatedProject = { ...project, status: 'Pending Adviser Approval' };
+    const updatedProject = {
+      ...project,
+      status: 'Pending Adviser Approval',
+      approvalStatus: 'Pending Adviser Approval',
+    };
     setProject(updatedProject);
-    onUpdate(updatedProject);
+    onUpdate?.(updatedProject);
     setShowSubmitConfirm(false);
     showToast('Project submitted for adviser approval', 'success');
   };
@@ -497,22 +507,19 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
       referenceNumber: '',
       requiresProof: true,
     });
+    // FIX #3: Also reset the ledger-specific file state on close
+    setFilePreview(null);
+    setLedgerFileData({ projectFile: '' });
     showToast('Ledger entry added successfully', 'success');
   };
 
   const handleEditLedgerEntry = () => {
     if (!selectedLedger) return;
-
     const updatedEntries = ledgerEntries.map((entry) =>
       entry.id === selectedLedger.id
-        ? {
-            ...entry,
-            ...ledgerForm,
-            amount: parseFloat(ledgerForm.amount),
-          }
+        ? { ...entry, ...ledgerForm, amount: parseFloat(ledgerForm.amount) }
         : entry
     );
-
     setLedgerEntries(updatedEntries);
     setShowEditLedgerModal(false);
     setSelectedLedger(null);
@@ -555,9 +562,15 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
     showToast('Proof document uploaded successfully', 'success');
   };
 
-  const canEdit = project.status === 'Draft';
-  const canSubmit = project.status === 'Draft';
-  const canDelete = project.status === 'Draft';
+  // FIX #1 & #6: isEditable and isApprovedOrPending now both read from
+  // approvalStatus consistently. The mock data approvalStatus is 'Draft'
+  // so the edit controls render correctly on first load.
+  const isEditable = project.approvalStatus === 'Draft' || project.approvalStatus === 'Rejected';
+  const isApprovedOrPending =
+    project.approvalStatus === 'Approved' ||
+    project.approvalStatus === 'Pending Adviser Approval' ||
+    project.approvalStatus === 'Ongoing';
+  const isPending = project.approvalStatus === 'Pending Adviser Approval';
 
   const totalIncome = ledgerEntries
     .filter((e) => e.type === 'Income' && e.status === 'Approved')
@@ -584,60 +597,65 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
             <div>
               <div className="flex flex-wrap items-center gap-3 mb-3">
                 <h1 className="text-2xl font-semibold text-gray-900">{project.title}</h1>
-                <Badge className={`rounded-lg ${getStatusColor(project.status)}`}>
-                  {project.status}
+                <Badge className={`rounded-lg ${getStatusColor(project.approvalStatus)}`}>
+                  {project.approvalStatus}
                 </Badge>
+                {isEditable && (
+                  <Badge className="rounded-lg bg-purple-100 text-purple-700">Edit Mode</Badge>
+                )}
               </div>
               <p className="text-gray-600">{project.description}</p>
             </div>
 
-            {/* Progress */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-500">Project Progress</span>
-                <span className="text-sm font-medium text-gray-900">{project.progress}%</span>
+            {isApprovedOrPending && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-gray-500">Project Progress</span>
+                  <span className="text-sm font-medium text-gray-900">{project.progress}%</span>
+                </div>
+                <Progress value={project.progress} className="h-3" />
               </div>
-              <Progress value={project.progress} className="h-3" />
-            </div>
+            )}
 
-            {/* Action Buttons */}
             <div className="flex flex-wrap gap-3">
-              {canSubmit && (
-                <Button
-                  onClick={() => setShowSubmitConfirm(true)}
-                  className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Submit for Adviser Approval
-                </Button>
-              )}
-              {canEdit && (
-                <Button
-                  onClick={() => {
-                    setEditForm({ ...project });
-                    setShowEditModal(true);
-                  }}
-                  variant="outline"
-                  className="rounded-xl"
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit Project
-                </Button>
-              )}
-              {canDelete && (
-                <Button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  variant="outline"
-                  className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Project
-                </Button>
+              {isEditable && (
+                <>
+                  <Button
+                    onClick={() => setShowSubmitConfirm(true)}
+                    className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Submit for Adviser Approval
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      // Re-sync editForm and editBudgetItems from latest project
+                      // state each time the modal opens to prevent stale edits.
+                      setEditForm({ ...project });
+                      setEditBudgetItems(budgetItems.map((i) => ({ ...i })));
+                      setFilePreview(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                      setShowEditModal(true);
+                    }}
+                    variant="outline"
+                    className="rounded-xl"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit Project
+                  </Button>
+                  <Button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    variant="outline"
+                    className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Project
+                  </Button>
+                </>
               )}
             </div>
           </div>
 
-          {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:w-64">
             <div className="bg-blue-50 rounded-xl p-4">
               <DollarSign className="w-5 h-5 text-blue-600 mb-2" />
@@ -655,21 +673,22 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
         </div>
       </Card>
 
-      {/* Tabs */}
+      {/* Tabs — full tab bar only when Approved; otherwise Overview renders alone */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="ledger">Ledger</TabsTrigger>
-          <TabsTrigger value="proof">Proof</TabsTrigger>
-          <TabsTrigger value="status">Status Timeline</TabsTrigger>
-          <TabsTrigger value="ratings">Ratings</TabsTrigger>
-        </TabsList>
+        {project.approvalStatus === 'Approved' && (
+          <TabsList className="flex-wrap">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="ledger">Ledger</TabsTrigger>
+            <TabsTrigger value="proof">Proof</TabsTrigger>
+            <TabsTrigger value="status">Status Timeline</TabsTrigger>
+            <TabsTrigger value="ratings">Ratings</TabsTrigger>
+          </TabsList>
+        )}
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
           <Card className="rounded-[20px] border-0 shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Project Details</h2>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <p className="text-sm text-gray-500 mb-1">Category</p>
@@ -687,6 +706,8 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                 <p className="text-sm text-gray-500 mb-1">End Date</p>
                 <p className="text-gray-900">{project.endDate}</p>
               </div>
+               <p className="text-sm text-gray-500 mb-1">Proposed by:</p>
+                <p className="text-gray-900">{project.proposedBy}</p>
             </div>
           </Card>
 
@@ -695,20 +716,25 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
             <div className="bg-gray-50 rounded-xl p-4">
               <div className="md:col-span-2">
                 <h3 className="text-sm text-gray-500 mb-1">Project Budget Breakdown</h3>
-                
                 <div className="bg-gray-50 rounded-xl p-4">
                   {budgetItems.map((item, index) => (
-                    <div key={item.id} className={`flex justify-between py-2 ${index < budgetItems.length - 1 ? 'border-b border-gray-200' : ''}`}>
+                    <div
+                      key={item.id}
+                      className={`flex justify-between py-2 ${
+                        index < budgetItems.length - 1 ? 'border-b border-gray-200' : ''
+                      }`}
+                    >
                       <div>
                         <span className="text-sm text-gray-900">{item.item}</span>
                         {item.notes && (
                           <span className="text-xs text-gray-500 ml-2">({item.notes})</span>
                         )}
                       </div>
-                      <span className="text-sm font-medium text-gray-900">₱{item.total.toLocaleString()}</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        ₱{(parseFloat(item.amount) || 0).toLocaleString()}
+                      </span>
                     </div>
                   ))}
-                  
                   <div className="flex justify-between pt-3 mt-1 border-t border-gray-300 font-semibold">
                     <span className="text-gray-700">Total</span>
                     <span className="text-blue-600">₱{calculateGrandTotal().toLocaleString()}</span>
@@ -718,7 +744,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
             </div>
           </Card>
 
-          {project.status !== 'Draft' && (
+          {isApprovedOrPending && (
             <Card className="rounded-[20px] border-0 shadow-sm p-6 mt-4">
               <h2 className="text-lg font-semibold text-gray-900">Adviser Notes</h2>
               <div className="bg-blue-50 rounded-xl p-4">
@@ -742,13 +768,15 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                   SHA256 Verified
                 </Badge>
               </div>
-              <Button
-                onClick={() => setShowAddLedgerModal(true)}
-                className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Ledger Entry
-              </Button>
+              {isEditable && (
+                <Button
+                  onClick={() => setShowAddLedgerModal(true)}
+                  className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Ledger Entry
+                </Button>
+              )}
             </div>
 
             {/* Desktop Table */}
@@ -788,9 +816,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                       </td>
                       <td className="py-3 px-4">
                         {entry.requiresProof ? (
-                          <Badge variant="outline" className="rounded-lg">
-                            Required
-                          </Badge>
+                          <Badge variant="outline" className="rounded-lg">Required</Badge>
                         ) : (
                           <span className="text-xs text-gray-400">Not required</span>
                         )}
@@ -816,7 +842,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          {entry.status === 'Draft' && (
+                          {isEditable && entry.status === 'Draft' && (
                             <>
                               <Button
                                 variant="ghost"
@@ -902,7 +928,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                         <Eye className="w-4 h-4 mr-1" />
                         View
                       </Button>
-                      {entry.status === 'Draft' && (
+                      {isEditable && entry.status === 'Draft' && (
                         <>
                           <Button
                             variant="outline"
@@ -962,13 +988,15 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
           <Card className="rounded-[20px] border-0 shadow-sm p-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h2 className="text-lg font-semibold text-gray-900">Proof of Transactions</h2>
-              <Button
-                onClick={() => setShowUploadProofModal(true)}
-                className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Proof
-              </Button>
+              {isEditable && (
+                <Button
+                  onClick={() => setShowUploadProofModal(true)}
+                  className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Proof
+                </Button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -978,21 +1006,16 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                     <div className="h-32 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center">
                       <FileText className="w-12 h-12 text-blue-600" />
                     </div>
-
                     <div>
                       <h3 className="font-medium text-gray-900 truncate mb-1">{proof.fileName}</h3>
-                      <p className="text-xs text-gray-500">
-                        {proof.fileType} • {proof.fileSize}
-                      </p>
+                      <p className="text-xs text-gray-500">{proof.fileType} • {proof.fileSize}</p>
                     </div>
-
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
                       <span className="text-xs text-gray-600 font-mono truncate">
                         {proof.linkedTransaction}
                       </span>
                     </div>
-
                     <Badge
                       className={`rounded-lg ${
                         proof.status === 'Approved'
@@ -1002,9 +1025,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                     >
                       {proof.status}
                     </Badge>
-
                     <p className="text-xs text-gray-400">Uploaded: {proof.uploadDate}</p>
-
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
@@ -1018,7 +1039,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                         <Eye className="w-4 h-4 mr-1" />
                         View
                       </Button>
-                      {proof.status === 'Pending Approval' && (
+                      {isEditable && proof.status === 'Pending Approval' && (
                         <Button variant="outline" size="sm" className="rounded-lg text-red-600">
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -1035,31 +1056,24 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
         <TabsContent value="status" className="space-y-6">
           <Card className="rounded-[20px] border-0 shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-6">Project Status Timeline</h2>
-
             <div className="space-y-6">
               {mockStatusHistory.map((status, index) => (
                 <div key={status.id} className="flex gap-4">
                   <div className="flex flex-col items-center">
                     <div
                       className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        status.color === 'green'
-                          ? 'bg-green-100'
-                          : status.color === 'blue'
-                          ? 'bg-blue-100'
-                          : status.color === 'yellow'
-                          ? 'bg-yellow-100'
-                          : 'bg-gray-100'
+                        status.color === 'green' ? 'bg-green-100'
+                        : status.color === 'blue' ? 'bg-blue-100'
+                        : status.color === 'yellow' ? 'bg-yellow-100'
+                        : 'bg-gray-100'
                       }`}
                     >
                       <CheckCircle
                         className={`w-6 h-6 ${
-                          status.color === 'green'
-                            ? 'text-green-600'
-                            : status.color === 'blue'
-                            ? 'text-blue-600'
-                            : status.color === 'yellow'
-                            ? 'text-yellow-600'
-                            : 'text-gray-600'
+                          status.color === 'green' ? 'text-green-600'
+                          : status.color === 'blue' ? 'text-blue-600'
+                          : status.color === 'yellow' ? 'text-yellow-600'
+                          : 'text-gray-600'
                         }`}
                       />
                     </div>
@@ -1067,18 +1081,14 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                       <div className="w-0.5 flex-1 bg-gray-200 min-h-[60px]" />
                     )}
                   </div>
-
                   <div className="flex-1 pb-6">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <Badge
                         className={`rounded-lg ${
-                          status.color === 'green'
-                            ? 'bg-green-100 text-green-700'
-                            : status.color === 'blue'
-                            ? 'bg-blue-100 text-blue-700'
-                            : status.color === 'yellow'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-gray-100 text-gray-700'
+                          status.color === 'green' ? 'bg-green-100 text-green-700'
+                          : status.color === 'blue' ? 'bg-blue-100 text-blue-700'
+                          : status.color === 'yellow' ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-gray-100 text-gray-700'
                         }`}
                       >
                         {status.status}
@@ -1098,99 +1108,72 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
 
         {/* Ratings Tab */}
         <TabsContent value="ratings" className="space-y-6">
-          <Card className="rounded-[20px] border-0 shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Student Ratings</h2>
-
-            <div className="bg-blue-50 rounded-xl p-6 mb-6 text-center">
-              <div className="flex items-center justify-center gap-3 mb-2">
-                <span className="text-5xl font-bold text-gray-900">4.8</span>
-                <div>
-                  <div className="flex items-center gap-1 mb-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-6 h-6 ${
-                          i < 4 ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
+            <Card className="rounded-[20px] border-0 shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Student Ratings</h2>
+              <div className="bg-blue-50 rounded-xl p-6 mb-6 text-center">
+                <div className="flex items-center justify-center gap-3 mb-2">
+                  <span className="text-5xl font-bold text-gray-900">4.8</span>
+                  <div>
+                    <div className="flex items-center gap-1 mb-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-6 h-6 ${i < 4 ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-500">45 ratings</p>
                   </div>
-                  <p className="text-sm text-gray-500">45 ratings</p>
                 </div>
               </div>
-            </div>
-
-            <div className="space-y-6">
-              {[
-                {
-                  id: 1,
-                  name: 'Emma Johnson',
-                  rating: 5,
-                  comment: 'Amazing initiative! The workshops were very helpful.',
-                  date: '2024-11-20',
-                },
-                {
-                  id: 2,
-                  name: 'James Smith',
-                  rating: 5,
-                  comment: 'This project has made a real impact in our community.',
-                  date: '2024-11-19',
-                },
-                {
-                  id: 3,
-                  name: 'Sofia Martinez',
-                  rating: 4,
-                  comment: 'Very good project with clear objectives.',
-                  date: '2024-11-18',
-                },
-              ].map((review) => (
-                <div key={review.id} className="flex gap-4 pb-6 border-b last:border-0">
-                  <Avatar className="w-12 h-12 flex-shrink-0">
-                    <AvatarFallback className="bg-blue-100 text-blue-700 text-sm">
-                      {review.name
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{review.name}</h3>
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-4 h-4 ${
-                                  i < review.rating
-                                    ? 'fill-yellow-400 text-yellow-400'
-                                    : 'text-gray-300'
-                                }`}
-                              />
-                            ))}
+              <div className="space-y-6">
+                {[
+                  { id: 1, name: 'Emma Johnson', rating: 5, comment: 'Amazing initiative! The workshops were very helpful.', date: '2024-11-20' },
+                  { id: 2, name: 'James Smith', rating: 5, comment: 'This project has made a real impact in our community.', date: '2024-11-19' },
+                  { id: 3, name: 'Sofia Martinez', rating: 4, comment: 'Very good project with clear objectives.', date: '2024-11-18' },
+                ].map((review) => (
+                  <div key={review.id} className="flex gap-4 pb-6 border-b last:border-0">
+                    <Avatar className="w-12 h-12 flex-shrink-0">
+                      <AvatarFallback className="bg-blue-100 text-blue-700 text-sm">
+                        {review.name.split(' ').map((n) => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div>
+                          <h3 className="font-medium text-gray-900">{review.name}</h3>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-4 h-4 ${
+                                    i < review.rating
+                                      ? 'fill-yellow-400 text-yellow-400'
+                                      : 'text-gray-300'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-sm text-gray-500">{review.date}</span>
                           </div>
-                          <span className="text-sm text-gray-500">{review.date}</span>
                         </div>
                       </div>
+                      <p className="text-gray-700">{review.comment}</p>
                     </div>
-                    <p className="text-gray-700">{review.comment}</p>
                   </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </TabsContent>
+                ))}
+              </div>
+            </Card>
+          </TabsContent>
       </Tabs>
+
+      {/* ── Modals ── */}
 
       {/* Edit Project Modal */}
       <Modal
         open={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditForm({ ...project });
-        }}
+        onClose={() => setShowEditModal(false)}
         title="Edit Project"
         description="Update project information"
       >
@@ -1203,7 +1186,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
-
           <div>
             <FieldLabel>Category</FieldLabel>
             <Select value={editForm.category} onValueChange={(value) => setEditForm({ ...editForm, category: value })}>
@@ -1216,7 +1198,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               <option value="Health">Health</option>
             </Select>
           </div>
-
           <div>
             <FieldLabel>Description</FieldLabel>
             <Textarea
@@ -1227,12 +1208,116 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
             />
           </div>
 
+          {/* Budget Breakdown — uses editBudgetItems (isolated copy, saved on submit) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <FieldLabel>Budget Breakdown (₱)</FieldLabel>
+              <div className="space-y-3">
+                {editBudgetItems.map((item) => (
+                  <div key={item.id} className="flex gap-2 items-start">
+                    <Input
+                      placeholder="Item name & Quantity"
+                      value={item.item}
+                      onChange={(e) => updateEditBudgetItem(item.id, 'item', e.target.value)}
+                      className="flex-1 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Amount"
+                      value={item.amount}
+                      onChange={(e) => updateEditBudgetItem(item.id, 'amount', e.target.value)}
+                      className="w-24 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                    />
+                    {editBudgetItems.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeEditBudgetItem(item.id)}
+                        className="rounded-lg text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  onClick={addEditBudgetItem}
+                  variant="outline"
+                  size="sm"
+                  className="w-full rounded-xl"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Budget Item
+                </Button>
+              </div>
+            </div>
+            <div>
+              <FieldLabel>Estimated Total Budget (₱)</FieldLabel>
+              <div className="bg-blue-50 rounded-xl p-4 mt-1">
+                <p className="text-3xl font-semibold text-blue-900">
+                  ₱{calculateGrandTotal(editBudgetItems).toLocaleString()}
+                </p>
+                <p className="text-xs text-blue-700 mt-1">Auto-calculated from breakdown items</p>
+              </div>
+            </div>
+          </div>
+
+          {/* File Upload — mirrors Create modal */}
           <div>
-            <FieldLabel>Budget</FieldLabel>
+            <FieldLabel>Project Budget Proof (Required)</FieldLabel>
+            <div className="flex flex-col items-center gap-3">
+              <button
+                type="button"
+                className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center hover:bg-gray-50 transition"
+                onClick={() => fileInputRef.current && fileInputRef.current.click()}
+              >
+                <Upload className="w-6 h-6 text-gray-500" />
+                <p className="text-sm text-gray-600 mt-2">Click to upload</p>
+                <p className="text-xs text-gray-500 mt-1">PDF, Images up to 10MB</p>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              {filePreview && (
+                <div className="w-full p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{filePreview.name}</p>
+                        <p className="text-xs text-gray-500">{filePreview.size}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setFilePreview(null);
+                        setLedgerFileData({ projectFile: '' });
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Proposed By — mirrors Create modal */}
+          <div>
+            <FieldLabel>Proposed by *</FieldLabel>
             <Input
-              type="number"
-              value={editForm.budget}
-              onChange={(e) => setEditForm({ ...editForm, budget: parseFloat(e.target.value) })}
+              placeholder="Enter name of proposer"
+              value={editForm.proposedBy ?? ''}
+              onChange={(e) => setEditForm({ ...editForm, proposedBy: e.target.value })}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
@@ -1257,19 +1342,11 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               />
             </div>
           </div>
-
           <div className="flex gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowEditModal(false)}
-              className="flex-1 rounded-xl"
-            >
+            <Button variant="outline" onClick={() => setShowEditModal(false)} className="flex-1 rounded-xl">
               Cancel
             </Button>
-            <Button
-              onClick={handleEditProject}
-              className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
-            >
+            <Button onClick={handleEditProject} className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700">
               Save Changes
             </Button>
           </div>
@@ -1284,21 +1361,12 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
         description="Once submitted, you cannot edit the project until the adviser reviews it."
       >
         <div className="pt-6">
-          <p className="text-sm text-gray-600 mb-6">
-            Make sure all details are correct before submitting.
-          </p>
+          <p className="text-sm text-gray-600 mb-6">Make sure all details are correct before submitting.</p>
           <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setShowSubmitConfirm(false)}
-              className="flex-1 rounded-xl"
-            >
+            <Button variant="outline" onClick={() => setShowSubmitConfirm(false)} className="flex-1 rounded-xl">
               Cancel
             </Button>
-            <Button
-              onClick={handleSubmitForApproval}
-              className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
-            >
+            <Button onClick={handleSubmitForApproval} className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700">
               Submit
             </Button>
           </div>
@@ -1314,17 +1382,11 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
       >
         <div className="pt-6">
           <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteConfirm(false)}
-              className="flex-1 rounded-xl"
-            >
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} className="flex-1 rounded-xl">
               Cancel
             </Button>
-            <Button
-              onClick={handleDeleteProject}
-              className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
-            >
+            {/* FIX #4: handleDeleteProject now calls onBack() to navigate away */}
+            <Button onClick={handleDeleteProject} className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white">
               Delete
             </Button>
           </div>
@@ -1336,14 +1398,11 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
         open={showAddLedgerModal}
         onClose={() => {
           setShowAddLedgerModal(false);
-          setLedgerForm({
-            type: 'Expense',
-            amount: '',
-            description: '',
-            category: '',
-            referenceNumber: '',
-            requiresProof: true,
-          });
+          setLedgerForm({ type: 'Expense', amount: '', description: '', category: '', referenceNumber: '', requiresProof: true });
+          // FIX #3: Reset ledger-specific file state on close
+          setFilePreview(null);
+          setLedgerFileData({ projectFile: '' });
+          if (fileInputRef.current) fileInputRef.current.value = '';
         }}
         title="Add Ledger Entry"
         description="Create a new ledger entry for this project"
@@ -1351,15 +1410,11 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
         <div className="space-y-4 pt-6">
           <div>
             <FieldLabel>Type</FieldLabel>
-            <Select
-              value={ledgerForm.type}
-              onValueChange={(value) => setLedgerForm({ ...ledgerForm, type: value })}
-            >
+            <Select value={ledgerForm.type} onValueChange={(value) => setLedgerForm({ ...ledgerForm, type: value })}>
               <option value="Income">Income</option>
               <option value="Expense">Expense</option>
             </Select>
           </div>
-
           <div>
             <FieldLabel>Amount (₱)</FieldLabel>
             <Input
@@ -1370,7 +1425,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
-
           <div>
             <FieldLabel>Description</FieldLabel>
             <Textarea
@@ -1381,7 +1435,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
-
           <div>
             <FieldLabel>Category</FieldLabel>
             <Input
@@ -1391,7 +1444,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
-
           <div>
             <FieldLabel>Reference Number (Optional)</FieldLabel>
             <Input
@@ -1401,9 +1453,10 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
-
           <div>
-            <FieldLabel>Project Budget Proof (Required)</FieldLabel>
+            {/* FIX #3: Label updated to clarify this is a ledger-entry proof attachment,
+                separate from the standalone Upload Proof modal. */}
+            <FieldLabel>Attach Proof Document (Optional)</FieldLabel>
             <div className="flex flex-col items-center gap-3">
               <button
                 type="button"
@@ -1414,7 +1467,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                 <p className="text-sm text-gray-600 mt-2">Click to upload</p>
                 <p className="text-xs text-gray-500 mt-1">PDF, Images up to 10MB</p>
               </button>
-
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1422,7 +1474,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                 onChange={handleFileUpload}
                 className="hidden"
               />
-
               {filePreview && (
                 <div className="w-full p-4 bg-gray-50 rounded-xl">
                   <div className="flex items-center justify-between">
@@ -1438,7 +1489,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                       size="sm"
                       onClick={() => {
                         setFilePreview(null);
-                        setNewProject({ ...newProject, projectFile: '' });
+                        setLedgerFileData({ projectFile: '' });
                         if (fileInputRef.current) fileInputRef.current.value = '';
                       }}
                     >
@@ -1449,19 +1500,11 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               )}
             </div>
           </div>
-
           <div className="flex gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowAddLedgerModal(false)}
-              className="flex-1 rounded-xl"
-            >
+            <Button variant="outline" onClick={() => setShowAddLedgerModal(false)} className="flex-1 rounded-xl">
               Cancel
             </Button>
-            <Button
-              onClick={handleAddLedgerEntry}
-              className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
-            >
+            <Button onClick={handleAddLedgerEntry} className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700">
               Save Entry
             </Button>
           </div>
@@ -1471,25 +1514,18 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
       {/* Edit Ledger Entry Modal */}
       <Modal
         open={showEditLedgerModal}
-        onClose={() => {
-          setShowEditLedgerModal(false);
-          setSelectedLedger(null);
-        }}
+        onClose={() => { setShowEditLedgerModal(false); setSelectedLedger(null); }}
         title="Edit Ledger Entry"
         description="Update ledger entry information"
       >
         <div className="space-y-4 pt-6">
           <div>
             <FieldLabel>Type</FieldLabel>
-            <Select
-              value={ledgerForm.type}
-              onValueChange={(value) => setLedgerForm({ ...ledgerForm, type: value })}
-            >
+            <Select value={ledgerForm.type} onValueChange={(value) => setLedgerForm({ ...ledgerForm, type: value })}>
               <option value="Income">Income</option>
               <option value="Expense">Expense</option>
             </Select>
           </div>
-
           <div>
             <FieldLabel>Amount (₱)</FieldLabel>
             <Input
@@ -1499,7 +1535,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
-
           <div>
             <FieldLabel>Description</FieldLabel>
             <Textarea
@@ -1509,7 +1544,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
-
           <div>
             <FieldLabel>Category</FieldLabel>
             <Input
@@ -1518,7 +1552,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
-
           <div>
             <FieldLabel>Reference Number (Optional)</FieldLabel>
             <Input
@@ -1527,25 +1560,16 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
-
           <Switch
             checked={ledgerForm.requiresProof}
             onCheckedChange={(checked) => setLedgerForm({ ...ledgerForm, requiresProof: checked })}
             label="Requires Proof of Transaction"
           />
-
           <div className="flex gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowEditLedgerModal(false)}
-              className="flex-1 rounded-xl"
-            >
+            <Button variant="outline" onClick={() => setShowEditLedgerModal(false)} className="flex-1 rounded-xl">
               Cancel
             </Button>
-            <Button
-              onClick={handleEditLedgerEntry}
-              className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
-            >
+            <Button onClick={handleEditLedgerEntry} className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700">
               Save Changes
             </Button>
           </div>
@@ -1555,10 +1579,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
       {/* Upload Proof Modal */}
       <Modal
         open={showUploadProofModal}
-        onClose={() => {
-          setShowUploadProofModal(false);
-          setProofForm({ linkedTransaction: '', fileName: '' });
-        }}
+        onClose={() => { setShowUploadProofModal(false); setProofForm({ linkedTransaction: '', fileName: '' }); }}
         title="Upload Proof of Transaction"
         description="Upload supporting documents for ledger entries"
       >
@@ -1579,7 +1600,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                 ))}
             </Select>
           </div>
-
           <div>
             <FieldLabel>Upload File (PNG, JPG, PDF)</FieldLabel>
             <div className="flex flex-col items-center gap-3">
@@ -1597,9 +1617,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                   accept=".png,.jpg,.jpeg,.pdf"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (file) {
-                      setProofForm({ ...proofForm, fileName: file.name });
-                    }
+                    if (file) setProofForm({ ...proofForm, fileName: file.name });
                   }}
                 />
               </label>
@@ -1619,7 +1637,6 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               )}
             </div>
           </div>
-
           <div className="bg-blue-50 rounded-xl p-4">
             <div className="flex items-start gap-2">
               <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -1628,13 +1645,8 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               </p>
             </div>
           </div>
-
           <div className="flex gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowUploadProofModal(false)}
-              className="flex-1 rounded-xl"
-            >
+            <Button variant="outline" onClick={() => setShowUploadProofModal(false)} className="flex-1 rounded-xl">
               Cancel
             </Button>
             <Button
@@ -1651,10 +1663,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
       {/* Ledger Details Modal */}
       <Modal
         open={showLedgerDetails}
-        onClose={() => {
-          setShowLedgerDetails(false);
-          setSelectedLedger(null);
-        }}
+        onClose={() => { setShowLedgerDetails(false); setSelectedLedger(null); }}
         title="Ledger Entry Details"
       >
         {selectedLedger && (
@@ -1668,9 +1677,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                 <p className="text-sm text-gray-500 mb-1">Type</p>
                 <Badge
                   className={`rounded-lg ${
-                    selectedLedger.type === 'Income'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-red-100 text-red-700'
+                    selectedLedger.type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                   }`}
                 >
                   {selectedLedger.type}
@@ -1678,9 +1685,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">Amount</p>
-                <p className="text-xl font-semibold text-gray-900">
-                  ₱{selectedLedger.amount.toLocaleString()}
-                </p>
+                <p className="text-xl font-semibold text-gray-900">₱{selectedLedger.amount.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">Status</p>
@@ -1707,9 +1712,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               )}
               <div>
                 <p className="text-sm text-gray-500 mb-1">Version</p>
-                <Badge variant="outline" className="rounded-lg">
-                  v{selectedLedger.version}
-                </Badge>
+                <Badge variant="outline" className="rounded-lg">v{selectedLedger.version}</Badge>
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">Created At</p>
@@ -1723,12 +1726,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                 </div>
               </div>
             </div>
-
-            <Button
-              onClick={() => setShowLedgerDetails(false)}
-              className="w-full rounded-xl"
-              variant="outline"
-            >
+            <Button onClick={() => setShowLedgerDetails(false)} className="w-full rounded-xl" variant="outline">
               Close
             </Button>
           </div>
@@ -1738,10 +1736,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
       {/* Proof Viewer Modal */}
       <Modal
         open={showProofViewer}
-        onClose={() => {
-          setShowProofViewer(false);
-          setSelectedProof(null);
-        }}
+        onClose={() => { setShowProofViewer(false); setSelectedProof(null); }}
         title="Proof Document"
       >
         {selectedProof && (
@@ -1750,12 +1745,9 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               <div className="text-center">
                 <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600 mb-2 font-medium">{selectedProof.fileName}</p>
-                <p className="text-sm text-gray-500">
-                  {selectedProof.fileType} • {selectedProof.fileSize}
-                </p>
+                <p className="text-sm text-gray-500">{selectedProof.fileType} • {selectedProof.fileSize}</p>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-500 mb-1">Linked Transaction</p>
@@ -1773,17 +1765,12 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                 </div>
               </div>
             </div>
-
             <div className="flex gap-3 pt-4">
               <Button className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
                 <Download className="w-4 h-4 mr-2" />
                 Download
               </Button>
-              <Button
-                onClick={() => setShowProofViewer(false)}
-                variant="outline"
-                className="flex-1 rounded-xl"
-              >
+              <Button onClick={() => setShowProofViewer(false)} variant="outline" className="flex-1 rounded-xl">
                 Close
               </Button>
             </div>
