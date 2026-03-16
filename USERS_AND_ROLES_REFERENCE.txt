@@ -7,7 +7,7 @@
 SELECT * FROM roles;
 
 ID | Name         | Slug          | Description
-1  | Student      | student       | Regular student user
+1  | Student       | student       | Regular student user
 2  | Adviser      | adviser       | Faculty adviser or counselor
 3  | CSG Officer  | csg_officer   | CSG Leadership Officer
 4  | Superadmin   | superadmin    | System administrator

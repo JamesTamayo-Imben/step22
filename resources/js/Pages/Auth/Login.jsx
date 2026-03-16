@@ -1,11 +1,22 @@
 import { useState } from "react";
 import { Link } from '@inertiajs/react';
 import { User, Lock, Eye, EyeOff } from "lucide-react";
-import { useSupabase } from "../../context/SupabaseContext";
+// ============================================================================
+// SUPABASE AUTH - TEMPORARILY COMMENTED OUT
+// Description: This import and useSupabase hook are disabled for database auth
+// To re-enable Supabase authentication:
+//   1. Uncomment the import line below
+//   2. Uncomment the useSupabase hook initialization
+//   3. Uncomment the Google login handler inside handleGoogleLogin()
+//   4. Uncomment the signIn() call in handleSubmit()
+// Currently using Laravel/step2 database for authentication instead
+// ============================================================================
+// import { useSupabase } from "../../context/SupabaseContext";
 
 export default function LoginPage({ onLogin, onNavigateToRegister }) {
-  const { signIn, signInWithGoogle, validateGoogleEmailDomain, user } = useSupabase();
-  
+    // ========== SUPABASE HOOK - UNCOMMENT TO RE-ENABLE SUPABASE AUTH ==========
+    // const { signIn, signInWithGoogle, validateGoogleEmailDomain, user } = useSupabase();
+    
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -25,14 +36,55 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
       }
 
       // Validate email domain
-      if (!uname.endsWith("@kld.edu.ph")) {
-        throw new Error("Email must be a valid KLD school email (@kld.edu.ph)");
-      }
+      // if (!uname.endsWith("@kld.edu.ph")) {
+      //   throw new Error("Email must be a valid KLD school email (@kld.edu.ph)");
+      // }
 
       if (!password) {
         throw new Error("Please enter your password");
       }
 
+      // ======= STEP2 DATABASE AUTH (CURRENT) =======
+      // Using Laravel backend to authenticate against step2 database
+      const payload = {
+        email: uname,
+        password: password,
+      };
+      
+      console.log('Sending login request with payload:', payload);
+      
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('Response status:', response.status);
+      
+      const data = await response.json();
+      
+      console.log('Response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed. Please check your credentials.");
+      }
+
+      // Store remember me preference
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+        localStorage.setItem('rememberedEmail', uname);
+      }
+
+      // Store user info in localStorage for frontend use
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      // Redirect to appropriate dashboard based on role
+      window.location.href = data.redirect || "/dashboard";
+
+      /* ======= SUPABASE AUTH (COMMENTED OUT - UNCOMMENT TO RE-ENABLE) =======
       // Sign in with Supabase (using email as username)
       const result = await signIn(uname, password);
 
@@ -51,6 +103,7 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
         // Fallback: navigate to dashboard
         window.location.href = "/user";
       }
+      ======= END SUPABASE AUTH ======= */
     } catch (err) {
       setError(err.message || "Login failed. Please check your credentials.");
       console.error("Login error:", err);
@@ -60,6 +113,16 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
   };
 
   const handleGoogleLogin = async () => {
+    // ======= GOOGLE OAUTH (SUPABASE) - COMMENTED OUT =======
+    // This feature requires Supabase to be enabled
+    // To re-enable Google login with Supabase:
+    //   1. Uncomment the code below
+    //   2. Make sure useSupabase hook is imported and initialized
+    //   3. This will redirect to Google login via Supabase
+    // For now, only email/password login via step2 database is available
+    // ========================================================
+    
+    /* SUPABASE GOOGLE LOGIN - UNCOMMENT TO RE-ENABLE
     try {
       setError("");
       setIsLoading(true);
@@ -80,6 +143,10 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
       console.error("Google login error:", err);
       setIsLoading(false);
     }
+    */
+    
+    // For now, show a message that Google login is disabled
+    setError("Google login is currently disabled. Please use email/password login.");
   };
 
   const goToRegister = () => {

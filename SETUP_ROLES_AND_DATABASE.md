@@ -4,7 +4,7 @@
 
 ```bash
 php artisan migrate
-```
+``` 
 
 This will create:
 - ✅ `roles` table

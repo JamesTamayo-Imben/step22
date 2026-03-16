@@ -1,4 +1,5 @@
 import { usePage } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { StudentNavbar } from '@/Components/StudentNavbar';
@@ -54,7 +55,10 @@ export default function UserDashboard() {
     window.location.href = '/user/projects';
   };
 
-  const handleLogout = () => { /* your logout logic */ };
+  const handleLogout = () => {
+    router.post('/logout');
+  };
+
   const handleSwitchRole = () => { /* your role switch logic */ };
   const userData = { canSwitch: true };
 

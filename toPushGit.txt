@@ -26,3 +26,29 @@ branch naten:
 
     Recommend ko ito para mas madali ang push:
     git push origin HEAD
+
+
+
+git remote add origin https://github.com/JamesKLD/step2.git
+git branch -M main
+git push -u origin main
+
+
+
+
+
+Remove the existing remote connection:
+
+Bash
+
+git remote remove origin
+Add your new remote:
+
+Bash
+
+git remote add origin https://github.com/JamesKLD/step2.git
+Verify it's correct:
+
+Bash
+
+git remote -v

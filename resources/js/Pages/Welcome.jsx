@@ -1,6 +1,6 @@
-import { ArrowRight, Shield, FileCheck, Users, CheckCircle, Sparkles, Play } from 'lucide-react';
-import { Link } from '@inertiajs/react';
-import { useRef, useState } from 'react';
+import { ArrowRight, Shield, FileCheck, Users, CheckCircle, Sparkles, Play, X, ArrowUp } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { useRef, useState, useEffect } from 'react';
 
 const animationStyles = `
   @keyframes moveGradient {
@@ -52,6 +52,11 @@ export default function Welcome() {
   const howItWorksRef = useRef(null);
   const videoRef = useRef(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [showPointer, setShowPointer] = useState(false);
+  const [showVideoDialog, setShowVideoDialog] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const timeoutRef = useRef(null);
+  const countdownRef = useRef(null);
 
   const scrollToHowItWorks = () => {
     howItWorksRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -61,6 +66,47 @@ export default function Welcome() {
     setIsVideoPlaying(true);
     // Video will autoplay once isVideoPlaying state changes
   };
+
+  const handleShowPointer = () => {
+    setShowPointer(true);
+    // Auto-hide after 5 seconds
+    setTimeout(() => setShowPointer(false), 5000);
+  };
+
+  const handleVideoEnded = () => {
+    setShowVideoDialog(true);
+    setCountdown(5);
+    
+    // Start countdown
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownRef.current);
+          router.visit(route('login'));
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleContinueToLogin = () => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    router.visit(route('login'));
+  };
+
+  const handleStayOnPage = () => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setShowVideoDialog(false);
+    setIsVideoPlaying(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
@@ -109,15 +155,7 @@ export default function Welcome() {
         </div>
       </nav>
 
-      {/* Hero Section
-            <section
-        className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 text-center bg-cover bg-center"
-        style={{ backgroundImage: "url('/images/kld-hero.jpg')" }}
-      >
-      
-        <div className="absolute inset-0 bg-[rgba(239,246,255,0.45)]" />
-      
-      */}
+
       <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 text-center bg-cover bg-center"
         style={{ backgroundImage: "url('/images/kldbg.png')" }}>
         <div className="max-w-4xl mx-auto">
@@ -298,6 +336,7 @@ export default function Welcome() {
                 controls
                 className="w-full h-full fade-in"
                 autoPlay
+                onEnded={handleVideoEnded}
               />
             )}
           </div>
@@ -358,7 +397,7 @@ export default function Welcome() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#2563EB] to-blue-700">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#2563EB] to-blue-700 relative">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl text-white mb-6">
             Ready to Transform Your Student Governance?
@@ -366,15 +405,112 @@ export default function Welcome() {
           <p className="text-xl text-blue-100 mb-10">
             Join schools already using STEP for transparent, accountable, and engaging student councils.
           </p>
-          <Link
-            href={route('register')}
+          <button
+            onClick={handleShowPointer}
             className="bg-white text-[#2563EB] hover:bg-gray-100 px-6 py-3 text-base rounded-xl flex items-center justify-center gap-2 mx-auto"
           >
             Create Your Account <ArrowRight className="w-5 h-5" />
-          </Link>
+          </button>
 
         </div>
+
+        {/* Pointer Arrow to Register Button */}
+        {showPointer && (
+          <div className="fixed top-0 left-0 right-0 bottom-0 z-40 pointer-events-none">
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-black/40"></div>
+            
+            {/* Pointer Container */}
+            <div className="absolute top-20 right-10 z-50 pointer-events-auto">
+              {/* Close Button */}
+              <button
+                onClick={() => setShowPointer(false)}
+                className="absolute -top-2 -right-2 bg-white rounded-full p-2 hover:bg-gray-100 shadow-lg z-10"
+              >
+                <X className="w-5 h-5 text-gray-800" />
+              </button>
+
+              {/* Text Box with Arrow */}
+              <div className="bg-white text-gray-900 px-6 py-4 rounded-xl shadow-xl max-w-xs flex items-start gap-4">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold mb-1">Ready to get started?</p>
+                  <p className="text-xs text-gray-600">
+                    Click the Register button to sign up and access STEP!
+                  </p>
+                </div>
+                {/* Animated Arrow Icon */}
+                <div className="flex-shrink-0">
+                  <ArrowUp className="w-6 h-6 text-blue-600 animate-bounce" />
+                </div>
+              </div>
+            </div>
+
+            {/* Highlight Register Button */}
+            <style>{`
+              @keyframes pulse-highlight {
+                0%, 100% {
+                  box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+                }
+                50% {
+                  box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+                }
+              }
+              .register-highlight {
+                animation: pulse-highlight 2s infinite;
+              }
+            `}</style>
+          </div>
+        )}
+
+        {/* Highlight the register button when pointer is showing */}
+        {showPointer && (
+          <style>{`
+            nav a[href*="register"] {
+              position: relative;
+              z-index: 50 !important;
+            }
+            nav a[href*="register"]::after {
+              content: '';
+              position: absolute;
+              inset: -8px;
+              border: 3px solid #2563EB;
+              border-radius: 0.75rem;
+              box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2), 0 0 20px rgba(37, 99, 235, 0.5);
+              animation: pulse-highlight 2s infinite;
+              pointer-events: none;
+            }
+          `}</style>
+        )}
       </section>
+
+      {/* Video Completion Dialog */}
+      {showVideoDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[20px] max-w-sm w-full shadow-2xl p-8 animate-in fade-in zoom-in">
+            <h3 className="text-2xl text-gray-900 mb-4 font-semibold">Tutorial Complete!</h3>
+            <p className="text-gray-600 mb-6">
+              Would you like to continue to the login page now?
+            </p>
+            <p className="text-lg text-center font-bold text-[#2563EB] mb-6">
+              Redirecting in {countdown}s
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleStayOnPage}
+                className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+              >
+                Stay Here
+              </button>
+              <button
+                onClick={handleContinueToLogin}
+                className="flex-1 px-4 py-2 bg-[#2563EB] text-white rounded-xl hover:bg-blue-700 font-medium transition-colors"
+              >
+                Go to Login
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-900 text-white">

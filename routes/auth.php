@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\ApiLoginController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
@@ -22,6 +23,17 @@ Route::middleware('guest')->group(function () {
         ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    // ========== API LOGIN ENDPOINT FOR REACT COMPONENT ==========
+    // This endpoint accepts JSON and returns JSON with user role and redirect URL
+    // Used by the React Login component for step2 database authentication
+    Route::post('api/login', [ApiLoginController::class, 'login']);
+    
+    // Test endpoint to verify API is responding
+    Route::get('api/test', function () {
+        return response()->json(['message' => 'API is working', 'timestamp' => now()]);
+    });
+    // ===========================================================
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
@@ -66,4 +78,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
+
+    // ========== API LOGOUT ENDPOINT FOR REACT COMPONENT ==========
+    // This endpoint is for JSON API calls from React components
+    Route::post('api/logout', [ApiLoginController::class, 'logout']);
+    // ===========================================================
 });

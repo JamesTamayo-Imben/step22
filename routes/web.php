@@ -23,6 +23,10 @@ Route::get('/sadmin', function () {
     return Inertia::render('SAdmin/Dashboard');
 })->name('sadmin.dashboard');
 
+Route::get('/sadmin/dashboard', function () {
+    return Inertia::render('SAdmin/Dashboard');
+})->name('sadmin.dashboard.alias');
+
 // Superadmin sub-pages
 Route::get('/sadmin/users', function () {
     return Inertia::render('SAdmin/UserManagement');
@@ -72,6 +76,10 @@ Route::get('/adviser', function () {
     return Inertia::render('Adviser/Dashboard');
 })->name('adviser.dashboard');
 
+Route::get('/adviser/dashboard', function () {
+    return Inertia::render('Adviser/Dashboard');
+})->name('adviser.dashboard.alias');
+
 Route::get('/adviser/approvals', function () {
     return Inertia::render('Adviser/Approvals');
 })->name('adviser.approvals');
@@ -97,16 +105,15 @@ Route::get('/adviser/profile', function () {
     return Inertia::render('Adviser/Profile');
 })->name('adviser.profile');
 
-<<<<<<< HEAD
 // CSG routes
-=======
-//CSG
->>>>>>> 2fdd804 (sobrang dami bago)
 Route::get('/csg', function () {
     return Inertia::render('CSG/Dashboard');
 })->name('csg.dashboard');
 
-<<<<<<< HEAD
+Route::get('/csg/dashboard', function () {
+    return Inertia::render('CSG/Dashboard');
+})->name('csg.dashboard.alias');
+
 Route::get('/csg/projects', function () {
     return Inertia::render('CSG/Projects');
 })->name('csg.projects');
@@ -134,13 +141,14 @@ Route::get('/csg/performance-panel', function () {
 Route::get('/csg/profile', function () {
     return Inertia::render('CSG/Profile');
 })->name('csg.profile');
-=======
-
->>>>>>> 2fdd804 (sobrang dami bago)
 
 Route::get('/user', function () {
     return Inertia::render('User/Dashboard');
 })->name('user.dashboard');
+
+Route::get('/user/dashboard', function () {
+    return Inertia::render('User/Dashboard');
+})->name('user.dashboard.alias');
 
 Route::get('/user/projects', function () {
     return Inertia::render('User/Dashboard', ['page' => 'projects']);
@@ -188,6 +196,6 @@ require __DIR__.'/auth.php';
 
 // Logout route
 Route::post('/logout', function () {
-    auth()->logout();
+    auth()->guard()->logout();
     return redirect('/');
 })->name('logout');
