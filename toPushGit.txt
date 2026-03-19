@@ -56,3 +56,7 @@ push all:
 git status
 
 git add .
+
+git commit -m "Fix 500 errors by aligning Models and Controller with SQL schema"
+
+git push origin main
