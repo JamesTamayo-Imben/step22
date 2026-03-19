@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SAdmin\UserManagementController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -28,9 +29,17 @@ Route::get('/sadmin/dashboard', function () {
 })->name('sadmin.dashboard.alias');
 
 // Superadmin sub-pages
-Route::get('/sadmin/users', function () {
-    return Inertia::render('SAdmin/UserManagement');
-})->name('sadmin.users');
+Route::get('/sadmin/users', [UserManagementController::class, 'index'])->name('sadmin.users');
+Route::get('/sadmin/users/search', [UserManagementController::class, 'search'])->name('sadmin.users.search');
+Route::get('/sadmin/users/form-fields/{roleId}', [UserManagementController::class, 'getFormFields'])->name('sadmin.users.form-fields');
+
+Route::post('/sadmin/users', [UserManagementController::class, 'create'])->name('sadmin.users.create');
+Route::post('/sadmin/users/store', [UserManagementController::class, 'store'])->name('sadmin.users.store');
+Route::patch('/sadmin/users/{user}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('sadmin.users.toggle-status');
+Route::post('/sadmin/users/{user}/reset-password', [UserManagementController::class, 'resetPassword'])->name('sadmin.users.reset-password');
+Route::patch('/sadmin/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('sadmin.users.update-role');
+Route::patch('/sadmin/users/{user}/restore', [UserManagementController::class, 'restore'])->name('sadmin.users.restore');
+Route::delete('/sadmin/users/{user}', [UserManagementController::class, 'destroy'])->name('sadmin.users.destroy');
 
 Route::get('/sadmin/roles', function () {
     return Inertia::render('SAdmin/RolesPermissions');
@@ -190,6 +199,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+// Secret superadmin login route (Easter egg)
+Route::middleware('guest')->group(function () {
+    Route::get('sadmin/login', function () {
+        return Inertia::render('Auth/SuperAdminLogin');
+    })->name('sadmin.login');
 });
 
 require __DIR__.'/auth.php';

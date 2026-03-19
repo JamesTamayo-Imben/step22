@@ -2,51 +2,45 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
+     * Set to false because users table uses UUID (char 36)
      */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'department',
-        'year_level',
-        'bio',
-        'role_id',
-        'provider',
-        'provider_id',
-        'avatar_url',
-        'last_login_at',
-        'is_active',
-    ];
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
+     * Fillable columns matching your SQL schema exactly.
+     * REMOVED: institute_id, provider, provider_id, avatar_url (Not in your SQL)
      */
+    protected $fillable = [
+        'id',
+        'role_id',
+        'name',
+        'email',
+        'phone',
+        'password',
+        'status',
+        'last_login_at',
+        'archive',
+    ];
+
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
+     * Casts for data integrity.
      */
     protected function casts(): array
     {
@@ -54,37 +48,42 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'last_login_at' => 'datetime',
-            'is_active' => 'boolean',
+            'archive' => 'boolean',
         ];
     }
 
     /**
-     * Get the role that belongs to the user.
+     * Relationship to Role
      */
     public function role(): BelongsTo
     {
-        return $this->belongsTo(Role::class);
+        return $this->belongsTo(Role::class, 'role_id');
     }
 
     /**
-     * Check if the user has a specific role.
-     *
-     * @param string $roleName
-     * @return bool
+     * Relationship to Student (student_csg_officers table)
      */
+    public function student(): HasOne
+    {
+        return $this->hasOne(Student::class, 'user_id');
+    }
+
+    /**
+     * Relationship to Teacher (teacher_adviser table)
+     */
+    public function teacher(): HasOne
+    {
+        return $this->hasOne(Teacher::class, 'user_id');
+    }
+
+    // Role Helper Methods
     public function hasRole(string $roleName): bool
     {
-        return $this->role && $this->role->slug === $roleName;
+        return $this->role && $this->role->name === $roleName;
     }
 
-    /**
-     * Check if the user has any of the given roles.
-     *
-     * @param array<string> $roleNames
-     * @return bool
-     */
     public function hasAnyRole(array $roleNames): bool
     {
-        return $this->role && in_array($this->role->slug, $roleNames);
+        return $this->role && in_array($this->role->name, $roleNames);
     }
 }

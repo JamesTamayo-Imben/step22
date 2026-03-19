@@ -1,14 +1,8 @@
 import { useState } from "react";
 import { Link, router } from '@inertiajs/react';
-import { User, Lock, Eye, EyeOff } from "lucide-react";
-// Comment muna
-// SUPABASE AUTH
-// import { useSupabase } from "../../context/SupabaseContext";
+import { User, Lock, Eye, EyeOff, Shield } from "lucide-react";
 
-export default function LoginPage({ onLogin, onNavigateToRegister }) {
-    // Comment muna
-    // const { signIn, signInWithGoogle, validateGoogleEmailDomain, user } = useSupabase();
-    
+export default function SuperAdminLoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -26,23 +20,18 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
       if (!uname) {
         throw new Error("Please enter your email");
       }
-      // Comment muna
-      // Validate email domain
-      // if (!uname.endsWith("@kld.edu.ph")) {
-      //   throw new Error("Email must be a valid KLD school email (@kld.edu.ph)");
-      // }
 
       if (!password) {
         throw new Error("Please enter your password");
       }
 
-      // Comment kapag activate na supabase
       const payload = {
         email: uname,
         password: password,
+        isSuperAdmin: true,
       };
       
-      console.log('Sending login request with payload:', payload);
+      console.log('Sending superadmin login request with payload:', payload);
       
       const response = await fetch('/api/login', {
         method: 'POST',
@@ -60,26 +49,26 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
       console.log('Response data:', data);
 
       if (!response.ok) {
-        // Check if it's a superadmin trying to login on regular portal
-        if (response.status === 403 && data.message?.includes('Superadmin accounts must use')) {
-          // Redirect superadmin to secret login
-          console.log('Superadmin detected, redirecting to secret login...');
-          setError("Redirecting to SuperAdmin login portal...");
+        // Check if it's a non-superadmin trying to login on secret portal
+        if (response.status === 403 && data.message?.includes('does not have superadmin')) {
+          // Redirect to regular login
+          console.log('Non-superadmin detected, redirecting to regular login...');
+          setError("Redirecting to regular login portal...");
           setTimeout(() => {
-            router.visit(route('sadmin.login'));
+            router.visit(route('login'));
           }, 1500);
           return; // Exit without throwing error
         }
         throw new Error(data.message || "Login failed. Please check your credentials.");
       }
 
-      // Check if user is superadmin (not allowed on main login)
-      if (data.user?.role === 'superadmin') {
-        // Redirect superadmin to secret login
-        console.log('Superadmin detected, redirecting to secret login...');
-        setError("Redirecting to SuperAdmin login portal...");
+      // Verify user is superadmin
+      if (data.user?.role !== 'superadmin') {
+        // Redirect admin/adviser to regular login
+        console.log('Non-superadmin account detected, redirecting to regular login...');
+        setError("Redirecting to regular login portal...");
         setTimeout(() => {
-          router.visit(route('sadmin.login'));
+          router.visit(route('login'));
         }, 1500);
         return; // Exit without throwing error
       }
@@ -93,63 +82,19 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
       // Store user info in localStorage for frontend use
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      // Redirect to appropriate dashboard based on role
-      window.location.href = data.redirect || "/dashboard";
+      // Redirect to superadmin dashboard
+      window.location.href = data.redirect || "/sadmin";
 
-      /* ===== 
-      // Sign in with Supabase (using email as username)
-      const result = await signIn(uname, password);
-
-      // Store remember me preference
-      if (rememberMe) {
-        localStorage.setItem('rememberMe', 'true');
-        localStorage.setItem('rememberedEmail', uname);
-      }
-
-      // Call onLogin callback if provided
-      if (onLogin) {
-        // Determine role from metadata or default to 'user'
-        const role = result.user?.user_metadata?.role || 'user';
-        onLogin(role, uname);
-      } else {
-        // Fallback: navigate to dashboard
-        window.location.href = "/user";
-      }
-      =END SUPABASE AUTH*/
     } catch (err) {
       setError(err.message || "Login failed. Please check your credentials.");
-      console.error("Login error:", err);
+      console.error("Superadmin login error:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
-    /* SUPABASE GOOGLE LOGIN
-    try {
-      setError("");
-      setIsLoading(true);
-      
-      const { error } = await signInWithGoogle();
-      
-      if (error) {
-        throw error;
-      }
-      
-    } catch (err) {
-      setError(err.message || "Google login failed. Please try again.");
-      console.error("Google login error:", err);
-      setIsLoading(false);
-    }
-    */
-    
-    // ito muna error message sa google sign in
-    setError("Google login is currently disabled. Please use email/password login.");
-  };
-
-  const goToRegister = () => {
-    if (onNavigateToRegister) return onNavigateToRegister();
-    window.location.href = '/register';
+  const goBackToLogin = () => {
+    router.visit(route('login'));
   };
 
   return (
@@ -163,26 +108,30 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full"></div>
 
         <div className="relative z-10">
-          <h1 className="text-3xl font-medium mb-1">Welcome to STEP</h1>
-          <p className="text-lg">Sign in with your school email</p>
+          <div className="flex items-center gap-3 mb-4">
+            <Shield className="w-8 h-8" />
+            <h1 className="text-3xl font-bold">STEP SuperAdmin</h1>
+          </div>
+          <p className="text-lg text-blue-100">Administrative Access Portal</p>
 
           <div className="relative z-10 mt-10 flex justify-center">
             <div className="mt-20 space-y-4 w-1/2">
               <h2 className="text-4xl font-semibold leading-tight">
-                Transparent.<br />
-                Accountable.<br />
-                Trustworthy.
+                System.<br />
+                Control.<br />
+                Authority.
               </h2>
               <p className="text-white/80 max-w-md">
-                Empowering students and organizations with financial transparency
-                and collaborative decision-making.
+                Exclusive administrative interface for system superadministrators
+                and platform management.
               </p>
             </div>
 
             <div className="gap-2 overflow-hidden">
               <img
-              src="/images/login-bg.png" alt="Login Background"
-              className="w-full object-cover"/>
+                src="/images/login-bg.png" alt="Login Background"
+                className="w-full object-cover"
+              />
             </div>
           </div>
         </div>
@@ -191,44 +140,29 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
       {/* RIGHT PANEL */}
       <div className="flex-1 flex items-center justify-center bg-[#F5F6F8] p-6">
 
-        <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-sm p-10">
+        <div className="w-full max-w-md bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-10">
 
           {/* STEP Icon */}
           <div className="flex justify-center mb-2">
             <div className="w-20 overflow-hidden px-2">
               <img
-              src="/images/Logo.png" alt="Step Logo"
-              className="w-full object-cover"/>
+                src="/images/Logo.png" alt="Step Logo"
+                className="w-full object-cover"
+              />
+            </div>
+          </div>
+
+          {/* Secret Badge */}
+          <div className="flex justify-center mb-4">
+            <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              SuperAdmin Access
             </div>
           </div>
 
           <h2 className="text-center text-2xl text-gray-800 mb-6">
-            Login
+            Administrative Login
           </h2>
-
-          {/* Google Button */}
-          <button
-            onClick={handleGoogleLogin}
-            disabled={isLoading}
-            className="w-full h-10 border border-gray-300 rounded-xl flex items-center justify-center gap-2 bg-white hover:bg-gray-50 transition"
-          >
-            <svg viewBox="0 0 48 48" width="18" height="18">
-              <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.8 2.2 30.2 0 24 0 14.6 0 6.6 5.4 2.6 13.3l7.8 6C12.3 13 17.7 9.5 24 9.5z"/>
-              <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.4 5.6-5 7.3l7.8 6C44.2 37.7 46.5 31.6 46.5 24.5z"/>
-              <path fill="#FBBC05" d="M10.4 28.3c-1-3-.9-6.2 0-9.2l-7.8-6C-1.5 18.4-1.5 29.6 2.6 34.9l7.8-6.6z"/>
-              <path fill="#34A853" d="M24 48c6.2 0 11.8-2 15.7-5.5l-7.8-6c-2.2 1.5-5 2.3-7.9 2.3-6.3 0-11.7-3.5-13.6-8.8l-7.8 6C6.6 42.6 14.6 48 24 48z"/>
-            </svg>
-            <span className="text-sm text-gray-700 font-medium">
-              Continue with Google
-            </span>
-          </button>
-
-          {/* Divider */}
-          <div className="flex items-center my-6">
-            <div className="flex-grow border-t border-gray-300"></div>
-            <span className="mx-4 text-xs text-gray-500">OR</span>
-            <div className="flex-grow border-t border-gray-300"></div>
-          </div>
 
           {/* Error */}
           {error && (
@@ -247,7 +181,7 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
-                  placeholder="your.name@kld.edu.ph"
+                  placeholder="admin@kld.edu.ph"
                   type="email"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -283,7 +217,7 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
               </div>
             </div>
 
-            {/* Remember + Forgot */}
+            {/* Remember Me */}
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2 text-gray-600">
                 <input
@@ -308,17 +242,22 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
               className={`w-full h-10 rounded-xl text-white font-medium transition ${isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
               style={{ background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)" }}
             >
-              {isLoading ? "Logging in..." : "Login"}
+              {isLoading ? "Logging in..." : "Login as SuperAdmin"}
             </button>
           </form>
 
-          {/* Register */}
+          {/* Back to Regular Login */}
           <p className="text-center text-sm text-gray-600 mt-6">
-            Don't have an account?{" "}
-            <button onClick={goToRegister} className="text-blue-600 hover:underline">
-              Sign up
+            <button onClick={goBackToLogin} className="text-blue-600 hover:underline">
+              Back to Regular Login
             </button>
           </p>
+
+          {/* Footer Note */}
+          <div className="mt-8 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
+            <p className="font-semibold mb-1">⚠️ Restricted Access</p>
+            <p>This login portal is restricted to authorized system administrators only. Unauthorized access attempts will be logged.</p>
+          </div>
         </div>
       </div>
     </div>

@@ -4,13 +4,9 @@ git add "[file path]"
 example:
 git add "/opt/lampp/htdocs/Prototype System/Step/kldstep/resources/js/Pages/Adviser/Permission.jsx"
 
-<<<<<<< HEAD
-Noted: Gawin mo para madali right click mo yung file or kaya yung folder na gusto mong i-push tas click mo yung "copy path" tas paste mo sa loob ng double quote
-=======
-Commit the staged change:
-git commit -m "Mga bago" 
->>>>>>> 2fdd804 (sobrang dami bago)
 
+Noted: Gawin mo para madali right click mo yung file or kaya yung folder na gusto mong i-push tas click mo yung "copy path" tas paste mo sa loob ng double quote
+  
 2. Commit the File:
 git commit -m "Message mo(kahit ano pero sabihin mo ano update dito)" 
 
@@ -52,3 +48,11 @@ Verify it's correct:
 Bash
 
 git remote -v
+
+
+
+push all:
+
+git status
+
+git add .

@@ -377,7 +377,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
             </Avatar>
             <div className="flex-1">
               <p className="text-sm text-gray-900">CSG Officer</p>
-              <p className="text-xs text-gray-500">officer@step.edu</p>
+              <p className="text-xs text-gray-500">officer@kld.edu.ph</p>
             </div>
           </div>
           <form method="POST" action="/logout" className="w-full">

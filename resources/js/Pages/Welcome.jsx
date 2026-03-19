@@ -1,6 +1,9 @@
-import { ArrowRight, Shield, FileCheck, Users, CheckCircle, Sparkles, Play, X, ArrowUp } from 'lucide-react';
+import { ArrowRight, Shield, FileCheck, Users, CheckCircle, Sparkles, Play, X, ArrowUp, HelpCircle } from 'lucide-react';
 import { Link, router } from '@inertiajs/react';
 import { useRef, useState, useEffect } from 'react';
+
+let secretClickCount = 0;
+let secretClickTimeout = null;
 
 const animationStyles = `
   @keyframes moveGradient {
@@ -55,6 +58,7 @@ export default function Welcome() {
   const [showPointer, setShowPointer] = useState(false);
   const [showVideoDialog, setShowVideoDialog] = useState(false);
   const [countdown, setCountdown] = useState(5);
+  const [isScrolled, setIsScrolled] = useState(false);
   const timeoutRef = useRef(null);
   const countdownRef = useRef(null);
 
@@ -101,10 +105,54 @@ export default function Welcome() {
     setIsVideoPlaying(false);
   };
 
+  const handleSecretClick = () => {
+    // Clear previous timeout if it exists
+    if (secretClickTimeout) {
+      clearTimeout(secretClickTimeout);
+    }
+
+    // Increment click count
+    secretClickCount++;
+
+    // Reset counter if clicks are more than 5 seconds apart
+    secretClickTimeout = setTimeout(() => {
+      secretClickCount = 0;
+    }, 5000);
+
+    // Check if 5 clicks reached
+    if (secretClickCount === 5) {
+      secretClickCount = 0; // Reset for next session
+      clearTimeout(secretClickTimeout);
+      // Redirect to secret superadmin login
+      router.visit('/sadmin/login');
+    }
+  };
+
+  const handleScrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleHelpClick = () => {
+    // Placeholder for help functionality
+    alert('Help feature coming soon!');
+  };
+
   useEffect(() => {
+    const handleScroll = () => {
+      // Show scroll to top button when user scrolls down more than 300px
+      if (window.scrollY > 300) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
     return () => {
+      window.removeEventListener('scroll', handleScroll);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
+      if (secretClickTimeout) clearTimeout(secretClickTimeout);
     };
   }, []);
 
@@ -559,13 +607,36 @@ export default function Welcome() {
 
           <div className="pt-8 border-t border-gray-800 flex flex-col md:flex-row items-center justify-between">
             <p className="text-sm text-gray-400">© 2026 Kolehiyo ng Lungsod ng Dasmariñas. All rights reserved.</p>
-            <div className="flex items-center gap-2 text-sm text-gray-400 mt-4 md:mt-0">
+            <div 
+              onClick={handleSecretClick}
+              className="flex items-center gap-2 text-sm text-gray-400 mt-4 md:mt-0 cursor-default select-none"
+            >
               <CheckCircle className="w-4 h-4 text-green-500" />
               <span>Powered by blockchain-inspired transparency</span>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Fixed Scroll to Top Button */}
+      {isScrolled && (
+        <button
+          onClick={handleScrollToTop}
+          className="fixed bottom-20 right-6 bg-[#2563EB] hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 ease-in-out hover:scale-110 z-40"
+          title="Scroll to top"
+        >
+          <ArrowUp className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* Fixed Help Button */}
+      <button
+        onClick={handleHelpClick}
+        className="fixed bottom-6 right-6 bg-[#2563EB] hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 ease-in-out hover:scale-110 z-40"
+        title="Help & Support"
+      >
+        <HelpCircle className="w-5 h-5" />
+      </button>
     </div>
   );
 }

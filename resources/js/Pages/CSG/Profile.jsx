@@ -104,7 +104,7 @@ function CSGProfilePageInner() {
     firstName: 'John',
     lastName: 'Reyes',
     name: 'John Reyes',
-    email: 'john.reyes@student.edu',
+    email: 'john.reyes@kld.edu.ph',
     phone: '+63 9123456789',
     position: 'CSG President',
     department: 'College of Engineering',
@@ -368,7 +368,7 @@ function CSGProfilePageInner() {
         </div>
       </Card>
 
-      <Card className="rounded-[20px] border-0 shadow-sm p-6">
+      {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
         <h2 className="text-gray-900 text-lg font-semibold mb-4">Account Settings</h2>
         <div className="space-y-3">
           <Button variant="outline" className="w-full rounded-xl justify-start">
@@ -384,7 +384,7 @@ function CSGProfilePageInner() {
             Sign Out
           </Button>
         </div>
-      </Card>
+      </Card> */}
 
       <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Profile">
         <div className="space-y-4 pt-6">

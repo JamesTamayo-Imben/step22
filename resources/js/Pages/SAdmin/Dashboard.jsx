@@ -25,7 +25,7 @@ export default function SAdminDashboard() {
               <p className="text-gray-500">Complete system oversight and management</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
                 <div className="flex items-center justify-between">
                   <div>
@@ -52,7 +52,7 @@ export default function SAdminDashboard() {
                 </div>
               </Card>
 
-              <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+              {/* <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-500">System Health</p>
@@ -63,7 +63,7 @@ export default function SAdminDashboard() {
                     <Activity className="w-6 h-6 text-green-600" />
                   </div>
                 </div>
-              </Card>
+              </Card> */}
 
               <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
                 <div className="flex items-center justify-between">

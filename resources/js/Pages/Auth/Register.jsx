@@ -116,9 +116,6 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
         throw error;
       }
       
-      // Note: Execution stops here and redirects to Google
-      // User will be redirected back to /auth/callback after Google login
-      // Do NOT add code after signInWithGoogle() - it won't execute!
     } catch (err) {
       setError(err.message || "Google sign-up failed. Please try again.");
       console.error("Google sign-up error:", err);

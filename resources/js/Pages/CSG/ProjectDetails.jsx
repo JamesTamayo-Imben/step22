@@ -197,7 +197,7 @@ const mockProject = {
   status: 'Draft',
   // FIX #1: Changed from 'Pending Adviser Approval' to 'Draft' so isEditable = true
   // and the Edit / Delete / Submit buttons are visible.
-  approvalStatus: 'Draft',
+  approvalStatus: 'Approved',
   progress: 75,
   budget: 50000,
   startDate: '2024-11-01',

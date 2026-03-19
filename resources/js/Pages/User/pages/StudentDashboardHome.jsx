@@ -8,12 +8,12 @@ export function StudentDashboardHome({ onNavigate }) {
         <h1 className="text-white mb-2">Welcome back, Student!</h1>
         <p className="text-blue-100 mb-6">Track your progress and stay updated</p>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {/* <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <TrendingUp className="w-6 h-6 mb-2" />
             <p className="text-2xl mb-1">500</p>
             <p className="text-xs text-blue-100">Total Points</p>
-          </div>
+          </div> */}
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <Award className="w-6 h-6 mb-2" />
             <p className="text-2xl mb-1">12</p>
@@ -33,7 +33,7 @@ export function StudentDashboardHome({ onNavigate }) {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
           onClick={() => onNavigate('projects')}
           className="p-4 bg-white rounded-[20px] border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-left"
@@ -52,14 +52,14 @@ export function StudentDashboardHome({ onNavigate }) {
           <p className="text-xs text-gray-500 mt-1">3 upcoming</p>
         </button>
 
-        <button
+        {/* <button
           onClick={() => onNavigate('points')}
           className="p-4 bg-white rounded-[20px] border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all text-left"
         >
           <Zap className="w-8 h-8 text-purple-600 mb-2" />
           <p className="text-sm text-gray-900">My Points</p>
           <p className="text-xs text-gray-500 mt-1">View history</p>
-        </button>
+        </button> */}
       </div>
 
       {/* Active Projects */}
@@ -209,7 +209,7 @@ export function StudentDashboardHome({ onNavigate }) {
       </div>
 
       {/* Progress to Next Level */}
-      <div className="p-6 rounded-[20px] border-0 shadow-sm bg-gradient-to-r from-blue-50 to-purple-50">
+      {/* <div className="p-6 rounded-[20px] border-0 shadow-sm bg-gradient-to-r from-blue-50 to-purple-50">
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="text-sm text-gray-600">Progress to Level 6</p>
@@ -223,7 +223,7 @@ export function StudentDashboardHome({ onNavigate }) {
         <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full" style={{ width: '83%' }}></div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
