@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SAdmin\UserManagementController;
+use App\Http\Controllers\CSG\CSGProjectController;
+use App\Http\Controllers\User\UserProjectController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -123,9 +125,13 @@ Route::get('/csg/dashboard', function () {
     return Inertia::render('CSG/Dashboard');
 })->name('csg.dashboard.alias');
 
-Route::get('/csg/projects', function () {
-    return Inertia::render('CSG/Projects');
-})->name('csg.projects');
+Route::get('/csg/projects', [CSGProjectController::class, 'index'])->name('csg.projects');
+Route::post('/csg/projects', [CSGProjectController::class, 'store'])->name('csg.projects.store');
+Route::patch('/csg/projects/{id}', [CSGProjectController::class, 'update'])->name('csg.projects.update');
+Route::delete('/csg/projects/{id}', [CSGProjectController::class, 'destroy'])->name('csg.projects.destroy');
+Route::post('/csg/projects/{projectId}/ledger', [CSGProjectController::class, 'storeLedger'])->name('csg.projects.ledger.store');
+Route::patch('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'updateLedger'])->name('csg.projects.ledger.update');
+Route::delete('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'destroyLedger'])->name('csg.projects.ledger.destroy');
 
 Route::get('/csg/ledger', function () {
     return Inertia::render('CSG/Ledger');
@@ -151,21 +157,14 @@ Route::get('/csg/profile', function () {
     return Inertia::render('CSG/Profile');
 })->name('csg.profile');
 
-Route::get('/user', function () {
-    return Inertia::render('User/Dashboard');
-})->name('user.dashboard');
+Route::get('/user', [UserProjectController::class, 'dashboard'])->name('user.dashboard');
 
-Route::get('/user/dashboard', function () {
-    return Inertia::render('User/Dashboard');
-})->name('user.dashboard.alias');
+Route::get('/user/dashboard', [UserProjectController::class, 'dashboard'])->name('user.dashboard.alias');
 
-Route::get('/user/projects', function () {
-    return Inertia::render('User/Dashboard', ['page' => 'projects']);
-})->name('user.projects');
+Route::get('/user/projects', [UserProjectController::class, 'index'])->name('user.projects');
 
-Route::get('/user/projects/{id}', function ($id) {
-    return Inertia::render('User/Dashboard', ['page' => 'project-details', 'projectId' => $id]);
-})->name('user.project-details');
+Route::get('/user/projects/{id}', [UserProjectController::class, 'show'])->name('user.project-details');
+Route::post('/user/projects/{id}/ratings', [UserProjectController::class, 'upsertRating'])->name('user.project-rate');
 
 Route::get('/user/meetings', function () {
     return Inertia::render('User/Dashboard', ['page' => 'meetings']);
@@ -186,10 +185,6 @@ Route::get('/user/badges', function () {
 Route::get('/user/leaderboard', function () {
     return Inertia::render('User/Dashboard', ['page' => 'leaderboard']);
 })->name('user.leaderboard');
-
-Route::get('/user/badges', function () {
-    return Inertia::render('User/Dashboard', ['page' => 'badges']);
-})->name('user.badges');
 
 Route::get('/user/notifications', function () {
     return Inertia::render('User/Dashboard', ['page' => 'notifications']);

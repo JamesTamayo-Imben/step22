@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Course;
 
 class Student extends Model
 {
@@ -31,7 +30,6 @@ class Student extends Model
         'id',               // The actual Student ID (Primary Key)
         'user_id',          // Foreign key to users table
         'adviser_id',       // Foreign key to teacher_adviser table
-        'course_id',        // Foreign key to course table
         'is_csg',
         'csg_position',
         'csg_term_start',
@@ -68,12 +66,4 @@ class Student extends Model
         return $this->belongsTo(Teacher::class, 'adviser_id');
     }
 
-    /**
-     * Get the Course associated with this student.
-     */
-    public function course(): BelongsTo
-    {
-        // return $this->belongsTo(Course::class, 'course_id');
-        return $this->belongsTo(Course::class, 'course_id', 'id');
-    }
 }

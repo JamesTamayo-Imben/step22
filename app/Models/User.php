@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -74,6 +75,11 @@ class User extends Authenticatable
     public function teacher(): HasOne
     {
         return $this->hasOne(Teacher::class, 'user_id');
+    }
+
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(Rating::class, 'user_id', 'id');
     }
 
     // Role Helper Methods

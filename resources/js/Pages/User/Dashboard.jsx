@@ -16,6 +16,9 @@ export default function UserDashboard() {
   const { url, props } = usePage();
   const currentPage = props.page || 'dashboard';
   const projectId = props.projectId || null;
+  const projects = props.projects || [];
+  const project = props.project || null;
+  const userRatingMap = props.userRatingMap || {};
 
   // Map routes to current view
   const getCurrentView = () => {
@@ -78,8 +81,21 @@ export default function UserDashboard() {
         <div className="pt-8 px-4 lg:px-0 md:px-0 lg:pt-24 lg:pb-8 pb-20"> {/* adjust padding to match navbar height */}
           <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
             {currentView === 'dashboard' && <StudentDashboardHome onNavigate={handleNavigate} />}
-            {currentView === 'projects' && <StudentProjectsPage onNavigate={handleNavigate} onViewDetails={handleViewProjectDetails} />}
-            {currentView === 'project-details' && <StudentProjectDetails projectId={projectId} onBack={handleBackFromDetails} />}
+            {currentView === 'projects' && (
+              <StudentProjectsPage
+                onNavigate={handleNavigate}
+                onViewDetails={handleViewProjectDetails}
+                projects={projects}
+                userRatingMap={userRatingMap}
+              />
+            )}
+            {currentView === 'project-details' && (
+              <StudentProjectDetails
+                projectId={projectId}
+                onBack={handleBackFromDetails}
+                project={project}
+              />
+            )}
             {currentView === 'meetings' && <StudentMeetingsPage onNavigate={handleNavigate} />}
             {currentView === 'profile' && <StudentProfilePage onNavigate={handleNavigate} />}
             {currentView === 'badges' && <StudentBadgesPage onNavigate={handleNavigate} />}
