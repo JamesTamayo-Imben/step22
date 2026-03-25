@@ -15,12 +15,15 @@ import {
   Clock,
   Edit,
   Trash2,
+  Send,
   Upload,
   Download,
   Eye,
   FileText,
   CheckCircle,
   XCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -141,77 +144,9 @@ function TabsContent({ value, children, activeTab }) {
   return <div>{children}</div>;
 }
 
-const mockMeetings = [
-  {
-    id: 1,
-    title: 'General Assembly',
-    date: '2024-11-28',
-    time: '2:00 PM',
-    location: 'University Auditorium',
-    description: 'Quarterly general assembly to discuss project updates and student concerns',
-    status: 'Scheduled',
-    expectedAttendees: 250,
-    hasMinutes: false,
-    createdAt: '2024-11-01',
-  },
-  {
-    id: 2,
-    title: 'Budget Planning Session',
-    date: '2024-12-02',
-    time: '10:00 AM',
-    location: 'CSG Office',
-    description: 'Planning session for Q1 2025 budget allocation',
-    status: 'Scheduled',
-    expectedAttendees: 15,
-    hasMinutes: false,
-    createdAt: '2024-11-10',
-  },
-  {
-    id: 3,
-    title: 'Project Review Meeting',
-    date: '2024-11-15',
-    time: '3:00 PM',
-    location: 'Conference Room A',
-    description: 'Review of ongoing projects and timeline adjustments',
-    status: 'Completed',
-    expectedAttendees: 30,
-    actualAttendees: 28,
-    hasMinutes: true,
-    minutesFile: 'Minutes_Nov15_ProjectReview.pdf',
-    createdAt: '2024-10-25',
-  },
-  {
-    id: 4,
-    title: 'Student Welfare Committee Meeting',
-    date: '2024-11-10',
-    time: '1:00 PM',
-    location: 'CSG Office',
-    description: 'Discussion on student wellness programs and initiatives',
-    status: 'Completed',
-    expectedAttendees: 20,
-    actualAttendees: 18,
-    hasMinutes: true,
-    minutesFile: 'Minutes_Nov10_Welfare.pdf',
-    createdAt: '2024-10-20',
-  },
-  {
-    id: 5,
-    title: 'Sports Fest Planning',
-    date: '2024-10-30',
-    time: '4:00 PM',
-    location: 'Sports Complex',
-    description: 'Initial planning for Annual Sports Fest 2025',
-    status: 'Completed',
-    expectedAttendees: 25,
-    actualAttendees: 22,
-    hasMinutes: true,
-    minutesFile: 'Minutes_Oct30_SportsFest.pdf',
-    createdAt: '2024-10-15',
-  },
-];
-
 function CSGMeetingsPageInner() {
-  const [meetings, setMeetings] = useState(mockMeetings);
+  const [meetings, setMeetings] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showUploadMinutesModal, setShowUploadMinutesModal] = useState(false);
@@ -219,19 +154,115 @@ function CSGMeetingsPageInner() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
 
+  // Pagination for Upcoming Meetings
+  const [currentPageUpcoming, setCurrentPageUpcoming] = useState(1);
+  const [currentPagePast, setCurrentPagePast] = useState(1);
+  const itemsPerPage = 6;
+
   // File upload states for edit modal
   const [editFilePreview, setEditFilePreview] = useState(null);
   const editFileInputRef = useRef(null);
 
+  // Add this function inside CSGMeetingsPageInner component
+const renderAttendees = (attendees) => {
+  if (!attendees) return null;
+  
+  // Handle both array and string formats
+  let attendeesList = [];
+  if (Array.isArray(attendees)) {
+    attendeesList = attendees;
+  } else if (typeof attendees === 'string' && attendees.trim()) {
+    // If it's a comma-separated string
+    attendeesList = attendees.split(',').map(a => a.trim());
+  }
+  
+  if (attendeesList.length === 0) return null;
+  
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Users className="w-4 h-4 text-gray-400" />
+        <span className="text-sm font-medium text-gray-700">Attendees</span>
+        <Badge className="bg-blue-100 text-blue-700 text-xs">
+          {attendeesList.length}
+        </Badge>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {attendeesList.map((attendee, index) => (
+          <Badge 
+            key={index} 
+            className="bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+          >
+            <Avatar className="w-5 h-5 mr-1">
+              <AvatarFallback className="text-xs bg-gray-200">
+                {attendee.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            {attendee}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
+};
+
   // Form state
   const [meetingForm, setMeetingForm] = useState({
     title: '',
-    date: '',
-    time: '',
-    location: '',
+    scheduled_date: '',
     description: '',
-    expectedAttendees: '',
+    expected_attendees: 0,
+    attendees: '',
+    proof: null,
   });
+
+  // Proof file preview state
+  const [proofFilePreview, setProofFilePreview] = useState(null);
+  const proofFileInputRef = useRef(null);
+
+  // Fetch meetings from API on component mount
+  useEffect(() => {
+    const fetchMeetings = async () => {
+      try {
+        setLoading(true);
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+        const response = await fetch('/api/meetings', {
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': csrfToken || '',
+          },
+        });
+
+        if (!response.ok) {
+          console.error('API Response Status:', response.status);
+          const errorText = await response.text();
+          console.error('Response text:', errorText);
+          throw new Error(`Failed to fetch meetings: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Fetched meetings:', data);
+        
+        if (Array.isArray(data)) {
+          setMeetings(data);
+        } else {
+          console.error('API returned non-array data:', data);
+          setMeetings([]);
+          showToast('API returned unexpected format', 'error');
+        }
+      } catch (error) {
+        console.error('Error fetching meetings:', error);
+        console.error('Error details:', error.message);
+        showToast(`Failed to load meetings: ${error.message}`, 'error');
+        setMeetings([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMeetings();
+  }, []);
 
   const [minutesFile, setMinutesFile] = useState('');
 
@@ -240,6 +271,22 @@ function CSGMeetingsPageInner() {
     upcomingMeetings: meetings.filter(m => m.status === 'Scheduled').length,
     completedMeetings: meetings.filter(m => m.status === 'Completed').length,
   };
+
+  // Filter meetings by status
+  const upcomingMeetings = meetings.filter(m => m.status === 'Scheduled');
+  const pastMeetings = meetings.filter(m => m.status === 'Completed');
+
+  // Pagination for Upcoming Meetings
+  const totalUpcomingPages = Math.ceil(upcomingMeetings.length / itemsPerPage);
+  const indexOfLastUpcoming = currentPageUpcoming * itemsPerPage;
+  const indexOfFirstUpcoming = indexOfLastUpcoming - itemsPerPage;
+  const currentUpcomingMeetings = upcomingMeetings.slice(indexOfFirstUpcoming, indexOfLastUpcoming);
+
+  // Pagination for Past Meetings
+  const totalPastPages = Math.ceil(pastMeetings.length / itemsPerPage);
+  const indexOfLastPast = currentPagePast * itemsPerPage;
+  const indexOfFirstPast = indexOfLastPast - itemsPerPage;
+  const currentPastMeetings = pastMeetings.slice(indexOfFirstPast, indexOfLastPast);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -267,70 +314,216 @@ function CSGMeetingsPageInner() {
     }
   };
 
-  const handleCreateMeeting = () => {
-    if (!meetingForm.title || !meetingForm.date || !meetingForm.time || !meetingForm.location) {
+  const handleCreateMeeting = async () => {
+    if (!meetingForm.title || !meetingForm.scheduled_date || !meetingForm.description) {
       showToast('Please fill in all required fields', 'error');
       return;
     }
 
-    const newMeeting = {
-      id: meetings.length + 1,
-      ...meetingForm,
-      status: 'Scheduled',
-      expectedAttendees: parseInt(meetingForm.expectedAttendees) || 0,
-      hasMinutes: false,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
+    try {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+      
+      const payload = {
+        title: meetingForm.title,
+        scheduled_date: meetingForm.scheduled_date,
+        description: meetingForm.description,
+        expected_attendees: meetingForm.expected_attendees ? parseInt(meetingForm.expected_attendees) : 0,
+        attendees: meetingForm.attendees,
+      };
+      
+      console.log('Sending payload:', payload);
+      
+      const response = await fetch('/api/meetings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrfToken || '',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
-    setMeetings([newMeeting, ...meetings]);
-    setShowCreateModal(false);
-    setMeetingForm({
-      title: '',
-      date: '',
-      time: '',
-      location: '',
-      description: '',
-      expectedAttendees: '',
-    });
-    showToast('Meeting created successfully', 'success');
+      console.log('Response Status:', response.status);
+      
+      const responseData = await response.json();
+      console.log('Response Data:', responseData);
+
+      if (!response.ok) {
+        const errorMsg = responseData.message || responseData.error || `API Error: ${response.status}`;
+        throw new Error(errorMsg);
+      }
+
+      showToast('Meeting created successfully', 'success');
+      setShowCreateModal(false);
+      setMeetingForm({
+        title: '',
+        scheduled_date: '',
+        description: '',
+        expected_attendees: 0,
+        attendees: '',
+        proof: null,
+      });
+      
+      // Refresh meetings list
+      const refreshResponse = await fetch('/api/meetings', {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      const data = await refreshResponse.json();
+      if (Array.isArray(data)) setMeetings(data);
+    } catch (error) {
+      console.error('Error creating meeting:', error);
+      showToast(`Error: ${error.message}`, 'error');
+    }
   };
 
-  const handleEditMeeting = () => {
-    if (!selectedMeeting) return;
+ const handleEditMeeting = async () => {
+  if (!selectedMeeting) return;
+  if (!meetingForm.title || !meetingForm.scheduled_date || !meetingForm.description) {
+    showToast('Please fill in all required fields', 'error');
+    return;
+  }
 
-    const updatedMeetings = meetings.map(m =>
-      m.id === selectedMeeting.id
-        ? {
-            ...m,
-            title: meetingForm.title,
-            date: meetingForm.date,
-            time: meetingForm.time,
-            location: meetingForm.location,
-            description: meetingForm.description,
-            expectedAttendees: parseInt(meetingForm.expectedAttendees) || 0,
-            // Add file if uploaded
-            ...(editFilePreview && {
-              hasMinutes: true,
-              minutesFile: editFilePreview.name,
-            }),
-          }
-        : m
-    );
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    
+    // Use FormData to handle file upload
+    const formData = new FormData();
+    formData.append('title', meetingForm.title);
+    formData.append('scheduled_date', meetingForm.scheduled_date);
+    formData.append('description', meetingForm.description);
+    formData.append('expected_attendees', meetingForm.expected_attendees ? parseInt(meetingForm.expected_attendees) : 0);
+    
+    // Important: Handle attendees properly - it should be a string, not JSON
+    // The backend expects 'attendees' to be a string (will be cast to JSON in the model)
+    formData.append('attendees', meetingForm.attendees ? meetingForm.attendees : '');
+    
+    if (meetingForm.proof && meetingForm.proof instanceof File) {
+      formData.append('proof', meetingForm.proof);
+    }
+    
+    // Add _method for PUT since we're using POST with method override
+    formData.append('_method', 'PUT');
+    
+    console.log('Sending update with FormData');
+    
+    const response = await fetch(`/api/meetings/${selectedMeeting.id}`, {
+      method: 'POST', // Use POST with _method override
+      headers: {
+        'X-CSRF-TOKEN': csrfToken || '',
+        'Accept': 'application/json',
+        // Don't set Content-Type header when using FormData - browser will set it with boundary
+      },
+      body: formData,
+    });
 
-    setMeetings(updatedMeetings);
+    console.log('Response Status:', response.status);
+    
+    const responseData = await response.json();
+    console.log('Response Data:', responseData);
+
+    if (!response.ok) {
+      const errorMsg = responseData.message || responseData.error || `API Error: ${response.status}`;
+      throw new Error(errorMsg);
+    }
+
+    showToast('Meeting updated successfully', 'success');
     setShowEditModal(false);
     setSelectedMeeting(null);
     setEditFilePreview(null);
+    setProofFilePreview(null);
     if (editFileInputRef.current) editFileInputRef.current.value = '';
-    showToast('Meeting updated successfully', 'success');
+    if (proofFileInputRef.current) proofFileInputRef.current.value = '';
+    
+    // Refresh meetings list
+    const refreshResponse = await fetch('/api/meetings', {
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    });
+    const data = await refreshResponse.json();
+    if (Array.isArray(data)) setMeetings(data);
+  } catch (error) {
+    console.error('Error updating meeting:', error);
+    showToast(`Error: ${error.message}`, 'error');
+  }
+};
+
+  const handleDeleteMeeting = async () => {
+    if (!selectedMeeting) return;
+
+    try {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+      const response = await fetch(`/api/meetings/${selectedMeeting.id}`, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-TOKEN': csrfToken || '',
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete meeting: ${response.status}`);
+      }
+
+      showToast('Meeting deleted successfully', 'success');
+      setShowDeleteModal(false);
+      setSelectedMeeting(null);
+      
+      // Refresh meetings list
+      const refreshResponse = await fetch('/api/meetings', {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      const data = await refreshResponse.json();
+      if (Array.isArray(data)) setMeetings(data);
+    } catch (error) {
+      console.error('Error deleting meeting:', error);
+      showToast(`Error: ${error.message}`, 'error');
+    }
   };
 
-  const handleDeleteMeeting = () => {
+  const handleMarkAsDone = async () => {
     if (!selectedMeeting) return;
-    setMeetings(meetings.filter(m => m.id !== selectedMeeting.id));
-    setShowDeleteModal(false);
-    setSelectedMeeting(null);
-    showToast('Meeting deleted successfully', 'success');
+
+    try {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+      
+      const response = await fetch(`/api/meetings/${selectedMeeting.id}/mark-as-done`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrfToken || '',
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to mark meeting as done: ${response.status}`);
+      }
+
+      showToast('Meeting marked as completed', 'success');
+      setShowEditModal(false);
+      setSelectedMeeting(null);
+      
+      // Refresh meetings list
+      const refreshResponse = await fetch('/api/meetings', {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      const data = await refreshResponse.json();
+      if (Array.isArray(data)) setMeetings(data);
+    } catch (error) {
+      console.error('Error marking meeting as done:', error);
+      showToast(`Error: ${error.message}`, 'error');
+    }
   };
 
   const handleUploadMinutes = () => {
@@ -373,6 +566,99 @@ function CSGMeetingsPageInner() {
     });
   };
 
+  // Pagination component
+  const PaginationControls = ({ currentPage, totalPages, onPageChange, className = "" }) => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className={`flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg ${className}`}>
+        <div className="flex flex-1 justify-between sm:hidden">
+          <Button
+            onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+            disabled={currentPage === 1}
+            className="relative inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </Button>
+          <Button
+            onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            className="relative ml-3 inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </Button>
+        </div>
+        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Page <span className="font-medium">{currentPage}</span> of{' '}
+              <span className="font-medium">{totalPages}</span>
+            </p>
+          </div>
+          <div>
+            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+              <Button
+                onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center rounded-l-xl border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="sr-only">Previous</span>
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              
+              {[...Array(totalPages)].map((_, i) => {
+                const page = i + 1;
+                const isCurrentPage = page === currentPage;
+                
+                if (
+                  page === 1 ||
+                  page === totalPages ||
+                  (page >= currentPage - 1 && page <= currentPage + 1)
+                ) {
+                  return (
+                    <Button
+                      key={page}
+                      onClick={() => onPageChange(page)}
+                      className={`relative inline-flex items-center border px-4 py-2 text-sm font-medium ${
+                        isCurrentPage
+                          ? 'z-10 bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </Button>
+                  );
+                }
+                
+                if (page === currentPage - 2 || page === currentPage + 2) {
+                  return (
+                    <span
+                      key={page}
+                      className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+                
+                return null;
+              })}
+              
+              <Button
+                onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center rounded-r-xl border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="sr-only">Next</span>
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -390,6 +676,13 @@ function CSGMeetingsPageInner() {
         </Button>
       </div>
 
+      {/* Loading State */}
+      {loading ? (
+        <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
+          <p className="text-gray-600">Loading meetings...</p>
+        </Card>
+      ) : (
+        <>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
@@ -443,184 +736,358 @@ function CSGMeetingsPageInner() {
         </TabsList>
 
         {/* Upcoming Meetings */}
-        <TabsContent value="upcoming">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {meetings.filter(m => m.status === 'Scheduled').map((meeting) => (
-              <Card key={meeting.id} className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-2">{meeting.title}</h3>
-                    <Badge className={getStatusColor(meeting.status)}>
-                      {meeting.status}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="space-y-3 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <span>{meeting.date}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4 text-gray-400" />
-                    <span>{meeting.time}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    <span>{meeting.location}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="w-4 h-4 text-gray-400" />
-                    <span>{meeting.expectedAttendees} expected attendees</span>
-                  </div>
-                </div>
-
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{meeting.description}</p>
-
-                <div className="flex gap-2 pt-2 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 rounded-lg"
-                    onClick={() => {
-                      setSelectedMeeting(meeting);
-                      setMeetingForm({
-                        title: meeting.title,
-                        date: meeting.date,
-                        time: meeting.time,
-                        location: meeting.location,
-                        description: meeting.description,
-                        expectedAttendees: meeting.expectedAttendees.toString(),
-                      });
-                      setShowEditModal(true);
-                    }}
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-lg text-red-600 hover:bg-red-50"
-                    onClick={() => {
-                      setSelectedMeeting(meeting);
-                      setShowDeleteModal(true);
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
-
-            {meetings.filter(m => m.status === 'Scheduled').length === 0 && (
-              <Card className="col-span-full rounded-[20px] border-0 shadow-sm p-12">
-                <div className="text-center">
-                  <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No upcoming meetings</h3>
-                  <p className="text-gray-500 mb-6">Create a new meeting to get started</p>
-                  <Button
-                    onClick={() => setShowCreateModal(true)}
-                    className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Meeting
-                  </Button>
-                </div>
-              </Card>
-            )}
+       <TabsContent value="upcoming">
+  {upcomingMeetings.length > 0 && (
+    <div className="flex justify-between items-center mb-6">
+      <p className="text-sm text-gray-500">
+        Showing {indexOfFirstUpcoming + 1} to {Math.min(indexOfLastUpcoming, upcomingMeetings.length)} of {upcomingMeetings.length} upcoming meetings
+      </p>
+    </div>
+  )}
+  
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {currentUpcomingMeetings.map((meeting) => (
+      <Card key={meeting.id} className="rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col">
+        <div className="p-5 flex flex-col h-full">
+          {/* Header Section */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 text-lg mb-2 line-clamp-1">{meeting.title}</h3>
+              <Badge className={getStatusColor(meeting.status)}>
+                {meeting.status}
+              </Badge>
+            </div>
           </div>
-        </TabsContent>
+
+          {/* Date and Time Section */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="truncate">{meeting.date || meeting.scheduled_date?.split('T')[0] || 'N/A'}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="truncate">{meeting.time || meeting.scheduled_date?.split('T')[1]?.substring(0, 5) || 'N/A'}</span>
+            </div>
+          </div>
+
+          {/* Attendees Section */}
+          {meeting.expected_attendees && meeting.expected_attendees > 0 && (
+            <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+              <Users className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="truncate">{meeting.expected_attendees} expected {meeting.expected_attendees === 1 ? 'attendee' : 'attendees'}</span>
+            </div>
+          )}
+
+          {/* Description Section */}
+          <p className="text-sm text-gray-600 mb-4 line-clamp-2 flex-grow">
+            {meeting.description || 'No description provided'}
+          </p>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-4 mt-auto border-t border-gray-200">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={() => {
+                setSelectedMeeting(meeting);
+                setMeetingForm({
+                  title: meeting.title,
+                  scheduled_date: meeting.scheduled_date ? meeting.scheduled_date.substring(0, 16) : '',
+                  description: meeting.description,
+                  expected_attendees: meeting.expected_attendees || 0,
+                  attendees: Array.isArray(meeting.attendees) ? meeting.attendees.join(', ') : (meeting.attendees || ''),
+                  proof: null,
+                });
+                setProofFilePreview(null);
+                setShowEditModal(true);
+              }}
+            >
+              <Edit className="w-4 h-4 mr-1" />
+              Edit
+            </Button>
+          <Button
+  variant="outline"
+  size="sm"
+  className="rounded-lg text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+  onClick={() => {
+    setSelectedMeeting(meeting);
+    handleMarkAsDone();
+  }}
+>
+  <Send className="w-4 h-4" />
+</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+              onClick={() => {
+                setSelectedMeeting(meeting);
+                setShowDeleteModal(true);
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </Card>
+    ))}
+
+    {/* Empty State */}
+    {upcomingMeetings.length === 0 && (
+      <Card className="col-span-full rounded-xl border-0 shadow-sm p-12">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Calendar className="w-8 h-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No upcoming meetings</h3>
+          <p className="text-gray-500 mb-6">Create a new meeting to get started</p>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="text-white rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Meeting
+          </Button>
+        </div>
+      </Card>
+    )}
+  </div>
+  
+  {/* Pagination */}
+  {upcomingMeetings.length > 0 && totalUpcomingPages > 1 && (
+    <PaginationControls
+      currentPage={currentPageUpcoming}
+      totalPages={totalUpcomingPages}
+      onPageChange={setCurrentPageUpcoming}
+      className="mt-8"
+    />
+  )}
+</TabsContent>
 
         {/* Past Meetings */}
-        <TabsContent value="past">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {meetings.filter(m => m.status === 'Completed').map((meeting) => (
-              <Card key={meeting.id} className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-2">{meeting.title}</h3>
-                    <div className="flex items-center gap-2">
-                      <Badge className={getStatusColor(meeting.status)}>
-                        {meeting.status}
-                      </Badge>
-                      {meeting.hasMinutes && (
-                        <Badge className="bg-purple-100 text-purple-700">
-                          <FileText className="w-3 h-3 mr-1" />
-                          Minutes Available
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
+<TabsContent value="past">
+  {pastMeetings.length > 0 && (
+    <div className="flex justify-between items-center mb-6">
+      <p className="text-sm text-gray-500">
+        Showing {indexOfFirstPast + 1} to {Math.min(indexOfLastPast, pastMeetings.length)} of {pastMeetings.length} past meetings
+      </p>
+      <Badge className="bg-gray-100 text-gray-600 px-3 py-1">
+        {pastMeetings.length} Completed
+      </Badge>
+    </div>
+  )}
+  
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {currentPastMeetings.map((meeting) => (
+      <Card 
+        key={meeting.id} 
+        className="rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col bg-white overflow-hidden"
+      >
+        <div className="p-5 flex flex-col h-full">
+          {/* Header Section */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 text-lg mb-2 line-clamp-1">
+                {meeting.title}
+              </h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className={`${getStatusColor(meeting.status)} flex items-center gap-1 px-2 py-1`}>
+                  {getStatusIcon(meeting.status)}
+                  <span>{meeting.status}</span>
+                </Badge>
+                {meeting.hasMinutes && (
+                  <Badge className="bg-purple-100 text-purple-700 flex items-center gap-1 px-2 py-1">
+                    <FileText className="w-3 h-3" />
+                    <span>Minutes Available</span>
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
 
-                <div className="space-y-3 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <span>{meeting.date}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4 text-gray-400" />
-                    <span>{meeting.time}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    <span>{meeting.location}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="w-4 h-4 text-gray-400" />
-                    <span>
-                      {meeting.actualAttendees || 0} / {meeting.expectedAttendees} attended
-                    </span>
-                  </div>
-                </div>
+          {/* Date and Time Section */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="truncate">
+                {meeting.date || meeting.scheduled_date?.split('T')[0] || 'N/A'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="truncate">
+                {meeting.time || meeting.scheduled_date?.split('T')[1]?.substring(0, 5) || 'N/A'}
+              </span>
+            </div>
+          </div>
 
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{meeting.description}</p>
-
-                <div className="flex gap-2 pt-2 border-t">
-                  {meeting.hasMinutes ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 rounded-lg"
-                      onClick={() => {
-                        setSelectedMeeting(meeting);
-                        setShowViewMinutesModal(true);
-                      }}
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      View Minutes
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 rounded-lg"
-                      onClick={() => {
-                        setSelectedMeeting(meeting);
-                        setShowUploadMinutesModal(true);
-                      }}
-                    >
-                      <Upload className="w-4 h-4 mr-1" />
-                      Upload Minutes
-                    </Button>
-                  )}
+          {/* Attendance Section */}
+          {((meeting.attendees && (Array.isArray(meeting.attendees) ? meeting.attendees.length > 0 : meeting.attendees.trim())) || (meeting.expected_attendees && meeting.expected_attendees > 0)) && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Users className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium">Attendance Rate</span>
                 </div>
-              </Card>
-            ))}
+                <span className="text-sm font-semibold text-gray-700">
+                  {(() => {
+                    let attendeesCount = 0;
+                    if (meeting.attendees) {
+                      if (Array.isArray(meeting.attendees)) {
+                        attendeesCount = meeting.attendees.length;
+                      } else if (typeof meeting.attendees === 'string' && meeting.attendees.trim()) {
+                        attendeesCount = meeting.attendees.split(',').filter(a => a.trim()).length;
+                      }
+                    }
+                    return `${attendeesCount} / ${meeting.expected_attendees || 0}`;
+                  })()}
+                </span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-green-500 rounded-full h-2 transition-all duration-500"
+                  style={{ 
+                    width: `${((() => {
+                      let attendeesCount = 0;
+                      if (meeting.attendees) {
+                        if (Array.isArray(meeting.attendees)) {
+                          attendeesCount = meeting.attendees.length;
+                        } else if (typeof meeting.attendees === 'string' && meeting.attendees.trim()) {
+                          attendeesCount = meeting.attendees.split(',').filter(a => a.trim()).length;
+                        }
+                      }
+                      return (attendeesCount / (meeting.expected_attendees || 1)) * 100;
+                    })())}%` 
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
-            {meetings.filter(m => m.status === 'Completed').length === 0 && (
-              <Card className="col-span-full rounded-[20px] border-0 shadow-sm p-12">
-                <div className="text-center">
-                  <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No past meetings</h3>
-                  <p className="text-gray-500">Completed meetings will appear here</p>
-                </div>
-              </Card>
+          {/* Attendees List */}
+         {meeting.attendees && (Array.isArray(meeting.attendees) ? meeting.attendees.length > 0 : meeting.attendees.trim()) && (
+  <div className="mb-4">
+    <div className="flex items-center gap-2 mb-3">
+      <Users className="w-4 h-4 text-gray-400" />
+      <span className="text-sm font-medium text-gray-700">Attendees</span>
+      <Badge className="bg-blue-100 text-blue-700 text-xs">
+        {(() => {
+          if (Array.isArray(meeting.attendees)) return meeting.attendees.length;
+          if (typeof meeting.attendees === 'string' && meeting.attendees.trim()) {
+            return meeting.attendees.split(',').filter(a => a.trim()).length;
+          }
+          return 0;
+        })()}
+      </Badge>
+    </div>
+    <div className="flex flex-wrap gap-1">
+      {(() => {
+        let attendeesList = [];
+        if (Array.isArray(meeting.attendees)) {
+          attendeesList = meeting.attendees;
+        } else if (typeof meeting.attendees === 'string' && meeting.attendees.trim()) {
+          attendeesList = meeting.attendees.split(',').map(a => a.trim());
+        }
+        
+        const maxDisplay = 3;
+        
+        return (
+          <div className="text-sm text-gray-600">
+            {attendeesList.slice(0, maxDisplay).join(', ')}
+            {attendeesList.length > maxDisplay && (
+              <span className="text-blue-600 ml-1">
+                +{attendeesList.length - maxDisplay} more
+              </span>
             )}
           </div>
-        </TabsContent>
+        );
+      })()}
+    </div>
+  </div>
+)}
+
+          {/* Description */}
+          {meeting.description && (
+            <p className="text-sm text-gray-600 mb-4 line-clamp-2 flex-grow">
+              {meeting.description}
+            </p>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-4 mt-auto border-t border-gray-200">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 rounded-lg hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-all duration-200"
+              onClick={() => {
+                setSelectedMeeting(meeting);
+                setShowViewMinutesModal(true);
+              }}
+            >
+              <Eye className="w-4 h-4 mr-1" />
+              View Minutes
+            </Button>
+            
+            {/* Optional Download Button if minutes file exists */}
+            {meeting.meeting_proof && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-lg hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200"
+                onClick={() => {
+                  if (meeting.minutes_file_url) {
+                    window.open(meeting.minutes_file_url, '_blank');
+                  }
+                }}
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+    ))}
+
+    {/* Empty State */}
+    {pastMeetings.length === 0 && (
+      <Card className="col-span-full rounded-xl border-0 shadow-sm p-12 bg-gradient-to-b from-gray-50 to-white">
+        <div className="text-center">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FileText className="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No past meetings</h3>
+          <p className="text-gray-500 mb-6">
+            Completed meetings will appear here once you mark them as done.
+          </p>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="text-white rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm transition-all duration-200"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create a Meeting
+          </Button>
+        </div>
+      </Card>
+    )}
+  </div>
+  
+  {/* Pagination */}
+  {pastMeetings.length > 0 && totalPastPages > 1 && (
+    <div className="mt-8">
+      <PaginationControls
+        currentPage={currentPagePast}
+        totalPages={totalPastPages}
+        onPageChange={setCurrentPagePast}
+        className="mt-6"
+      />
+    </div>
+  )}
+</TabsContent>
       </Tabs>
+        </>
+      )}
 
       {/* Create Meeting Modal */}
       <Modal
@@ -640,45 +1107,25 @@ function CSGMeetingsPageInner() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Date *</FieldLabel>
-              <Input
-                type="date"
-                value={meetingForm.date}
-                onChange={(e) => setMeetingForm({ ...meetingForm, date: e.target.value })}
-                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-              />
-            </div>
-            <div>
-              <FieldLabel>Time *</FieldLabel>
-              <Input
-                type="time"
-                value={meetingForm.time}
-                onChange={(e) => setMeetingForm({ ...meetingForm, time: e.target.value })}
-                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-              />
-            </div>
-          </div>
-
           <div>
-            <FieldLabel>Location *</FieldLabel>
+            <FieldLabel>Date & Time *</FieldLabel>
             <Input
-              placeholder="Enter meeting location"
-              value={meetingForm.location}
-              onChange={(e) => setMeetingForm({ ...meetingForm, location: e.target.value })}
+              type="datetime-local"
+              value={meetingForm.scheduled_date}
+              onChange={(e) => setMeetingForm({ ...meetingForm, scheduled_date: e.target.value })}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
 
           <div>
-            <FieldLabel>Expected Attendees</FieldLabel>
+            <FieldLabel>Number of Expected Attendees</FieldLabel>
             <Input
               type="number"
               placeholder="0"
-              value={meetingForm.expectedAttendees}
-              onChange={(e) => setMeetingForm({ ...meetingForm, expectedAttendees: e.target.value })}
+              value={meetingForm.expected_attendees}
+              onChange={(e) => setMeetingForm({ ...meetingForm, expected_attendees: e.target.value })}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+              min="0"
             />
           </div>
 
@@ -703,7 +1150,7 @@ function CSGMeetingsPageInner() {
             </Button>
             <Button
               onClick={handleCreateMeeting}
-              disabled={!meetingForm.title || !meetingForm.date || !meetingForm.time || !meetingForm.location}
+              disabled={!meetingForm.title || !meetingForm.scheduled_date || !meetingForm.description}
               className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
             >
               Create Meeting
@@ -734,43 +1181,25 @@ function CSGMeetingsPageInner() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Date *</FieldLabel>
-              <Input
-                type="date"
-                value={meetingForm.date}
-                onChange={(e) => setMeetingForm({ ...meetingForm, date: e.target.value })}
-                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-              />
-            </div>
-            <div>
-              <FieldLabel>Time *</FieldLabel>
-              <Input
-                type="time"
-                value={meetingForm.time}
-                onChange={(e) => setMeetingForm({ ...meetingForm, time: e.target.value })}
-                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-              />
-            </div>
-          </div>
-
           <div>
-            <FieldLabel>Location *</FieldLabel>
+            <FieldLabel>Date & Time *</FieldLabel>
             <Input
-              value={meetingForm.location}
-              onChange={(e) => setMeetingForm({ ...meetingForm, location: e.target.value })}
+              type="datetime-local"
+              value={meetingForm.scheduled_date}
+              onChange={(e) => setMeetingForm({ ...meetingForm, scheduled_date: e.target.value })}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
 
           <div>
-            <FieldLabel>Expected Attendees</FieldLabel>
+            <FieldLabel>Number of Expected Attendees</FieldLabel>
             <Input
               type="number"
-              value={meetingForm.expectedAttendees}
-              onChange={(e) => setMeetingForm({ ...meetingForm, expectedAttendees: e.target.value })}
+              placeholder="0"
+              value={meetingForm.expected_attendees}
+              onChange={(e) => setMeetingForm({ ...meetingForm, expected_attendees: e.target.value })}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+              min="0"
             />
           </div>
 
@@ -784,49 +1213,56 @@ function CSGMeetingsPageInner() {
             />
           </div>
 
-          {/* File Attachment Section */}
           <div>
-            <FieldLabel>Meeting Minutes (Required)</FieldLabel>
-            <div className="flex flex-col items-center gap-3">
-              <button
-                type="button"
-                className="w-full border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center hover:bg-gray-50 transition"
-                onClick={() => editFileInputRef.current && editFileInputRef.current.click()}
-              >
-                <Upload className="w-6 h-6 text-gray-500" />
-                <p className="text-sm text-gray-600 mt-2">Click to upload minutes document</p>
-                <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX up to 10MB</p>
-              </button>
+  <FieldLabel>Attendees</FieldLabel>
+  <Input
+    placeholder="List all of the attendees here (comma separated)"
+    value={meetingForm.attendees}
+    onChange={(e) => setMeetingForm({ ...meetingForm, attendees: e.target.value })}
+    className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+  />
+  <p className="text-xs text-gray-500 mt-1">
+    Enter attendees names separated by commas
+  </p>
+</div>
 
-              <input
-                ref={editFileInputRef}
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={handleEditFileUpload}
-                className="hidden"
-              />
-
-              {editFilePreview && (
-                <div className="w-full p-4 bg-gray-50 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{editFilePreview.name}</p>
-                        <p className="text-xs text-gray-500">{editFilePreview.size}</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setEditFilePreview(null);
-                        if (editFileInputRef.current) editFileInputRef.current.value = '';
-                      }}
-                    >
-                      ✕
-                    </Button>
-                  </div>
+          <div>
+            <FieldLabel>Meeting Proof or Meeting Minutes File (Optional)</FieldLabel>
+            <div className="flex flex-col gap-3">
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                <div className="flex flex-col items-center justify-center py-3">
+                  <Upload className="w-5 h-5 mb-2 text-gray-400" />
+                  <p className="text-xs text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                  <p className="text-xs text-gray-400">PDF, JPG, PNG (MAX. 10MB)</p>
+                </div>
+                <input
+                  ref={proofFileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setProofFilePreview(file.name);
+                      setMeetingForm({ ...meetingForm, proof: file });
+                    }
+                  }}
+                />
+              </label>
+              {proofFilePreview && (
+                <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm text-gray-600 flex-1 truncate">{proofFilePreview}</span>
+                  <button
+                    onClick={() => {
+                      setProofFilePreview(null);
+                      setMeetingForm({ ...meetingForm, proof: null });
+                      if (proofFileInputRef.current) proofFileInputRef.current.value = '';
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
                 </div>
               )}
             </div>
@@ -848,7 +1284,7 @@ function CSGMeetingsPageInner() {
               onClick={handleEditMeeting}
               className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
             >
-              Save Changes
+              Update Changes
             </Button>
           </div>
         </div>
@@ -870,7 +1306,7 @@ function CSGMeetingsPageInner() {
             <div className="bg-blue-50 rounded-xl p-4">
               <p className="text-sm font-medium text-blue-900">{selectedMeeting.title}</p>
               <p className="text-xs text-blue-700 mt-1">
-                {selectedMeeting.date} at {selectedMeeting.time}
+                {selectedMeeting.date || selectedMeeting.scheduled_date?.split('T')[0]} at {selectedMeeting.time || selectedMeeting.scheduled_date?.split('T')[1]?.substring(0, 5)}
               </p>
             </div>
           )}
@@ -948,16 +1384,16 @@ function CSGMeetingsPageInner() {
           <div className="space-y-4 pt-6">
             <div className="bg-blue-50 rounded-xl p-4">
               <p className="text-sm text-blue-900">
-                <strong>{selectedMeeting.date}</strong> at {selectedMeeting.time}
+                <strong>{selectedMeeting.date || selectedMeeting.scheduled_date?.split('T')[0]}</strong> at {selectedMeeting.time || selectedMeeting.scheduled_date?.split('T')[1]?.substring(0, 5)}
               </p>
-              <p className="text-xs text-blue-700 mt-1">{selectedMeeting.location}</p>
             </div>
+         
 
             <div className="h-64 bg-gray-100 rounded-xl flex items-center justify-center">
               <div className="text-center">
                 <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 mb-2 font-medium">{selectedMeeting.minutesFile}</p>
-                <p className="text-sm text-gray-500">PDF Document</p>
+                <p className="text-gray-600 mb-2 font-medium">{selectedMeeting.minutes_file_name || selectedMeeting.minutesFile || 'Meeting Minutes'}</p>
+                <p className="text-sm text-gray-500">Document</p>
               </div>
             </div>
 

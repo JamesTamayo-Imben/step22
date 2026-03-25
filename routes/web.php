@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\CSG\LedgerEntryController;
+use App\Http\Controllers\CSG\MeetingController;
+use App\Http\Controllers\CSG\ProjectController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SAdmin\UserManagementController;
 use App\Http\Controllers\CSG\CSGProjectController;
@@ -178,6 +181,72 @@ Route::get('/user/badges', [UserProjectController::class, 'badges'])->name('user
 Route::get('/user/leaderboard', [UserProjectController::class, 'leaderboard'])->name('user.leaderboard');
 
 Route::get('/user/notifications', [UserProjectController::class, 'notifications'])->name('user.notifications');
+
+
+// ==================== API ROUTES ====================
+Route::prefix('api')->group(function () {
+    // Project Management Routes
+    Route::prefix('projects')->group(function () {
+        Route::get('/', [ProjectController::class, 'index']);
+        Route::post('/', [ProjectController::class, 'store']);
+        Route::get('/{id}', [ProjectController::class, 'show']);
+        Route::put('/{id}', [ProjectController::class, 'update']);
+        Route::delete('/{id}', [ProjectController::class, 'destroy']);
+        Route::post('/{id}/archive', [ProjectController::class, 'archive']);
+        Route::post('/{id}/submit', [ProjectController::class, 'submitForApproval']);
+        Route::get('/{id}/ledger', [ProjectController::class, 'ledgerEntries']);
+        Route::get('/{id}/file', [ProjectController::class, 'getFile']);
+        Route::delete('/{id}/file', [ProjectController::class, 'deleteFile']);
+    });
+    
+    // Ledger Entry Management Routes
+    Route::prefix('ledger-entries')->group(function () {
+        Route::get('/', [LedgerEntryController::class, 'all']);
+        Route::get('/project/{projectId}', [LedgerEntryController::class, 'index']);
+        Route::post('/', [LedgerEntryController::class, 'store']);
+        Route::put('/{id}', [LedgerEntryController::class, 'update']);
+        Route::delete('/{id}', [LedgerEntryController::class, 'destroy']);
+        Route::post('/{id}/submit', [LedgerEntryController::class, 'submitForApproval']);
+        Route::post('/{id}/proof', [LedgerEntryController::class, 'uploadProof']);
+    });
+});
+
+// In routes/api.php or routes/web.php
+Route::prefix('api')->group(function () {
+    Route::get('/ledger-entries', [LedgerEntryController::class, 'all']);
+    Route::post('/ledger-entries', [LedgerEntryController::class, 'store']);
+    Route::put('/ledger-entries/{id}', [LedgerEntryController::class, 'update']);
+    Route::delete('/ledger-entries/{id}', [LedgerEntryController::class, 'destroy']);
+    Route::post('/ledger-entries/{id}/submit', [LedgerEntryController::class, 'submitForApproval']);
+    Route::post('/ledger-entries/{id}/upload', [LedgerEntryController::class, 'uploadDocument']);
+    
+    // Meeting Management Routes
+    Route::prefix('meetings')->group(function () {
+        Route::get('/', [MeetingController::class, 'all']);
+        Route::post('/', [MeetingController::class, 'store']);
+        Route::put('/{id}', [MeetingController::class, 'update']);
+        Route::delete('/{id}', [MeetingController::class, 'destroy']);
+        Route::post('/{id}/mark-as-done', [MeetingController::class, 'markAsDone']);
+        Route::post('/{id}/archive', [MeetingController::class, 'toggleArchive']);
+    });
+
+    Route::get('/projects', [ProjectController::class, 'index']);
+});
+
+// Legacy non-api route prefix (for backward compatibility)
+Route::prefix('projects')->group(function () {
+    Route::get('/', [ProjectController::class, 'index']);
+    Route::get('/{id}', [ProjectController::class, 'show']);
+    Route::get('/{id}/ledger', [ProjectController::class, 'ledgerEntries']);
+    Route::post('/', [ProjectController::class, 'store']);
+    Route::put('/{id}', [ProjectController::class, 'update']);
+    Route::delete('/{id}', [ProjectController::class, 'destroy']);
+    Route::post('/{id}/archive', [ProjectController::class, 'archive']);
+    Route::get('/{id}/file', [ProjectController::class, 'getFile']);
+    Route::delete('/{id}/file', [ProjectController::class, 'deleteFile']);
+});
+
+// Auth routes
 
 
 // Route::post('/sadmin/notifications/read/{id}', function ($id) {

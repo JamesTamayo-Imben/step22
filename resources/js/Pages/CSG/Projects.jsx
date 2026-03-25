@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
@@ -17,6 +17,8 @@ import {
   AlertCircle,
   Trash2,
   Upload,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { CSGProjectDetailsPage } from './ProjectDetails';
 
@@ -93,101 +95,147 @@ function Select({ className = '', children, value, onValueChange, ...props }) {
   );
 }
 
-const initialProjects = [
-  {
-    id: 1,
-    title: 'Community Outreach Program',
-    category: 'Social',
-    description: 'A comprehensive program to reach out to local communities and provide educational support.',
-    status: 'Ongoing',
-    approvalStatus: 'Approved',
-    progress: 75,
-    budget: 50000,
-    startDate: '2024-11-01',
-    endDate: '2024-12-15',
-    createdAt: '2024-10-25',
-  },
-  {
-    id: 2,
-    title: 'Annual Sports Fest',
-    category: 'Sports',
-    description: 'Annual inter-department sports competition with multiple events and activities.',
-    status: '',
-    approvalStatus: 'Pending Adviser Approval',
-    progress: 0,
-    budget: 75000,
-    startDate: '2025-01-05',
-    endDate: '2025-01-20',
-    createdAt: '2024-11-15',
-  },
-  {
-    id: 3,
-    title: 'Campus Sustainability Initiative',
-    category: 'Environmental',
-    description: 'Green campus initiative focusing on waste reduction and renewable energy.',
-    status: '',
-    approvalStatus:'Rejected',
-    progress: 0,
-    budget: 40000,
-    startDate: '2024-10-15',
-    endDate: '2024-11-30',
-    createdAt: '2024-10-01',
-  },
-];
-
 function CSGProjectsPageInner() {
-  const [projects, setProjects] = useState(initialProjects);
+  const [projects, setProjects] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(() => {
+    const match = window.location.pathname.match(/\/csg\/projects\/(.+)$/);
+    return match ? match[1] : null;
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterApprovalStatus, setFilterApprovalStatus] = useState('all');
-
-  // Budget breakdown state
   const [budgetItems, setBudgetItems] = useState([
-    { id: 1, item: '', amount: '' }
+    { id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }
   ]);
-
-  // Create Project Form State
   const [newProject, setNewProject] = useState({
     title: '',
     category: '',
     description: '',
-    proposedBy: '', // Added this field
+    objective: '',
+    venue: '',
+    proposedBy: '',
     startDate: '',
     endDate: '',
   });
-
-  // File upload states - MOVED INSIDE COMPONENT
   const [filePreview, setFilePreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
 
-  const handleFileUpload = (e) => { // MOVED INSIDE COMPONENT
-    const file = e.target.files && e.target.files[0];
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+
+  const normalizeProject = (p) => ({
+    id: p.id,
+    title: p.title || '',
+    category: p.category || '',
+    description: p.description || '',
+    objective: p.objective || '',
+    venue: p.venue || '',
+    status: p.status || '',
+    approvalStatus: p.approval_status || p.approvalStatus || '',
+    progress: p.progress || 0,
+    budget: p.budget || 0,
+    budgetBreakdown: p.budget_breakdown
+      ? (typeof p.budget_breakdown === 'string' ? JSON.parse(p.budget_breakdown) : p.budget_breakdown)
+      : (p.budgetBreakdown || []),
+    startDate: p.start_date || p.startDate || '',
+    endDate: p.end_date || p.endDate || '',
+    createdAt: p.created_at || p.createdAt || '',
+    proposedBy: p.proposed_by || p.proposedBy || '',
+    note: p.note || '',
+    approveBy: p.approve_by || p.approveBy || '',
+    projectProof: p.project_proof || p.projectProof || null,
+    createdBy: p.created_by || p.createdBy || null,
+    updatedBy: p.updated_by || p.updatedBy || null,
+    archive: p.archive || 0,
+    approvedAt: p.approved_at || p.approvedAt || null,
+  });
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
     
     if (file.size > 10 * 1024 * 1024) {
       showToast('File size must be less than 10MB', 'error');
       return;
     }
-
+    
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      showToast('Only PDF, JPG, and PNG files are allowed', 'error');
+      return;
+    }
+    
+    setSelectedFile(file);
     setFilePreview({
       name: file.name,
       size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-      type: file.type,
-    });
-    
-    setNewProject({ 
-      ...newProject, 
-      projectFile: file.name 
+      type: file.type
     });
   };
+
+  // Fetch projects from backend
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('/api/projects', {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      
+      const data = await response.json();
+      setProjects(
+        Array.isArray(data)
+          ? data.map((p) => normalizeProject(p))
+          : []
+      );
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      showToast('Failed to load projects from server', 'error');
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const match = window.location.pathname.match(/\/csg\/projects\/(.+)$/);
+      if (match) {
+        setSelectedProjectId(match[1]);
+      } else {
+        setSelectedProjectId(null);
+      }
+    };
+
+    window.addEventListener('popstate', onPopState);
+
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedProjectId) {
+      window.history.pushState(null, '', `/csg/projects/${selectedProjectId}`);
+    } else {
+      window.history.pushState(null, '', '/csg/projects');
+    }
+  }, [selectedProjectId]);
 
   const addBudgetItem = () => {
     const newId = budgetItems.length > 0 
       ? Math.max(...budgetItems.map(item => item.id)) + 1 
       : 1;
-    setBudgetItems([...budgetItems, { id: newId, item: '', amount: '' }]);
+    setBudgetItems([...budgetItems, { id: newId, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
   };
 
   const removeBudgetItem = (id) => {
@@ -197,73 +245,129 @@ function CSGProjectsPageInner() {
   };
 
   const updateBudgetItem = (id, field, value) => {
-    setBudgetItems(budgetItems.map(item => 
-      item.id === id ? { ...item, [field]: value } : item
-    ));
+    setBudgetItems(budgetItems.map(item => {
+      if (item.id === id) {
+        const updatedItem = { ...item, [field]: value };
+        
+        if (field === 'quantity' || field === 'unitPrice') {
+          const quantity = field === 'quantity' ? parseFloat(value) || 0 : parseFloat(item.quantity) || 0;
+          const unitPrice = field === 'unitPrice' ? parseFloat(value) || 0 : parseFloat(item.unitPrice) || 0;
+          updatedItem.amount = quantity * unitPrice;
+        }
+        
+        return updatedItem;
+      }
+      return item;
+    }));
   };
 
   const calculateTotalBudget = () => {
     return budgetItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   };
 
-  const handleCreateProject = () => {
-    if (!newProject.title || !newProject.category || !newProject.description || !newProject.proposedBy) {
+  const handleCreateProject = async () => {
+    if (!newProject.title || !newProject.category || !newProject.description || 
+        !newProject.objective || !newProject.venue || !newProject.proposedBy) {
       showToast('Please fill in all required fields', 'error');
       return;
     }
 
-    // Check if budget items are filled
-    const hasEmptyItems = budgetItems.some(item => !item.item || !item.amount);
+    const hasEmptyItems = budgetItems.some(item => !item.item || !item.unitPrice || item.quantity <= 0);
     if (hasEmptyItems) {
       showToast('Please fill in all budget items', 'error');
       return;
     }
 
-    const project = {
-      id: projects.length + 1,
-      ...newProject,
-      budgetItems: budgetItems,
-      budget: calculateTotalBudget(),
-      status: 'Draft',
-      progress: 0,
-      createdAt: new Date().toISOString().split('T')[0],
-      uploadedFile: filePreview ? { // Save file info
-        name: filePreview.name,
-        size: filePreview.size,
-        type: filePreview.type
-      } : null
-    };
+    setIsLoading(true);
 
-    setProjects([...projects, project]);
-    setShowCreateModal(false);
-    setNewProject({
-      title: '',
-      category: '',
-      description: '',
-      proposedBy: '',
-      startDate: '',
-      endDate: '',
-    });
-    setBudgetItems([{ id: 1, item: '', amount: '' }]);
-    setFilePreview(null); // Clear file preview
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    const formData = new FormData();
+    formData.append('title', newProject.title);
+    formData.append('description', newProject.description);
+    formData.append('objective', newProject.objective);
+    formData.append('venue', newProject.venue);
+    formData.append('category', newProject.category);
+    formData.append('budget', calculateTotalBudget().toString());
+    formData.append('budget_breakdown', JSON.stringify(budgetItems));
+    formData.append('status', 'Draft');
+    formData.append('proposed_by', newProject.proposedBy);
+    formData.append('start_date', newProject.startDate);
+    formData.append('end_date', newProject.endDate);
+    formData.append('approval_status', 'Draft');
+    formData.append('archive', '0');
     
-    showToast('Project created successfully!', 'success');
+    if (selectedFile) {
+      formData.append('project_proof', selectedFile);
+    }
 
-    // Open the newly created project
-    setTimeout(() => {
-      setSelectedProjectId(project.id);
-    }, 300);
+    try {
+      const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': token,
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData,
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to create project');
+      }
+      
+      // Normalize and add the new project to the list
+      const createdProject = normalizeProject(data);
+      setProjects([createdProject, ...projects]);
+      setShowCreateModal(false);
+      setNewProject({
+        title: '',
+        category: '',
+        description: '',
+        objective: '',
+        venue: '',
+        proposedBy: '',
+        startDate: '',
+        endDate: '',
+      });
+      setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
+      setFilePreview(null);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      showToast('Project created successfully!', 'success');
+      setTimeout(() => {
+        setSelectedProjectId(createdProject.id);
+      }, 300);
+    } catch (error) {
+      console.error('Error creating project:', error);
+      showToast(error.message, 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  // Filter projects
   const filteredProjects = projects.filter((project) => {
     const matchesSearch =
       project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchQuery.toLowerCase());
+      project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (project.objective && project.objective.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesStatus = filterStatus === 'all' || project.status === filterStatus;
     const matchesApprovalStatus = filterApprovalStatus === 'all' || project.approvalStatus === filterApprovalStatus;
     return matchesSearch && matchesStatus && matchesApprovalStatus;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredProjects.slice(indexOfFirstItem, indexOfLastItem);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterStatus, filterApprovalStatus]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -300,23 +404,19 @@ function CSGProjectsPageInner() {
     }
   };
 
-   const approvalstats = {
-    total: projects.length,
-    ongoing: projects.filter((p) => p.approvalStatus === 'Rejected').length,
-    completed: projects.filter((p) => p.approvalStatus === 'Pending Adviser Approval').length,
-    draft: projects.filter((p) => p.approvalStatus === 'Approved').length,
-  };
-
-  // If project is selected, show details page
+  // If project is selected, show details page with the specific project data
   if (selectedProjectId) {
+    const selectedProject = projects.find(p => p.id === selectedProjectId);
+    
     return (
       <CSGProjectDetailsPage
         projectId={selectedProjectId}
+        initialProject={selectedProject}
         onBack={() => setSelectedProjectId(null)}
         onUpdate={(updatedProject) => {
           setProjects(projects.map((p) => (p.id === updatedProject.id ? updatedProject : p)));
         }}
-        onDelete={(id) => {
+        onDelete={async (id) => {
           setProjects(projects.filter((p) => p.id !== id));
           setSelectedProjectId(null);
           showToast('Project deleted successfully', 'success');
@@ -326,31 +426,45 @@ function CSGProjectsPageInner() {
   }
 
   const getProjectButton = (project) => {
-  switch (project.approvalStatus) {
-    case 'Approved':
-      return <Button  
-       onClick={() => setSelectedProjectId(project.id)}
-      className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+    if (project.archive) {
+      return (
+        <Button className="w-full rounded-xl bg-gray-300 text-gray-600 cursor-not-allowed" disabled>
           <FolderOpen className="w-4 h-4 mr-2" />
-          Open Project</Button>;
-    case 'Pending Adviser Approval':
-      return <Button 
-       onClick={() => setSelectedProjectId(project.id)}
-      className="w-full rounded-xl bg-yellow-600 hover:bg-yellow-700 text-white">
-          <FolderOpen className="w-4 h-4 mr-2" />
-          Open Project</Button>;
-    case 'Rejected':
-      return <Button 
-       onClick={() => setSelectedProjectId(project.id)}className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 text-white">
-          <FolderOpen className="w-4 h-4 mr-2" />
-          Edit Project</Button>;
-    default:
-      return <Button 
-       onClick={() => setSelectedProjectId(project.id)}className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 text-white">
-          <FolderOpen className="w-4 h-4 mr-2" />
-           Edit Project</Button>;
-  }
-};
+          Archived
+        </Button>
+      );
+    }
+
+    switch (project.approvalStatus) {
+      case 'Approved':
+        return <Button  
+          onClick={() => setSelectedProjectId(project.id)}
+          className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Open Project
+        </Button>;      case 'Pending Adviser Approval':
+        return <Button 
+          onClick={() => setSelectedProjectId(project.id)}
+          className="w-full rounded-xl bg-yellow-600 hover:bg-yellow-700 text-white">
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Open Project
+        </Button>;
+      case 'Rejected':
+        return <Button 
+          onClick={() => setSelectedProjectId(project.id)}
+          className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 text-white">
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Edit Project
+        </Button>;
+      default:
+        return <Button 
+          onClick={() => setSelectedProjectId(project.id)}
+          className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 text-white">
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Edit Project
+        </Button>;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -451,7 +565,7 @@ function CSGProjectsPageInner() {
           <div className="w-full md:w-48">
             <Select value={filterApprovalStatus} onValueChange={setFilterApprovalStatus}>
               <option value="all" disabled>All Approval Status</option>
-               <option value="all">All Projects</option>
+              <option value="all">All Projects</option>
               <option value="Draft">Draft</option>
               <option value="Pending Adviser Approval">Pending Approval</option>
               <option value="Approved">Approved</option>
@@ -463,55 +577,53 @@ function CSGProjectsPageInner() {
       {/* Projects Count */}
       <div>
         <p className="text-sm text-gray-500">
-          Showing {filteredProjects.length} of {projects.length} projects
+          Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredProjects.length)} of {filteredProjects.length} projects
         </p>
       </div>
 
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-       {filteredProjects.map((project) => (
-  <Card key={project.id} className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all">
-    {/* Header */}
-    <div className="mb-4">
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="font-semibold text-gray-900 flex-1">{project.title}</h3>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Badge className="bg-gray-100 text-gray-700 rounded-lg">{project.category}</Badge>
-        <Badge className={`rounded-lg ${getApprovalStatusColor(project.approvalStatus)}`}>
-          {project.approvalStatus}
-        </Badge>
-      </div>
-    </div>
+        {currentItems.map((project) => (
+          <Card key={project.id} className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all">
+            {/* Header */}
+            <div className="mb-4">
+              <div className="flex items-start justify-between mb-2">
+                <h3 className="font-semibold text-gray-900 flex-1 truncate">{project.title}</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge className="bg-gray-100 text-gray-700 rounded-lg">{project.category}</Badge>
+                <Badge className={`rounded-lg ${getApprovalStatusColor(project.approvalStatus)}`}>
+                  {project.approvalStatus}
+                </Badge>
+              </div>
+            </div>
 
-    {/* Description */}
-    <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
+            {/* Description */}
+            <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
 
-    {/* Progress */}
-    <div className="mb-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Progress</span>
-          <Badge className={`rounded-lg ${getStatusColor(project.status)}`}>
-            {project.status}
-          </Badge>
-        </div>
-        <span className="text-xs font-medium text-gray-900">{project.progress}%</span>
-      </div>
-      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-blue-600 rounded-full transition-all"
-          style={{ width: `${project.progress}%` }}
-        />
-      </div>
-    </div>
+            {/* Progress */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Progress</span>
+                  <Badge className={`rounded-lg ${getStatusColor(project.status)}`}>
+                    {project.status}
+                  </Badge>
+                </div>
+                <span className="text-xs font-medium text-gray-900">{project.progress}%</span>
+              </div>
+              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-600 rounded-full transition-all"
+                  style={{ width: `${project.progress}%` }}
+                />
+              </div>
+            </div>
 
-    {/* Action Buttons */}
-   
-    {getProjectButton(project)}
-    
-  </Card>
-))}
+            {/* Action Buttons */}
+            {getProjectButton(project)}
+          </Card>
+        ))}
       </div>
 
       {/* Empty State */}
@@ -538,23 +650,115 @@ function CSGProjectsPageInner() {
         </Card>
       )}
 
+      {/* Pagination */}
+      {filteredProjects.length > 0 && totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
+          <div className="flex flex-1 justify-between sm:hidden">
+            <Button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </Button>
+            <Button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="relative ml-3 inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </Button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Page <span className="font-medium">{currentPage}</span> of{' '}
+                <span className="font-medium">{totalPages}</span>
+              </p>
+            </div>
+            <div>
+              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                <Button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center rounded-l-xl border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="sr-only">Previous</span>
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                
+                {[...Array(totalPages)].map((_, i) => {
+                  const page = i + 1;
+                  const isCurrentPage = page === currentPage;
+                  
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <Button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`relative inline-flex items-center border px-4 py-2 text-sm font-medium ${
+                          isCurrentPage
+                            ? 'z-10 bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  }
+                  
+                  if (page === currentPage - 2 || page === currentPage + 2) {
+                    return (
+                      <span
+                        key={page}
+                        className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+                  
+                  return null;
+                })}
+                
+                <Button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center rounded-r-xl border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="sr-only">Next</span>
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </nav>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Create Project Modal */}
       <Modal
-        open={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false);
-          setNewProject({
-            title: '',
-            category: '',
-            description: '',
-            proposedBy: '',
-            startDate: '',
-            endDate: '',
-          });
-          setBudgetItems([{ id: 1, item: '', amount: '' }]);
-          setFilePreview(null);
-          if (fileInputRef.current) fileInputRef.current.value = '';
-        }}
+      open={showCreateModal}
+      onClose={() => {
+        setShowCreateModal(false);
+        setNewProject({
+          title: '',
+          category: '',
+          description: '',
+          objective: '',
+          venue: '',
+          proposedBy: '',
+          startDate: '',
+          endDate: '',
+        });
+        setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
+        setFilePreview(null);
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }}
         title="Create New Project"
         description="Fill in the project details below"
       >
@@ -563,7 +767,7 @@ function CSGProjectsPageInner() {
             <FieldLabel>Project Title *</FieldLabel>
             <Input
               placeholder="Enter project title"
-              value={newProject.title}
+              value={newProject.title || ''}
               onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
@@ -571,7 +775,7 @@ function CSGProjectsPageInner() {
 
           <div>
             <FieldLabel>Category *</FieldLabel>
-            <Select value={newProject.category} onValueChange={(value) => setNewProject({ ...newProject, category: value })}>
+            <Select value={newProject.category || ''} onValueChange={(value) => setNewProject({ ...newProject, category: value })}>
               <option value="">Select category</option>
               <option value="Social">Social</option>
               <option value="Sports">Sports</option>
@@ -584,36 +788,70 @@ function CSGProjectsPageInner() {
           </div>
 
           <div>
+            <FieldLabel>Objective *</FieldLabel>
+            <Textarea
+              placeholder="Describe the main objective of the project"
+              value={newProject.objective || ''}
+              onChange={(e) => setNewProject({ ...newProject, objective: e.target.value })}
+              rows={3}
+              className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+            />
+          </div>
+
+          <div>
             <FieldLabel>Description *</FieldLabel>
             <Textarea
-              placeholder="Describe the project objectives and goals"
-              value={newProject.description}
+              placeholder="Describe the project details and goals"
+              value={newProject.description || ''}
               onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
               rows={4}
               className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
 
+          <div>
+            <FieldLabel>Venue *</FieldLabel>
+            <Input
+              placeholder="Enter project venue/location"
+              value={newProject.venue || ''}
+              onChange={(e) => setNewProject({ ...newProject, venue: e.target.value })}
+              className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+            />
+          </div>
+
           {/* Budget Breakdown Section */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <FieldLabel>Budget Breakdown (₱)</FieldLabel>
               <div className="space-y-3">
                 {budgetItems.map((item) => (
                   <div key={item.id} className="flex gap-2 items-start">
                     <Input
-                      placeholder="Item name & Quantity"
+                      placeholder="Item name"
                       value={item.item}
                       onChange={(e) => updateBudgetItem(item.id, 'item', e.target.value)}
                       className="flex-1 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
                     />
                     <Input
                       type="number"
-                      placeholder="Amount"
-                      value={item.amount}
-                      onChange={(e) => updateBudgetItem(item.id, 'amount', e.target.value)}
-                      className="w-24 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                      placeholder="Qty"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateBudgetItem(item.id, 'quantity', e.target.value)}
+                      className="w-20 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
                     />
+                    <Input
+                      type="number"
+                      placeholder="Price"
+                      min="0"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => updateBudgetItem(item.id, 'unitPrice', e.target.value)}
+                      className="w-28 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                    />
+                    <div className="w-28 h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium">
+                      ₱{(item.amount || 0).toLocaleString()}
+                    </div>
                     {budgetItems.length > 1 && (
                       <Button
                         type="button"
@@ -633,6 +871,7 @@ function CSGProjectsPageInner() {
                   variant="outline"
                   size="sm"
                   className="w-full rounded-xl"
+                  disabled={budgetItems.some(item => !item.item || !item.unitPrice || item.quantity <= 0)}
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Budget Item
@@ -652,61 +891,59 @@ function CSGProjectsPageInner() {
             </div>
           </div>
 
-          {/* File Upload Section */}
           <div>
-            <FieldLabel>Project Budget Proof (Required)</FieldLabel>
-            <div className="flex flex-col items-center gap-3">
-              <button
-                type="button"
-                className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center hover:bg-gray-50 transition"
-                onClick={() => fileInputRef.current && fileInputRef.current.click()}
-              >
-                <Upload className="w-6 h-6 text-gray-500" />
-                <p className="text-sm text-gray-600 mt-2">Click to upload</p>
-                <p className="text-xs text-gray-500 mt-1">PDF, Images up to 10MB</p>
-              </button>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-
-              {filePreview && (
-                <div className="w-full p-4 bg-gray-50 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{filePreview.name}</p>
-                        <p className="text-xs text-gray-500">{filePreview.size}</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setFilePreview(null);
-                        setNewProject({ ...newProject, projectFile: '' });
-                        if (fileInputRef.current) fileInputRef.current.value = '';
-                      }}
-                    >
-                      ✕
-                    </Button>
+          <FieldLabel>Project Budget Proof (Optional)</FieldLabel>
+          <div className="flex flex-col items-center gap-3">
+            <button
+              type="button"
+              className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center hover:bg-gray-50 transition"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="w-6 h-6 text-gray-500" />
+              <p className="text-sm text-gray-600 mt-2">Click to upload</p>
+              <p className="text-xs text-gray-500 mt-1">PDF, Images up to 10MB</p>
+            </button>
+            <input 
+              ref={fileInputRef} 
+              type="file" 
+              accept=".pdf,.jpg,.jpeg,.png" 
+              onChange={handleFileUpload} 
+              className="hidden" 
+            />
+            {filePreview && (
+              <div className="w-full p-4 bg-gray-50 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{filePreview.name}</p>
+                    <p className="text-xs text-gray-500">{filePreview.size}</p>
                   </div>
                 </div>
-              )}
-            </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => { 
+                    setFilePreview(null); 
+                    setSelectedFile(null);
+                    if (fileInputRef.current) fileInputRef.current.value = ''; 
+                  }}
+                >
+                  ✕
+                </Button>
+              </div>
+            )}
           </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Upload supporting documents for budget justification (e.g., quotations, estimates)
+          </p>
+        </div>
 
           {/* Proposed By Field */}
           <div>
             <FieldLabel>Proposed by *</FieldLabel>
             <Input
               placeholder="Enter name of proposer"
-              value={newProject.proposedBy}
+              value={newProject.proposedBy || ''}
               onChange={(e) => setNewProject({ ...newProject, proposedBy: e.target.value })}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
@@ -717,7 +954,7 @@ function CSGProjectsPageInner() {
               <FieldLabel>Start Date</FieldLabel>
               <Input
                 type="date"
-                value={newProject.startDate}
+                value={newProject.startDate || ''}
                 onChange={(e) => setNewProject({ ...newProject, startDate: e.target.value })}
                 className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
               />
@@ -726,7 +963,7 @@ function CSGProjectsPageInner() {
               <FieldLabel>End Date</FieldLabel>
               <Input
                 type="date"
-                value={newProject.endDate}
+                value={newProject.endDate || ''}
                 onChange={(e) => setNewProject({ ...newProject, endDate: e.target.value })}
                 className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
               />
@@ -735,32 +972,36 @@ function CSGProjectsPageInner() {
 
           <div className="flex gap-3 pt-4">
             <Button
-              variant="outline"
-              onClick={() => {
-                setShowCreateModal(false);
-                setNewProject({
-                  title: '',
-                  category: '',
-                  description: '',
-                  proposedBy: '',
-                  startDate: '',
-                  endDate: '',
-                });
-                setBudgetItems([{ id: 1, item: '', amount: '' }]);
-                setFilePreview(null);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-              }}
-              className="flex-1 rounded-xl"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateProject}
-              disabled={!newProject.title || !newProject.category || !newProject.description || !newProject.proposedBy}
-              className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
-            >
-              Create Project
-            </Button>
+            variant="outline"
+            onClick={() => {
+              setShowCreateModal(false);
+              setNewProject({
+                title: '',
+                category: '',
+                description: '',
+                objective: '',
+                venue: '',
+                proposedBy: '',
+                startDate: '',
+                endDate: '',
+              });
+              setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
+              setFilePreview(null);
+              setSelectedFile(null);
+              if (fileInputRef.current) fileInputRef.current.value = '';
+            }}
+            className="flex-1 rounded-xl"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateProject}
+            disabled={!newProject.title || !newProject.category || !newProject.description || 
+                     !newProject.objective || !newProject.venue || !newProject.proposedBy || isLoading}
+            className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+          >
+            {isLoading ? 'Creating...' : 'Create Project'}
+          </Button>
           </div>
         </div>
       </Modal>
