@@ -139,8 +139,8 @@ class UserProjectController extends Controller
                     'description' => sprintf('%s - %s', $entry['description'] ?: 'No description', $entry['approvalStatus'] ?: 'Draft'),
                     'date' => $entry['createdAt'],
                     'type' => 'ledger',
-                    'isDone' => in_array($entry['approvalStatus'], ['Approved', 'Pending Approval'], true),
-                    'isCurrent' => $entry['approvalStatus'] === 'Pending Approval',
+                    'isDone' => in_array($entry['approvalStatus'], ['Approved', 'Pending Approval', 'Pending Adviser Approval'], true),
+                    'isCurrent' => in_array($entry['approvalStatus'], ['Pending Approval', 'Pending Adviser Approval'], true),
                 ];
             })
         )->sortBy('date')->values();
@@ -330,7 +330,7 @@ class UserProjectController extends Controller
                 'description' => 'Operational expenses for activity day',
                 'category' => 'Operations',
                 'ledgerProof' => 'proofs/ledger/sample-operations-invoice.png',
-                'approvalStatus' => 'Pending Approval',
+                'approvalStatus' => 'Pending Adviser Approval',
                 'note' => 'Pending review from adviser.',
                 'approvedBy' => null,
                 'createdAt' => $project->created_at?->copy()?->addDays(5)?->format('Y-m-d H:i'),
@@ -358,7 +358,7 @@ class UserProjectController extends Controller
                     'ledgerProof' => $entry['ledgerProof'] ?: ('proofs/ledger/sample-' . ($index + 1) . '.pdf'),
                     'linkedTransaction' => $entry['id'],
                     'uploadDate' => $entry['createdAt'] ? substr((string) $entry['createdAt'], 0, 10) : null,
-                    'status' => $entry['approvalStatus'] ?: 'Pending Approval',
+                    'status' => $entry['approvalStatus'] ?: 'Pending Adviser Approval',
                     'description' => 'Supporting document linked to transaction.',
                 ];
             });

@@ -7,6 +7,7 @@ use App\Http\Controllers\User\UserProjectController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Models\Notification;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -177,6 +178,73 @@ Route::get('/user/badges', [UserProjectController::class, 'badges'])->name('user
 Route::get('/user/leaderboard', [UserProjectController::class, 'leaderboard'])->name('user.leaderboard');
 
 Route::get('/user/notifications', [UserProjectController::class, 'notifications'])->name('user.notifications');
+
+
+// Route::post('/sadmin/notifications/read/{id}', function ($id) {
+//     Notification::where('id', $id)->update(['is_read' => 1, 'read_at' => now()]);
+//     return back();
+// });
+
+// Route::post('/sadmin/notifications/archive/{id}', function ($id) {
+//     Notification::where('id', $id)->update(['archive' => 1]);
+//     return back();
+// });
+
+// Route::post('/sadmin/notifications/mark-all-read', function () {
+//     Notification::where('user_id', auth()->id())->update(['is_read' => 1, 'read_at' => now()]);
+//     return back();
+// });
+Route::middleware('auth')->group(function () {
+    Route::post('/sadmin/notifications/read/{id}', function ($id) {
+        // Use the Model to ensure string ID handling
+        \App\Models\Notification::where('id', $id)->update([
+            'is_read' => 1, 
+            'read_at' => now()
+        ]);
+        return back();
+    });
+
+    Route::post('/sadmin/notifications/archive/{id}', function ($id) {
+        \App\Models\Notification::where('id', $id)->update(['archive' => 1]);
+        return back();
+    });
+
+    Route::post('/sadmin/notifications/mark-all-read', function () {
+        \App\Models\Notification::where('user_id', auth()->id())
+            ->where('is_read', 0)
+            ->update(['is_read' => 1, 'read_at' => now()]);
+        return back();
+    });
+
+    // Student notification read/unread (mark as read)
+    Route::post('/user/notifications/read/{id}', function ($id) {
+        \App\Models\Notification::where('id', $id)
+            ->where(function ($q) {
+                $q->where('user_id', auth()->id())->orWhereNull('user_id');
+            })
+            ->where('archive', 0)
+            ->update([
+                'is_read' => 1,
+                'read_at' => now(),
+            ]);
+
+        return back();
+    });
+
+    Route::post('/user/notifications/mark-all-read', function () {
+        \App\Models\Notification::where('archive', 0)
+            ->where(function ($q) {
+                $q->where('user_id', auth()->id())->orWhereNull('user_id');
+            })
+            ->where('is_read', 0)
+            ->update([
+                'is_read' => 1,
+                'read_at' => now(),
+            ]);
+
+        return back();
+    });
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

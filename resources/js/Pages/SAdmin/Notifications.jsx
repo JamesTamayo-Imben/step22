@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -10,17 +10,14 @@ import {
   CheckCircle,
   Info,
   Trash2,
-  Archive,
-  MoreVertical,
   Search,
-  Filter,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
   const id = `simple-toast-${Date.now()}`;
   const el = document.createElement('div');
   el.id = id;
-  el.className = 'fixed right-4 bottom-6 z-50 px-4 py-2 rounded shadow text-white';
+  el.className = 'fixed right-4 bottom-6 z-50 px-4 py-2 rounded shadow text-white transition-all';
   el.style.background = type === 'success' ? '#0ea5e9' : type === 'error' ? '#ef4444' : '#f59e0b';
   el.textContent = message;
   document.body.appendChild(el);
@@ -31,104 +28,54 @@ function showToast(message, type = 'success') {
 }
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: 'error',
-      title: 'Critical: Database Backup Failed',
-      message: 'The automated database backup for March 10 failed. Please investigate immediately.',
-      timestamp: '2 hours ago',
-      read: false,
-      category: 'System',
-    },
-    {
-      id: 2,
-      type: 'warning',
-      title: 'High Memory Usage Detected',
-      message: 'Server memory usage has exceeded 85%. Consider optimizing or scaling resources.',
-      timestamp: '4 hours ago',
-      read: false,
-      category: 'Performance',
-    },
-    {
-      id: 3,
-      type: 'success',
-      title: 'User Account Created',
-      message: 'New user account "adviser@kld.edu.ph" has been successfully created.',
-      timestamp: '1 day ago',
-      read: true,
-      category: 'User Management',
-    },
-    {
-      id: 4,
-      type: 'info',
-      title: 'System Maintenance Scheduled',
-      message: 'Scheduled maintenance window on March 15, 2026 from 2:00 AM to 4:00 AM.',
-      timestamp: '2 days ago',
-      read: true,
-      category: 'System',
-    },
-    {
-      id: 5,
-      type: 'warning',
-      title: 'SSL Certificate Expiring Soon',
-      message: 'Your SSL certificate will expire in 30 days. Please renew it before it expires.',
-      timestamp: '3 days ago',
-      read: true,
-      category: 'Security',
-    },
-    {
-      id: 6,
-      type: 'success',
-      title: 'Role Permission Updated',
-      message: 'Adviser role permissions have been successfully updated.',
-      timestamp: '1 week ago',
-      read: true,
-      category: 'User Management',
-    },
-  ]);
+  // 1. Get real data from our Laravel Middleware Connection
+  const { auth } = usePage().props;
+  const initialNotifications = auth.notifications || [];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [showUnread, setShowUnread] = useState(false);
 
-  const categories = ['All', 'System', 'Performance', 'User Management', 'Security'];
+  // Categories based on your DB "type" column
+  const categories = ['All', 'alert', 'info', 'success', 'warning'];
 
-  const filteredNotifications = notifications.filter((notif) => {
-    const matchesSearch = notif.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          notif.message.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === 'All' || notif.category === filterCategory;
-    const matchesReadStatus = !showUnread || !notif.read;
+  const filteredNotifications = initialNotifications.filter((notif) => {
+    const matchesSearch = notif.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          notif.message?.toLowerCase().includes(searchTerm.toLowerCase());
+    // const matchesCategory = filterCategory === 'All' || notif.type === filterCategory;
+    // Change this to match exactly what you typed in the SQL 'type' column
+const categories = ['All', 'alert', 'info', 'success', 'warning', 'System'];
+    const matchesReadStatus = !showUnread || notif.is_read === 0;
     return matchesSearch && matchesCategory && matchesReadStatus;
   });
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = initialNotifications.filter((n) => n.is_read === 0).length;
 
+  // 2. Real Logic: Mark as Read in Database
   const handleMarkAsRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-    showToast('Marked as read', 'success');
+    router.post(`/sadmin/notifications/read/${id}`, {}, {
+      preserveScroll: true,
+      onSuccess: () => showToast('Marked as read', 'success'),
+    });
   };
 
   const handleMarkAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    showToast('All notifications marked as read', 'success');
+    router.post('/sadmin/notifications/mark-all-read', {}, {
+      onSuccess: () => showToast('All notifications marked as read', 'success'),
+    });
   };
 
+  // 3. Real Logic: Archive (instead of hard delete)
   const handleDelete = (id) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-    showToast('Notification deleted', 'success');
-  };
-
-  const handleClearAll = () => {
-    setNotifications([]);
-    showToast('All notifications cleared', 'success');
+    router.post(`/sadmin/notifications/archive/${id}`, {}, {
+      preserveScroll: true,
+      onSuccess: () => showToast('Notification archived', 'success'),
+    });
   };
 
   const getIconAndColor = (type) => {
     switch (type) {
-      case 'error':
+      case 'alert':
         return { icon: AlertCircle, bg: 'bg-red-100', text: 'text-red-600' };
       case 'warning':
         return { icon: AlertCircle, bg: 'bg-yellow-100', text: 'text-yellow-600' };
@@ -142,7 +89,10 @@ export default function NotificationsPage() {
   };
 
   return (
-    <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Notifications</h2>}>
+    <AuthenticatedLayout 
+        user={auth.user}
+        header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Notifications</h2>}
+    >
       <Head title="Notifications" />
       <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
@@ -151,18 +101,15 @@ export default function NotificationsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-semibold text-gray-900">Notifications</h1>
-                <p className="text-gray-500">System-wide notifications and alerts</p>
+                {/* <p className="text-gray-500">System-wide alerts for {auth.user.name}</p> */}
+                <p className="text-gray-500">System-wide alerts for {auth.user?.name || 'Admin'}</p>
               </div>
               <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
                   <Button variant="outline" onClick={handleMarkAllAsRead} className="rounded-xl">
-                    Mark All as Read
+                    Mark All Read
                   </Button>
                 )}
-                <Button variant="outline" onClick={handleClearAll} className="rounded-xl text-red-600 hover:bg-red-50">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Clear All
-                </Button>
               </div>
             </div>
 
@@ -172,9 +119,8 @@ export default function NotificationsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-blue-900">
-                      You have {unreadCount} unread notification{unreadCount > 1 ? 's' : ''}
+                      You have {unreadCount} new notification{unreadCount > 1 ? 's' : ''}
                     </p>
-                    <p className="text-xs text-blue-700 mt-1">Stay updated with the latest system events</p>
                   </div>
                   <Bell className="w-5 h-5 text-blue-600" />
                 </div>
@@ -188,10 +134,10 @@ export default function NotificationsPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
                     type="text"
-                    placeholder="Search notifications..."
+                    placeholder="Search by title or message..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white outline-none focus:ring-1 focus:ring-gray-200 focus:border-gray-300"
+                    className="w-full pl-10 h-10 rounded-xl border border-gray-300 bg-gray-50"
                   />
                 </div>
 
@@ -206,20 +152,10 @@ export default function NotificationsPage() {
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {cat}
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </button>
                   ))}
                 </div>
-
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showUnread}
-                    onChange={(e) => setShowUnread(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700">Show unread only</span>
-                </label>
               </div>
             </Card>
 
@@ -232,7 +168,7 @@ export default function NotificationsPage() {
                     <Card
                       key={notif.id}
                       className={`rounded-[20px] border-0 shadow-sm p-4 transition-all ${
-                        !notif.read ? 'bg-blue-50' : 'bg-white hover:bg-gray-50'
+                        notif.is_read === 0 ? 'bg-blue-50 border-l-2 border-blue-400' : 'bg-white hover:bg-gray-50'
                       }`}
                     >
                       <div className="flex items-start gap-4">
@@ -241,30 +177,28 @@ export default function NotificationsPage() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <h3 className="text-sm font-semibold text-gray-900">
-                                {notif.title}
-                                {!notif.read && (
-                                  <span className="ml-2 inline-block w-2 h-2 bg-blue-600 rounded-full"></span>
-                                )}
-                              </h3>
-                              <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
-                              <div className="flex items-center gap-3 mt-2">
-                                <span className="text-xs text-gray-500">{notif.timestamp}</span>
-                                <span className="inline-block px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full">
-                                  {notif.category}
-                                </span>
-                              </div>
-                            </div>
+                          <h3 className="text-sm font-semibold text-gray-900">
+                            {notif.title}
+                            {notif.is_read === 0 && (
+                              <span className="ml-2 inline-block w-2 h-2 bg-blue-600 rounded-full"></span>
+                            )}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="text-xs text-gray-500">
+                                {new Date(notif.created_at).toLocaleDateString()}
+                            </span>
+                            <span className="inline-block px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full italic">
+                              {notif.type}
+                            </span>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {!notif.read && (
+                        <div className="flex items-center gap-2">
+                          {notif.is_read === 0 && (
                             <button
                               onClick={() => handleMarkAsRead(notif.id)}
-                              className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                              className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"
                               title="Mark as read"
                             >
                               <CheckCircle className="w-4 h-4" />
@@ -272,8 +206,8 @@ export default function NotificationsPage() {
                           )}
                           <button
                             onClick={() => handleDelete(notif.id)}
-                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                            title="Delete"
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg"
+                            title="Archive"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -283,26 +217,10 @@ export default function NotificationsPage() {
                   );
                 })
               ) : (
-                <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
-                  <div className="flex flex-col items-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                      <Bell className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">No notifications</h3>
-                    <p className="text-gray-500 mb-4">You're all caught up! No notifications match your filters.</p>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setSearchTerm('');
-                        setFilterCategory('All');
-                        setShowUnread(false);
-                      }}
-                      className="rounded-xl"
-                    >
-                      Clear Filters
-                    </Button>
-                  </div>
-                </Card>
+                <div className="text-center py-12">
+                   <Bell className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                   <p className="text-gray-500">No notifications found.</p>
+                </div>
               )}
             </div>
           </div>
@@ -311,4 +229,3 @@ export default function NotificationsPage() {
     </AuthenticatedLayout>
   );
 }
-

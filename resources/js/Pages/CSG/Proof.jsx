@@ -127,7 +127,7 @@ function CSGProofPageInner() {
       uploadDate: '2024-11-10',
       fileType: 'Image',
       fileSize: '1.8 MB',
-      status: 'Pending Approval',
+      status: 'Pending Adviser Approval',
       uploadedBy: 'Sarah Chen',
       hash: 'sha256:c9f0a1b2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8',
     },
@@ -151,7 +151,7 @@ function CSGProofPageInner() {
       uploadDate: '2024-11-15',
       fileType: 'Image',
       fileSize: '1.5 MB',
-      status: 'Pending Approval',
+      status: 'Pending Adviser Approval',
       uploadedBy: 'Sarah Chen',
       hash: 'sha256:e1b2c3d4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0',
     },
@@ -197,14 +197,14 @@ function CSGProofPageInner() {
   const stats = {
     totalDocuments: proofDocuments.length,
     approvedDocuments: proofDocuments.filter(d => d.status === 'Approved').length,
-    pendingDocuments: proofDocuments.filter(d => d.status === 'Pending Approval').length,
+    pendingDocuments: proofDocuments.filter(d => d.status === 'Pending Adviser Approval').length,
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'Approved':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'Pending Approval':
+      case 'Pending Adviser Approval':
         return <Clock className="w-4 h-4 text-yellow-600" />;
       case 'Rejected':
         return <XCircle className="w-4 h-4 text-red-600" />;
@@ -217,7 +217,7 @@ function CSGProofPageInner() {
     switch (status) {
       case 'Approved':
         return 'bg-green-100 text-green-700';
-      case 'Pending Approval':
+      case 'Pending Adviser Approval':
         return 'bg-yellow-100 text-yellow-700';
       case 'Rejected':
         return 'bg-red-100 text-red-700';
@@ -251,7 +251,7 @@ function CSGProofPageInner() {
       uploadDate: new Date().toISOString().split('T')[0],
       fileType: uploadForm.fileName.endsWith('.pdf') ? 'PDF' : 'Image',
       fileSize: '1.2 MB',
-      status: 'Pending Approval',
+      status: 'Pending Adviser Approval',
       uploadedBy: 'Sarah Chen',
       hash: `sha256:${Math.random().toString(36).substring(2, 15)}${Math.random()
         .toString(36)
@@ -374,7 +374,7 @@ function CSGProofPageInner() {
             >
               <option value="all">All Status</option>
               <option value="Approved">Approved</option>
-              <option value="Pending Approval">Pending</option>
+              <option value="Pending Adviser Approval">Pending</option>
               <option value="Rejected">Rejected</option>
             </Select>
           </div>
@@ -453,7 +453,7 @@ function CSGProofPageInner() {
                   <Eye className="w-4 h-4 mr-1" />
                   View
                 </Button>
-                {proof.status === 'Pending Approval' && (
+                {proof.status === 'Pending Adviser Approval' && (
                   <Button
                     variant="outline"
                     size="sm"

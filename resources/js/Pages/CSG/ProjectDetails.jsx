@@ -276,7 +276,7 @@ const mockProofDocuments = [
     uploadDate: '2024-11-10',
     fileType: 'Image',
     fileSize: '1.8 MB',
-    status: 'Pending Approval',
+    status: 'Pending Adviser Approval',
     hash: 'sha256:c9f0a1b2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8',
   },
 ];
@@ -552,7 +552,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
       uploadDate: new Date().toISOString().split('T')[0],
       fileType: proofForm.fileName.endsWith('.pdf') ? 'PDF' : 'Image',
       fileSize: '1.2 MB',
-      status: 'Pending Approval',
+      status: 'Pending Adviser Approval',
       hash: `sha256:${Math.random().toString(36).substring(2, 15)}`,
     };
 
@@ -1039,7 +1039,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                         <Eye className="w-4 h-4 mr-1" />
                         View
                       </Button>
-                      {isEditable && proof.status === 'Pending Approval' && (
+                      {isEditable && proof.status === 'Pending Adviser Approval' && (
                         <Button variant="outline" size="sm" className="rounded-lg text-red-600">
                           <Trash2 className="w-4 h-4" />
                         </Button>

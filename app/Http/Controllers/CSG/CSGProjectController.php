@@ -92,7 +92,7 @@ class CSGProjectController extends Controller
             'description' => ['required', 'string'],
             'category' => ['nullable', 'string', 'max:100'],
             'ledger_proof' => ['nullable', 'string', 'max:500'],
-            'approval_status' => ['nullable', 'in:Draft,Pending Approval,Approved,Rejected'],
+            'approval_status' => ['nullable', 'in:Draft,Pending Adviser Approval,Approved,Rejected'],
             'note' => ['nullable', 'string'],
         ]);
 
@@ -127,7 +127,7 @@ class CSGProjectController extends Controller
             'description' => ['sometimes', 'string'],
             'category' => ['nullable', 'string', 'max:100'],
             'ledger_proof' => ['nullable', 'string', 'max:500'],
-            'approval_status' => ['nullable', 'in:Draft,Pending Approval,Approved,Rejected'],
+            'approval_status' => ['nullable', 'in:Draft,Pending Adviser Approval,Approved,Rejected'],
             'note' => ['nullable', 'string'],
         ]);
 

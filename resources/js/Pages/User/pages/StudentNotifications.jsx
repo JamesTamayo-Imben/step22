@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -150,13 +151,24 @@ export default function StudentNotificationsPage({ onNavigate, notificationsData
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const markAsRead = (id) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, isRead: true } : n
-    ));
+    router.post(`/user/notifications/read/${id}`, {}, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setNotifications(notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+        // Refresh props so navbar unread badge count stays in sync
+        router.reload({ preserveScroll: true });
+      },
+    });
   };
 
   const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    router.post('/user/notifications/mark-all-read', {}, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
+        router.reload({ preserveScroll: true });
+      },
+    });
   };
 
   return (
