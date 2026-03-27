@@ -10,7 +10,7 @@ use App\Http\Controllers\User\UserProjectController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Models\Notification;
+use App\Models\User\Notification;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -129,7 +129,12 @@ Route::get('/csg/dashboard', function () {
     return Inertia::render('CSG/Dashboard');
 })->name('csg.dashboard.alias');
 
-Route::get('/csg/projects', [CSGProjectController::class, 'index'])->name('csg.projects');
+// Route::get('/csg/projects', [CSGProjectController::class, 'index'])->name('csg.projects');
+Route::get('/csg/projects/{projectId?}', function ($projectId = null) {
+    return Inertia::render('CSG/Projects', [
+        'selectedProjectId' => $projectId
+    ]);
+})->name('csg.projects');
 Route::post('/csg/projects', [CSGProjectController::class, 'store'])->name('csg.projects.store');
 Route::patch('/csg/projects/{id}', [CSGProjectController::class, 'update'])->name('csg.projects.update');
 Route::delete('/csg/projects/{id}', [CSGProjectController::class, 'destroy'])->name('csg.projects.destroy');
