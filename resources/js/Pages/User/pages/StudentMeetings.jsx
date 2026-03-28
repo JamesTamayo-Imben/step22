@@ -80,7 +80,7 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
       {/* Upcoming Meetings */}
       {activeTab === 'upcoming' && (
         <div className="space-y-4">
-          {upcomingMeetings.map((meeting) => (
+          {meetingsUpcoming.map((meeting) => (
             <Card key={meeting.id} className="p-6 rounded-[20px] border-0 shadow-sm hover:shadow-md transition-all">
               <div className="flex flex-col md:flex-row gap-4">
                 {/* Date Box */}
