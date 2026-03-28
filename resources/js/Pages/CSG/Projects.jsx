@@ -104,6 +104,7 @@ function CSGProjectsPageInner() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
   const [filterApprovalStatus, setFilterApprovalStatus] = useState('all');
   const [budgetItems, setBudgetItems] = useState([
     { id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }
@@ -356,7 +357,8 @@ function CSGProjectsPageInner() {
       (project.objective && project.objective.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesStatus = filterStatus === 'all' || project.status === filterStatus;
     const matchesApprovalStatus = filterApprovalStatus === 'all' || project.approvalStatus === filterApprovalStatus;
-    return matchesSearch && matchesStatus && matchesApprovalStatus;
+    const matchesCategory = filterCategory === 'all' || project.category === filterCategory;
+    return matchesSearch && matchesStatus && matchesApprovalStatus && matchesCategory;
   });
 
   // Pagination logic
@@ -569,6 +571,19 @@ function CSGProjectsPageInner() {
               <option value="Draft">Draft</option>
               <option value="Pending Adviser Approval">Pending Approval</option>
               <option value="Approved">Approved</option>
+            </Select>
+          </div>
+          <div className="w-full md:w-48">
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <option value="all" disabled>All Categories</option>
+              <option value="all">All Projects</option>
+              <option value="Social">Social</option>
+              <option value="Sports">Sports</option>
+              <option value="Environmental">Environmental</option>
+               <option value="Technology ">Technology</option>
+                <option value="Cultural ">Cultural</option>
+                 <option value="Education">Education</option>
+                  <option value="Health ">Health</option>
             </Select>
           </div>
         </div>

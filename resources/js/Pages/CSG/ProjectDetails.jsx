@@ -309,6 +309,20 @@ export function CSGProjectDetailsPage({
     }
   }, [project.approvalStatus, project.id, project.archive, isEditable]);
 
+// Date formatting helper
+const formatDate = (dateString) => {
+  if (!dateString) return 'Not specified';
+  try {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  } catch (error) {
+    return dateString;
+  }
+};
+
   // Fetch project from API if we have a projectId but no initial data (deep link refresh)
   useEffect(() => {
     const fetchProjectById = async () => {
@@ -967,7 +981,7 @@ export function CSGProjectDetailsPage({
             <div className="bg-blue-50 rounded-xl p-4">
               <Calendar className="w-5 h-5 text-blue-600 mb-2" />
               <p className="text-sm text-gray-500">Timeline</p>
-              <p className="text-sm text-gray-900">{project.startDate || 'Not set'} to {project.endDate || 'Not set'}</p>
+              <p className="text-sm text-gray-900">{formatDate(project.startDate)} to {formatDate(project.endDate)}</p>
             </div>
           </div>
         </div>
@@ -1061,15 +1075,15 @@ export function CSGProjectDetailsPage({
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">Created On</p>
-                <p className="text-gray-900">{project.createdAt ? project.createdAt.split('T')[0] : 'Not specified'}</p>
+                <p className="text-gray-900">{formatDate(project.createdAt)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">Start Date</p>
-                <p className="text-gray-900">{project.startDate || 'Not specified'}</p>
+                <p className="text-gray-900">{formatDate(project.startDate)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">End Date</p>
-                <p className="text-gray-900">{project.endDate || 'Not specified'}</p>
+                <p className="text-gray-900">{formatDate(project.endDate)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">Created by:</p>
@@ -1211,7 +1225,9 @@ export function CSGProjectDetailsPage({
                               {entry.type}
                             </Badge>
                           </td>
-                          <td className="py-3 px-4 font-semibold text-gray-900">₱{parseFloat(entry.amount).toLocaleString()}</td>
+                          <td className={`py-3 px-4 font-semibold text-gray-900 ${entry.type === 'Income' ? 'text-green-700' : 'text-red-700'}`}>
+                            ₱{parseFloat(entry.amount).toLocaleString()}
+                          </td>
                           <td className="py-3 px-4 max-w-[200px] truncate text-gray-700">{entry.description}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-1">

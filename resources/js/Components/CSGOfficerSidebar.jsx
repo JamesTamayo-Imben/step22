@@ -17,7 +17,8 @@ import {
   FileText,
   Repeat,
   Users,
-  ChevronRight
+  ChevronRight,
+  Bell
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 import {
@@ -51,7 +52,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
     { id: 'proof', label: 'Proof', icon: FileText },
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     { id: 'ratings', label: 'Ratings', icon: Star },
-    { id: 'performance-panel', label: 'Performance', icon: TrendingUp },
+    { id: 'notification', label: 'Notification', icon: Bell },
     { id: 'profile', label: 'Profile', icon: User },
   ];
 
@@ -64,7 +65,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
     if (p.startsWith('/csg/proof')) return 'proof';
     if (p.startsWith('/csg/meetings')) return 'meetings';
     if (p.startsWith('/csg/ratings')) return 'ratings';
-    if (p.startsWith('/csg/performance-panel')) return 'performance-panel';
+    if (p.startsWith('/csg/notification')) return 'notification';
     if (p.startsWith('/csg/profile')) return 'profile';
     if (p === '/csg' || p.startsWith('/csg')) return 'dashboard';
     return 'dashboard';
@@ -209,7 +210,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                         proof: '/csg/proof',
                         meetings: '/csg/meetings',
                         ratings: '/csg/ratings',
-                        'performance-panel': '/csg/performance-panel',
+                        'notification': '/csg/notification',
                         profile: '/csg/profile',
                       };
                       const url = map[item.id] || '/csg';
@@ -333,7 +334,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                         proof: '/csg/proof',
                         meetings: '/csg/meetings',
                         ratings: '/csg/ratings',
-                        'performance-panel': '/csg/performance-panel',
+                        'notification': '/csg/notification',
                         profile: '/csg/profile',
                       };
                       const url = map[item.id] || '/csg';

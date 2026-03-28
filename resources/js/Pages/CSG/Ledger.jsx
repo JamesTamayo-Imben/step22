@@ -855,9 +855,11 @@ const handleSaveUpload = async () => {
                 </div>
 
                 {/* Amount Section */}
-                <div>
-                  <p className="text-xl font-bold text-gray-900 whitespace-nowrap">₱{entry.amount?.toLocaleString() || 0}</p>
-                </div>
+               <div>
+  <p className={`text-xl font-bold text-gray-900 whitespace-nowrap ${entry.type === 'Income' ? 'text-green-700' : 'text-red-700'}`}>
+    {entry.type === 'Income' ? '+' : entry.type === 'Expense' ? '-' : ''}₱{(entry.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+  </p>
+</div>
 
                 {/* Category Section */}
                 <div>

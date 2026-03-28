@@ -6,11 +6,16 @@ use App\Http\Controllers\CSG\ProjectController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SAdmin\UserManagementController;
 use App\Http\Controllers\CSG\CSGProjectController;
+use App\Http\Controllers\CSG\CSGDashboardController;
 use App\Http\Controllers\User\UserProjectController;
+use App\Models\Notification;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+<<<<<<< Updated upstream
 use App\Models\User\Notification;
+=======
+>>>>>>> Stashed changes
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -121,13 +126,9 @@ Route::get('/adviser/profile', function () {
 })->name('adviser.profile');
 
 // CSG routes
-Route::get('/csg', function () {
-    return Inertia::render('CSG/Dashboard');
-})->name('csg.dashboard');
+Route::get('/csg', [CSGDashboardController::class, 'index'])->name('csg.dashboard');
 
-Route::get('/csg/dashboard', function () {
-    return Inertia::render('CSG/Dashboard');
-})->name('csg.dashboard.alias');
+Route::get('/csg/dashboard', [CSGDashboardController::class, 'index'])->name('csg.dashboard.alias');
 
 // Route::get('/csg/projects', [CSGProjectController::class, 'index'])->name('csg.projects');
 Route::get('/csg/projects/{projectId?}', function ($projectId = null) {
@@ -141,6 +142,13 @@ Route::delete('/csg/projects/{id}', [CSGProjectController::class, 'destroy'])->n
 Route::post('/csg/projects/{projectId}/ledger', [CSGProjectController::class, 'storeLedger'])->name('csg.projects.ledger.store');
 Route::patch('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'updateLedger'])->name('csg.projects.ledger.update');
 Route::delete('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'destroyLedger'])->name('csg.projects.ledger.destroy');
+
+Route::get('/csg/projects/{projectId?}', function ($projectId = null) {
+    return Inertia::render('CSG/Projects', [
+        'selectedProjectId' => $projectId
+    ]);
+})->name('csg.projects');
+
 
 Route::get('/csg/ledger', function () {
     return Inertia::render('CSG/Ledger');
@@ -158,9 +166,9 @@ Route::get('/csg/ratings', function () {
     return Inertia::render('CSG/Ratings');
 })->name('csg.ratings');
 
-Route::get('/csg/performance-panel', function () {
-    return Inertia::render('CSG/PerformancePanel');
-})->name('csg.performance-panel');
+Route::get('/csg/notification', function () {
+    return Inertia::render('CSG/Notification');
+})->name('csg.notification');
 
 Route::get('/csg/profile', function () {
     return Inertia::render('CSG/Profile');
