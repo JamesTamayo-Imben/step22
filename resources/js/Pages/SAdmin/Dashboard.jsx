@@ -11,7 +11,15 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-export default function SAdminDashboard() {
+export default function SAdminDashboard({ stats = {} }) {
+  const s = {
+    totalUsers: stats.totalUsers ?? 0,
+    activeRoles: stats.activeRoles ?? 0,
+    approvedProjects: stats.approvedProjects ?? 0,
+    pendingApprovals: stats.pendingApprovals ?? 0,
+    auditEventsWeek: stats.auditEventsWeek ?? 0,
+  };
+
   return (
     <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Super Admin</h2>}>
       <Head title="Super Admin" />
@@ -25,13 +33,13 @@ export default function SAdminDashboard() {
               <p className="text-gray-500">Complete system oversight and management</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-500">Total Users</p>
-                    <p className="text-2xl text-gray-900 mt-1">1,247</p>
-                    <p className="text-xs text-green-600 mt-1">↑ 12% from last month</p>
+                    <p className="text-2xl text-gray-900 mt-1">{s.totalUsers.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500 mt-1">Active users (not archived)</p>
                   </div>
                   <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                     <Users className="w-6 h-6 text-purple-600" />
@@ -43,7 +51,7 @@ export default function SAdminDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-500">Active Roles</p>
-                    <p className="text-2xl text-gray-900 mt-1">4</p>
+                    <p className="text-2xl text-gray-900 mt-1">{s.activeRoles}</p>
                     <p className="text-xs text-gray-500 mt-1">Configured</p>
                   </div>
                   <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -52,25 +60,25 @@ export default function SAdminDashboard() {
                 </div>
               </Card>
 
-              {/* <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+              <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">System Health</p>
-                    <p className="text-2xl text-gray-900 mt-1">99.9%</p>
-                    <p className="text-xs text-green-600 mt-1">All systems operational</p>
+                    <p className="text-sm text-gray-500">Approved Projects</p>
+                    <p className="text-2xl text-gray-900 mt-1">{s.approvedProjects}</p>
+                    <p className="text-xs text-gray-500 mt-1">Approved and not archived</p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                     <Activity className="w-6 h-6 text-green-600" />
                   </div>
                 </div>
-              </Card> */}
+              </Card>
 
               <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">Data Storage</p>
-                    <p className="text-2xl text-gray-900 mt-1">2.4 GB</p>
-                    <p className="text-xs text-gray-500 mt-1">28% capacity</p>
+                    <p className="text-sm text-gray-500">Pipeline</p>
+                    <p className="text-2xl text-gray-900 mt-1">{s.pendingApprovals}</p>
+                    <p className="text-xs text-gray-500 mt-1">Projects + ledger pending approval</p>
                   </div>
                   <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                     <Database className="w-6 h-6 text-orange-600" />
@@ -78,6 +86,17 @@ export default function SAdminDashboard() {
                 </div>
               </Card>
             </div>
+
+            <Card className="p-5 rounded-[20px] border-0 shadow-sm bg-white flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-8 h-8 text-orange-500" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Audit activity</p>
+                  <p className="text-xs text-gray-500">Entries recorded in the last 7 days</p>
+                </div>
+              </div>
+              <p className="text-2xl font-semibold text-gray-900 tabular-nums">{s.auditEventsWeek.toLocaleString()}</p>
+            </Card>
 
             <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
               <h2 className="text-gray-900 font-semibold mb-4">Quick Actions</h2>

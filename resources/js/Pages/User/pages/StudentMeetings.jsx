@@ -4,109 +4,7 @@ import { Badge } from '@/Components/ui/badge';
 import { StudentModal } from '@/Components/ui/StudentModal';
 import { Calendar, Clock, MapPin, Users, FileText, CheckCircle2 } from 'lucide-react';
 
-const upcomingMeetings = [
-  {
-    id: 1,
-    title: 'General Assembly',
-    date: '2024-11-28',
-    time: '2:00 PM - 4:00 PM',
-    location: 'Main Auditorium',
-    description: 'Quarterly general assembly to discuss upcoming initiatives and gather student feedback.',
-    attendees: 250,
-    type: 'Assembly',
-    status: 'Scheduled',
-  },
-  {
-    id: 2,
-    title: 'Budget Presentation',
-    date: '2024-12-02',
-    time: '10:00 AM - 12:00 PM',
-    location: 'Room 301',
-    description: 'Presentation of the annual budget allocation and financial transparency report.',
-    attendees: 80,
-    type: 'Presentation',
-    status: 'Scheduled',
-  },
-  {
-    id: 3,
-    title: 'Project Kickoff Meeting',
-    date: '2024-12-05',
-    time: '3:00 PM - 5:00 PM',
-    location: 'Online (Zoom)',
-    description: 'Kickoff meeting for the Community Outreach Program with all stakeholders.',
-    attendees: 45,
-    type: 'Project',
-    status: 'Scheduled',
-  },
-  {
-    id: 4,
-    title: 'Student Forum',
-    date: '2024-12-10',
-    time: '1:00 PM - 3:00 PM',
-    location: 'Student Center',
-    description: 'Open forum for students to raise concerns and suggestions.',
-    attendees: 120,
-    type: 'Forum',
-    status: 'Scheduled',
-  },
-];
-
-const pastMeetings = [
-  {
-    id: 5,
-    title: 'Mid-Semester Review',
-    date: '2024-11-15',
-    time: '2:00 PM - 4:00 PM',
-    location: 'Conference Room A',
-    description: 'Review of projects and initiatives from the first half of the semester.',
-    attendees: 95,
-    type: 'Review',
-    status: 'Completed',
-    minutesAvailable: true,
-    attended: true,
-  },
-  {
-    id: 6,
-    title: 'Sports Fest Planning',
-    date: '2024-11-10',
-    time: '10:00 AM - 12:00 PM',
-    location: 'Sports Complex',
-    description: 'Planning meeting for the annual sports festival.',
-    attendees: 60,
-    type: 'Planning',
-    status: 'Completed',
-    minutesAvailable: true,
-    attended: true,
-  },
-  {
-    id: 7,
-    title: 'Sustainability Workshop',
-    date: '2024-11-05',
-    time: '3:00 PM - 5:00 PM',
-    location: 'Science Building',
-    description: 'Workshop on campus sustainability initiatives and green practices.',
-    attendees: 75,
-    type: 'Workshop',
-    status: 'Completed',
-    minutesAvailable: true,
-    attended: false,
-  },
-  {
-    id: 8,
-    title: 'Tech Summit Debrief',
-    date: '2024-11-12',
-    time: '4:00 PM - 5:30 PM',
-    location: 'IT Lab',
-    description: 'Debrief session following the successful Tech Innovation Summit.',
-    attendees: 40,
-    type: 'Debrief',
-    status: 'Completed',
-    minutesAvailable: true,
-    attended: true,
-  },
-];
-
-export default function StudentMeetingsPage({ onNavigate }) {
+export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [], meetingsPast = [] }) {
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [activeTab, setActiveTab] = useState('upcoming');
 
@@ -126,7 +24,8 @@ export default function StudentMeetingsPage({ onNavigate }) {
   };
 
   const getMeetingIcon = (location) => {
-    if (location.toLowerCase().includes('zoom') || location.toLowerCase().includes('online')) {
+    const loc = (location || '').toLowerCase();
+    if (loc.includes('zoom') || loc.includes('online')) {
       return '🌐';
     }
     return '📍';
@@ -156,7 +55,7 @@ export default function StudentMeetingsPage({ onNavigate }) {
               ? 'bg-white/20 text-white'
               : 'bg-gray-100 text-gray-700'
           }`}>
-            {upcomingMeetings.length}
+            {meetingsUpcoming.length}
           </span>
         </button>
         <button
@@ -173,7 +72,7 @@ export default function StudentMeetingsPage({ onNavigate }) {
               ? 'bg-white/20 text-white'
               : 'bg-gray-100 text-gray-700'
           }`}>
-            {pastMeetings.length}
+            {meetingsPast.length}
           </span>
         </button>
       </div>
@@ -235,7 +134,10 @@ export default function StudentMeetingsPage({ onNavigate }) {
       {/* Past Meetings */}
       {activeTab === 'past' && (
         <div className="space-y-4">
-          {pastMeetings.map((meeting) => (
+          {meetingsPast.length === 0 && (
+            <Card className="p-8 rounded-[20px] border-0 shadow-sm text-center text-gray-600">No past meetings to show. Completed meetings with minutes appear after adviser approval.</Card>
+          )}
+          {meetingsPast.map((meeting) => (
             <Card key={meeting.id} className="p-6 rounded-[20px] border-0 shadow-sm hover:shadow-md transition-all">
               <div className="flex flex-col md:flex-row gap-4">
                 {/* Date Box */}

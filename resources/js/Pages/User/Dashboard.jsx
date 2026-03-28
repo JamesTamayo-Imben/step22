@@ -29,6 +29,8 @@ export default function UserDashboard() {
   const leaderboardCurrentUser = props.leaderboardCurrentUser || null;
   const notificationsData = props.notificationsData || [];
   const unreadNotificationsCount = props.unreadNotificationsCount || 0;
+  const meetingsUpcoming = props.meetingsUpcoming || [];
+  const meetingsPast = props.meetingsPast || [];
 
   // Map routes to current view
   const getCurrentView = () => {
@@ -118,7 +120,13 @@ export default function UserDashboard() {
                 project={project}
               />
             )}
-            {currentView === 'meetings' && <StudentMeetingsPage onNavigate={handleNavigate} />}
+            {currentView === 'meetings' && (
+              <StudentMeetingsPage
+                onNavigate={handleNavigate}
+                meetingsUpcoming={meetingsUpcoming}
+                meetingsPast={meetingsPast}
+              />
+            )}
             {currentView === 'profile' && <StudentProfilePage onNavigate={handleNavigate} />}
             {currentView === 'badges' && <StudentBadgesPage onNavigate={handleNavigate} badgesData={badgesData} />}
             {currentView === 'leaderboard' && (

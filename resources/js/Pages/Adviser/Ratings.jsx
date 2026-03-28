@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
-import { Input } from '@/Components/ui/input';
 import { Button } from '@/Components/ui/button';
 import {
   Star,
@@ -51,94 +50,27 @@ function AvatarFallback({ children, className = '' }) {
   );
 }
 
-const mockProjectRatings = [
-  {
-    id: 1,
-    projectName: 'Community Outreach Program',
-    averageRating: 4.8,
-    totalRatings: 45,
-    trend: 'up',
-    trendValue: 0.3,
-    ratingDistribution: { 5: 38, 4: 5, 3: 2, 2: 0, 1: 0 },
-  },
-  {
-    id: 2,
-    projectName: 'Annual Sports Fest',
-    averageRating: 4.6,
-    totalRatings: 38,
-    trend: 'stable',
-    trendValue: 0,
-    ratingDistribution: { 5: 28, 4: 8, 3: 2, 2: 0, 1: 0 },
-  },
-  {
-    id: 3,
-    projectName: 'Tech Innovation Summit',
-    averageRating: 4.9,
-    totalRatings: 52,
-    trend: 'up',
-    trendValue: 0.2,
-    ratingDistribution: { 5: 48, 4: 3, 3: 1, 2: 0, 1: 0 },
-  },
-  {
-    id: 4,
-    projectName: 'Campus Sustainability Initiative',
-    averageRating: 4.3,
-    totalRatings: 28,
-    trend: 'down',
-    trendValue: 0.1,
-    ratingDistribution: { 5: 15, 4: 10, 3: 3, 2: 0, 1: 0 },
-  },
-];
+function csvEscape(val) {
+  const s = String(val ?? '');
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
 
-const mockStudentRatings = [
-  {
-    id: 1,
-    studentName: 'Emma Johnson',
-    projectName: 'Community Outreach Program',
-    rating: 5,
-    comment: 'Amazing initiative! The workshops were very helpful and well-organized.',
-    date: '2024-11-20',
-    helpful: 12,
-  },
-  {
-    id: 2,
-    studentName: 'James Smith',
-    projectName: 'Community Outreach Program',
-    rating: 5,
-    comment: 'This project has made a real impact in our community. Great work!',
-    date: '2024-11-19',
-    helpful: 8,
-  },
-  {
-    id: 3,
-    studentName: 'Michael Chen',
-    projectName: 'Annual Sports Fest',
-    rating: 5,
-    comment: 'Best sports fest ever! Great organization and variety of events.',
-    date: '2024-11-17',
-    helpful: 15,
-  },
-  {
-    id: 4,
-    studentName: 'David Lee',
-    projectName: 'Tech Innovation Summit',
-    rating: 5,
-    comment: 'Incredible speakers and networking opportunities. Learned so much!',
-    date: '2024-11-15',
-    helpful: 20,
-  },
-  {
-    id: 5,
-    studentName: 'Sofia Martinez',
-    projectName: 'Campus Sustainability Initiative',
-    rating: 4,
-    comment: 'Good initiative but needs more student involvement in planning.',
-    date: '2024-11-14',
-    helpful: 6,
-  },
-];
+function inDateRange(isoOrDate, dateRange) {
+  if (dateRange === 'all') return true;
+  if (!isoOrDate) return true;
+  const d = new Date(isoOrDate);
+  if (Number.isNaN(d.getTime())) return true;
+  const now = new Date();
+  const days = dateRange === 'week' ? 7 : dateRange === 'month' ? 30 : 90;
+  const start = new Date(now);
+  start.setDate(start.getDate() - days);
+  return d >= start;
+}
 
 export function RatingsAnalyticsPage() {
+  const { projectSummaries = [], studentRatings = [], kpi = {} } = usePage().props;
+
   const [selectedProject, setSelectedProject] = useState('all');
   const [selectedRating, setSelectedRating] = useState('all');
   const [dateRange, setDateRange] = useState('all');
@@ -146,22 +78,40 @@ export function RatingsAnalyticsPage() {
 
   const filteredRatings = useMemo(() => {
     const q = searchQuery.toLowerCase();
-    return mockStudentRatings.filter((rating) => {
+    return studentRatings.filter((rating) => {
       const matchesProject = selectedProject === 'all' || rating.projectName === selectedProject;
       const matchesRating = selectedRating === 'all' || String(rating.rating) === selectedRating;
       const matchesSearch =
-        rating.studentName.toLowerCase().includes(q) ||
-        rating.comment.toLowerCase().includes(q) ||
-        rating.projectName.toLowerCase().includes(q);
-      // dateRange is UI-only for now (mock data has no range filtering)
-      void dateRange;
-      return matchesProject && matchesRating && matchesSearch;
+        (rating.studentName || '').toLowerCase().includes(q) ||
+        (rating.comment || '').toLowerCase().includes(q) ||
+        (rating.projectName || '').toLowerCase().includes(q);
+      const matchesDate = inDateRange(rating.createdAt || rating.date, dateRange);
+      return matchesProject && matchesRating && matchesSearch && matchesDate;
     });
-  }, [dateRange, searchQuery, selectedProject, selectedRating]);
+  }, [dateRange, searchQuery, selectedProject, selectedRating, studentRatings]);
 
-  const totalRatings = mockProjectRatings.reduce((sum, r) => sum + r.totalRatings, 0);
-  const overallAverage = mockProjectRatings.reduce((sum, r) => sum + r.averageRating, 0) / mockProjectRatings.length;
-  const satisfactionRate = Math.round((mockStudentRatings.filter((r) => r.rating >= 4).length / mockStudentRatings.length) * 100);
+  const totalRatings = kpi.totalRatings ?? studentRatings.length;
+  const overallAverage = totalRatings ? (kpi.overallAverage ?? 0) : 0;
+  const satisfactionRate = kpi.satisfactionRate ?? 0;
+
+  const handleExport = () => {
+    const headers = ['Student', 'Project', 'Rating', 'Comment', 'Helpful', 'Date'];
+    const rows = filteredRatings.map((r) => [
+      csvEscape(r.studentName),
+      csvEscape(r.projectName),
+      csvEscape(r.rating),
+      csvEscape(r.comment),
+      csvEscape(r.helpful),
+      csvEscape(r.date),
+    ]);
+    const csv = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `ratings_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
 
   const renderStars = (rating) =>
     [...Array(5)].map((_, i) => (
@@ -182,14 +132,16 @@ export function RatingsAnalyticsPage() {
       <Star key={i} className={`w-4 h-4 ${i < rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
     ));
 
+  const projectCount = kpi.projectCountWithRatings ?? projectSummaries.filter((p) => p.totalRatings > 0).length;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Ratings & Analytics</h1>
-          <p className="text-gray-500">Student feedback and satisfaction metrics</p>
+          <p className="text-gray-500">Student feedback on approved projects (database-backed)</p>
         </div>
-        <Button variant="outline" className="rounded-xl">
+        <Button type="button" variant="outline" className="rounded-xl" onClick={handleExport}>
           <Download className="w-4 h-4 mr-2" />
           Export Report
         </Button>
@@ -201,8 +153,8 @@ export function RatingsAnalyticsPage() {
             <div>
               <p className="text-sm text-gray-600">Overall Average</p>
               <div className="flex items-center gap-2 mt-1">
-                <p className="text-3xl text-gray-900">{overallAverage.toFixed(1)}</p>
-                <div className="flex">{renderStars(overallAverage)}</div>
+                <p className="text-3xl text-gray-900">{totalRatings ? overallAverage.toFixed(2) : '—'}</p>
+                {totalRatings > 0 && <div className="flex">{renderStars(overallAverage)}</div>}
               </div>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
@@ -216,7 +168,13 @@ export function RatingsAnalyticsPage() {
             <div>
               <p className="text-sm text-gray-600">Total Ratings</p>
               <p className="text-3xl text-gray-900 mt-1">{totalRatings}</p>
-              <p className="text-xs text-gray-500 mt-1">Across {mockProjectRatings.length} projects</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Across
+                {' '}
+                {projectCount}
+                {' '}
+                projects with feedback
+              </p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
               <MessageSquare className="w-6 h-6 text-blue-600" />
@@ -228,10 +186,12 @@ export function RatingsAnalyticsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Satisfaction Rate</p>
-              <p className="text-3xl text-gray-900 mt-1">{satisfactionRate}%</p>
-              <p className="text-xs text-green-600 mt-1">
-                <TrendingUp className="w-3 h-3 inline mr-1" />
-                5% from last month
+              <p className="text-3xl text-gray-900 mt-1">
+                {totalRatings ? `${satisfactionRate}%` : '—'}
+              </p>
+              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" />
+                % of ratings ≥ 4★
               </p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
@@ -258,20 +218,24 @@ export function RatingsAnalyticsPage() {
             />
           </div>
 
-          <Select 
-          className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-           value={selectedProject} onValueChange={setSelectedProject}>
+          <Select
+            className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+            value={selectedProject}
+            onValueChange={setSelectedProject}
+          >
             <option value="all">All Projects</option>
-            {mockProjectRatings.map((project) => (
+            {projectSummaries.map((project) => (
               <option key={project.id} value={project.projectName}>
                 {project.projectName}
               </option>
             ))}
           </Select>
 
-          <Select 
-          className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-           value={selectedRating} onValueChange={setSelectedRating}>
+          <Select
+            className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+            value={selectedRating}
+            onValueChange={setSelectedRating}
+          >
             <option value="all">All Ratings</option>
             <option value="5">5 Stars</option>
             <option value="4">4 Stars</option>
@@ -280,13 +244,15 @@ export function RatingsAnalyticsPage() {
             <option value="1">1 Star</option>
           </Select>
 
-          <Select 
-          className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-           value={dateRange} onValueChange={setDateRange}>
+          <Select
+            className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+            value={dateRange}
+            onValueChange={setDateRange}
+          >
             <option value="all">All Time</option>
             <option value="week">Last Week</option>
             <option value="month">Last Month</option>
-            <option value="quarter">Last Quarter</option>
+            <option value="quarter">Last Quarter (90d)</option>
           </Select>
         </div>
       </Card>
@@ -298,55 +264,73 @@ export function RatingsAnalyticsPage() {
         </div>
 
         <div className="space-y-4">
-          {mockProjectRatings.map((project) => (
+          {projectSummaries.length === 0 && (
+            <p className="text-sm text-gray-500">No approved projects with analytics yet.</p>
+          )}
+          {projectSummaries.map((project) => (
             <div key={project.id} className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                 <div>
                   <h3 className="text-gray-900 mb-1">{project.projectName}</h3>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl text-gray-900">{project.averageRating.toFixed(1)}</span>
-                      <div className="flex">{renderStars(project.averageRating)}</div>
+                      <span className="text-2xl text-gray-900">{project.totalRatings ? project.averageRating.toFixed(2) : '—'}</span>
+                      {project.totalRatings > 0 && <div className="flex">{renderStars(project.averageRating)}</div>}
                     </div>
-                    <span className="text-sm text-gray-500">({project.totalRatings} ratings)</span>
+                    <span className="text-sm text-gray-500">
+                      (
+                      {project.totalRatings}
+                      {' '}
+                      ratings)
+                    </span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {project.trend === 'up' && (
+                  {project.trend === 'up' && project.totalRatings > 0 && (
                     <Badge className="bg-green-100 text-green-700">
                       <TrendingUp className="w-3 h-3 mr-1" />
-                      +{project.trendValue.toFixed(1)}
+                      +
+                      {project.trendValue.toFixed(1)}
                     </Badge>
                   )}
-                  {project.trend === 'down' && (
+                  {project.trend === 'down' && project.totalRatings > 0 && (
                     <Badge className="bg-red-100 text-red-700">
                       <TrendingUp className="w-3 h-3 mr-1 rotate-180" />
-                      -{project.trendValue.toFixed(1)}
+                      -
+                      {project.trendValue.toFixed(1)}
                     </Badge>
                   )}
-                  {project.trend === 'stable' && <Badge className="bg-gray-100 text-gray-700">Stable</Badge>}
+                  {(project.trend === 'stable' || !project.totalRatings) && (
+                    <Badge className="bg-gray-100 text-gray-700">Stable</Badge>
+                  )}
                 </div>
               </div>
 
-              <div className="space-y-2">
-                {[5, 4, 3, 2, 1].map((stars) => {
-                  const count = project.ratingDistribution[stars];
-                  const percentage = (count / project.totalRatings) * 100;
-                  return (
-                    <div key={stars} className="flex items-center gap-3">
-                      <span className="text-sm text-gray-600 w-6">{stars}</span>
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-yellow-400 rounded-full transition-all" style={{ width: `${percentage}%` }} />
+              {project.totalRatings > 0 && (
+                <div className="space-y-2">
+                  {[5, 4, 3, 2, 1].map((stars) => {
+                    const count = project.ratingDistribution[stars] ?? 0;
+                    const pct = project.totalRatings ? (count / project.totalRatings) * 100 : 0;
+                    return (
+                      <div key={stars} className="flex items-center gap-3">
+                        <span className="text-sm text-gray-600 w-6">{stars}</span>
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-yellow-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-sm text-gray-600 w-16 text-right">
+                          {count}
+                          {' '}
+                          (
+                          {pct.toFixed(0)}
+                          %)
+                        </span>
                       </div>
-                      <span className="text-sm text-gray-600 w-16 text-right">
-                        {count} ({percentage.toFixed(0)}%)
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -355,7 +339,11 @@ export function RatingsAnalyticsPage() {
       <Card className="rounded-[20px] border-0 shadow-sm p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-gray-900">Student Ratings & Comments</h2>
-          <Badge className="bg-blue-100 text-blue-700">{filteredRatings.length} results</Badge>
+          <Badge className="bg-blue-100 text-blue-700">
+            {filteredRatings.length}
+            {' '}
+            results
+          </Badge>
         </div>
 
         <div className="space-y-4">
@@ -367,7 +355,7 @@ export function RatingsAnalyticsPage() {
               <div className="flex gap-4">
                 <Avatar className="w-10 h-10 flex-shrink-0">
                   <AvatarFallback>
-                    {rating.studentName
+                    {(rating.studentName || 'S')
                       .split(' ')
                       .filter(Boolean)
                       .map((n) => n[0])
@@ -388,14 +376,21 @@ export function RatingsAnalyticsPage() {
 
                   <div className="flex items-center gap-2 mb-2">
                     <div className="flex">{renderSmallStars(rating.rating)}</div>
-                    <Badge className="bg-gray-100 text-gray-700 text-xs">{rating.rating}/5</Badge>
+                    <Badge className="bg-gray-100 text-gray-700 text-xs">
+                      {rating.rating}
+                      /5
+                    </Badge>
                   </div>
 
                   <p className="text-sm text-gray-700 mb-2">{rating.comment}</p>
 
                   <div className="flex items-center gap-2">
                     <ThumbsUp className="w-4 h-4 text-gray-400" />
-                    <span className="text-xs text-gray-500">{rating.helpful} found this helpful</span>
+                    <span className="text-xs text-gray-500">
+                      {rating.helpful}
+                      {' '}
+                      found this helpful
+                    </span>
                   </div>
                 </div>
               </div>
@@ -427,4 +422,3 @@ export default function AdviserRatingsPage() {
     </AuthenticatedLayout>
   );
 }
-

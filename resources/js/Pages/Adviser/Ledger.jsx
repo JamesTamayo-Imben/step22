@@ -1,11 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
-import { useEffect } from 'react';
+import { Head, usePage, router } from '@inertiajs/react';
 import ReactDOM from 'react-dom';
-import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
-import { Input } from '@/Components/ui/input';
 import {
   FileText,
   Download,
@@ -21,9 +18,10 @@ import {
   TrendingDown,
   Activity,
   FileCheck,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
-// Simple toast (unchanged)
 function showToast(message, type = 'success') {
   const id = `simple-toast-${Date.now()}`;
   const el = document.createElement('div');
@@ -38,7 +36,6 @@ function showToast(message, type = 'success') {
   }, 2200);
 }
 
-// Modal (your improved version with portal, scroll lock, backdrop click)
 function Modal({ open, onClose, title, children }) {
   useEffect(() => {
     if (open) {
@@ -63,7 +60,7 @@ function Modal({ open, onClose, title, children }) {
       >
         <div className="flex items-center justify-between p-6 border-b">
           <h3 className="text-lg font-semibold">{title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
+          <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
         </div>
         <div className="overflow-y-auto p-6 pt-0">
           {children}
@@ -74,127 +71,46 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
+function csvEscape(val) {
+  const s = String(val ?? '');
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+const TABLE_PAGE_SIZE = 5;
+
 export default function LedgerApprovalsPage() {
+  const { ledgerEntries = [], auditTrail = [], projectFilterOptions = [] } = usePage().props;
+
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [isCorrectionDialogOpen, setIsCorrectionDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [correctionReason, setCorrectionReason] = useState('');
-  const [activeTab, setActiveTab] = useState('ledger'); // 'ledger' or 'audit'
+  const [activeTab, setActiveTab] = useState('ledger');
 
-  // Filters
   const [filterProject, setFilterProject] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Mock ledger data (unchanged)
-  const [ledgerEntries, setLedgerEntries] = useState([
-    {
-      id: 'LED001',
-      ledgerHash: 'a7f3c8e2d1b4f6a9c5e8d2f1a3b6c9e4d7f2a5b8c1e4d7f0a3b6c9e2d5f8a1b4',
-      predecessorHash: 'b3e6f1a9d2c5e8b4f7a0c3e6d9f2a5b8c1e4d7f0a3b6c9e2d5f8a1b4c7e0f3a6',
-      projectName: 'Annual Science Fair',
-      enteredBy: 'John Doe',
-      role: 'Treasurer',
-      amount: 3500,
-      transactionType: 'Expense',
-      category: 'Academic Events',
-      description: 'Purchase of science fair equipment including microscopes, lab materials, and display boards',
-      date: '2026-02-15',
-      status: 'Pending',
-      proofAttached: true,
-      proofFiles: [
-        { id: '1', name: 'purchase_invoice.pdf', hash: 'f2a5b8c1e4d7f0a3b6c9e2d5f8a1b4c7', url: '#' },
-        { id: '2', name: 'supplier_receipt.pdf', hash: 'e4d7f0a3b6c9e2d5f8a1b4c7e0f3a6b9', url: '#' }
-      ],
-      verificationState: { submitted: '2026-02-15 09:30 AM' }
-    },
-    {
-      id: 'LED002',
-      ledgerHash: 'c9f2e5a8b1d4e7f0a3b6c9e2d5f8a1b4c7e0f3a6b9d2e5f8a1b4c7e0f3a6b9d2',
-      predecessorHash: 'a7f3c8e2d1b4f6a9c5e8d2f1a3b6c9e4d7f2a5b8c1e4d7f0a3b6c9e2d5f8a1b4',
-      projectName: 'Sports Fest 2026',
-      enteredBy: 'Jane Smith',
-      role: 'President',
-      amount: 12500,
-      transactionType: 'Income',
-      category: 'Fundraising',
-      description: 'Sponsorship from Alumni Association for Sports Fest 2026',
-      date: '2026-02-12',
-      status: 'Approved',
-      proofAttached: true,
-      proofFiles: [
-        { id: '3', name: 'sponsorship_agreement.pdf', hash: 'd5f8a1b4c7e0f3a6b9d2e5f8a1b4c7e0', url: '#' }
-      ],
-      verificationState: {
-        submitted: '2026-02-12 02:15 PM',
-        reviewed: '2026-02-13 10:00 AM',
-        approvedRejected: '2026-02-13 10:30 AM'
-      }
-    },
-    {
-      id: 'LED003',
-      ledgerHash: 'e1d4f7a0b3c6e9f2a5b8d1e4f7a0c3e6d9f2a5b8c1e4d7f0a3b6c9e2d5f8a1b4',
-      predecessorHash: 'c9f2e5a8b1d4e7f0a3b6c9e2d5f8a1b4c7e0f3a6b9d2e5f8a1b4c7e0f3a6b9d2',
-      projectName: 'Community Outreach',
-      enteredBy: 'Mike Johnson',
-      role: 'Secretary',
-      amount: 2800,
-      transactionType: 'Expense',
-      category: 'Community Service',
-      description: 'Food packages and educational materials for outreach program',
-      date: '2026-02-10',
-      status: 'Rejected',
-      proofAttached: false,
-      proofFiles: [],
-      verificationState: {
-        submitted: '2026-02-10 03:45 PM',
-        reviewed: '2026-02-11 09:00 AM',
-        approvedRejected: '2026-02-11 09:15 AM'
-      }
-    },
-    {
-      id: 'LED004',
-      ledgerHash: 'f3a6b9c2d5e8f1a4b7c0d3e6f9a2b5c8d1e4f7a0b3c6e9f2a5b8d1e4f7a0c3e6',
-      predecessorHash: 'e1d4f7a0b3c6e9f2a5b8d1e4f7a0c3e6d9f2a5b8c1e4d7f0a3b6c9e2d5f8a1b4',
-      projectName: 'Cultural Festival',
-      enteredBy: 'Sarah Williams',
-      role: 'Treasurer',
-      amount: 5200,
-      transactionType: 'Expense',
-      category: 'Cultural Events',
-      description: 'Stage setup, sound system rental, and performer fees for Cultural Festival',
-      date: '2026-02-08',
-      status: 'Corrected',
-      proofAttached: true,
-      proofFiles: [
-        { id: '4', name: 'rental_contract.pdf', hash: 'a1b4c7e0f3a6b9d2e5f8a1b4c7e0f3a6', url: '#' }
-      ],
-      verificationState: {
-        submitted: '2026-02-08 11:20 AM',
-        reviewed: '2026-02-09 01:00 PM',
-        corrected: '2026-02-09 02:30 PM'
-      },
-      correctionReason: 'Amount was incorrectly entered as 5200 instead of 5600. Original entry reversed and corrected.'
-    }
-  ]);
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [auditPage, setAuditPage] = useState(1);
 
-  // Mock audit trail
-  const auditTrail = [
-    { id: '1', action: 'Ledger Entry Approved', performedBy: 'Dr. Maria Santos', role: 'Adviser', timestamp: '2026-02-13 10:30 AM', ipAddress: '192.168.1.45', details: 'LED002 - Sports Fest 2026 Sponsorship' },
-    { id: '2', action: 'Ledger Entry Rejected', performedBy: 'Dr. Maria Santos', role: 'Adviser', timestamp: '2026-02-11 09:15 AM', ipAddress: '192.168.1.45', details: 'LED003 - Missing proof documentation' },
-    { id: '3', action: 'Correction Applied', performedBy: 'Dr. Maria Santos', role: 'Adviser', timestamp: '2026-02-09 02:30 PM', ipAddress: '192.168.1.45', details: 'LED004 - Amount correction from ₱5,200 to ₱5,600' },
-    { id: '4', action: 'Ledger Entry Created', performedBy: 'John Doe', role: 'Treasurer', timestamp: '2026-02-15 09:30 AM', ipAddress: '10.0.0.122', details: 'LED001 - Annual Science Fair equipment purchase' }
-  ];
+  useEffect(() => {
+    setLedgerPage(1);
+  }, [filterProject, filterStatus, searchQuery]);
 
-  // Statistics
-  const stats = {
-    totalIncome: ledgerEntries.filter(e => e.transactionType === 'Income').reduce((sum, e) => sum + e.amount, 0),
-    totalExpenses: ledgerEntries.filter(e => e.transactionType === 'Expense').reduce((sum, e) => sum + e.amount, 0),
-    pendingApprovals: ledgerEntries.filter(e => e.status === 'Pending').length,
-    correctionCount: ledgerEntries.filter(e => e.status === 'Corrected').length
-  };
+  useEffect(() => {
+    setAuditPage(1);
+  }, [activeTab]);
+
+  const stats = useMemo(() => ({
+    totalIncome: ledgerEntries.filter((e) => e.transactionType === 'Income').reduce((sum, e) => sum + Number(e.amount), 0),
+    totalExpenses: ledgerEntries.filter((e) => e.transactionType === 'Expense').reduce((sum, e) => sum + Number(e.amount), 0),
+    pendingApprovals: ledgerEntries.filter((e) => e.allowAdviserActions).length,
+    correctionCount: ledgerEntries.filter((e) => e.status === 'Corrected').length,
+  }), [ledgerEntries]);
 
   const handleViewDetails = (entry) => {
     setSelectedEntry(entry);
@@ -202,23 +118,17 @@ export default function LedgerApprovalsPage() {
   };
 
   const handleApprove = (entry) => {
-    setLedgerEntries(entries =>
-      entries.map(e =>
-        e.id === entry.id
-          ? {
-              ...e,
-              status: 'Approved',
-              verificationState: {
-                ...e.verificationState,
-                reviewed: new Date().toLocaleString(),
-                approvedRejected: new Date().toLocaleString()
-              }
-            }
-          : e
-      )
-    );
-    showToast('Ledger entry approved');
-    setIsDetailsOpen(false);
+    if (!entry) return;
+    if (!window.confirm('Approve this ledger entry?')) return;
+    router.post(route('adviser.ledger.approve', entry.id), {}, {
+      preserveScroll: true,
+      onSuccess: () => {
+        showToast('Ledger entry approved');
+        setIsDetailsOpen(false);
+        setSelectedEntry(null);
+      },
+      onError: () => showToast('Could not approve entry', 'error'),
+    });
   };
 
   const handleReject = () => {
@@ -226,26 +136,18 @@ export default function LedgerApprovalsPage() {
       showToast('Please provide a rejection reason', 'error');
       return;
     }
-    setLedgerEntries(entries =>
-      entries.map(e =>
-        e.id === selectedEntry.id
-          ? {
-              ...e,
-              status: 'Rejected',
-              correctionReason: rejectionReason,
-              verificationState: {
-                ...e.verificationState,
-                reviewed: new Date().toLocaleString(),
-                approvedRejected: new Date().toLocaleString()
-              }
-            }
-          : e
-      )
-    );
-    showToast('Ledger entry rejected', 'error');
-    setRejectionReason('');
-    setIsRejectDialogOpen(false);
-    setIsDetailsOpen(false);
+    if (!window.confirm('Reject this ledger entry?')) return;
+    router.post(route('adviser.ledger.reject', selectedEntry.id), { reason: rejectionReason.trim() }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        showToast('Ledger entry rejected', 'error');
+        setRejectionReason('');
+        setIsRejectDialogOpen(false);
+        setIsDetailsOpen(false);
+        setSelectedEntry(null);
+      },
+      onError: () => showToast('Could not reject entry', 'error'),
+    });
   };
 
   const handleCorrection = () => {
@@ -253,25 +155,18 @@ export default function LedgerApprovalsPage() {
       showToast('Please provide a correction reason', 'error');
       return;
     }
-    setLedgerEntries(entries =>
-      entries.map(e =>
-        e.id === selectedEntry.id
-          ? {
-              ...e,
-              status: 'Corrected',
-              correctionReason,
-              verificationState: {
-                ...e.verificationState,
-                corrected: new Date().toLocaleString()
-              }
-            }
-          : e
-      )
-    );
-    showToast('Correction applied');
-    setCorrectionReason('');
-    setIsCorrectionDialogOpen(false);
-    setIsDetailsOpen(false);
+    if (!window.confirm('Submit this correction request to the officer?')) return;
+    router.post(route('adviser.ledger.correction', selectedEntry.id), { reason: correctionReason.trim() }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        showToast('Correction request saved');
+        setCorrectionReason('');
+        setIsCorrectionDialogOpen(false);
+        setIsDetailsOpen(false);
+        setSelectedEntry(null);
+      },
+      onError: () => showToast('Could not save correction', 'error'),
+    });
   };
 
   const getStatusBadge = (status) => {
@@ -281,32 +176,54 @@ export default function LedgerApprovalsPage() {
       case 'Pending': return <span className={`${baseClasses} bg-yellow-100 text-yellow-700`}>Pending</span>;
       case 'Rejected': return <span className={`${baseClasses} bg-red-100 text-red-700`}>Rejected</span>;
       case 'Corrected': return <span className={`${baseClasses} bg-purple-100 text-purple-700`}>Corrected</span>;
-      default: return null;
+      case 'Draft': return <span className={`${baseClasses} bg-gray-100 text-gray-700`}>Draft</span>;
+      default: return <span className={`${baseClasses} bg-gray-100 text-gray-600`}>{status || '—'}</span>;
     }
   };
 
-  // Filter logic
-  const filteredEntries = ledgerEntries.filter(entry => {
+  const filteredEntries = useMemo(() => ledgerEntries.filter((entry) => {
     if (filterProject !== 'all' && entry.projectName !== filterProject) return false;
-    if (filterStatus !== 'all' && entry.status !== filterStatus) return false;
-    if (searchQuery && !entry.id.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (filterStatus !== 'all') {
+      if (filterStatus === 'Pending') {
+        if (!entry.allowAdviserActions) return false;
+      } else if (entry.status !== filterStatus) {
+        return false;
+      }
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const blob = [
+        entry.id,
+        entry.projectName,
+        entry.enteredBy,
+        entry.description,
+        entry.category,
+        entry.ledgerHash,
+      ].filter(Boolean).join(' ').toLowerCase();
+      if (!blob.includes(q)) return false;
+    }
     return true;
-  });
+  }), [ledgerEntries, filterProject, filterStatus, searchQuery]);
 
-  // Export CSV
+  const ledgerTotalPages = Math.max(1, Math.ceil(filteredEntries.length / TABLE_PAGE_SIZE));
+  const pagedLedger = filteredEntries.slice((ledgerPage - 1) * TABLE_PAGE_SIZE, ledgerPage * TABLE_PAGE_SIZE);
+
+  const auditTotalPages = Math.max(1, Math.ceil(auditTrail.length / TABLE_PAGE_SIZE));
+  const pagedAudit = auditTrail.slice((auditPage - 1) * TABLE_PAGE_SIZE, auditPage * TABLE_PAGE_SIZE);
+
   const handleExport = () => {
     const headers = ['Ledger ID', 'Project', 'Entered By', 'Amount', 'Type', 'Date', 'Status', 'SHA256 Hash'];
-    const csvData = filteredEntries.map(entry => [
-      entry.id,
-      entry.projectName,
-      entry.enteredBy,
-      entry.amount,
-      entry.transactionType,
-      entry.date,
-      entry.status,
-      entry.ledgerHash
+    const rows = filteredEntries.map((entry) => [
+      csvEscape(entry.id),
+      csvEscape(entry.projectName),
+      csvEscape(entry.enteredBy),
+      csvEscape(entry.amount),
+      csvEscape(entry.transactionType),
+      csvEscape(entry.date),
+      csvEscape(entry.status),
+      csvEscape(entry.ledgerHash),
     ]);
-    const csvContent = [headers.join(','), ...csvData.map(row => row.join(','))].join('\n');
+    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -324,15 +241,12 @@ export default function LedgerApprovalsPage() {
       <Head title="Ledger" />
       <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
-          {/* Header */}
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Ledger Approval Center</h1>
             <p className="text-gray-500">Review and verify financial ledger entries</p>
           </div>
 
-          {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* ... (unchanged) */}
             <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -389,9 +303,9 @@ export default function LedgerApprovalsPage() {
             </div>
           </div>
 
-          {/* Tabs */}
           <div className="flex gap-4 border-b border-gray-200">
             <button
+              type="button"
               onClick={() => setActiveTab('ledger')}
               className={`pb-3 px-2 text-sm font-medium transition-colors ${
                 activeTab === 'ledger'
@@ -402,6 +316,7 @@ export default function LedgerApprovalsPage() {
               Ledger Entries
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('audit')}
               className={`pb-3 px-2 text-sm font-medium transition-colors ${
                 activeTab === 'audit'
@@ -415,14 +330,13 @@ export default function LedgerApprovalsPage() {
 
           {activeTab === 'ledger' ? (
             <>
-              {/* Filters */}
               <div className="p-4 rounded-[20px] border-0 shadow-sm bg-white">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Search by ID..."
+                      placeholder="Search ID, project, description..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
@@ -435,10 +349,9 @@ export default function LedgerApprovalsPage() {
                     className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                   >
                     <option value="all">All Projects</option>
-                    <option value="Annual Science Fair">Annual Science Fair</option>
-                    <option value="Sports Fest 2026">Sports Fest 2026</option>
-                    <option value="Community Outreach">Community Outreach</option>
-                    <option value="Cultural Festival">Cultural Festival</option>
+                    {projectFilterOptions.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
                   </select>
 
                   <select
@@ -451,9 +364,11 @@ export default function LedgerApprovalsPage() {
                     <option value="Approved">Approved</option>
                     <option value="Rejected">Rejected</option>
                     <option value="Corrected">Corrected</option>
+                    <option value="Draft">Draft</option>
                   </select>
 
                   <button
+                    type="button"
                     onClick={handleExport}
                     className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
@@ -463,7 +378,6 @@ export default function LedgerApprovalsPage() {
                 </div>
               </div>
 
-              {/* Ledger Table (matches image) */}
               <div className="rounded-[20px] border-0 shadow-sm bg-white overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -481,7 +395,7 @@ export default function LedgerApprovalsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {filteredEntries.map((entry) => (
+                      {pagedLedger.map((entry) => (
                         <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-2">
@@ -493,12 +407,11 @@ export default function LedgerApprovalsPage() {
                             <p className="text-sm text-gray-900">{entry.projectName}</p>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {/* Only name, no role – matches image */}
                             <p className="text-sm text-gray-900">{entry.enteredBy}</p>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <p className={`text-sm ${entry.transactionType === 'Income' ? 'text-green-600' : 'text-red-600'}`}>
-                              {entry.transactionType === 'Income' ? '+' : '-'}₱{entry.amount.toLocaleString()}
+                              {entry.transactionType === 'Income' ? '+' : '-'}₱{Number(entry.amount).toLocaleString()}
                             </p>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -509,7 +422,7 @@ export default function LedgerApprovalsPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <p className="text-sm text-gray-600">{new Date(entry.date).toLocaleDateString()}</p>
+                            <p className="text-sm text-gray-600">{entry.date ? new Date(entry.date).toLocaleDateString() : '—'}</p>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {getStatusBadge(entry.status)}
@@ -519,7 +432,7 @@ export default function LedgerApprovalsPage() {
                               {entry.proofAttached ? (
                                 <>
                                   <FileCheck className="w-4 h-4 text-green-600" />
-                                  <span className="text-xs text-green-600">{entry.proofFiles.length}</span>
+                                  <span className="text-xs text-green-600">{entry.proofFiles?.length || 0}</span>
                                 </>
                               ) : (
                                 <>
@@ -531,6 +444,7 @@ export default function LedgerApprovalsPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
+                              type="button"
                               onClick={() => handleViewDetails(entry)}
                               className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
                             >
@@ -543,9 +457,20 @@ export default function LedgerApprovalsPage() {
                   </table>
                 </div>
               </div>
+
+              {filteredEntries.length > TABLE_PAGE_SIZE && (
+                <div className="flex items-center justify-center gap-4">
+                  <Button type="button" variant="outline" size="sm" className="rounded-xl" disabled={ledgerPage <= 1} onClick={() => setLedgerPage((p) => Math.max(1, p - 1))}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm text-gray-600">Page {ledgerPage} of {ledgerTotalPages}</span>
+                  <Button type="button" variant="outline" size="sm" className="rounded-xl" disabled={ledgerPage >= ledgerTotalPages} onClick={() => setLedgerPage((p) => Math.min(ledgerTotalPages, p + 1))}>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </>
           ) : (
-            /* Audit Trail Tab (unchanged) */
             <div className="rounded-[20px] border-0 shadow-sm bg-white overflow-hidden">
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-gray-900 flex items-center gap-2">
@@ -567,7 +492,7 @@ export default function LedgerApprovalsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {auditTrail.map((entry) => (
+                    {pagedAudit.map((entry) => (
                       <tr key={entry.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.action}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{entry.performedBy}</td>
@@ -586,16 +511,25 @@ export default function LedgerApprovalsPage() {
                   </tbody>
                 </table>
               </div>
+              {auditTrail.length > TABLE_PAGE_SIZE && (
+                <div className="flex items-center justify-center gap-4 py-4 border-t border-gray-100">
+                  <Button type="button" variant="outline" size="sm" className="rounded-xl" disabled={auditPage <= 1} onClick={() => setAuditPage((p) => Math.max(1, p - 1))}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm text-gray-600">Page {auditPage} of {auditTotalPages}</span>
+                  <Button type="button" variant="outline" size="sm" className="rounded-xl" disabled={auditPage >= auditTotalPages} onClick={() => setAuditPage((p) => Math.min(auditTotalPages, p + 1))}>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Details Modal (unchanged) */}
       <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Ledger Entry Details">
         {selectedEntry && (
           <div className="space-y-6 pt-4">
-            {/* Basic Info */}
             <div>
               <h4 className="text-sm font-medium text-gray-500 mb-3">Basic Information</h4>
               <div className="space-y-3 pt-3">
@@ -609,7 +543,7 @@ export default function LedgerApprovalsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Predecessor Hash</p>
-                  <code className="text-xs bg-gray-50 px-2 py-1 rounded block break-all">{selectedEntry.predecessorHash}</code>
+                  <code className="text-xs bg-gray-50 px-2 py-1 rounded block break-all">{selectedEntry.predecessorHash || '—'}</code>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -624,7 +558,6 @@ export default function LedgerApprovalsPage() {
               </div>
             </div>
 
-            {/* Financial Data */}
             <div className="border-t pt-6">
               <h4 className="text-sm font-medium text-gray-500 mb-3">Financial Data</h4>
               <div className="space-y-3 pt-3">
@@ -632,7 +565,7 @@ export default function LedgerApprovalsPage() {
                   <div>
                     <p className="text-xs text-gray-500">Amount</p>
                     <p className={`text-xl ${selectedEntry.transactionType === 'Income' ? 'text-green-600' : 'text-red-600'}`}>
-                      ₱{selectedEntry.amount.toLocaleString()}
+                      ₱{Number(selectedEntry.amount).toLocaleString()}
                     </p>
                   </div>
                   <div>
@@ -655,22 +588,28 @@ export default function LedgerApprovalsPage() {
               </div>
             </div>
 
-            {/* Proof Documents */}
             <div className="border-t pt-6">
               <h4 className="text-sm font-medium text-gray-500 mb-3">Proof Documents</h4>
               {selectedEntry.proofAttached ? (
                 <div className="space-y-3">
-                  {selectedEntry.proofFiles.map((file) => (
+                  {(selectedEntry.proofFiles || []).map((file) => (
                     <div key={file.id} className="p-3 border rounded-xl">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-2 flex-1">
-                          <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{file.name}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                          <FileText className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{file.name}</p>
                             <p className="text-xs text-gray-500 mt-1">SHA-256: <code className="text-xs break-all">{file.hash}</code></p>
                           </div>
                         </div>
-                        <button className="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Download</button>
+                        <a
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex-shrink-0"
+                        >
+                          Download
+                        </a>
                       </div>
                     </div>
                   ))}
@@ -686,38 +625,37 @@ export default function LedgerApprovalsPage() {
               )}
             </div>
 
-            {/* Verification Timeline */}
             <div className="border-t pt-6">
               <h4 className="text-sm font-medium text-gray-500 mb-3">Verification Timeline</h4>
               <div className="space-y-3 pt-3">
                 <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-1.5"></div>
+                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-1.5" />
                   <div>
                     <p className="text-sm font-medium">Submitted</p>
-                    <p className="text-xs text-gray-500">{selectedEntry.verificationState.submitted}</p>
+                    <p className="text-xs text-gray-500">{selectedEntry.verificationState?.submitted}</p>
                   </div>
                 </div>
-                {selectedEntry.verificationState.reviewed && (
+                {selectedEntry.verificationState?.reviewed && (
                   <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-blue-600 rounded-full mt-1.5"></div>
+                    <div className="w-2 h-2 bg-blue-600 rounded-full mt-1.5" />
                     <div>
                       <p className="text-sm font-medium">Reviewed</p>
                       <p className="text-xs text-gray-500">{selectedEntry.verificationState.reviewed}</p>
                     </div>
                   </div>
                 )}
-                {selectedEntry.verificationState.approvedRejected && (
+                {selectedEntry.verificationState?.approvedRejected && (
                   <div className="flex items-start gap-3">
-                    <div className={`w-2 h-2 rounded-full mt-1.5 ${selectedEntry.status === 'Approved' ? 'bg-green-600' : 'bg-red-600'}`}></div>
+                    <div className={`w-2 h-2 rounded-full mt-1.5 ${selectedEntry.status === 'Approved' ? 'bg-green-600' : 'bg-red-600'}`} />
                     <div>
                       <p className="text-sm font-medium">{selectedEntry.status}</p>
                       <p className="text-xs text-gray-500">{selectedEntry.verificationState.approvedRejected}</p>
                     </div>
                   </div>
                 )}
-                {selectedEntry.verificationState.corrected && (
+                {selectedEntry.verificationState?.corrected && (
                   <div className="flex items-start gap-3">
-                    <div className="w-2 h-2 bg-purple-600 rounded-full mt-1.5"></div>
+                    <div className="w-2 h-2 bg-purple-600 rounded-full mt-1.5" />
                     <div>
                       <p className="text-sm font-medium">Corrected</p>
                       <p className="text-xs text-gray-500">{selectedEntry.verificationState.corrected}</p>
@@ -730,10 +668,10 @@ export default function LedgerApprovalsPage() {
               </div>
             </div>
 
-            {/* Action Buttons (if pending) */}
-            {selectedEntry.status === 'Pending' && (
+            {selectedEntry.allowAdviserActions && (
               <div className="border-t pt-6 flex flex-col gap-3">
                 <button
+                  type="button"
                   onClick={() => handleApprove(selectedEntry)}
                   disabled={!selectedEntry.proofAttached}
                   className="w-full px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -741,13 +679,15 @@ export default function LedgerApprovalsPage() {
                   <CheckCircle2 className="w-4 h-4 mr-2 inline" /> Approve Entry
                 </button>
                 <button
-                  onClick={() => { setIsDetailsOpen(false); setSelectedEntry(selectedEntry); setIsRejectDialogOpen(true); }}
+                  type="button"
+                  onClick={() => { setIsDetailsOpen(false); setIsRejectDialogOpen(true); }}
                   className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-xl hover:bg-red-50"
                 >
                   <XCircle className="w-4 h-4 mr-2 inline" /> Reject Entry
                 </button>
                 <button
-                  onClick={() => { setIsDetailsOpen(false); setSelectedEntry(selectedEntry); setIsCorrectionDialogOpen(true); }}
+                  type="button"
+                  onClick={() => { setIsDetailsOpen(false); setIsCorrectionDialogOpen(true); }}
                   className="w-full px-4 py-2 border border-purple-300 text-purple-600 rounded-xl hover:bg-purple-50"
                 >
                   <RotateCcw className="w-4 h-4 mr-2 inline" /> Request Correction
@@ -758,7 +698,6 @@ export default function LedgerApprovalsPage() {
         )}
       </Modal>
 
-      {/* Reject Dialog */}
       <Modal open={isRejectDialogOpen} onClose={() => { setIsRejectDialogOpen(false); setRejectionReason(''); }} title="Reject Ledger Entry">
         <div className="space-y-4 pt-4">
           <p className="text-sm text-gray-600">Please provide a detailed reason for rejecting this entry.</p>
@@ -771,12 +710,14 @@ export default function LedgerApprovalsPage() {
           />
           <div className="flex gap-3">
             <button
+              type="button"
               onClick={() => { setIsRejectDialogOpen(false); setRejectionReason(''); }}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleReject}
               className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700"
             >
@@ -786,10 +727,9 @@ export default function LedgerApprovalsPage() {
         </div>
       </Modal>
 
-      {/* Correction Dialog */}
       <Modal open={isCorrectionDialogOpen} onClose={() => { setIsCorrectionDialogOpen(false); setCorrectionReason(''); }} title="Request Correction">
         <div className="space-y-4 pt-4">
-          <p className="text-sm text-gray-600">Explain what needs to be corrected. The original entry will be marked as corrected.</p>
+          <p className="text-sm text-gray-600">Explain what needs to be corrected. The officer will see this note on the pending entry.</p>
           <textarea
             rows={4}
             value={correctionReason}
@@ -799,12 +739,14 @@ export default function LedgerApprovalsPage() {
           />
           <div className="flex gap-3">
             <button
+              type="button"
               onClick={() => { setIsCorrectionDialogOpen(false); setCorrectionReason(''); }}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleCorrection}
               className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-medium hover:bg-purple-700"
             >

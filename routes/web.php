@@ -3,19 +3,22 @@
 use App\Http\Controllers\CSG\LedgerEntryController;
 use App\Http\Controllers\CSG\MeetingController;
 use App\Http\Controllers\CSG\ProjectController;
+use App\Http\Controllers\Adviser\AdviserApprovalController;
+use App\Http\Controllers\Adviser\AdviserDashboardController;
+use App\Http\Controllers\Adviser\AdviserLedgerController;
+use App\Http\Controllers\Adviser\AdviserNotificationController;
+use App\Http\Controllers\Adviser\AdviserRatingsController;
+use App\Http\Controllers\SAdmin\SAdminDashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SAdmin\UserManagementController;
 use App\Http\Controllers\CSG\CSGProjectController;
 use App\Http\Controllers\CSG\CSGDashboardController;
 use App\Http\Controllers\User\UserProjectController;
-use App\Models\Notification;
+// use App\Models\Notification;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-<<<<<<< Updated upstream
 use App\Models\User\Notification;
-=======
->>>>>>> Stashed changes
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -31,13 +34,9 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 // Role-specific dashboards (simple routes to front-end pages)
-Route::get('/sadmin', function () {
-    return Inertia::render('SAdmin/Dashboard');
-})->name('sadmin.dashboard');
+Route::get('/sadmin', [SAdminDashboardController::class, 'index'])->name('sadmin.dashboard');
 
-Route::get('/sadmin/dashboard', function () {
-    return Inertia::render('SAdmin/Dashboard');
-})->name('sadmin.dashboard.alias');
+Route::get('/sadmin/dashboard', [SAdminDashboardController::class, 'index'])->name('sadmin.dashboard.alias');
 
 // Superadmin sub-pages
 Route::get('/sadmin/users', [UserManagementController::class, 'index'])->name('sadmin.users');
@@ -92,29 +91,30 @@ Route::get('/sadmin/profile', function () {
     return Inertia::render('SAdmin/Profile');
 })->name('sadmin.profile');
 
-Route::get('/adviser', function () {
-    return Inertia::render('Adviser/Dashboard');
-})->name('adviser.dashboard');
+Route::get('/adviser', [AdviserDashboardController::class, 'index'])->name('adviser.dashboard');
 
-Route::get('/adviser/dashboard', function () {
-    return Inertia::render('Adviser/Dashboard');
-})->name('adviser.dashboard.alias');
+Route::get('/adviser/dashboard', [AdviserDashboardController::class, 'index'])->name('adviser.dashboard.alias');
 
-Route::get('/adviser/approvals', function () {
-    return Inertia::render('Adviser/Approvals');
-})->name('adviser.approvals');
+// Same as other /adviser/* pages: no auth gate so navigation from the adviser dashboard works
+// without a Laravel session (data still loads from DB via controllers below).
+Route::get('/adviser/approvals', [AdviserApprovalController::class, 'index'])->name('adviser.approvals');
+Route::post('/adviser/approvals/approve', [AdviserApprovalController::class, 'approve'])->name('adviser.approvals.approve');
+Route::post('/adviser/approvals/reject', [AdviserApprovalController::class, 'reject'])->name('adviser.approvals.reject');
 
-Route::get('/adviser/ledger', function () {
-    return Inertia::render('Adviser/Ledger');
-})->name('adviser.ledger');
+Route::get('/adviser/ledger', [AdviserLedgerController::class, 'index'])->name('adviser.ledger');
+Route::post('/adviser/ledger/{id}/approve', [AdviserLedgerController::class, 'approve'])->name('adviser.ledger.approve');
+Route::post('/adviser/ledger/{id}/reject', [AdviserLedgerController::class, 'reject'])->name('adviser.ledger.reject');
+Route::post('/adviser/ledger/{id}/correction', [AdviserLedgerController::class, 'correction'])->name('adviser.ledger.correction');
 
 Route::get('/adviser/role-permissions', function () {
     return Inertia::render('Adviser/Permission');
 })->name('adviser.role-permissions');
 
-    Route::get('/adviser/ratings', function () {
-        return Inertia::render('Adviser/Ratings');
-    })->name('adviser.ratings');
+Route::get('/adviser/ratings', [AdviserRatingsController::class, 'index'])->name('adviser.ratings');
+
+Route::get('/adviser/notifications', [AdviserNotificationController::class, 'index'])->name('adviser.notifications');
+Route::post('/adviser/notifications/read/{id}', [AdviserNotificationController::class, 'markRead'])->name('adviser.notifications.read');
+Route::post('/adviser/notifications/mark-all-read', [AdviserNotificationController::class, 'markAllRead'])->name('adviser.notifications.mark-all-read');
 
 // system-logs
 Route::get('/adviser/system-logs', function () {

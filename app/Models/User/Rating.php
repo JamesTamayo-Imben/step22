@@ -29,6 +29,7 @@ class Rating extends Model
         'rating_score' => 'integer',
         'helpful_count' => 'integer',
         'archive' => 'boolean',
+        'created_at' => 'datetime',
     ];
 
     public function project(): BelongsTo

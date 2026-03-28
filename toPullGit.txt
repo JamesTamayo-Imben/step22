@@ -10,7 +10,7 @@ git branch
 
 4. Switch to the desired branch if necessary using:
 git checkout [branch-name]
-Noted: Ang branch naten ay
+Noted: Ang branch naten ayz
     main
     
     my new feature

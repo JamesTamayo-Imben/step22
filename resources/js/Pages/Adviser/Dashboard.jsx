@@ -28,7 +28,21 @@ function AdminProfilePage() { return <Card className="p-8">Profile (placeholder)
 function LedgerOversightPage() { return <Card className="p-8">Ledger Oversight (placeholder)</Card>; }
 function RolePermissionsPage() { return <Card className="p-8">Role & Permissions (placeholder)</Card>; }
 
-export function AdminAdviserDashboard({ currentView, onNavigate }) {
+export function AdminAdviserDashboard({
+  currentView,
+  onNavigate,
+  stats = {},
+  approvalQueue = [],
+  recentActivity = [],
+}) {
+  const s = {
+    pendingApprovals: stats.pendingApprovals ?? 0,
+    pendingLedger: stats.pendingLedger ?? 0,
+    pendingProjects: stats.pendingProjects ?? 0,
+    pendingMeetings: stats.pendingMeetings ?? 0,
+    avgRating: typeof stats.avgRating === 'number' ? stats.avgRating : 0,
+    systemAlerts: stats.systemAlerts ?? 0,
+  };
   // Simple subcomponents to mirror the STEP AdminAdviser layout
   function StatsCard({ title, value, hint, icon, iconBg = 'bg-gray-100', iconColor = 'text-gray-700' }) {
     return (
@@ -90,10 +104,10 @@ export function AdminAdviserDashboard({ currentView, onNavigate }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard title="Pending Approvals" value="8" hint="Requires attention" icon={<Clock />} iconBg="bg-orange-50" iconColor="text-orange-600" />
-        <StatsCard title="Approved Today" value="24" hint="↑ 15% from yesterday" icon={<CheckCircle2 />} iconBg="bg-green-50" iconColor="text-green-600" />
-        <StatsCard title="Avg. Rating" value="4.7" hint="CSG Performance" icon={<TrendingUp />} iconBg="bg-blue-50" iconColor="text-blue-600" />
-        <StatsCard title="System Alerts" value="2" hint="Review required" icon={<AlertCircle />} iconBg="bg-red-50" iconColor="text-red-600" />
+        <StatsCard title="Total Pending" value={String(s.pendingApprovals)} hint="Projects + ledger + meetings" icon={<Clock />} iconBg="bg-orange-50" iconColor="text-orange-600" />
+        <StatsCard title="Ledger Pending" value={String(s.pendingLedger)} hint="Awaiting verification" icon={<CheckCircle2 />} iconBg="bg-green-50" iconColor="text-green-600" />
+        <StatsCard title="Avg. Rating" value={s.avgRating.toFixed(1)} hint="All student ratings" icon={<TrendingUp />} iconBg="bg-blue-50" iconColor="text-blue-600" />
+        <StatsCard title="Reject alerts (24h)" value={String(s.systemAlerts)} hint="From audit log" icon={<AlertCircle />} iconBg="bg-red-50" iconColor="text-red-600" />
       </div>
 
       <Card className="p-6 rounded-2xl border-0 shadow-sm bg-white">
@@ -103,12 +117,11 @@ export function AdminAdviserDashboard({ currentView, onNavigate }) {
         </div>
 
         <div className="space-y-3">
-          {[
-            { type: 'Ledger Entry', title: 'Sports Fest Equipment Purchase', amount: '₱15,450.00', submittedBy: 'John Doe', time: '2 hours ago', priority: 'high' },
-            { type: 'Project Verification', title: 'Community Outreach Program', amount: '₱25,000.00', submittedBy: 'Jane Smith', time: '5 hours ago', priority: 'medium' },
-            { type: 'Meeting Minutes', title: 'General Assembly - October 2024', amount: null, submittedBy: 'Mike Johnson', time: '1 day ago', priority: 'low' },
-          ].map((item, index) => (
-            <div key={index} className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 hover:shadow-sm transition-all">
+          {approvalQueue.length === 0 && (
+            <p className="text-sm text-gray-500 py-4 text-center">No pending items in queue.</p>
+          )}
+          {approvalQueue.map((item) => (
+            <div key={`${item.type}-${item.title}`} className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 hover:shadow-sm transition-all">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-gray-200 shadow-sm">
                   <FileText className="w-5 h-5 text-gray-600" />
@@ -135,17 +148,17 @@ export function AdminAdviserDashboard({ currentView, onNavigate }) {
           <div className="space-y-2">
             <button onClick={() => Inertia.visit('/adviser/ledger')} className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100 shadow-sm transition-colors text-left">
               <div className="flex items-center gap-3"><CheckSquare className="w-5 h-5 text-[#2563EB]" /><span className="text-sm text-gray-900">Verify Ledger Entries</span></div>
-              <Badge variant="secondary">5</Badge>
+              <Badge variant="secondary">{s.pendingLedger}</Badge>
             </button>
 
             <button onClick={() => Inertia.visit('/adviser/approvals')} className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100 shadow-sm transition-colors text-left">
               <div className="flex items-center gap-3"><CheckSquare className="w-5 h-5 text-[#2563EB]" /><span className="text-sm text-gray-900">Approve Projects</span></div>
-              <Badge variant="secondary">2</Badge>
+              <Badge variant="secondary">{s.pendingProjects}</Badge>
             </button>
 
             <button onClick={() => Inertia.visit('/adviser/approvals?tab=meetings')} className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100 shadow-sm transition-colors text-left">
               <div className="flex items-center gap-3"><CheckSquare className="w-5 h-5 text-[#2563EB]" /><span className="text-sm text-gray-900">Review Meeting Minutes</span></div>
-              <Badge variant="secondary">1</Badge>
+              <Badge variant="secondary">{s.pendingMeetings}</Badge>
             </button>
           </div>
         </Card>
@@ -153,9 +166,12 @@ export function AdminAdviserDashboard({ currentView, onNavigate }) {
         <Card className="p-6 rounded-2xl border-0 shadow-sm bg-white">
           <h2 className="text-gray-900 mb-4">Recent Activity</h2>
           <div className="space-y-3">
-            {[{ action: 'Approved ledger entry', time: '10 minutes ago', status: 'approved' }, { action: 'Rejected project status change', time: '1 hour ago', status: 'rejected' }, { action: 'Verified meeting minutes', time: '3 hours ago', status: 'approved' }].map((activity, index) => (
+            {recentActivity.length === 0 && (
+              <p className="text-sm text-gray-500">No recent audit activity.</p>
+            )}
+            {recentActivity.map((activity, index) => (
               <div key={index} className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${activity.status === 'approved' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <div className={`w-2 h-2 rounded-full ${activity.status === 'approved' ? 'bg-green-500' : 'bg-red-500'}`} />
                 <div className="flex-1"><p className="text-sm text-gray-900">{activity.action}</p><p className="text-xs text-gray-500">{activity.time}</p></div>
               </div>
             ))}

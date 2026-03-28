@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   CheckSquare,
   BookOpen,
+  Bell,
   TrendingUp,
   FileText,
   User,
@@ -12,7 +13,6 @@ import {
   X,
   LogOut,
   ShieldCheck,
-  // other icons if needed
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 
@@ -27,6 +27,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'approvals', label: 'Approvals', icon: CheckSquare },
     { id: 'ledger-view', label: 'Ledger Oversight', icon: BookOpen },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'feedback-review', label: 'Role & Permissions', icon: ShieldCheck },
     { id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp },
     { id: 'system-logs', label: 'System Logs', icon: FileText },
@@ -38,6 +39,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
     const p = window.location.pathname;
     if (p.startsWith('/adviser/approvals')) return 'approvals';
     if (p.startsWith('/adviser/ledger')) return 'ledger-view';
+    if (p.startsWith('/adviser/notifications')) return 'notifications';
     if (p.startsWith('/adviser/role-permissions')) return 'feedback-review';
     if (p.startsWith('/adviser/ratings')) return 'ratings-analytics';
     if (p.startsWith('/adviser/system-logs')) return 'system-logs';
@@ -136,6 +138,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                             dashboard: '/adviser',
                             approvals: '/adviser/approvals',
                             'ledger-view': '/adviser/ledger',
+                            notifications: '/adviser/notifications',
                             'feedback-review': '/adviser/role-permissions',
                             'ratings-analytics': '/adviser/ratings',
                             'system-logs': '/adviser/system-logs',
@@ -208,10 +211,11 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                         dashboard: '/adviser',
                         approvals: '/adviser/approvals',
                         'ledger-view': '/adviser/ledger',
+                        notifications: '/adviser/notifications',
                         'feedback-review': '/adviser/role-permissions',
                         'ratings-analytics': '/adviser/ratings',
                         'system-logs': '/adviser/system-logs',
-                        profile: '/adviser/profile',  
+                        profile: '/adviser/profile',
                       };
                       const url = map[item.id] || '/adviser';
                       router.visit(url);

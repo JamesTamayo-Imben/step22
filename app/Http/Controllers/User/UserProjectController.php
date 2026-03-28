@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\CSG\Meeting;
 use App\Models\User\Project;
 use App\Models\User\Rating;
 use App\Models\User;
@@ -21,6 +22,8 @@ class UserProjectController extends Controller
         $leaderboard = $this->getLeaderboardData($user);
         $notificationPayload = $this->getNotificationPayload($user);
 
+        $meetPayload = $this->getMeetingsPayload();
+
         return Inertia::render('User/Dashboard', [
             'projects' => $this->getProjects($user?->id),
             'userRatingMap' => $this->getUserRatingMap($user?->id),
@@ -28,6 +31,8 @@ class UserProjectController extends Controller
             'activeProjects' => $dashboardData['activeProjects'],
             'recentBadges' => $dashboardData['recentBadges'],
             'upcomingMeetings' => $dashboardData['upcomingMeetings'],
+            'meetingsUpcoming' => $meetPayload['upcoming'],
+            'meetingsPast' => $meetPayload['past'],
             'leaderboardSummary' => $leaderboard['currentUser'],
             'notificationsData' => $notificationPayload['items'],
             'unreadNotificationsCount' => $notificationPayload['unreadCount'],
@@ -40,11 +45,15 @@ class UserProjectController extends Controller
         $user = $this->resolveCurrentUser();
         $notificationPayload = $this->getNotificationPayload($user);
 
+        $meetPayload = $this->getMeetingsPayload();
+
         return Inertia::render('User/Dashboard', [
             'projects' => $this->getProjects($user?->id),
             'userRatingMap' => $this->getUserRatingMap($user?->id),
             'notificationsData' => $notificationPayload['items'],
             'unreadNotificationsCount' => $notificationPayload['unreadCount'],
+            'meetingsUpcoming' => $meetPayload['upcoming'],
+            'meetingsPast' => $meetPayload['past'],
             'page' => 'projects',
         ]);
     }
@@ -56,6 +65,7 @@ class UserProjectController extends Controller
 
         $project = Project::query()
             ->where('archive', 0)
+            ->where('approval_status', 'Approved')
             ->with([
                 'ratings' => function ($query) {
                     $query->where('archive', 0)->latest('created_at');
@@ -78,24 +88,25 @@ class UserProjectController extends Controller
             $userRating = $project->ratings->firstWhere('user_id', $user->id);
         }
 
-        $ledgerEntries = $project->ledgerEntries->map(function ($entry) {
-            return [
-                'id' => $entry->id,
-                'type' => $entry->type,
-                'amount' => (float) ($entry->amount ?? 0),
-                'budgetBreakdown' => (int) ($entry->budget_breakdown ?? 0),
-                'description' => $entry->description,
-                'category' => $entry->category,
-                'ledgerProof' => $entry->ledger_proof,
-                'approvalStatus' => $entry->approval_status ?: 'Draft',
-                'note' => $entry->note,
-                'approvedBy' => $entry->approved_by,
-                'createdAt' => optional($entry->created_at)->format('Y-m-d H:i'),
-                'approvedAt' => optional($entry->approved_at)->format('Y-m-d H:i'),
-                'rejectedAt' => optional($entry->rejected_at)->format('Y-m-d H:i'),
-            ];
-        })->values();
-        $ledgerEntries = $this->withSampleLedgerEntries($project, $ledgerEntries);
+        $ledgerEntries = $project->ledgerEntries
+            ->filter(fn ($entry) => ($entry->approval_status ?? '') === 'Approved')
+            ->map(function ($entry) {
+                return [
+                    'id' => $entry->id,
+                    'type' => $entry->type,
+                    'amount' => (float) ($entry->amount ?? 0),
+                    'budgetBreakdown' => (int) ($entry->budget_breakdown ?? 0),
+                    'description' => $entry->description,
+                    'category' => $entry->category,
+                    'ledgerProof' => $entry->ledger_proof,
+                    'approvalStatus' => $entry->approval_status ?: 'Draft',
+                    'note' => $entry->note,
+                    'approvedBy' => $entry->approved_by,
+                    'createdAt' => optional($entry->created_at)->format('Y-m-d H:i'),
+                    'approvedAt' => optional($entry->approved_at)->format('Y-m-d H:i'),
+                    'rejectedAt' => optional($entry->rejected_at)->format('Y-m-d H:i'),
+                ];
+            })->values();
 
         $proofDocuments = $ledgerEntries
             ->filter(fn ($entry) => !empty($entry['ledgerProof']))
@@ -110,7 +121,6 @@ class UserProjectController extends Controller
                     'description' => $entry['description'],
                 ];
             })->values();
-        $proofDocuments = $this->withSampleProofDocuments($project, $proofDocuments, $ledgerEntries);
 
         $statusTimeline = collect([
             [
@@ -139,8 +149,8 @@ class UserProjectController extends Controller
                     'description' => sprintf('%s - %s', $entry['description'] ?: 'No description', $entry['approvalStatus'] ?: 'Draft'),
                     'date' => $entry['createdAt'],
                     'type' => 'ledger',
-                    'isDone' => in_array($entry['approvalStatus'], ['Approved', 'Pending Approval', 'Pending Adviser Approval'], true),
-                    'isCurrent' => in_array($entry['approvalStatus'], ['Pending Approval', 'Pending Adviser Approval'], true),
+                    'isDone' => ($entry['approvalStatus'] ?? '') === 'Approved',
+                    'isCurrent' => false,
                 ];
             })
         )->sortBy('date')->values();
@@ -151,6 +161,8 @@ class UserProjectController extends Controller
             $item['isDone'] = $item['isDone'] || $index < $timelineLastIndex;
             return $item;
         })->values();
+
+        $meetPayload = $this->getMeetingsPayload();
 
         return Inertia::render('User/Dashboard', [
             'projects' => $this->getProjects($user?->id),
@@ -190,6 +202,8 @@ class UserProjectController extends Controller
             'userRatingMap' => $this->getUserRatingMap($user?->id),
             'notificationsData' => $notificationPayload['items'],
             'unreadNotificationsCount' => $notificationPayload['unreadCount'],
+            'meetingsUpcoming' => $meetPayload['upcoming'],
+            'meetingsPast' => $meetPayload['past'],
             'projectId' => $id,
             'page' => 'project-details',
         ]);
@@ -208,6 +222,9 @@ class UserProjectController extends Controller
         ]);
 
         $project = Project::query()->where('archive', 0)->findOrFail($projectId);
+        if (($project->approval_status ?? '') !== 'Approved') {
+            return response()->json(['message' => 'Project is not approved for public ratings'], 422);
+        }
 
         $rating = Rating::query()->firstOrNew([
             'project_id' => $project->id,
@@ -234,12 +251,17 @@ class UserProjectController extends Controller
         $user = $this->resolveCurrentUser();
         $badges = $this->getBadgesData($user);
         $notificationPayload = $this->getNotificationPayload($user);
+        $meetPayload = $this->getMeetingsPayload();
 
         return Inertia::render('User/Dashboard', [
             'page' => 'badges',
             'badgesData' => $badges,
             'notificationsData' => $notificationPayload['items'],
             'unreadNotificationsCount' => $notificationPayload['unreadCount'],
+            'meetingsUpcoming' => $meetPayload['upcoming'],
+            'meetingsPast' => $meetPayload['past'],
+            'projects' => $this->getProjects($user?->id),
+            'userRatingMap' => $this->getUserRatingMap($user?->id),
         ]);
     }
 
@@ -248,6 +270,7 @@ class UserProjectController extends Controller
         $user = $this->resolveCurrentUser();
         $leaderboard = $this->getLeaderboardData($user);
         $notificationPayload = $this->getNotificationPayload($user);
+        $meetPayload = $this->getMeetingsPayload();
 
         return Inertia::render('User/Dashboard', [
             'page' => 'leaderboard',
@@ -255,6 +278,10 @@ class UserProjectController extends Controller
             'leaderboardCurrentUser' => $leaderboard['currentUser'],
             'notificationsData' => $notificationPayload['items'],
             'unreadNotificationsCount' => $notificationPayload['unreadCount'],
+            'meetingsUpcoming' => $meetPayload['upcoming'],
+            'meetingsPast' => $meetPayload['past'],
+            'projects' => $this->getProjects($user?->id),
+            'userRatingMap' => $this->getUserRatingMap($user?->id),
         ]);
     }
 
@@ -262,11 +289,16 @@ class UserProjectController extends Controller
     {
         $user = $this->resolveCurrentUser();
         $notificationPayload = $this->getNotificationPayload($user);
+        $meetPayload = $this->getMeetingsPayload();
 
         return Inertia::render('User/Dashboard', [
             'page' => 'notifications',
             'notificationsData' => $notificationPayload['items'],
             'unreadNotificationsCount' => $notificationPayload['unreadCount'],
+            'meetingsUpcoming' => $meetPayload['upcoming'],
+            'meetingsPast' => $meetPayload['past'],
+            'projects' => $this->getProjects($user?->id),
+            'userRatingMap' => $this->getUserRatingMap($user?->id),
         ]);
     }
 
@@ -370,6 +402,7 @@ class UserProjectController extends Controller
     {
         $allProjects = Project::query()
             ->where('archive', 0)
+            ->where('approval_status', 'Approved')
             ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'rating_score')
             ->withCount(['ratings' => fn ($q) => $q->where('archive', 0)])
             ->orderByDesc('updated_at')
@@ -399,25 +432,22 @@ class UserProjectController extends Controller
                 'color' => $this->badgeColorClass($badge['tier']),
             ])->values();
 
-        $studentId = $user?->student?->id;
-        $upcomingMeetings = collect();
-        if ($studentId) {
-            $upcomingMeetings = DB::table('meeting')
-                ->where('archive', 0)
-                ->where('student_id', $studentId)
-                ->orderByDesc('created_at')
-                ->limit(3)
-                ->get()
-                ->map(function ($meeting, $index) {
-                    $date = $meeting->scheduled_date ?: now()->addDays(($index + 1) * 3);
-                    return [
-                        'title' => $meeting->title ?: 'Meeting',
-                        'date' => \Carbon\Carbon::parse($date)->format('M d'),
-                        'time' => \Carbon\Carbon::parse($date)->format('h:i A'),
-                        'location' => 'CSG Office',
-                    ];
-                });
-        }
+        $upcomingMeetings = Meeting::query()
+            ->where('archive', false)
+            ->where('is_done', false)
+            ->orderBy('scheduled_date')
+            ->take(3)
+            ->get()
+            ->map(function (Meeting $meeting) {
+                $dt = $meeting->scheduled_date;
+
+                return [
+                    'title' => $meeting->title ?: 'Meeting',
+                    'date' => $dt ? $dt->format('M d') : 'TBD',
+                    'time' => $dt ? $dt->format('h:i A') : '',
+                    'location' => 'CSG Office',
+                ];
+            });
 
         $leaderboard = $this->getLeaderboardData($user);
         $stats = [
@@ -622,11 +652,16 @@ class UserProjectController extends Controller
     {
         $user = $this->resolveCurrentUser();
         $notificationPayload = $this->getNotificationPayload($user);
+        $meetPayload = $this->getMeetingsPayload();
 
         return Inertia::render('User/Dashboard', [
             'page' => $page,
             'notificationsData' => $notificationPayload['items'],
             'unreadNotificationsCount' => $notificationPayload['unreadCount'],
+            'meetingsUpcoming' => $meetPayload['upcoming'],
+            'meetingsPast' => $meetPayload['past'],
+            'projects' => $this->getProjects($user?->id),
+            'userRatingMap' => $this->getUserRatingMap($user?->id),
         ]);
     }
 
@@ -634,6 +669,7 @@ class UserProjectController extends Controller
     {
         $projects = Project::query()
             ->where('archive', 0)
+            ->where('approval_status', 'Approved')
             ->withAvg(['ratings' => function ($query) {
                 $query->where('archive', 0);
             }], 'rating_score')
@@ -673,6 +709,64 @@ class UserProjectController extends Controller
                 return (int) $value;
             })
             ->toArray();
+    }
+
+    private function getMeetingsPayload(): array
+    {
+        $upcoming = Meeting::query()
+            ->where('archive', false)
+            ->where('is_done', false)
+            ->orderBy('scheduled_date')
+            ->get()
+            ->map(fn (Meeting $m) => $this->formatStudentMeeting($m, 'upcoming'));
+
+        $past = Meeting::query()
+            ->where('archive', false)
+            ->where('is_done', true)
+            ->orderByDesc('scheduled_date')
+            ->get()
+            ->filter(fn (Meeting $m) => $this->meetingPastVisibleToStudents($m))
+            ->map(fn (Meeting $m) => $this->formatStudentMeeting($m, 'past'));
+
+        return [
+            'upcoming' => $upcoming->values()->all(),
+            'past' => $past->values()->all(),
+        ];
+    }
+
+    private function meetingPastVisibleToStudents(Meeting $m): bool
+    {
+        $hasContent = ! empty($m->meeting_proof) || ! empty($m->minutes_content);
+        if (! $hasContent) {
+            return true;
+        }
+        $meta = json_decode($m->action_items ?? '', true);
+        $st = is_array($meta) ? ($meta['adviser_minutes_status'] ?? null) : null;
+
+        return $st === 'approved';
+    }
+
+    private function formatStudentMeeting(Meeting $m, string $segment): array
+    {
+        $dt = $m->scheduled_date ? \Carbon\Carbon::parse($m->scheduled_date) : now();
+        $end = (clone $dt)->addHours(2);
+        $att = $m->expected_attendees;
+        $attNum = is_numeric($att) ? (int) $att : (int) preg_replace('/\D/', '', (string) $att);
+        $hasDocs = ! empty($m->meeting_proof) || ! empty($m->minutes_content);
+
+        return [
+            'id' => $m->id,
+            'title' => $m->title ?? 'Meeting',
+            'date' => $dt->format('Y-m-d'),
+            'time' => $dt->format('h:i A').' - '.$end->format('h:i A'),
+            'location' => 'Campus',
+            'description' => $m->description ?? '',
+            'attendees' => $attNum ?: 0,
+            'type' => 'Meeting',
+            'status' => $m->is_done ? 'Completed' : 'Scheduled',
+            'minutesAvailable' => $segment === 'past' && $hasDocs,
+            'attended' => false,
+        ];
     }
 
     private function resolveCurrentUser(): ?User

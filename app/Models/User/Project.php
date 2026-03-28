@@ -2,6 +2,7 @@
 
 namespace App\Models\User;
 
+use App\Models\Student;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,6 +31,7 @@ class Project extends Model
         'end_date',
         'approve_by',
         'approval_status',
+        'approved_at',
         'created_by',
         'updated_by',
         'archive',
@@ -39,6 +41,7 @@ class Project extends Model
         'budget' => 'decimal:2',
         'start_date' => 'date',
         'end_date' => 'date',
+        'approved_at' => 'datetime',
         'archive' => 'boolean',
     ];
 

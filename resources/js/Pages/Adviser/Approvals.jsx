@@ -1,14 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
-import { Input } from '@/Components/ui/input';
-import { useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { Clock, FolderKanban, DollarSign, FileText, Calendar, Eye, CheckCircle, XCircle, Hash, Shield, Search } from 'lucide-react';
+import { Clock, FolderKanban, DollarSign, FileText, Calendar, Eye, CheckCircle, XCircle, Hash, Shield, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
-// Simple lightweight toast (avoid introducing new deps)
 function showToast(message, type = 'success') {
   const id = `simple-toast-${Date.now()}`;
   const el = document.createElement('div');
@@ -24,10 +21,7 @@ function showToast(message, type = 'success') {
   }, 2200);
 }
 
-
-
 function Modal({ open, onClose, title, children }) {
-  // Lock body scroll when modal opens
   useEffect(() => {
     if (open) {
       const originalStyle = window.getComputedStyle(document.body).overflow;
@@ -40,24 +34,19 @@ function Modal({ open, onClose, title, children }) {
 
   if (!open) return null;
 
-  // Portal to body to avoid ancestor transform issues
   return ReactDOM.createPortal(
-    // Backdrop overlay with click handler
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
       onClick={onClose}
     >
-      {/* Modal content: stop propagation so clicks inside don't close */}
-      <div 
+      <div
         className="relative w-full max-w-3xl bg-white rounded-2xl shadow-lg flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Fixed header */}
         <div className="flex items-center justify-between p-6 border-b">
           <h3 className="text-lg font-semibold">{title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
+          <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
         </div>
-        {/* Scrollable content area */}
         <div className="overflow-y-auto p-6 pt-0">
           {children}
         </div>
@@ -67,34 +56,26 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
+const LIST_PAGE_SIZE = 3;
+
 export default function AdviserApprovalsPage() {
-  // mock data (kept small)
-  const [pendingProjects, setPendingProjects] = useState([
-    { id: 'PROJ-024', title: 'Mental Health Awareness Week', submittedBy: 'Sarah Chen', submittedDate: '2024-11-20', status: 'Pending Approval', category: 'Wellness', amount: 45000, type: 'project' },
-    { id: 'PROJ-023', title: 'Alumni Networking Event', submittedBy: 'Michael Torres', submittedDate: '2024-11-18', status: 'Pending Approval', category: 'Networking', amount: 35000, type: 'project' },
-  ]);
-  const [pendingLedger, setPendingLedger] = useState([
-    { id: 'TXN-2024-003', title: 'Transportation and Logistics', submittedBy: 'Sarah Chen', submittedDate: '2024-11-10', status: 'Pending Approval', amount: 8500, project: 'Annual Sports Fest', hash: 'c9f0a1b2e3d4c5b6a7f8e9d0c1b2a3f4', type: 'ledger' },
-    { id: 'TXN-2024-006', title: 'Marketing Materials', submittedBy: 'Michael Torres', submittedDate: '2024-11-15', status: 'Pending Approval', amount: 12000, project: 'Mental Health Awareness', hash: 'd1c2a3b4f5e6d7c8b9a0f1e2d3c4b5a6', type: 'ledger' },
-  ]);
-  const [pendingProofs, setPendingProofs] = useState([
-    { id: 'PROOF-002', title: 'Transport_Invoice.jpg', submittedBy: 'Sarah Chen', submittedDate: '2024-11-10', status: 'Pending Approval', project: 'Annual Sports Fest', hash: 'sha256:c9f0a1b2e3d4c5b6a7f8e9d0c1b2a3f4', type: 'proof' },
-  ]);
-  const [pendingMeetings, setPendingMeetings] = useState([
-    { id: 'MEET-008', title: 'Budget Planning Session - Minutes', submittedBy: 'Sarah Chen', submittedDate: '2024-11-18', status: 'Pending Approval', type: 'meeting' },
-  ]);
-  const [rejectedItems, setRejectedItems] = useState([
-    { id: 'PROJ-021', title: 'Gaming Tournament', submittedBy: 'Michael Torres', submittedDate: '2024-11-05', status: 'Rejected', category: 'Events', amount: 25000, type: 'project' },
-  ]);
+  const {
+    pendingProjects = [],
+    pendingLedger = [],
+    pendingProofs = [],
+    pendingMeetings = [],
+    rejectedItems = [],
+  } = usePage().props;
 
   const [tab, setTab] = useState('projects');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [listPage, setListPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showReview, setShowReview] = useState(false);
   const [showReject, setShowReject] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
-  // Read tab from query parameter
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
@@ -102,6 +83,10 @@ export default function AdviserApprovalsPage() {
       setTab('meetings');
     }
   }, []);
+
+  useEffect(() => {
+    setListPage(1);
+  }, [tab, searchQuery, sortOrder]);
 
   const totalPending = pendingProjects.length + pendingLedger.length + pendingProofs.length + pendingMeetings.length;
 
@@ -123,32 +108,45 @@ export default function AdviserApprovalsPage() {
     }
   };
 
-  const handleApprove = (item) => {
+  const runApprove = (item) => {
     if (!item) return;
-    // remove from source arrays
-    if (item.type === 'project') setPendingProjects(p => p.filter(x => x.id !== item.id));
-    if (item.type === 'ledger') setPendingLedger(p => p.filter(x => x.id !== item.id));
-    if (item.type === 'proof') setPendingProofs(p => p.filter(x => x.id !== item.id));
-    if (item.type === 'meeting') setPendingMeetings(p => p.filter(x => x.id !== item.id));
-    setShowReview(false);
-    setSelectedItem(null);
-    showToast('Approved');
+    const message = `Approve this ${item.type === 'project' ? 'project' : item.type === 'meeting' ? 'meeting minutes' : item.type === 'proof' ? 'proof document' : 'ledger entry'}?`;
+    if (!window.confirm(message)) return;
+
+    router.post(route('adviser.approvals.approve'), {
+      type: item.type === 'proof' ? 'proof' : item.type,
+      id: item.id,
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        showToast('Approved');
+        setShowReview(false);
+        setSelectedItem(null);
+      },
+      onError: () => showToast('Could not approve', 'error'),
+    });
   };
 
-  const handleReject = () => {
+  const runReject = () => {
     if (!selectedItem) return showToast('No item selected', 'error');
     if (!rejectReason.trim()) return showToast('Provide a reason', 'error');
-    const rejected = { ...selectedItem, status: 'Rejected' };
-    if (selectedItem.type === 'project') setPendingProjects(p => p.filter(x => x.id !== selectedItem.id));
-    if (selectedItem.type === 'ledger') setPendingLedger(p => p.filter(x => x.id !== selectedItem.id));
-    if (selectedItem.type === 'proof') setPendingProofs(p => p.filter(x => x.id !== selectedItem.id));
-    if (selectedItem.type === 'meeting') setPendingMeetings(p => p.filter(x => x.id !== selectedItem.id));
-    setRejectedItems(r => [rejected, ...r]);
-    setShowReject(false);
-    setShowReview(false);
-    setSelectedItem(null);
-    setRejectReason('');
-    showToast('Rejected');
+    if (!window.confirm('Reject this submission? This cannot be undone from this screen.')) return;
+
+    router.post(route('adviser.approvals.reject'), {
+      type: selectedItem.type === 'proof' ? 'proof' : selectedItem.type,
+      id: selectedItem.id,
+      reason: rejectReason.trim(),
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        showToast('Rejected');
+        setShowReject(false);
+        setShowReview(false);
+        setSelectedItem(null);
+        setRejectReason('');
+      },
+      onError: () => showToast('Could not reject', 'error'),
+    });
   };
 
   const itemsForTab = useMemo(() => {
@@ -162,13 +160,33 @@ export default function AdviserApprovalsPage() {
     }
   }, [tab, pendingProjects, pendingLedger, pendingProofs, pendingMeetings, rejectedItems]);
 
-  const filtered = itemsForTab.filter(i => {
+  const filtered = itemsForTab.filter((i) => {
     if (!searchQuery) return true;
-    return (i.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || (i.id || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    return (
+      (i.title || '').toLowerCase().includes(q)
+      || (i.id || '').toLowerCase().includes(q)
+      || (i.submittedBy || '').toLowerCase().includes(q)
+      || (i.project || '').toLowerCase().includes(q)
+      || (i.category || '').toLowerCase().includes(q)
+    );
   });
 
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    arr.sort((a, b) => {
+      const da = new Date(a.submittedDate || 0).getTime();
+      const db = new Date(b.submittedDate || 0).getTime();
+      return sortOrder === 'newest' ? db - da : da - db;
+    });
+    return arr;
+  }, [filtered, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / LIST_PAGE_SIZE));
+  const displayItems = sorted.slice((listPage - 1) * LIST_PAGE_SIZE, listPage * LIST_PAGE_SIZE);
+
   const renderItem = (item) => (
-    <Card key={item.id} className="rounded-[20px] border-0 shadow-sm p-4 hover:shadow-md transition-all">
+    <Card key={`${item.type}-${item.id}`} className="rounded-[20px] border-0 shadow-sm p-4 hover:shadow-md transition-all">
       <div className="flex items-start gap-4">
         <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">{getTypeIcon(item.type)}</div>
         <div className="flex-1 min-w-0">
@@ -184,8 +202,13 @@ export default function AdviserApprovalsPage() {
             <p className="text-sm text-gray-600">Submitted by: {item.submittedBy}</p>
             <p className="text-sm text-gray-600">Date: {item.submittedDate}</p>
             {item.project && <p className="text-sm text-gray-600">Project: {item.project}</p>}
-            {item.amount && <p className="text-sm text-gray-900">Amount: ₱{item.amount.toLocaleString()}</p>}
-            {item.hash && <div className="flex items-center gap-2 mt-2"><Hash className="w-3 h-3 text-purple-600" /><span className="text-xs font-mono text-gray-500 truncate">{item.hash}</span></div>}
+            {item.amount != null && <p className="text-sm text-gray-900">Amount: ₱{Number(item.amount).toLocaleString()}</p>}
+            {item.hash && (
+              <div className="flex items-center gap-2 mt-2">
+                <Hash className="w-3 h-3 text-purple-600" />
+                <span className="text-xs font-mono text-gray-500 truncate">{item.hash}</span>
+              </div>
+            )}
           </div>
 
           {item.status === 'Pending Approval' && (
@@ -193,7 +216,7 @@ export default function AdviserApprovalsPage() {
               <Button variant="outline" size="sm" className="flex-1 rounded-xl" onClick={() => { setSelectedItem(item); setShowReview(true); }}>
                 <Eye className="w-4 h-4 mr-1" /> Review
               </Button>
-              <Button size="sm" className="text-white rounded-xl bg-green-600 hover:bg-green-700" onClick={() => handleApprove(item)}>
+              <Button size="sm" className="text-white rounded-xl bg-green-600 hover:bg-green-700" onClick={() => runApprove(item)}>
                 <CheckCircle className="w-4 h-4 mr-1" /> Approve
               </Button>
               <Button size="sm" variant="outline" className="rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setSelectedItem(item); setShowReject(true); }}>
@@ -219,14 +242,13 @@ export default function AdviserApprovalsPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <button type="button" className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-full shadow">
+              <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-full shadow">
                 <Clock className="w-4 h-4" />
                 <span className="text-sm font-medium">{totalPending} Pending</span>
-              </button>
+              </div>
             </div>
           </div>
 
-          {/* Summary cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="rounded-[20px] p-4 border-0 shadow-sm bg-blue-50">
               <div className="flex items-center justify-between">
@@ -266,51 +288,86 @@ export default function AdviserApprovalsPage() {
             </Card>
           </div>
 
-          {/* Filters */}
           <Card className="rounded-[20px] border-0 shadow-sm p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="relative md:col-span-2">
-                 
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                 
-                  <input placeholder="Search submissions..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition" />
-                </div>
+              <div className="relative md:col-span-2">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  placeholder="Search submissions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                />
+              </div>
               <div>
-                <select className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition" onChange={(e) => { /* placeholder */ }}>
-                  <option>Newest First</option>
-                  <option>Oldest First</option>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
                 </select>
               </div>
             </div>
           </Card>
 
-          {/* Tabs */}
           <div className="space-y-6">
             <div className="bg-white rounded-xl p-2 shadow-sm flex flex-wrap gap-2">
-              {['projects','ledger','proofs','meetings','rejected'].map(t => (
+              {['projects', 'ledger', 'proofs', 'meetings', 'rejected'].map((t) => (
                 <button
                   key={t}
+                  type="button"
                   onClick={() => setTab(t)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${tab===t ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                >
                   <span className="capitalize">{t}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${tab===t ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>{counts[t]}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${tab === t ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>{counts[t]}</span>
                 </button>
               ))}
             </div>
 
             <div className="space-y-4">
-              {filtered.length === 0 ? (
+              {displayItems.length === 0 ? (
                 <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
                   <div className="flex items-center justify-center mb-4">
                     <Shield className="w-8 h-8 text-gray-400" />
                   </div>
                   <p className="text-gray-900">Nothing to review right now</p>
-                  <p className="text-sm text-gray-500">You're all caught up — no pending items in this tab.</p>
+                  <p className="text-sm text-gray-500">You&apos;re all caught up — no pending items in this tab.</p>
                 </Card>
               ) : (
-                filtered.map(item => renderItem(item))
+                displayItems.map((item) => renderItem(item))
               )}
             </div>
+
+            {sorted.length > LIST_PAGE_SIZE && (
+              <div className="flex items-center justify-center gap-4 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  disabled={listPage <= 1}
+                  onClick={() => setListPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-sm text-gray-600">
+                  Page {listPage} of {totalPages} ({sorted.length} items)
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  disabled={listPage >= totalPages}
+                  onClick={() => setListPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -318,25 +375,23 @@ export default function AdviserApprovalsPage() {
       <Modal open={showReview} onClose={() => setShowReview(false)} title={selectedItem ? `Review ${selectedItem.type === 'project' ? 'Project' : selectedItem.type === 'ledger' ? 'Ledger Entry' : selectedItem.type === 'proof' ? 'Proof' : 'Meeting'}` : 'Review'}>
         {selectedItem && (
           <div className="space-y-6 pt-4">
-            {/* Info banner */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-3">
               <div className="flex-shrink-0">
                 <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
               </div>
-              <p className="text-sm text-blue-800">This action will update the immutable ledger</p>
+              <p className="text-sm text-blue-800">This action will update records in the system</p>
             </div>
 
-            {/* Content Grid */}
             <div className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">ID</label>
+                  <span className="text-xs text-gray-600 block mb-1">ID</span>
                   <p className="text-sm font-semibold text-gray-900">{selectedItem.id}</p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">Type</label>
+                  <span className="text-xs text-gray-600 block mb-1">Type</span>
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-800">
                     {selectedItem.type === 'project' ? 'Project' : selectedItem.type === 'ledger' ? 'Ledger' : selectedItem.type === 'proof' ? 'Proof' : 'Meeting'}
                   </span>
@@ -344,65 +399,66 @@ export default function AdviserApprovalsPage() {
               </div>
 
               <div>
-                <label className="text-xs text-gray-600 block mb-1">Title</label>
+                <span className="text-xs text-gray-600 block mb-1">Title</span>
                 <p className="text-sm text-gray-900">{selectedItem.title}</p>
               </div>
 
               {selectedItem.submittedBy && (
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">Submitted By</label>
+                  <span className="text-xs text-gray-600 block mb-1">Submitted By</span>
                   <p className="text-sm text-gray-900">{selectedItem.submittedBy}</p>
                 </div>
               )}
 
               {selectedItem.submittedDate && (
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">Date</label>
+                  <span className="text-xs text-gray-600 block mb-1">Date</span>
                   <p className="text-sm text-gray-900">{selectedItem.submittedDate}</p>
                 </div>
               )}
 
-              {selectedItem.amount && (
+              {selectedItem.amount != null && (
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">Amount</label>
-                  <p className="text-sm font-semibold text-gray-900">₱{selectedItem.amount.toLocaleString()}</p>
+                  <span className="text-xs text-gray-600 block mb-1">Amount</span>
+                  <p className="text-sm font-semibold text-gray-900">₱{Number(selectedItem.amount).toLocaleString()}</p>
                 </div>
               )}
 
               {selectedItem.category && (
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">Category</label>
+                  <span className="text-xs text-gray-600 block mb-1">Category</span>
                   <p className="text-sm text-gray-900">{selectedItem.category}</p>
                 </div>
               )}
 
               {selectedItem.project && (
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">Project</label>
+                  <span className="text-xs text-gray-600 block mb-1">Project</span>
                   <p className="text-sm text-gray-900">{selectedItem.project}</p>
                 </div>
               )}
 
               {selectedItem.hash && (
                 <div>
-                  <label className="text-xs text-gray-600 block mb-1">Hash</label>
+                  <span className="text-xs text-gray-600 block mb-1">Hash</span>
                   <p className="text-xs font-mono text-gray-600 truncate">{selectedItem.hash}</p>
                 </div>
               )}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-2 border-t">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowReview(false)}>
-                Cancel
-              </Button>
-              <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
-                Reject
-              </Button>
-              <Button className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700" onClick={() => { handleApprove(selectedItem); setShowReview(false); }}>
-                Approve
-              </Button>
-            </div>
+            {selectedItem.status === 'Pending Approval' && (
+              <div className="flex gap-3 pt-2 border-t">
+                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowReview(false)}>
+                  Cancel
+                </Button>
+                <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
+                  Reject
+                </Button>
+                <Button className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700" onClick={() => runApprove(selectedItem)}>
+                  Approve
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Modal>
@@ -413,7 +469,7 @@ export default function AdviserApprovalsPage() {
           <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={4} className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition" />
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowReject(false); setRejectReason(''); }}>Cancel</Button>
-            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={handleReject}>Confirm Rejection</Button>
+            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={runReject}>Confirm Rejection</Button>
           </div>
         </div>
       </Modal>

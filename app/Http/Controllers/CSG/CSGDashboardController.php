@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\CSG;
 
 use App\Http\Controllers\Controller;
-use App\Models\LedgerEntry;
-use App\Models\Project;
+use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Meeting;
+use App\Models\CSG\Project;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 

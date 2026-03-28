@@ -20,6 +20,7 @@ class Meeting extends Model
         'scheduled_date',
         'is_done',
         'minutes_content',
+        'action_items',
         'expected_attendees',
         'attendees',
         'meeting_proof',
