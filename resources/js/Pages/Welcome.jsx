@@ -1,9 +1,92 @@
-import { ArrowRight, Shield, FileCheck, Users, CheckCircle, Sparkles, Play, X, ArrowUp, HelpCircle } from 'lucide-react';
+import { ArrowRight, Shield, FileCheck, Users, CheckCircle, Sparkles, Play, X, ArrowUp, HelpCircle, Mail, MapPin, User } from 'lucide-react';
 import { Link, router } from '@inertiajs/react';
 import { useRef, useState, useEffect } from 'react';
 
 let secretClickCount = 0;
 let secretClickTimeout = null;
+
+// function ContactUsPage() {
+//   const [name, setName] = useState('');
+//   const [email, setEmail] = useState('');
+//   const [message, setMessage] = useState('');
+//   const [submitted, setSubmitted] = useState(false);
+
+//   const submitForm = (event) => {
+//     event.preventDefault();
+//     setSubmitted(true);
+//     setTimeout(() => setSubmitted(false), 2500);
+//   };
+
+//   return (
+//     <section className="min-h-screen bg-slate-50 py-20 px-4 sm:px-6 lg:px-8">
+//       <div className="max-w-6xl mx-auto bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl shadow-xl p-8 lg:p-16">
+//         <div className="text-center mb-12">
+//           <h2 className="text-4xl font-bold text-slate-900">Get in Touch</h2>
+//           <p className="mt-3 text-lg text-slate-600">Built for Transparency. Powered by AI Collaboration.</p>
+//         </div>
+
+//         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+//           <form onSubmit={submitForm} className="space-y-4">
+//             <div className="bg-white/70 border border-slate-200 rounded-xl p-6 shadow-sm">
+//               <label className="block text-sm font-medium text-slate-700">Name</label>
+//               <div className="mt-1 relative rounded-md shadow-sm">
+//                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Your full name" className="block w-full rounded-lg border border-slate-300 px-4 py-2 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-100" />
+//                 <User className="absolute right-3 top-1/2 w-5 h-5 text-slate-400 -translate-y-1/2" />
+//               </div>
+//             </div>
+
+//             <div className="bg-white/70 border border-slate-200 rounded-xl p-6 shadow-sm">
+//               <label className="block text-sm font-medium text-slate-700">Email</label>
+//               <div className="mt-1 relative rounded-md shadow-sm">
+//                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="name@example.com" className="block w-full rounded-lg border border-slate-300 px-4 py-2 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-100" />
+//                 <Mail className="absolute right-3 top-1/2 w-5 h-5 text-slate-400 -translate-y-1/2" />
+//               </div>
+//             </div>
+
+//             <div className="bg-white/70 border border-slate-200 rounded-xl p-6 shadow-sm">
+//               <label className="block text-sm font-medium text-slate-700">Message</label>
+//               <textarea value={message} onChange={(e) => setMessage(e.target.value)} required rows={5} placeholder="Your question or feedback" className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-100" />
+//             </div>
+
+//             <button type="submit" className="block w-full px-5 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl transition">Submit</button>
+//             {submitted && <p className="mt-2 text-sm text-green-600">Your message has been received. We'll follow up soon.</p>}
+//           </form>
+
+//           <div className="bg-white/70 border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
+//             <h3 className="text-xl font-semibold text-slate-900">Office of Student Affairs</h3>
+//             <p className="text-slate-600">We are here to support your academic and administrative needs with transparency and integrity.</p>
+//             <div className="space-y-3">
+//               <p className="flex items-center gap-2 text-slate-700"><Mail className="w-5 h-5 text-blue-600" /> <strong>Email:</strong> studentaffairs@step.myschool.edu</p>
+//               <p className="flex items-center gap-2 text-slate-700"><MapPin className="w-5 h-5 text-blue-600" /> <strong>Location:</strong> 2nd Floor, Admin Building, KLD Campus</p>
+//               <p className="flex items-center gap-2 text-slate-700"><User className="w-5 h-5 text-blue-600" /> <strong>Hours:</strong> Mon-Fri 8AM - 5PM</p>
+//             </div>
+//           </div>
+//         </div>
+
+//         <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+//           <div className="bg-white/60 backdrop-blur-md border border-white/30 rounded-xl p-4 text-center">
+//             <h4 className="font-semibold">[Your Name]</h4>
+//             <p className="text-sm text-slate-600">Full Stack Developer (Backend & Frontend) – Leading AI-assisted code generation for Immutable Logic & React UI.</p>
+//           </div>
+//           <div className="bg-white/60 backdrop-blur-md border border-white/30 rounded-xl p-4 text-center">
+//             <h4 className="font-semibold">Jhonny</h4>
+//             <p className="text-sm text-slate-600">Project Manager & Lead Systems Architect – System Flow Designer & Database Architecture Specialist.</p>
+//           </div>
+//           <div className="bg-white/60 backdrop-blur-md border border-white/30 rounded-xl p-4 text-center">
+//             <h4 className="font-semibold">Lawrence</h4>
+//             <p className="text-sm text-slate-600">QA & UI/UX Designer – Figma-to-Code Translation & System Reliability Specialist.</p>
+//           </div>
+//           <div className="bg-white/60 backdrop-blur-md border border-white/30 rounded-xl p-4 text-center">
+//             <h4 className="font-semibold">Edward</h4>
+//             <p className="text-sm text-slate-600">Technical Writer & Documentation Lead – Research Lead & Technical Documentation Architect.</p>
+//           </div>
+//         </div>
+
+//         <p className="mt-8 text-xs text-center text-slate-500">This portal was developed using an AI-Integrated Workflow to ensure high-security code standards and transparency logic.</p>
+//       </div>
+//     </section>
+//   );
+// }
 
 const animationStyles = `
   @keyframes moveGradient {
@@ -589,18 +672,18 @@ export default function Welcome() {
             <div>
               <h4 className="text-sm mb-4">STEP Platform</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">How It Works</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">User Guide</a></li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); router.visit(route('features')); }} className="hover:text-white transition-colors">Features</a></li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); scrollToHowItWorks(); }} className="hover:text-white transition-colors">How It Works</a></li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); router.visit(route('user-guide')); }} className="hover:text-white transition-colors">User Guide</a></li>
               </ul>
             </div>
 
             <div>
               <h4 className="text-sm mb-4">Contact & Legal</h4>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Terms of Service</a></li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); router.visit(route('contact')); }} className="hover:text-white transition-colors">Contact Us</a></li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); router.visit(route('privacy')); }} className="hover:text-white transition-colors">Privacy Policy</a></li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); router.visit(route('terms')); }} className="hover:text-white transition-colors">Terms of Service</a></li>
               </ul>
             </div>
           </div>
