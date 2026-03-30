@@ -58,6 +58,7 @@ class CSGProjectController extends Controller
             'description' => ['nullable', 'string'],
             'category' => ['nullable', 'string', 'max:100'],
             'budget' => ['nullable', 'numeric', 'min:0'],
+            'budget_breakdown' => ['nullable', 'json'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date'],
             'status' => ['nullable', 'string', 'max:50'],
@@ -66,6 +67,35 @@ class CSGProjectController extends Controller
 
         $validated['updated_by'] = auth()->id();
         $project->update($validated);
+
+        // If budget or budget_breakdown was updated, also update the initial ledger entry
+        if ($request->filled('budget') || $request->filled('budget_breakdown')) {
+            try {
+                $initialEntry = LedgerEntry::where('project_id', $project->id)
+                    ->where('is_initial_entry', true)
+                    ->first();
+
+                if ($initialEntry) {
+                    $updateData = [];
+                    
+                    if ($request->filled('budget')) {
+                        $updateData['amount'] = $request->budget;
+                    }
+                    
+                    if ($request->filled('budget_breakdown')) {
+                        $updateData['budget_breakdown'] = $request->budget_breakdown;
+                    }
+                    
+                    if (!empty($updateData)) {
+                        $updateData['updated_by'] = auth()->id();
+                        $initialEntry->update($updateData);
+                    }
+                }
+            } catch (\Exception $e) {
+                // Log but don't fail the project update
+                \Log::warning('Could not update initial ledger entry: ' . $e->getMessage());
+            }
+        }
 
         return response()->json(['success' => true, 'project' => $project]);
     }

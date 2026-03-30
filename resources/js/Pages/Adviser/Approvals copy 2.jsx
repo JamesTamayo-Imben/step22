@@ -73,7 +73,6 @@ export default function AdviserApprovalsPage() {
   const [showReview, setShowReview] = useState(false);
   const [showReject, setShowReject] = useState(false);
   const [showApprove, setShowApprove] = useState(false);
-  const [showConfirmReject, setShowConfirmReject] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
   
@@ -118,16 +117,10 @@ export default function AdviserApprovalsPage() {
     setShowApprove(true);
   };
 
-  const handleRejectClick = () => {
-    if (!rejectReason.trim()) {
-      return showToast('Provide a reason', 'error');
-    }
-    setShowConfirmReject(true);
-  };
-
   const runReject = () => {
     if (!selectedItem) return showToast('No item selected', 'error');
     if (!rejectReason.trim()) return showToast('Provide a reason', 'error');
+    if (!window.confirm('Reject this submission? This cannot be undone from this screen.')) return;
 
     router.post(route('adviser.approvals.reject'), {
       type: selectedItem.approvalType,
@@ -137,7 +130,6 @@ export default function AdviserApprovalsPage() {
       preserveScroll: true,
       onSuccess: () => {
         showToast('Rejected');
-        setShowConfirmReject(false);
         setShowReject(false);
         setShowReview(false);
         setSelectedItem(null);
@@ -774,42 +766,7 @@ export default function AdviserApprovalsPage() {
           <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={4} className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition" />
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowReject(false); setRejectReason(''); }}>Cancel</Button>
-            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={handleRejectClick}>Continue</Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Approve Submission Modal */}
-      <Modal open={showApprove} onClose={() => { setShowApprove(false); setApprovalNotes(''); }} title="Approve Submission">
-        <div className="space-y-4 pt-4">
-          <p className="text-sm text-gray-600">Add optional approval notes for your records.</p>
-          <textarea
-            value={approvalNotes}
-            onChange={(e) => setApprovalNotes(e.target.value)}
-            rows={4}
-            placeholder="Enter approval notes..."
-            className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-          />
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowApprove(false); setApprovalNotes(''); }}>Cancel</Button>
-            <Button className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700" onClick={() => runApprove(selectedItem, approvalNotes)}>Confirm Approval</Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Reject Confirmation Modal */}
-      <Modal open={showConfirmReject} onClose={() => setShowConfirmReject(false)} title="Confirm Rejection">
-        <div className="space-y-4 pt-4">
-          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
-            <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-red-900">Are you sure?</p>
-              <p className="text-sm text-red-700 mt-1">This submission will be rejected with the reason provided. This action cannot be undone from this screen.</p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowConfirmReject(false)}>Cancel</Button>
-            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={runReject}>Yes, Reject It</Button>
+            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={runReject}>Confirm Rejection</Button>
           </div>
         </div>
       </Modal>

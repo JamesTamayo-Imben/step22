@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
 use App\Support\AdviserLedgerFormatter;
+use App\Support\BlockchainService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -20,15 +21,10 @@ class AdviserApprovalController extends Controller
         // Include CSG/submitted rows that still need adviser action (DB mixes approval_status and status)
         $projectQuery = Project::query()
             ->where('archive', false)
-            ->where(function ($q) {
-                $q->whereIn('approval_status', [
-                    'Pending Adviser Approval',
-                    'Pending Approval',
-                ])->orWhere(function ($q2) {
-                    $q2->where('approval_status', 'Draft')
-                        ->whereIn('status', ['Pending Adviser Approval', 'Pending Approval', 'Draft']);
-                });
-            })
+            ->whereIn('approval_status', [
+                'Pending Adviser Approval',
+                'Pending Approval',
+            ])
             ->with(['student.user'])
             ->orderByDesc('updated_at');
 
@@ -36,6 +32,7 @@ class AdviserApprovalController extends Controller
 
         $ledgerPending = LedgerEntry::query()
             ->where('approval_status', 'Pending Adviser Approval')
+            ->where('is_initial_entry', false)
             ->with('project')
             ->orderByDesc('updated_at')
             ->get();
@@ -59,6 +56,7 @@ class AdviserApprovalController extends Controller
 
         $rejectedLedger = LedgerEntry::query()
             ->where('approval_status', 'Rejected')
+            ->where('is_initial_entry', false)
             ->with('project')
             ->orderByDesc('updated_at')
             ->get()
@@ -76,11 +74,41 @@ class AdviserApprovalController extends Controller
 
         $rejectedItems = $rejectedProjects->concat($rejectedLedger)->concat($rejectedMeetings)->sortByDesc(fn ($i) => $i['submittedDate'] ?? '')->values();
 
+        // Fetch approved items
+        $approvedProjects = Project::query()
+            ->where('archive', false)
+            ->where('approval_status', 'Approved')
+            ->with(['student.user'])
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn (Project $p) => $this->serializeProject($p, 'Approved'));
+
+        $approvedLedger = LedgerEntry::query()
+            ->where('approval_status', 'Approved')
+            ->where('is_initial_entry', false)
+            ->with('project')
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn (LedgerEntry $e) => $this->serializeLedgerCard($e, 'Approved'));
+
+        $approvedMeetings = Meeting::query()
+            ->where('archive', false)
+            ->where('is_done', true)
+            ->orderByDesc('updated_at')
+            ->get()
+            ->filter(function (Meeting $m) {
+                return ($this->meetingMinutesMeta($m)['adviser_minutes_status'] ?? null) === 'approved';
+            })
+            ->map(fn (Meeting $m) => $this->serializeMeeting($m, 'Approved'));
+
+        $approvedItems = $approvedProjects->concat($approvedLedger)->concat($approvedMeetings)->sortByDesc(fn ($i) => $i['submittedDate'] ?? '')->values();
+
         return Inertia::render('Adviser/Approvals', [
             'pendingProjects' => $projects,
             'pendingLedger' => $ledgerRows,
             'pendingProofs' => $proofRows,
             'pendingMeetings' => $meetings,
+            'approvedItems' => $approvedItems,
             'rejectedItems' => $rejectedItems,
         ]);
     }
@@ -130,6 +158,43 @@ class AdviserApprovalController extends Controller
             'updated_by' => $userId,
         ]);
 
+        // Create genesis block in blockchain for this project
+        try {
+            BlockchainService::createGenesisBlock($project->id, [
+                'title' => $project->title,
+                'description' => $project->description,
+                'amount' => $project->budget,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to create genesis block for project: ' . $e->getMessage());
+        }
+
+        // Auto-approve the initial budget breakdown (ledger entry)
+        $initialLedgerEntry = LedgerEntry::where('project_id', $id)
+            ->where(function ($q) {
+                $q->where('is_initial_entry', true)
+                  ->orWhere('description', 'Initial project expense allocation');
+            })
+            ->first();
+        
+        if ($initialLedgerEntry) {
+            $initialLedgerEntry->update([
+                'approval_status' => 'Approved',
+                'approved_by' => $userId,
+                'approved_at' => now(),
+                'updated_by' => $userId,
+                'rejected_at' => null,
+            ]);
+
+            $this->writeAudit(
+                'Ledger Entry Approved (Auto)',
+                $initialLedgerEntry->id,
+                'ledger_entry',
+                'Auto-approved initial budget breakdown for project: '.($project->title ?? $project->id),
+                'ledger'
+            );
+        }
+
         $this->writeAudit(
             'Project Approved',
             $project->id,
@@ -147,6 +212,33 @@ class AdviserApprovalController extends Controller
             'note' => $reason,
             'updated_by' => auth()->id(),
         ]);
+
+        // Auto-reject the initial budget breakdown (ledger entry)
+        $initialLedgerEntry = LedgerEntry::where('project_id', $id)
+            ->where(function ($q) {
+                $q->where('is_initial_entry', true)
+                  ->orWhere('description', 'Initial project expense allocation');
+            })
+            ->first();
+        
+        if ($initialLedgerEntry) {
+            $initialLedgerEntry->update([
+                'approval_status' => 'Rejected',
+                'rejected_at' => now(),
+                'updated_by' => auth()->id(),
+                'approved_by' => null,
+                'approved_at' => null,
+                'note' => 'Rejected with project: '.$reason,
+            ]);
+
+            $this->writeAudit(
+                'Ledger Entry Rejected (Auto)',
+                $initialLedgerEntry->id,
+                'ledger_entry',
+                'Auto-rejected initial budget breakdown for project: '.($project->title ?? $project->id),
+                'ledger'
+            );
+        }
 
         $this->writeAudit(
             'Project Rejected',
@@ -167,6 +259,17 @@ class AdviserApprovalController extends Controller
             'updated_by' => $userId,
             'rejected_at' => null,
         ]);
+
+        // Add block to blockchain chain for this project
+        try {
+            BlockchainService::addBlockToChain($entry->id, $entry->project_id, [
+                'description' => $entry->description,
+                'amount' => $entry->amount,
+                'type' => $entry->type,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to add ledger block to chain: ' . $e->getMessage());
+        }
 
         $details = ($entry->description ?? '').' — '.$entry->project?->title;
         $this->writeAudit(
@@ -287,6 +390,7 @@ class AdviserApprovalController extends Controller
             'status' => $status,
             'category' => $p->category ?? '',
             'amount' => $p->budget !== null ? (float) $p->budget : null,
+            'budget_breakdown' => $p->budget_breakdown ?? null,
             'type' => 'project',
         ];
     }
@@ -307,6 +411,7 @@ class AdviserApprovalController extends Controller
             'amount' => (float) $e->amount,
             'project' => $e->project?->title ?? '',
             'hash' => substr(AdviserLedgerFormatter::ledgerHash($e), 0, 32),
+            'budget_breakdown' => $e->budget_breakdown ?? null,
             'type' => 'ledger',
         ];
     }

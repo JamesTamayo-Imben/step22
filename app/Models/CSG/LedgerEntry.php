@@ -27,6 +27,7 @@ class LedgerEntry extends Model
         'updated_by',
         'approved_at',
         'rejected_at',
+        'is_initial_entry', //dinagdag para ma-identify kung initial entry ba ito o hindi kasi ang ginawa ko pagna approved si project auto approved naden si initial entry nya
         'created_at',
         'updated_at',
     ];

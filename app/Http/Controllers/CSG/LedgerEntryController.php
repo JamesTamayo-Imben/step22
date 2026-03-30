@@ -71,16 +71,37 @@ class LedgerEntryController extends Controller
                 $query->where('project_id', $request->input('project_id'));
             }
 
-            $entries = $query->with('project')->orderBy('created_at', 'desc')->get();
+            // Only return entries for projects that exist and are not archived
+            $entries = $query->with('project')
+                ->whereHas('project', function ($q) {
+                    $q->where('archive', 0);  // Only show entries from non-archived projects
+                })
+                ->orderBy('created_at', 'desc')
+                ->get();
 
             // Process budget breakdown for each entry
             $processedEntries = $entries->map(function($entry) {
                 $entryData = $entry->toArray();
 
-                // Process budget breakdown
-                $entryData['budget_breakdown'] = $entry->budget_breakdown
-                    ? (is_string($entry->budget_breakdown) ? json_decode($entry->budget_breakdown, true) : $entry->budget_breakdown)
-                    : [];
+                // For initial entries, ALWAYS pull the current project's budget breakdown
+                // Check multiple conditions to ensure we catch all initial entries
+                $isInitial = $entry->is_initial_entry 
+                    || strpos($entry->description, 'Initial') !== false
+                    || $entry->description === 'Initial project expense allocation';
+                
+                if ($isInitial && $entry->project) {
+                    // Always use project's current budget breakdown for initial entries
+                    $entryData['budget_breakdown'] = $entry->project->budget_breakdown
+                        ? (is_string($entry->project->budget_breakdown) ? json_decode($entry->project->budget_breakdown, true) : $entry->project->budget_breakdown)
+                        : [];
+                    $entryData['is_initial_entry'] = true;
+                } else {
+                    // For non-initial entries, use their own stored budget breakdown
+                    $entryData['budget_breakdown'] = $entry->budget_breakdown
+                        ? (is_string($entry->budget_breakdown) ? json_decode($entry->budget_breakdown, true) : $entry->budget_breakdown)
+                        : [];
+                    $entryData['is_initial_entry'] = $isInitial;
+                }
 
                 // Add project name for easier display
                 $entryData['project_name'] = $entry->project ? $entry->project->title : 'Unknown Project';

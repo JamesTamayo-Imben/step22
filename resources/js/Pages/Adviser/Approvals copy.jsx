@@ -72,10 +72,7 @@ export default function AdviserApprovalsPage() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showReview, setShowReview] = useState(false);
   const [showReject, setShowReject] = useState(false);
-  const [showApprove, setShowApprove] = useState(false);
-  const [showConfirmReject, setShowConfirmReject] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [approvalNotes, setApprovalNotes] = useState('');
   
   const itemsPerPage = 5;
 
@@ -92,52 +89,37 @@ export default function AdviserApprovalsPage() {
     'rejected items': rejectedItems.length,
   };
 
-  const runApprove = (item, notes = '') => {
+  const runApprove = (item) => {
     if (!item) return showToast('No item selected', 'error');
+    if (!window.confirm('Approve this submission?')) return;
 
     router.post(route('adviser.approvals.approve'), {
-      type: item.approvalType,
+      type: item.type,
       id: item.id,
-      notes: notes.trim(),
     }, {
       preserveScroll: true,
       onSuccess: () => {
         showToast('Approved successfully');
         setShowReview(false);
-        setShowApprove(false);
         setSelectedItem(null);
-        setApprovalNotes('');
       },
       onError: () => showToast('Could not approve', 'error'),
     });
   };
 
-  const handleApproveClick = () => {
-    if (!selectedItem) return showToast('No item selected', 'error');
-    setShowReview(false);
-    setShowApprove(true);
-  };
-
-  const handleRejectClick = () => {
-    if (!rejectReason.trim()) {
-      return showToast('Provide a reason', 'error');
-    }
-    setShowConfirmReject(true);
-  };
-
   const runReject = () => {
     if (!selectedItem) return showToast('No item selected', 'error');
     if (!rejectReason.trim()) return showToast('Provide a reason', 'error');
+    if (!window.confirm('Reject this submission? This cannot be undone from this screen.')) return;
 
     router.post(route('adviser.approvals.reject'), {
-      type: selectedItem.approvalType,
+      type: selectedItem.type,
       id: selectedItem.id,
       reason: rejectReason.trim(),
     }, {
       preserveScroll: true,
       onSuccess: () => {
         showToast('Rejected');
-        setShowConfirmReject(false);
         setShowReject(false);
         setShowReview(false);
         setSelectedItem(null);
@@ -164,45 +146,24 @@ export default function AdviserApprovalsPage() {
     }
   };
 
-  const getTypeIcon = (approvalType) => {
-    switch (approvalType) {
-      case 'project': return <DollarSign className="w-5 h-5 text-green-600" />;
-      case 'ledger': return <FolderKanban className="w-5 h-5 text-blue-600" />;
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'project': return <FolderKanban className="w-5 h-5 text-blue-600" />;
+      case 'ledger': return <DollarSign className="w-5 h-5 text-green-600" />;
       default: return <FileText className="w-5 h-5 text-gray-600" />;
     }
   };
 
-  const formatDate = (dateString) => {
-  if (!dateString) return 'Not specified';
-  
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return 'Not specified';
-  
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-};
-
   const itemsForTab = useMemo(() => {
     switch (tab) {
       case 'project proposals': 
-        return pendingProjects.map(item => ({ ...item, approvalType: 'project', status: item.status || 'Pending Adviser Approval' }));
+        return pendingProjects.map(item => ({ ...item, type: 'project', status: item.status || 'Pending Adviser Approval' }));
       case 'ledger entries': 
-        return pendingLedger.map(item => ({ ...item, approvalType: 'ledger', status: item.status || 'Pending Adviser Approval' }));
+        return pendingLedger.map(item => ({ ...item, type: 'ledger', status: item.status || 'Pending Adviser Approval' }));
       case 'approved items': 
-        return approvedItems.map(item => ({
-          ...item,
-          approvalType: item.approvalType || item.type || (item.entry_type ? 'ledger' : 'project'),
-          status: 'Approved'
-        }));
+        return approvedItems;
       case 'rejected items': 
-        return rejectedItems.map(item => ({
-          ...item,
-          approvalType: item.approvalType || item.type || (item.entry_type ? 'ledger' : 'project'),
-          status: 'Rejected'
-        }));
+        return rejectedItems;
       default: 
         return [];
     }
@@ -236,9 +197,9 @@ export default function AdviserApprovalsPage() {
   const currentItems = filteredEntries.slice(indexOfFirstItem, indexOfLastItem);
 
   const renderItem = (item) => (
-    <Card key={`${item.approvalType}-${item.id}`} className="rounded-[20px] border-0 shadow-sm p-4 hover:shadow-md transition-all">
+    <Card key={`${item.type}-${item.id}`} className="rounded-[20px] border-0 shadow-sm p-4 hover:shadow-md transition-all">
       <div className="flex items-start gap-4">
-        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">{getTypeIcon(item.approvalType)}</div>
+        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">{getTypeIcon(item.type)}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-2">
             <div>
@@ -480,85 +441,80 @@ export default function AdviserApprovalsPage() {
         </div>
       </div>
 
-      {/* Review Project Modal */}
-      <Modal open={showReview && selectedItem?.approvalType === 'project'} onClose={() => setShowReview(false)} title="Review Project">
-        {selectedItem && selectedItem.type === 'project' && (
+      <Modal open={showReview} onClose={() => setShowReview(false)} title={selectedItem ? `Review ${selectedItem.type === 'project' ? 'Project' : 'Ledger Entry'}` : 'Review'}>
+        {selectedItem && (
           <div className="space-y-4 pt-6">
             {/* Header Info */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-500 mb-1">ID *</p>
+                <p className="text-sm text-gray-500 mb-1">ID</p>
                 <p className="font-mono text-sm text-gray-900 break-all">{selectedItem.id}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">Status *</p>
-                <Badge className={`rounded-lg ${getApprovalStatusColor(selectedItem.status)}`}>
-                  {selectedItem.status}
+                <p className="text-sm text-gray-500 mb-1">Type</p>
+                <Badge className="rounded-lg bg-blue-100 text-blue-700">
+                  {selectedItem.type === 'project' ? 'Project' : 'Ledger'}
                 </Badge>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">Total Amount *</p>
+                <p className="text-sm text-gray-500 mb-1">Total Amount</p>
                 <p className="text-xl font-semibold text-blue-600">
                   {selectedItem.amount != null ? `₱${Number(selectedItem.amount).toLocaleString()}` : 'N/A'}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">Category *</p>
-                <p className="text-gray-900">{selectedItem.category || 'Not specified'}</p>
+                <p className="text-sm text-gray-500 mb-1">Status</p>
+                <Badge className={`rounded-lg ${getApprovalStatusColor(selectedItem.status)}`}>
+                  {selectedItem.status}
+                </Badge>
               </div>
             </div>
 
-            {/* Project Information */}
+            {/* Core Information */}
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Project Title *</p>
+                <p className="text-sm text-gray-500 mb-1">Project Title</p>
                 <p className="text-gray-900">{selectedItem.title || 'N/A'}</p>
               </div>
+              {selectedItem.type === 'project' && (
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-500 mb-1">Objective</p>
+                  <p className="text-gray-900">{selectedItem.objective || 'No objective provided'}</p>
+                </div>
+              )}
               <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Objective *</p>
-                <p className="text-gray-900">{selectedItem.objective || 'No objective provided'}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Description *</p>
+                <p className="text-sm text-gray-500 mb-1">Description</p>
                 <p className="text-gray-900 whitespace-pre-wrap">{selectedItem.description || 'No description provided'}</p>
               </div>
+               {selectedItem.type === 'project' && (
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-500 mb-1">Venue</p>
+                  <p className="text-gray-900">{selectedItem.venue || 'Not specified'}</p>
+                </div>
+              )}
+              {selectedItem.type === 'project' && (
+                 <div className="col-span-2">
+                  <p className="text-sm text-gray-500 mb-1">Category</p>
+                  <p className="text-gray-900">{selectedItem.category || 'Not specified'}</p>
+                </div>
+              )}
               <div>
-                <p className="text-sm text-gray-500 mb-1">Venue *</p>
-                <p className="text-gray-900">{selectedItem.venue || 'Not specified'}</p>
-              </div>
-               <div>
-                <p className="text-sm text-gray-500 mb-1">Timeline *</p>
-                <p className="text-gray-900">{formatDate(selectedItem.start_date)} to {formatDate(selectedItem.end_date)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Created By *</p>
+                <p className="text-sm text-gray-500 mb-1">Created By</p>
                 <p className="text-sm text-gray-900">{selectedItem.created_by || 'Unknown'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">Created At *</p>
+                <p className="text-sm text-gray-500 mb-1">Created At</p>
                 <p className="text-sm text-gray-900">{selectedItem.created_at || 'N/A'}</p>
-              </div>
-               <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Proposed By *</p>
-                <p className="text-gray-900">{selectedItem.proposed_by || 'Not specified'}</p>
               </div>
             </div>
 
-            {/* Proof */}
-             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Proof *</p>
-                <p className="text-gray-900">{selectedItem.ledger_proof || 'No proof provided'}</p>
-              </div>
-
-             </div>
-
             {/* Budget Breakdown Details */}
             <div className="col-span-2">
-              <p className="text-sm text-gray-500 mb-1">Initial Budget Breakdown *</p>
+              <p className="text-sm text-gray-500 mb-1">Budget Breakdown Details</p>
               {selectedItem.budget_breakdown ? (() => {
                 let parsedBreakdown = selectedItem.budget_breakdown;
                 
+                // Try to parse if it's a JSON string
                 if (typeof selectedItem.budget_breakdown === 'string') {
                   try {
                     const parsed = JSON.parse(selectedItem.budget_breakdown);
@@ -566,6 +522,7 @@ export default function AdviserApprovalsPage() {
                       parsedBreakdown = parsed;
                     }
                   } catch (e) {
+                    // If JSON parsing fails, keep it as string
                     return (
                       <div className="bg-gray-50 rounded-lg p-3 mt-1">
                         <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedItem.budget_breakdown}</p>
@@ -574,19 +531,22 @@ export default function AdviserApprovalsPage() {
                   }
                 }
                 
+                // If we have an array, display as table
                 if (Array.isArray(parsedBreakdown)) {
                   return (
                     <div className="bg-gray-50 rounded-lg p-3 mt-1">
+                      {/* Header */}
                       <div className="flex justify-between items-center pb-2 mb-2 border-b border-gray-300">
                         <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Item (Unit Price x Quantity)</span>
                         <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
                       </div>
                       
+                      {/* Items */}
                       <div className="space-y-1">
                         {parsedBreakdown.map((item, index) => (
                           <div key={item.id || index} className="flex justify-between items-center py-1">
                             <div className="flex-1">
-                              <span className="text-sm text-gray-900">{item.item || item.name || 'Unnamed Item'}</span>
+                              <span className="text-sm text-gray-900">{item.item || item.name || item.category || 'Unnamed Item'}</span>
                               {(item.quantity || item.qty) && (
                                 <span className="text-xs text-gray-500 ml-2">
                                   (₱{(parseFloat(item.unitPrice) || 0).toLocaleString()} x {item.quantity || item.qty})
@@ -600,140 +560,7 @@ export default function AdviserApprovalsPage() {
                         ))}
                       </div>
                       
-                      <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 font-semibold">
-                        <span className="text-gray-700">Total</span>
-                        <span className="text-blue-600">
-                          ₱{parsedBreakdown.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                }
-                
-                return <p className="text-gray-500 mt-1">No budget breakdown available.</p>;
-              })() : (
-                <p className="text-gray-500 mt-1">No budget breakdown provided.</p>
-              )}
-
-            </div>
-
-            {/* Action Buttons */}
-            {(selectedItem.status === 'Pending Approval' || selectedItem.status === 'Pending Adviser Approval') && (
-              <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowReview(false)}>
-                  Cancel
-                </Button>
-                <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
-                   <XCircle className="w-4 h-4 text-red-600" />
-                  Reject
-                </Button>
-                <Button className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700" onClick={handleApproveClick}>
-                  <CheckCircle className="w-4 h-4 text-white-600" />
-                  Approve
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      {/* Review Ledger Entry Modal */}
-      <Modal open={showReview && selectedItem?.approvalType === 'ledger'} onClose={() => setShowReview(false)} title="Review Ledger Entry">
-        {selectedItem && selectedItem.approvalType === 'ledger' && (
-          <div className="space-y-4 pt-6">
-            {/* Header Info */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Transaction ID *</p>
-                <p className="font-mono text-sm text-gray-900 break-all">{selectedItem.id}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Status *</p>
-                <Badge className={`rounded-lg ${getApprovalStatusColor(selectedItem.status)}`}>
-                  {selectedItem.status}
-                </Badge>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Total Amount *</p>
-                <p className="text-xl font-semibold text-blue-600">
-                  ₱{selectedItem.amount != null ? Number(selectedItem.amount).toLocaleString() : '0'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Type *</p>
-                <Badge className={`rounded-lg ${selectedItem.entry_type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {selectedItem.entry_type || 'Expense'}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Ledger Entry Information */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Project Title *</p>
-                <p className="text-gray-900">{selectedItem.project || 'N/A'}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Description *</p>
-                <p className="text-gray-900 whitespace-pre-wrap">{selectedItem.description || 'No description provided'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Created By *</p>
-                <p className="text-sm text-gray-900">{selectedItem.created_by || 'Unknown'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Created At *</p>
-                <p className="text-sm text-gray-900">{selectedItem.created_at || 'N/A'}</p>
-              </div>
-            </div>
-
-            {/* Budget Breakdown Details */}
-            <div className="col-span-2">
-              <p className="text-sm text-gray-500 mb-1">Budget Breakdown Details *</p>
-              {selectedItem.budget_breakdown ? (() => {
-                let parsedBreakdown = selectedItem.budget_breakdown;
-                
-                if (typeof parsedBreakdown === 'string') {
-                  try {
-                    const parsed = JSON.parse(parsedBreakdown);
-                    if (Array.isArray(parsed)) {
-                      parsedBreakdown = parsed;
-                    }
-                  } catch (e) {
-                    return (
-                      <div className="bg-gray-50 rounded-lg p-3 mt-1">
-                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{parsedBreakdown}</p>
-                      </div>
-                    );
-                  }
-                }
-                
-                if (Array.isArray(parsedBreakdown) && parsedBreakdown.length > 0) {
-                  return (
-                    <div className="bg-gray-50 rounded-lg p-3 mt-1">
-                      <div className="flex justify-between items-center pb-2 mb-2 border-b border-gray-300">
-                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Item (Unit Price x Quantity)</span>
-                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        {parsedBreakdown.map((item, index) => (
-                          <div key={item.id || index} className="flex justify-between items-center py-1">
-                            <div className="flex-1">
-                              <span className="text-sm text-gray-900">{item.item || item.name || 'Unnamed Item'}</span>
-                              {(item.quantity || item.qty) && (
-                                <span className="text-xs text-gray-500 ml-2">
-                                  (₱{(parseFloat(item.unitPrice) || 0).toLocaleString()} x {item.quantity || item.qty})
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-sm font-medium text-blue-600">
-                              ₱{(parseFloat(item.amount) || 0).toLocaleString()}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      
+                      {/* Total */}
                       <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 font-semibold">
                         <span className="text-gray-700">Total</span>
                         <span className="text-blue-600">
@@ -759,7 +586,7 @@ export default function AdviserApprovalsPage() {
                 <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
                   Reject
                 </Button>
-                <Button className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700" onClick={handleApproveClick}>
+                <Button className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700" onClick={() => runApprove(selectedItem)}>
                   Approve
                 </Button>
               </div>
@@ -774,42 +601,7 @@ export default function AdviserApprovalsPage() {
           <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={4} className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition" />
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowReject(false); setRejectReason(''); }}>Cancel</Button>
-            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={handleRejectClick}>Continue</Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Approve Submission Modal */}
-      <Modal open={showApprove} onClose={() => { setShowApprove(false); setApprovalNotes(''); }} title="Approve Submission">
-        <div className="space-y-4 pt-4">
-          <p className="text-sm text-gray-600">Add optional approval notes for your records.</p>
-          <textarea
-            value={approvalNotes}
-            onChange={(e) => setApprovalNotes(e.target.value)}
-            rows={4}
-            placeholder="Enter approval notes..."
-            className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-          />
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowApprove(false); setApprovalNotes(''); }}>Cancel</Button>
-            <Button className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700" onClick={() => runApprove(selectedItem, approvalNotes)}>Confirm Approval</Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Reject Confirmation Modal */}
-      <Modal open={showConfirmReject} onClose={() => setShowConfirmReject(false)} title="Confirm Rejection">
-        <div className="space-y-4 pt-4">
-          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
-            <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-red-900">Are you sure?</p>
-              <p className="text-sm text-red-700 mt-1">This submission will be rejected with the reason provided. This action cannot be undone from this screen.</p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowConfirmReject(false)}>Cancel</Button>
-            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={runReject}>Yes, Reject It</Button>
+            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={runReject}>Confirm Rejection</Button>
           </div>
         </div>
       </Modal>

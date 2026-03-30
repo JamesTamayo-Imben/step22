@@ -39,6 +39,7 @@ class Project extends Model
 
     protected $casts = [
         'budget' => 'decimal:2',
+        'budget_breakdown' => 'json',
         'start_date' => 'date',
         'end_date' => 'date',
         'approved_at' => 'datetime',

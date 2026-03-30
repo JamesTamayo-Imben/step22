@@ -8,6 +8,7 @@ use App\Http\Controllers\Adviser\AdviserDashboardController;
 use App\Http\Controllers\Adviser\AdviserLedgerController;
 use App\Http\Controllers\Adviser\AdviserNotificationController;
 use App\Http\Controllers\Adviser\AdviserRatingsController;
+use App\Http\Controllers\BlockchainController;
 use App\Http\Controllers\SAdmin\SAdminDashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SAdmin\UserManagementController;
@@ -120,6 +121,11 @@ Route::get('/adviser/dashboard', [AdviserDashboardController::class, 'index'])->
 Route::get('/adviser/approvals', [AdviserApprovalController::class, 'index'])->name('adviser.approvals');
 Route::post('/adviser/approvals/approve', [AdviserApprovalController::class, 'approve'])->name('adviser.approvals.approve');
 Route::post('/adviser/approvals/reject', [AdviserApprovalController::class, 'reject'])->name('adviser.approvals.reject');
+
+// Blockchain routes
+Route::get('/blockchain/project/{projectId}', [BlockchainController::class, 'show'])->name('blockchain.show');
+Route::post('/blockchain/verify', [BlockchainController::class, 'verify'])->name('blockchain.verify');
+Route::get('/blockchain/project/{projectId}/export', [BlockchainController::class, 'export'])->name('blockchain.export');
 
 Route::get('/adviser/ledger', [AdviserLedgerController::class, 'index'])->name('adviser.ledger');
 Route::post('/adviser/ledger/{id}/approve', [AdviserLedgerController::class, 'approve'])->name('adviser.ledger.approve');

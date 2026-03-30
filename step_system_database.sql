@@ -155,7 +155,8 @@ INSERT INTO `badge_collected` (`id`, `badge_id`, `user_id`, `earned_date`, `crea
 
 CREATE TABLE `chain` (
   `id` char(36) NOT NULL,
-  `approval_id` char(36) DEFAULT NULL,
+  `project_id` char(36) DEFAULT NULL,
+  `block_index` int NOT NULL DEFAULT 0,
   `prev_hash` varchar(255) DEFAULT NULL,
   `hash` varchar(255) DEFAULT NULL,
   `data_snapshot` text DEFAULT NULL,
@@ -166,14 +167,14 @@ CREATE TABLE `chain` (
 -- Dumping data for table `chain`
 --
 
-INSERT INTO `chain` (`id`, `approval_id`, `prev_hash`, `hash`, `data_snapshot`, `created_at`) VALUES
-('05a528b2-235d-11f1-9647-10683825ce81', '05a3e3a8-235d-11f1-9647-10683825ce81', NULL, 'hash1', NULL, '2026-03-19 06:29:42'),
-('05a52af2-235d-11f1-9647-10683825ce81', '05a3e3a8-235d-11f1-9647-10683825ce81', NULL, 'hash2', NULL, '2026-03-19 06:29:42'),
-('05a52b8f-235d-11f1-9647-10683825ce81', '05a3e3a8-235d-11f1-9647-10683825ce81', NULL, 'hash3', NULL, '2026-03-19 06:29:42'),
-('05a52bf1-235d-11f1-9647-10683825ce81', '05a3e3a8-235d-11f1-9647-10683825ce81', NULL, 'hash4', NULL, '2026-03-19 06:29:42'),
-('05a52c57-235d-11f1-9647-10683825ce81', '05a3e3a8-235d-11f1-9647-10683825ce81', NULL, 'hash5', NULL, '2026-03-19 06:29:42'),
-('05a52cb9-235d-11f1-9647-10683825ce81', '05a3e3a8-235d-11f1-9647-10683825ce81', NULL, 'hash6', NULL, '2026-03-19 06:29:42'),
-('05a52d0d-235d-11f1-9647-10683825ce81', '05a3e3a8-235d-11f1-9647-10683825ce81', NULL, 'hash7', NULL, '2026-03-19 06:29:42');
+INSERT INTO `chain` (`id`, `project_id`, `block_index`, `prev_hash`, `hash`, `data_snapshot`, `created_at`) VALUES
+('05a528b2-235d-11f1-9647-10683825ce81', '05a30928-235d-11f1-9647-10683825ce81', 0, NULL, 'hash1', NULL, '2026-03-19 06:29:42'),
+('05a52af2-235d-11f1-9647-10683825ce81', '05a30928-235d-11f1-9647-10683825ce81', 1, 'hash1', 'hash2', NULL, '2026-03-19 06:29:42'),
+('05a52b8f-235d-11f1-9647-10683825ce81', '05a30928-235d-11f1-9647-10683825ce81', 2, 'hash2', 'hash3', NULL, '2026-03-19 06:29:42'),
+('05a52bf1-235d-11f1-9647-10683825ce81', '05a30928-235d-11f1-9647-10683825ce81', 3, 'hash3', 'hash4', NULL, '2026-03-19 06:29:42'),
+('05a52c57-235d-11f1-9647-10683825ce81', '05a30928-235d-11f1-9647-10683825ce81', 4, 'hash4', 'hash5', NULL, '2026-03-19 06:29:42'),
+('05a52cb9-235d-11f1-9647-10683825ce81', '05a30928-235d-11f1-9647-10683825ce81', 5, 'hash5', 'hash6', NULL, '2026-03-19 06:29:42'),
+('05a52d0d-235d-11f1-9647-10683825ce81', '05a30928-235d-11f1-9647-10683825ce81', 6, 'hash6', 'hash7', NULL, '2026-03-19 06:29:42');
 
 -- --------------------------------------------------------
 
@@ -743,7 +744,7 @@ ALTER TABLE `badge_collected`
 --
 ALTER TABLE `chain`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `approval_id` (`approval_id`);
+  ADD KEY `project_id` (`project_id`);
 
 --
 -- Indexes for table `course`
@@ -885,7 +886,7 @@ ALTER TABLE `badge_collected`
 -- Constraints for table `chain`
 --
 ALTER TABLE `chain`
-  ADD CONSTRAINT `chain_ibfk_1` FOREIGN KEY (`approval_id`) REFERENCES `approval` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `chain_ibfk_1` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `course`

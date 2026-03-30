@@ -5,6 +5,7 @@ namespace App\Http\Controllers\CSG;
 use App\Http\Controllers\Controller;
 use App\Models\CSG\Project;
 use App\Models\CSG\Approval;
+use App\Models\CSG\LedgerEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -183,6 +184,36 @@ class ProjectController extends Controller
             
             $project->save();
             
+            // If budget or budget_breakdown was updated, also update the initial ledger entry
+            if ($request->has('budget') || $request->has('budget_breakdown')) {
+                try {
+                    $initialEntry = LedgerEntry::where('project_id', $project->id)
+                        ->where('is_initial_entry', true)
+                        ->first();
+
+                    if ($initialEntry) {
+                        $updateData = [];
+                        
+                        if ($request->has('budget')) {
+                            $updateData['amount'] = $project->budget;
+                        }
+                        
+                        if ($request->has('budget_breakdown')) {
+                            $updateData['budget_breakdown'] = $project->budget_breakdown;
+                        }
+                        
+                        if (!empty($updateData)) {
+                            $updateData['updated_by'] = auth()->id();
+                            $updateData['updated_at'] = now();
+                            $initialEntry->update($updateData);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Log but don't fail the project update
+                    \Log::warning('Could not update initial ledger entry: ' . $e->getMessage());
+                }
+            }
+            
             // Add file URL to response
             $project->project_proof_url = $project->project_proof ? Storage::url($project->project_proof) : null;
             
@@ -209,11 +240,17 @@ class ProjectController extends Controller
             if ($project->project_proof && Storage::disk('public')->exists($project->project_proof)) {
                 Storage::disk('public')->delete($project->project_proof);
             }
+
+            // Delete all associated ledger entries to avoid redundancy and confusion
+            LedgerEntry::where('project_id', $id)->delete();
+
+            // Delete blockchain chain records for this project
+            DB::table('chain')->where('approval_id', $id)->delete();
             
-            // Soft delete or hard delete? I'll do hard delete
+            // Hard delete the project
             $project->delete();
             
-            return response()->json(['message' => 'Project deleted successfully'], 200);
+            return response()->json(['message' => 'Project and associated records deleted successfully'], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to delete project',
@@ -257,6 +294,23 @@ class ProjectController extends Controller
             $project->approval_status = 'Pending Adviser Approval';
             $project->updated_at = now();
             $project->save();
+
+            // Update the initial budget breakdown (ledger entry) to pending adviser approval too
+            $initialLedgerEntry = LedgerEntry::where('project_id', $id)
+                ->where(function ($q) {
+                    $q->where('is_initial_entry', true)
+                      ->orWhere('description', 'Initial project expense allocation');
+                })
+                ->first();
+            
+            // Update initial ledger status from Draft or Rejected to Pending Adviser Approval
+            if ($initialLedgerEntry && in_array($initialLedgerEntry->approval_status, ['Draft', 'Rejected'])) {
+                $initialLedgerEntry->update([
+                    'approval_status' => 'Pending Adviser Approval',
+                    'updated_by' => auth()->id(),
+                    'rejected_at' => null,  // Clear rejection timestamp if it was rejected before
+                ]);
+            }
             
             // Create approval record (no teacher/adviser table dependency)
             try {

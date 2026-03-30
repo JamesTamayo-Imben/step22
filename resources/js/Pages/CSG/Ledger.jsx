@@ -30,6 +30,7 @@ import {
   Lock,
   ChevronLeft,
   ChevronRight,
+  RefreshCw,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -166,31 +167,32 @@ function LedgerPageInner() {
   const [allProjects, setAllProjects] = useState([]);
   const [editBudgetItems, setEditBudgetItems] = useState([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchLedgerEntries = () => {
+    fetch('/api/ledger-entries')
+      .then((response) => response.json())
+      .then((data) => {
+        const processedData = data.map((entry) => ({
+          ...entry,
+          status: entry.approval_status || entry.status || 'Draft',
+          projectName: entry.project?.title || entry.project?.name || entry.project_name || entry.project || '—',
+          project: entry.project?.title || entry.project?.name || entry.project_name || entry.project || '—',
+          amount: Number(entry.amount) || 0,
+          createdAt: entry.created_at ? entry.created_at.split('T')[0] : entry.createdAt,
+          createdBy: entry.created_by || entry.createdBy || 'N/A',
+          budgetBreakdown: entry.budget_breakdown || [],
+        }));
+        console.log('Processed ledger entries:', processedData);
+        setLedgerEntries(processedData);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch ledger entries', err);
+        showToast('Unable to load ledger entries', 'error');
+      });
+  };
 
   useEffect(() => {
-    const fetchLedgerEntries = () => {
-      fetch('/api/ledger-entries')
-        .then((response) => response.json())
-        .then((data) => {
-          const processedData = data.map((entry) => ({
-            ...entry,
-            status: entry.approval_status || entry.status || 'Draft',
-            projectName: entry.project?.title || entry.project?.name || entry.project_name || entry.project || '—',
-            project: entry.project?.title || entry.project?.name || entry.project_name || entry.project || '—',
-            amount: Number(entry.amount) || 0,
-            createdAt: entry.created_at ? entry.created_at.split('T')[0] : entry.createdAt,
-            createdBy: entry.created_by || entry.createdBy || 'N/A',
-            budgetBreakdown: entry.budget_breakdown || [],
-          }));
-          console.log('Processed ledger entries:', processedData);
-          setLedgerEntries(processedData);
-        })
-        .catch((err) => {
-          console.error('Failed to fetch ledger entries', err);
-          showToast('Unable to load ledger entries', 'error');
-        });
-    };
-
     const fetchProjects = () => {
       fetch('/api/projects', {
         headers: {
@@ -216,20 +218,22 @@ function LedgerPageInner() {
     fetchProjects();
   }, []);
 
-  const projectStats = ledgerEntries.reduce((acc, entry) => {
-    const projectName = entry.project || 'Unknown Project';
-    if (!acc[projectName]) {
-      acc[projectName] = { income: 0, expense: 0, net: 0, count: 0 };
-    }
-    if (entry.type === 'Income') {
-      acc[projectName].income += entry.amount || 0;
-    } else if (entry.type === 'Expense') {
-      acc[projectName].expense += entry.amount || 0;
-    }
-    acc[projectName].net = acc[projectName].income - acc[projectName].expense;
-    acc[projectName].count += 1;
-    return acc;
-  }, {});
+  const projectStats = ledgerEntries
+    .filter((entry) => entry.approval_status === 'Approved')  // Only include approved entries
+    .reduce((acc, entry) => {
+      const projectName = entry.project || 'Unknown Project';
+      if (!acc[projectName]) {
+        acc[projectName] = { income: 0, expense: 0, net: 0, count: 0 };
+      }
+      if (entry.type === 'Income') {
+        acc[projectName].income += entry.amount || 0;
+      } else if (entry.type === 'Expense') {
+        acc[projectName].expense += entry.amount || 0;
+      }
+      acc[projectName].net = acc[projectName].income - acc[projectName].expense;
+      acc[projectName].count += 1;
+      return acc;
+    }, {});
 
   const projectCount = Object.keys(projectStats).length;
   const averageIncome = projectCount > 0 ? Object.values(projectStats).reduce((sum, s) => sum + s.income, 0) / projectCount : 0;
@@ -512,10 +516,14 @@ const handleDeleteEntry = async () => {
       throw new Error('Failed to delete ledger entry');
     }
 
+    // Remove the deleted entry from state immediately
     setLedgerEntries(ledgerEntries.filter(entry => entry.id !== selectedEntry.id));
     setShowDeleteModal(false);
     setSelectedEntry(null);
     showToast('Ledger entry deleted successfully', 'success');
+    
+    // Refetch to ensure deleted entry doesn't reappear
+    fetchLedgerEntries();
     
   } catch (error) {
     console.error('Error deleting ledger entry:', error);
@@ -746,13 +754,27 @@ const handleSaveUpload = async () => {
           <h1 className="text-2xl font-semibold text-gray-900">Ledger Management</h1>
           <p className="text-gray-500">Track all financial transactions across projects</p>
         </div>
-        <Button
-          onClick={() => setShowAddModal(true)}
-          className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Ledger Entry
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => {
+              setIsRefreshing(true);
+              fetchLedgerEntries();
+              setTimeout(() => setIsRefreshing(false), 500);
+            }}
+            disabled={isRefreshing}
+            className="text-gray-700 rounded-xl bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+            title="Refresh ledger data"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button
+            onClick={() => setShowAddModal(true)}
+            className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Ledger Entry
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -895,7 +917,7 @@ const handleSaveUpload = async () => {
                     <Eye className="w-3.5 h-3.5 mr-1" /> 
                   </Button>
                   
-                  {entry.status === 'Draft' && (
+                  {!entry.is_initial_entry && (entry.status === 'Draft' || entry.status === 'Pending Adviser Approval') && (
                     <>
                       <Button
                         variant="ghost"
