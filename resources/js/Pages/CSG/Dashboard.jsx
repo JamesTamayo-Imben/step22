@@ -39,6 +39,35 @@ import {
 import ProjectsPage from './Projects';
 import LedgerPage from './Ledger';
 
+// Helper function to calculate status based on dates
+function getAutoStatus(startDate, endDate, approvalStatus) {
+  // If not approved, always show Draft
+  if (approvalStatus !== 'Approved') {
+    return 'Draft';
+  }
+  
+  if (!startDate || !endDate) return 'Approved';
+  
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const now = new Date();
+  
+  // Normalize dates to compare only date, not time
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  now.setHours(0, 0, 0, 0);
+  
+  if (now < start) {
+    return 'Upcoming';
+  } else if (now >= start && now <= end) {
+    return 'Ongoing';
+  } else if (now > end) {
+    return 'Completed';
+  }
+  
+  return 'Approved';
+}
+
 // Small inline Badge component (keeps this file self-contained)
 function Badge({ children, variant = 'secondary', className = '' }) {
   const base = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium';

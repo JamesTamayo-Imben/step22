@@ -35,7 +35,10 @@ class CSGDashboardController extends Controller
         $ledgerSumsPerProject = LedgerEntry::select('project_id',
             DB::raw("SUM(CASE WHEN type = 'Income' THEN amount ELSE 0 END) as income"),
             DB::raw("SUM(CASE WHEN type = 'Expense' THEN amount ELSE 0 END) as expense")
-        )->groupBy('project_id')->get();
+        )
+        ->where('approval_status', 'Approved')
+        ->groupBy('project_id')
+        ->get();
 
         $projectNetValues = $ledgerSumsPerProject->map(fn($row) => (float) $row->income - (float) $row->expense);
         $avgNetForProject = $projectNetValues->count() > 0

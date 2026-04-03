@@ -898,7 +898,7 @@ const renderAttendees = (attendees) => {
                   <span>{meeting.status}</span>
                 </Badge>
                 {meeting.hasMinutes && (
-                  <Badge className="bg-purple-100 text-purple-700 flex items-center gap-1 px-2 py-1">
+                  <Badge className="bg-blue-100 text-blue-700 flex items-center gap-1 px-2 py-1">
                     <FileText className="w-3 h-3" />
                     <span>Minutes Available</span>
                   </Badge>
@@ -947,7 +947,7 @@ const renderAttendees = (attendees) => {
               </div>
               <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                 <div 
-                  className="bg-green-500 rounded-full h-2 transition-all duration-500"
+                  className="bg-blue-500 rounded-full h-2 transition-all duration-500"
                   style={{ 
                     width: `${((() => {
                       let attendeesCount = 0;
@@ -1020,7 +1020,7 @@ const renderAttendees = (attendees) => {
             <Button
               variant="outline"
               size="sm"
-              className="flex-1 rounded-lg hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-all duration-200"
+              className="flex-1 rounded-lg bg-blue-600 text-white hover:bg-blue-800 hover:border-blue-300 transition-all duration-200"
               onClick={() => {
                 setSelectedMeeting(meeting);
                 setShowViewMinutesModal(true);

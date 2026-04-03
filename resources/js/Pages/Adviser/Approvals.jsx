@@ -258,7 +258,7 @@ export default function AdviserApprovalsPage() {
 
           {(item.status === 'Pending Approval' || item.status === 'Pending Adviser Approval') && (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1 rounded-xl" onClick={() => { setSelectedItem(item); setShowReview(true); }}>
+              <Button variant="outline" size="sm" className="flex-1 rounded-xl bg-blue-600 text-white hover:bg-blue-700" onClick={() => { setSelectedItem(item); setShowReview(true); }}>
                 <Eye className="w-4 h-4 mr-1" /> Review
               </Button>
             </div>
