@@ -81,7 +81,7 @@ function csvEscape(val) {
 const TABLE_PAGE_SIZE = 5;
 
 export default function LedgerApprovalsPage() {
-  const { ledgerEntries = [], projectFilterOptions = [] } = usePage().props;
+  const { ledgerEntries = [], projectFilterOptions = [], totalProjectBudget = 0 } = usePage().props;
 
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -127,6 +127,7 @@ export default function LedgerApprovalsPage() {
       averageIncome: projectCount ? totalIncome / projectCount : 0,
       averageExpenses: projectCount ? totalExpenses / projectCount : 0,
       averageNet: projectCount ? (totalIncome - totalExpenses) / projectCount : 0,
+      totalProjectBudget: Number(totalProjectBudget) || 0,
     };
   }, [ledgerEntries]);
 
@@ -134,6 +135,28 @@ export default function LedgerApprovalsPage() {
     setSelectedEntry(entry);
     setIsDetailsOpen(true);
   };
+
+  const getTypeColor = (type) => {
+  switch (type) {
+    case 'Expense': return 'bg-red-100 text-red-700';
+    case 'Income': return 'bg-green-100 text-green-700';
+    case 'Donation': return 'bg-blue-100 text-blue-700';
+    case 'Sponsorship': return 'bg-purple-100 text-purple-700';
+    case 'Canvas': return 'bg-gray-100 text-gray-700';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+};
+
+const getTypeAmountColor = (type) => {
+  switch (type) {
+    case 'Expense': return 'text-red-700';
+    case 'Income': return 'text-green-700';
+    case 'Donation': return 'text-green-700';
+    case 'Sponsorship': return 'text-green-700';
+    case 'Canvas': return ' text-gray-700';
+    default: return 'text-gray-700';
+  }
+};
 
   const handleApprove = (entry) => {
     if (!entry) return;
@@ -254,15 +277,24 @@ export default function LedgerApprovalsPage() {
 
   return (
     <AuthenticatedLayout>
-      <Head title="Ledger" />
-      <div className="py-8 px-4 lg:px-0 md:px-0">
-        <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Ledger Approval Center</h1>
-            <p className="text-gray-500">Review and verify financial ledger entries</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+       <Head title="Ledger" />
+    <div className="py-8 px-4 lg:px-0 md:px-0">
+  <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
+    <div className="flex justify-between items-center">
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900">Ledger Approval Center</h1>
+        <p className="text-gray-500 mt-1">Review and verify financial ledger entries</p>
+      </div>
+      <button
+        type="button"
+        onClick={handleExport}
+        className="inline-flex items-center justify-center px-4 py-2 border bg-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+      >
+        <Download className="w-4 h-4 mr-2" />
+        Export CSV
+      </button>
+    </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -297,10 +329,24 @@ export default function LedgerApprovalsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Average Net Per Project</p>
-                  <p className={`text-2xl mt-1 ${stats.averageNet >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                  <p className={`text-2xl mt-1 ${stats.averageNet >= 0 ? 'text-gray-600' : 'text-red-600'}`}>
                     ₱{stats.averageNet.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Average net across all active projects</p>
+                  <p className="text-xs text-gray-500 mt-1">Across all projects</p>
+                </div>
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-gray-600" />
+                </div>
+              </div>
+            </div>
+            <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">CSG Total Project Budget</p>
+                  <p className="text-2xl text-blue-600 mt-1">
+                    ₱{stats.totalProjectBudget.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Sum of budgets for projects</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                   <DollarSign className="w-6 h-6 text-blue-600" />
@@ -345,14 +391,6 @@ export default function LedgerApprovalsPage() {
                     <option value="Rejected">Rejected</option>
                   </select>
 
-                  <button
-                    type="button"
-                    onClick={handleExport}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Export CSV
-                  </button>
                 </div>
               </div>
 
@@ -395,13 +433,13 @@ export default function LedgerApprovalsPage() {
           <p className="text-sm text-gray-900">{entry.enteredBy}</p>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
-          <p className={`text-sm ${entry.transactionType === 'Income' ? 'text-green-600' : 'text-red-600'}`}>
-            {entry.transactionType === 'Income' ? '+' : '-'}₱{Number(entry.amount).toLocaleString()}
+          <p className={`text-sm ${getTypeAmountColor(entry.transactionType)}`}>
+            ₱{Number(entry.amount).toLocaleString()}
           </p>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            entry.transactionType === 'Income' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+           getTypeColor(entry.transactionType)
           }`}>
             {entry.transactionType}
           </span>

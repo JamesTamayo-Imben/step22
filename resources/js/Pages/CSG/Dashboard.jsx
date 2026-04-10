@@ -188,7 +188,7 @@ function ProfilePage() { return <Card className="p-8">Profile (placeholder)</Car
 export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, projects: initialProjects = [], recentLedgerEntries = [], upcomingMeetings: initialMeetings = [] }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [budgetItems, setBudgetItems] = useState([
-    { id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }
+    { id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }
   ]);
   const [newProject, setNewProject] = useState({
     title: '',
@@ -241,26 +241,30 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
     fetchProjects();
   }, []);
 
-  const fetchProjects = () => {
-    fetch('/api/projects', {
-      headers: {
-        Accept: 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const approvedOnly = data.filter((p) => 
-            ((p.approval_status || p.status || '').toString().toLowerCase() === 'approved')
-          );
-          setDashboardProjects(approvedOnly);
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('/api/projects', {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         }
-      })
-      .catch((err) => {
-        console.error('Failed to fetch projects', err);
-        showToast('Unable to load projects', 'error');
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        const approvedOnly = data.filter((p) => 
+          ((p.approval_status || p.status || '').toString().toLowerCase() === 'approved')
+        );
+        setDashboardProjects(approvedOnly);
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      showToast('Failed to load projects from server', 'error');
+    }
   };
 
   const getStatusColor = (status) => {
@@ -415,7 +419,7 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
         referenceNumber: '',
         requiresProof: false,
       });
-      setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
+      setBudgetItems([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
       setLedgerFilePreview(null);
       setSelectedLedgerFile(null);
       if (ledgerFileInputRef.current) ledgerFileInputRef.current.value = '';
@@ -460,14 +464,14 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
     });
   };
 
+  // Budget item management for ledger breakdown
   const addBudgetItem = () => {
     const newId = budgetItems.length > 0 
       ? Math.max(...budgetItems.map(item => item.id)) + 1 
       : 1;
-    setBudgetItems([...budgetItems, { id: newId, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
+    setBudgetItems([...budgetItems, { id: newId, item: '', qty: 1, unitPrice: '', amount: 0 }]);
   };
 
-  // STEP 7.2: Remove budget item
   const removeBudgetItem = (id) => {
     if (budgetItems.length > 1) {
       setBudgetItems(budgetItems.filter(item => item.id !== id));
@@ -478,9 +482,9 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
     setBudgetItems(budgetItems.map(item => {
       if (item.id !== id) return item;
       const updated = { ...item, [field]: value };
-      const quantity = parseFloat(updated.quantity || updated.qty || 0) || 0;
+      const qty = parseFloat(updated.qty || 0) || 0;
       const unitPrice = parseFloat(updated.unitPrice || 0) || 0;
-      updated.amount = quantity * unitPrice;
+      updated.amount = qty * unitPrice;
       return updated;
     }));
   };
@@ -537,12 +541,6 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
       return;
     }
 
-    const hasEmptyItems = budgetItems.some(item => !item.item || !item.unitPrice || item.quantity <= 0);
-    if (hasEmptyItems) {
-      showToast('Please fill in all budget items', 'error');
-      return;
-    }
-
     setIsLoading(true);
 
     const formData = new FormData();
@@ -551,16 +549,7 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
     formData.append('objective', newProject.objective);
     formData.append('venue', newProject.venue);
     formData.append('category', newProject.category);
-    formData.append('budget', calculateTotalBudget().toString());
-    
-    // Normalize budget breakdown to match backend format
-    const budgetBreakdown = budgetItems.map(item => ({
-      item: item.item,
-      qty: item.quantity || item.qty || 1,
-      unitPrice: item.unitPrice,
-      amount: item.amount || 0
-    }));
-    formData.append('budget_breakdown', JSON.stringify(budgetBreakdown));
+    formData.append('budget', newProject.budget || '');
     formData.append('status', 'Draft');
     formData.append('proposed_by', newProject.proposedBy);
     formData.append('start_date', newProject.startDate);
@@ -591,8 +580,9 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
         throw new Error(data.message || 'Failed to create project');
       }
       
-      // Add the new project to the dashboard list (only if approved, but new projects are Draft by default)
-      // So we don't add them to dashboardProjects since they're not approved yet
+      // Get the created project ID from response
+      const createdProjectId = data.id || data.data?.id;
+      
       setShowCreateModal(false);
       setNewProject({
         title: '',
@@ -601,14 +591,21 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
         objective: '',
         venue: '',
         proposedBy: '',
+        budget: '',
         startDate: '',
         endDate: '',
       });
-      setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
       setFilePreview(null);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       showToast('Project created successfully!', 'success');
+      
+      // Redirect to Projects page with the created project
+      if (createdProjectId) {
+        setTimeout(() => {
+          router.visit(`/csg/projects/${createdProjectId}`);
+        }, 500);
+      }
     } catch (error) {
       console.error('Error creating project:', error);
       showToast(error.message, 'error');
@@ -633,6 +630,33 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
       </Card>
     );
   }
+
+   const normalizeProject = (p) => ({
+    id: p.id,
+    title: p.title || '',
+    category: p.category || '',
+    description: p.description || '',
+    objective: p.objective || '',
+    venue: p.venue || '',
+    status: p.status || '',
+    approvalStatus: p.approval_status || p.approvalStatus || '',
+    progress: p.progress || 0,
+    budget: p.budget || 0,
+    // budgetBreakdown: p.budget_breakdown
+    //   ? (typeof p.budget_breakdown === 'string' ? JSON.parse(p.budget_breakdown) : p.budget_breakdown)
+    //   : (p.budgetBreakdown || []),
+    startDate: p.start_date || p.startDate || '',
+    endDate: p.end_date || p.endDate || '',
+    createdAt: p.created_at || p.createdAt || '',
+    proposedBy: p.proposed_by || p.proposedBy || '',
+    note: p.note || '',
+    approveBy: p.approve_by || p.approveBy || '',
+    projectProof: p.project_proof || p.projectProof || null,
+    createdBy: p.created_by || p.createdBy || null,
+    updatedBy: p.updated_by || p.updatedBy || null,
+    archive: p.archive || 0,
+    approvedAt: p.approved_at || p.approvedAt || null,
+  });
 
   // Subpage routing
   if (currentView === 'projects') return <ProjectsPage />;
@@ -681,7 +705,7 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
             referenceNumber: '',
             requiresProof: false,
           });
-          setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
+          setBudgetItems([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
           setLedgerFilePreview(null);
           setSelectedLedgerFile(null);
           if (ledgerFileInputRef.current) ledgerFileInputRef.current.value = '';
@@ -698,9 +722,12 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
               value={ledgerForm.type}
               onValueChange={(value) => setLedgerForm({ ...ledgerForm, type: value })}
             >
-              <option disabled value="">Select Type</option>
-              <option value="Expense">Expense</option>
-              <option value="Income">Income</option>
+              <option value="">Select Type</option>
+            <option value="Income">Income</option>
+            <option value="Expense">Expense</option>
+            <option value="Donation">Donation</option>
+            <option value="Sponsorship">Sponsorship</option>
+            <option value="Canvas">Canvas</option>
             </Select>
           </div>
 
@@ -713,16 +740,11 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
               className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="">Select Project</option>
-              {dashboardProjects
-                .filter(project => 
-                  (project.approval_status || project.status || '').toLowerCase() === 'approved'
-                )
-                .map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.title || project.name}
-                  </option>
-                ))
-              }
+              {dashboardProjects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.title || project.name}
+                </option>
+              ))}
             </Select>
           </div>
 
@@ -869,7 +891,7 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
                   referenceNumber: '',
                   requiresProof: false,
                 });
-                setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
+                setBudgetItems([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
                 setLedgerFilePreview(null);
                 setSelectedLedgerFile(null);
                 if (ledgerFileInputRef.current) ledgerFileInputRef.current.value = '';
@@ -901,10 +923,10 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
             objective: '',
             venue: '',
             proposedBy: '',
+             budget: '',
             startDate: '',
             endDate: '',
           });
-          setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
           setFilePreview(null);
           setSelectedFile(null);
           if (fileInputRef.current) fileInputRef.current.value = '';
@@ -972,77 +994,19 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
             />
           </div>
 
-          {/* STEP 10.4: Budget Breakdown Section */}
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <FieldLabel>Budget Breakdown (₱)</FieldLabel>
-              <div className="space-y-3">
-                {budgetItems.map((item) => (
-                  <div key={item.id} className="flex gap-2 items-start">
-                    <Input
-                      placeholder="Item name"
-                      value={item.item}
-                      onChange={(e) => updateBudgetItem(item.id, 'item', e.target.value)}
-                      className="flex-1 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Qty"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateBudgetItem(item.id, 'quantity', e.target.value)}
-                      className="w-20 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Price"
-                      min="0"
-                      step="0.01"
-                      value={item.unitPrice}
-                      onChange={(e) => updateBudgetItem(item.id, 'unitPrice', e.target.value)}
-                      className="w-28 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                    />
-                    <div className="w-28 h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium">
-                      ₱{(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                    {budgetItems.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeBudgetItem(item.id)}
-                        className="rounded-lg text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  onClick={addBudgetItem}
-                  variant="outline"
-                  size="sm"
-                  className="w-full rounded-xl"
-                  disabled={budgetItems.some(item => !item.item || !item.unitPrice || item.quantity <= 0)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Budget Item
-                </Button>
-              </div>
-            </div>
-            <div>
-              <FieldLabel>Estimated Total Budget (₱)</FieldLabel>
-              <div className="bg-blue-50 rounded-xl p-4 mt-1">
-                <p className="text-3xl font-semibold text-blue-900">
-                  ₱{calculateTotalBudget().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <p className="text-xs text-blue-700 mt-1">
-                  Auto-calculated from breakdown items
-                </p>
-              </div>
-            </div>
-          </div>
+          {/* STEP 10.4: Project Budget Field */}
+          <div>
+                       <FieldLabel>Project Budget (Optional)</FieldLabel>
+                       <Input
+                         type="number"
+                         placeholder="Enter project budget amount"
+                         value={newProject.budget || ''}
+                         onChange={(e) => setNewProject({ ...newProject, budget: e.target.value })}
+                         min="0"
+                         step="0.01"
+                         className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                       /> 
+                     </div>    
 
           {/* STEP 10.5: File Upload Section */}
           <div>
@@ -1142,7 +1106,6 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
                   startDate: '',
                   endDate: '',
                 });
-                setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
                 setFilePreview(null);
                 setSelectedFile(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';

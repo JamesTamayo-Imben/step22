@@ -8,7 +8,6 @@ use App\Models\CSG\Meeting;
 use App\Models\User;
 use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
-use App\Support\AdviserLedgerFormatter;
 use App\Support\BlockchainService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -171,33 +170,6 @@ class AdviserApprovalController extends Controller
             \Log::error('Failed to create genesis block for project: ' . $e->getMessage());
         }
 
-        // Auto-approve the initial budget breakdown (ledger entry)
-        $initialLedgerEntry = LedgerEntry::where('project_id', $id)
-            ->where(function ($q) {
-                $q->where('is_initial_entry', true)
-                  ->orWhere('description', 'Initial project expense allocation');
-            })
-            ->first();
-        
-        if ($initialLedgerEntry) {
-            $initialLedgerEntry->update([
-                'approval_status' => 'Approved',
-                'approved_by' => $userId,
-                'approved_at' => now(),
-                'updated_by' => $userId,
-                'rejected_at' => null,
-                'note' => $notes,
-            ]);
-
-            $this->writeAudit(
-                'Ledger Entry Approved (Auto)',
-                $initialLedgerEntry->id,
-                'ledger_entry',
-                'Auto-approved initial budget breakdown for project: '.($project->title ?? $project->id),
-                'ledger'
-            );
-        }
-
         $this->writeAudit(
             'Project Approved',
             $project->id,
@@ -216,33 +188,6 @@ class AdviserApprovalController extends Controller
             'updated_by' => auth()->id(),
         ]);
 
-        // Auto-reject the initial budget breakdown (ledger entry)
-        $initialLedgerEntry = LedgerEntry::where('project_id', $id)
-            ->where(function ($q) {
-                $q->where('is_initial_entry', true)
-                  ->orWhere('description', 'Initial project expense allocation');
-            })
-            ->first();
-        
-        if ($initialLedgerEntry) {
-            $initialLedgerEntry->update([
-                'approval_status' => 'Rejected',
-                'rejected_at' => now(),
-                'updated_by' => auth()->id(),
-                'approved_by' => null,
-                'approved_at' => null,
-                'note' => 'Rejected with project: '.$reason,
-            ]);
-
-            $this->writeAudit(
-                'Ledger Entry Rejected (Auto)',
-                $initialLedgerEntry->id,
-                'ledger_entry',
-                'Auto-rejected initial budget breakdown for project: '.($project->title ?? $project->id),
-                'ledger'
-            );
-        }
-
         $this->writeAudit(
             'Project Rejected',
             $project->id,
@@ -254,7 +199,9 @@ class AdviserApprovalController extends Controller
 
     private function approveLedger(string $id, $userId, string $notes = ''): void
     {
-        $entry = LedgerEntry::where('id', $id)->firstOrFail();
+        $entry = LedgerEntry::where('id', $id)->with('project')->firstOrFail();
+        $wasApproved = $entry->approval_status === 'Approved';
+
         $entry->update([
             'approval_status' => 'Approved',
             'approved_by' => $userId,
@@ -263,6 +210,21 @@ class AdviserApprovalController extends Controller
             'rejected_at' => null,
             'note' => $notes,
         ]);
+
+        if (! $wasApproved && $entry->project) {
+            $amount = (float) $entry->amount;
+            if ($amount > 0) {
+                if ($entry->type === 'Expense') {
+                    $entry->project->budget = max(0, (float) $entry->project->budget - $amount);
+                } elseif (in_array($entry->type, ['Income',  'Donation', 'Sponsorship'], true)) {
+                    $entry->project->budget = (float) $entry->project->budget + $amount;
+                } elseif ($entry->type === 'Canvas') {
+                    // For Canvas entries, we can decide how to adjust the budget. Assuming it adds to the budget:
+                    $entry->project->budget = (float) $entry->project->budget;
+                }
+                $entry->project->save();
+            }
+        }
 
         // Add block to blockchain chain for this project
         try {
@@ -395,7 +357,6 @@ class AdviserApprovalController extends Controller
             'status' => $status,
             'category' => $p->category ?? '',
             'amount' => $p->budget !== null ? (float) $p->budget : null,
-            'budget_breakdown' => $p->budget_breakdown ?? null,
             'type' => 'project',
             'approvalType' => 'project',
             'objective' => $p->objective ?? 'Not specified',
@@ -426,13 +387,13 @@ class AdviserApprovalController extends Controller
             'amount' => (float) $e->amount,
             'project' => $e->project?->title ?? '',
             'hash' => substr($e->project_id ?? $e->id, 0, 32), // Based on project ID
-            'budget_breakdown' => $e->budget_breakdown ?? null,
             'type' => 'ledger',
             'approvalType' => 'ledger',
             'description' => $e->description ?? 'No description provided',
             'created_by' => $this->userName($e->created_by),
             'created_at' => optional($e->created_at)->format('Y-m-d H:i:s') ?? 'N/A',
             'entry_type' => $e->type ?? 'Expense',
+            'ledger_proof' => $e->ledger_proof,
         ];
     }
 

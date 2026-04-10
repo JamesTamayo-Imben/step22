@@ -205,17 +205,7 @@ export function EditProjectModal({
     formData.append('objective', editForm.objective || '');
     formData.append('venue', editForm.venue || '');
     formData.append('category', editForm.category);
-    formData.append('budget', calculateGrandTotal());
-    
-    // CRITICAL: Ensure all budget items have qty and unitPrice
-    const sanitizedBudgetItems = editBudgetItems.map(item => ({
-      ...item,
-      qty: item.qty || '1',
-      unitPrice: item.unitPrice || '0',
-      amount: (parseFloat(item.qty || '0') || 0) * (parseFloat(item.unitPrice || '0') || 0)
-    }));
-    
-    formData.append('budget_breakdown', JSON.stringify(sanitizedBudgetItems));
+    formData.append('budget', editForm.budget || 0);
     formData.append('proposed_by', editForm.proposedBy);
     formData.append('start_date', editForm.startDate);
     formData.append('end_date', editForm.endDate);
@@ -252,18 +242,8 @@ export function EditProjectModal({
     
     const updatedProject = await res.json();
     
-    // CRITICAL FIX: Ensure budget breakdown is properly included in response
-    const enhancedProject = {
-      ...updatedProject,
-      data: {
-        ...(updatedProject.data || {}),
-        budget_breakdown: updatedProject.data?.budget_breakdown || updatedProject.budget_breakdown || sanitizedBudgetItems,
-        budgetBreakdown: updatedProject.data?.budgetBreakdown || updatedProject.budgetBreakdown || sanitizedBudgetItems
-      }
-    };
-    
     showToast('Project updated successfully', 'success');
-    onSave(enhancedProject);
+    onSave(updatedProject);
     handleClose();
   } catch (err) {
     showToast(err.message, 'error');
@@ -915,9 +895,12 @@ const handleSave = async (e) => {
             value={ledgerForm.type}
             onChange={(e) => setLedgerForm({ ...ledgerForm, type: e.target.value })}
           >
-            <option value="">Select Type</option>
-            <option value="Expense">Expense</option>
+            <option value="" disabled>Select Type</option>
             <option value="Income">Income</option>
+            <option value="Expense">Expense</option>
+            <option value="Donation">Donation</option>
+            <option value="Sponsorship">Sponsorship</option>
+            <option value="Canvas">Canvas</option>
           </Select>
         </div>
 
@@ -1286,8 +1269,12 @@ export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSa
             value={ledgerForm.type} 
             onChange={(e) => setLedgerForm({ ...ledgerForm, type: e.target.value })}
           >
+            <option value="">Select Type</option>
             <option value="Income">Income</option>
             <option value="Expense">Expense</option>
+            <option value="Donation">Donation</option>
+            <option value="Sponsorship">Sponsorship</option>
+            <option value="Canvas">Canvas</option>
           </select>
         </div>
         

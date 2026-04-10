@@ -195,12 +195,12 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
                   >
                     View Details
                   </button>
-                  {meeting.minutesAvailable && (
+                  {/* {meeting.minutesAvailable && (
                     <button className="flex-1 md:flex-none px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium flex items-center justify-center gap-2">
                       <FileText className="w-4 h-4" />
                       Minutes
                     </button>
-                  )}
+                  )} */}
                 </div>
               </div>
             </Card>
@@ -291,8 +291,29 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
                     {selectedMeeting.description}
                   </p>
                 </div>
-               <h3 className="text-gray-900 font-semibold mb-3">Meeting Documentaion</h3>
-                  
+                <h3 className="text-gray-900 font-semibold mb-3">Meeting Documentation</h3>
+                {selectedMeeting.minutes_file_url ? (
+                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-sm text-gray-600 mb-2">Uploaded documentation</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-gray-900">{selectedMeeting.minutes_file_name || selectedMeeting.meeting_proof?.split('/').pop() || 'Document'}</p>
+                        <p className="text-xs text-gray-500">Click the button below to view or download</p>
+                      </div>
+                      <button
+                        onClick={() => window.open(selectedMeeting.minutes_file_url, '_blank')}
+                        className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+                      >
+                        <FileText className="w-4 h-4" />
+                        View Document
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-500">
+                    No meeting documentation uploaded yet.
+                  </div>
+                )}
               </div>
             )}
 

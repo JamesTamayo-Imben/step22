@@ -184,7 +184,15 @@ Route::get('/csg/ledger', function () {
 })->name('csg.ledger');
 
 Route::get('/csg/proof', function () {
-    return Inertia::render('CSG/Proof');
+    $proofDocuments = app(\App\Http\Controllers\CSG\LedgerEntryController::class)->getProofDocuments()->getData();
+    $projects = \App\Models\CSG\Project::where('archive', 0)->pluck('title')->toArray();
+    $transactions = \App\Models\CSG\LedgerEntry::where('archive', 0)->pluck('id')->toArray();
+
+    return Inertia::render('CSG/Proof', [
+        'proofDocuments' => $proofDocuments,
+        'projects' => $projects,
+        'transactions' => $transactions,
+    ]);
 })->name('csg.proof');
 
 Route::get('/csg/meetings', function () {
@@ -245,6 +253,7 @@ Route::prefix('api')->group(function () {
     Route::prefix('ledger-entries')->group(function () {
         Route::get('/', [LedgerEntryController::class, 'all']);
         Route::get('/project/{projectId}', [LedgerEntryController::class, 'index']);
+        Route::get('/proof-documents', [LedgerEntryController::class, 'getProofDocuments']);
         Route::post('/', [LedgerEntryController::class, 'store']);
         Route::put('/{id}', [LedgerEntryController::class, 'update']);
         Route::delete('/{id}', [LedgerEntryController::class, 'destroy']);

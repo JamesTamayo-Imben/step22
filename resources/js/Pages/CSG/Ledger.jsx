@@ -286,6 +286,8 @@ function LedgerPageInner() {
       case 'Rejected':
         return <XCircle className="w-4 h-4 text-red-600" />;
       case 'Pending Adviser Approval':
+      case 'Pending Approval':
+      case 'Pending':
         return <Clock className="w-4 h-4 text-yellow-600" />;
       case 'Draft':
         return <AlertCircle className="w-4 h-4 text-gray-600" />;
@@ -301,6 +303,8 @@ function LedgerPageInner() {
       case 'Rejected':
         return 'bg-red-100 text-red-700';
       case 'Pending Adviser Approval':
+      case 'Pending Approval':
+      case 'Pending':
         return 'bg-yellow-100 text-yellow-700';
       case 'Draft':
         return 'bg-gray-100 text-gray-700';
@@ -660,6 +664,28 @@ const handleSaveUpload = async () => {
     }
   };
 
+    const getTypeColor = (type) => {
+  switch (type) {
+    case 'Expense': return 'bg-red-100 text-red-700';
+    case 'Income': return 'bg-green-100 text-green-700';
+    case 'Donation': return 'bg-blue-100 text-blue-700';
+    case 'Sponsorship': return 'bg-purple-100 text-purple-700';
+    case 'Canvas': return 'bg-gray-100 text-gray-700';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+};
+
+const getTypeAmountColor = (type) => {
+  switch (type) {
+    case 'Expense': return 'text-red-700';
+    case 'Income': return 'text-green-700';
+    case 'Donation': return 'text-green-700';
+    case 'Sponsorship': return 'text-green-700';
+    case 'Canvas': return ' text-gray-700';
+    default: return 'text-gray-700';
+  }
+};
+
   const updateItem = (id, field, value) => {
     setEditBudgetItems((prev) =>
       prev.map((item) => {
@@ -839,9 +865,12 @@ const handleSaveUpload = async () => {
 
           {/* Type Filter */}
           <Select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-            <option value="all">All Types</option>
+            <option value="">Select Type</option>
             <option value="Income">Income</option>
             <option value="Expense">Expense</option>
+            <option value="Donation">Donation</option>
+            <option value="Sponsorship">Sponsorship</option>
+            <option value="Canvas">Canvas</option>
           </Select>
 
           {/* Status Filter */}
@@ -867,7 +896,7 @@ const handleSaveUpload = async () => {
       {/* Ledger Cards Grid - Fixed Layout */}
       <div className="space-y-3">
         {currentItems.map((entry) => (
-          <Card key={entry.id} className="rounded-xl border-0 shadow-sm hover:shadow-md transition-all duration-200 overflow-x-auto">
+         <Card key={entry.id} className="rounded-xl border-0 shadow-sm hover:shadow-md transition-all duration-200 overflow-x-auto">
             <div className="p-4 min-w-[900px]">
               {/* Fixed grid layout with consistent column widths */}
               <div className="grid grid-cols-[200px_140px_200px_140px_120px_auto] gap-4 items-center">
@@ -876,15 +905,15 @@ const handleSaveUpload = async () => {
                   <span className="truncate text-[11px] font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded whitespace-nowrap">
                     {entry.id}
                   </span>
-                  <Badge className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap shrink-0 ${entry.type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  <Badge className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap shrink-0 ${getTypeColor(entry.type)}`}>
                     {entry.type}
                   </Badge>
                 </div>
 
                 {/* Amount Section */}
                <div>
-  <p className={`text-xl font-bold text-gray-900 whitespace-nowrap ${entry.type === 'Income' ? 'text-green-700' : 'text-red-700'}`}>
-    {entry.type === 'Income' ? '+' : entry.type === 'Expense' ? '-' : ''}₱{(entry.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+  <p className={`text-xl font-sm text-gray-900 whitespace-nowrap ${getTypeAmountColor(entry.type)}`}>
+    ₱{(entry.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
   </p>
 </div>
 
@@ -1107,9 +1136,12 @@ const handleSaveUpload = async () => {
               value={ledgerForm.type}
               onChange={(e) => setLedgerForm({ ...ledgerForm, type: e.target.value })}
             >
-              <option disabled value="">Select Type</option>
-              <option value="Expense">Expense</option>
-              <option value="Income">Income</option>
+              <option value="">Select Type</option>
+            <option value="Income">Income</option>
+            <option value="Expense">Expense</option>
+            <option value="Donation">Donation</option>
+            <option value="Sponsorship">Sponsorship</option>
+            <option value="Canvas">Canvas</option>
             </Select>
           </div>
 
@@ -1552,6 +1584,24 @@ const handleSaveUpload = async () => {
     <p className="text-gray-500 mt-1">No budget breakdown available for this transaction.</p>
   )}
 </div>
+
+        <div className="col-span-2">
+          <p className="text-sm text-gray-500 mb-1">Proof *</p>
+          {selectedEntry.ledger_proof ? (
+            <a
+              href={`/${selectedEntry.ledger_proof}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              <FileText className="w-4 h-4" />
+              View Proof Document
+            </a>
+          ) : (
+            <p className="text-gray-900">No proof provided</p>
+          )}
+        </div>
+
 
         {/* Notes Section */}
         <div className="col-span-2">

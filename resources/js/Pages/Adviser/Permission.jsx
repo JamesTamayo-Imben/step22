@@ -5,6 +5,7 @@ import { Head, usePage, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
+// import Modal from '@/Components/Modal';
 import {
   Shield,
   Check,
@@ -154,11 +155,11 @@ export function RolePermissionsPage() {
   const [selectedPosition, setSelectedPosition] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedCSGFilter, setSelectedCSGFilter] = useState('');
+  const [selectedOfficer, setSelectedOfficer] = useState(null);
 
   const [councilOfficers, setCouncilOfficers] = useState(initialCouncilOfficers);
   const [csgPositions, setCSGPositions] = useState(initialCsgPositions);
   const [rolePermissions, setRolePermissions] = useState(initialRoles);
-  const [selectedPositionCard, setSelectedPositionCard] = useState(null);
 
   const filteredUsers = useMemo(() => {
     const q = (searchQuery || '').toLowerCase();
@@ -176,7 +177,7 @@ export function RolePermissionsPage() {
     }
   }, [csgPositions, selectedCSGFilter]);
 
-  const selectedCsgPosition = csgPositions.find(pos => pos.id === selectedCSGFilter);
+  const selectedCsgPosition = csgPositions.find(pos => String(pos.id) === String(selectedCSGFilter));
 
   const getCurrentRoleData = () => {
     if (selectedRole === 'CSG Officer') {
@@ -192,6 +193,7 @@ export function RolePermissionsPage() {
 
   const currentData = getCurrentRoleData();
   const currentRole = rolePermissions.find(r => r.name === selectedRole);
+  const selectedPositionName = csgPositions.find(pos => String(pos.id) === String(selectedPosition))?.name || '';
 
   const enabledCount = selectedRole === 'CSG Officer'
     ? selectedCsgPosition?.sections.reduce((sum, section) => sum + section.permissions.filter(p => p.enabled).length, 0) || 0
@@ -207,23 +209,36 @@ export function RolePermissionsPage() {
     }
 
     if (selectedRole === 'CSG Officer') {
-      setCSGPositions(prevPositions =>
-        prevPositions.map(position => {
-          if (position.id !== positionId) return position;
-          return {
-            ...position,
-            sections: position.sections.map((section, idx) => {
-              if (idx !== sectionIndex) return section;
-              return {
-                ...section,
-                permissions: section.permissions.map(p =>
-                  p.id === permissionId ? { ...p, enabled: !p.enabled } : p
-                ),
-              };
-            }),
-          };
-        })
-      );
+      const newPositions = csgPositions.map(position => {
+        if (position.id !== positionId) return position;
+        return {
+          ...position,
+          sections: position.sections.map((section, idx) => {
+            if (idx !== sectionIndex) return section;
+            return {
+              ...section,
+              permissions: section.permissions.map(p =>
+                p.id === permissionId ? { ...p, enabled: !p.enabled } : p
+              ),
+            };
+          }),
+        };
+      });
+      
+      setCSGPositions(newPositions);
+      
+      // Save changes immediately for CSG positions
+      router.post('/adviser/role-permissions/update', {
+        csgPositions: newPositions,
+        rolePermissions,
+      }, {
+        onSuccess: () => {
+          // Optional: show success toast
+        },
+        onError: (error) => {
+          showToast(error?.message || 'Failed to save permission change', 'error');
+        }
+      });
       return;
     }
 
@@ -264,9 +279,17 @@ export function RolePermissionsPage() {
     });
   };
 
+  const openOfficerModal = (officer) => {
+    setSelectedOfficer(officer);
+    setSelectedPosition(officer.position);
+    setSelectedUser(null);
+    setSearchQuery('');
+    setIsSetOfficerModalOpen(true);
+  };
+
   const handleSetOfficer = () => {
     if (!selectedUser || !selectedPosition) {
-      showToast('Please select both a user and a position', 'error');
+      showToast('Please select a user to assign', 'error');
       return;
     }
 
@@ -279,13 +302,20 @@ export function RolePermissionsPage() {
     }, {
       onSuccess: () => {
         setCouncilOfficers(prev =>
-          prev.map(officer =>
-            officer.position === selectedPosition
-              ? { position: selectedPosition, name: selectedCandidate.name, userId: selectedCandidate.id, email: selectedCandidate.email }
-              : officer
-          )
+          prev.map(officer => {
+            // Clear the user from any existing position
+            if (officer.userId === selectedCandidate.id) {
+              return { position: officer.position, name: null, userId: null, email: null };
+            }
+            // Assign to the new position
+            if (officer.position === selectedPosition) {
+              return { position: selectedPosition, name: selectedCandidate.name, userId: selectedCandidate.id, email: selectedCandidate.email };
+            }
+            return officer;
+          })
         );
-        showToast(`${selectedCandidate.name} has been assigned as ${selectedPosition}`);
+        showToast(`${selectedCandidate.name} has been assigned as ${selectedPositionName}`);
+        setSelectedOfficer(null);
         setSelectedUser(null);
         setSelectedPosition('');
         setSearchQuery('');
@@ -326,14 +356,6 @@ export function RolePermissionsPage() {
             </h2>
             <p className="text-sm text-gray-500 mt-1">Manage and assign council officer positions</p>
           </div>
-          <Button onClick={() => {
-            setIsSetOfficerModalOpen(true);
-            setSelectedPositionCard(officer.position);
-            setSelectedPosition(officer.position);
-          }} className="bg-[#2563EB] hover:bg-blue-700 text-white">
-            <UserPlus className="w-4 h-4 mr-2" />
-            Set New Officer
-          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -377,10 +399,7 @@ export function RolePermissionsPage() {
                     <p className="text-xs text-gray-400">No student ID available</p>
                      <div className="mt-3 border-t border-gray-200">
                     <Button
-                      onClick={() => {
-                        setSelectedPosition(officer.position);
-                        setIsSetOfficerModalOpen(true);
-                      }}
+                      onClick={() => openOfficerModal(officer)}
                       variant="outline"
                       size="sm"
                       className="mt-3 w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
@@ -397,10 +416,7 @@ export function RolePermissionsPage() {
                     <p className="text-xs text-gray-500">{officer.userId}</p>
                     <div className="mt-3 pt-3 border-t border-gray-200">
                       <Button
-                        onClick={() => {
-                          setSelectedPosition(officer.position);
-                          setIsSetOfficerModalOpen(true);
-                        }}
+                        onClick={() => openOfficerModal(officer)}
                         variant="outline"
                         size="sm"
                         className="w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
@@ -485,7 +501,7 @@ export function RolePermissionsPage() {
             </div>
 
             {selectedRole === 'CSG Officer' && (
-              <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
                 <div className="flex items-center gap-3">
                   <Users className="w-5 h-5 text-[#2563EB] flex-shrink-0" />
                   <div className="flex-1">
@@ -585,6 +601,10 @@ export function RolePermissionsPage() {
               )}
             </div>
 
+            <Button  className="inline-flex items-center justify-center px-4 py-2 border bg-blue-600 border-blue-300 rounded-xl text-sm text-white hover:bg-blue-700">
+              Save changes
+            </Button>
+
             <div className={`mt-6 p-4 rounded-xl border ${currentRole?.isEditable ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
               <div className="flex items-start gap-3">
                 {currentRole?.isEditable ? (
@@ -608,21 +628,36 @@ export function RolePermissionsPage() {
 
      <Modal
   open={isSetOfficerModalOpen}
-  onClose={() => setIsSetOfficerModalOpen(false)}
-  title="Set CSG Officer"
+  onClose={() => {
+    setIsSetOfficerModalOpen(false);
+    setSelectedOfficer(null);
+    setSelectedPosition('');
+    setSelectedUser(null);
+    setSearchQuery('');
+  }}
+  title={selectedPositionName ? `Assign ${selectedPositionName}` : 'Set CSG Officer'}
   description="Assign a student as a CSG officer position."
 >
   <div className="space-y-4">
-
-    <div className="grid grid-cols-2 gap-3 flex items-center">
-      {/* <UserPlus className="w-5 h-5 text-[#2563EB] flex-shrink-0" /> */}
+    <div className="flex items-center gap-3">
+      <Users className="w-5 h-5 text-[#2563EB] flex-shrink-0" />
       <div className="flex-1">
-         <label className="text-sm text-gray-700 mt-2 block">Select CSG President</label>
+        <label className="text-sm text-gray-700 mb-2 block">CSG Position</label>
+        <div className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700 flex items-center">
+          {selectedPositionName || 'Select a card to assign a position'}
+        </div>
+      </div>
+    </div>
+    <div className="flex items-center gap-3">
+      <UserPlus className="w-5 h-5 text-[#2563EB] flex-shrink-0" />
+      <div className="flex-1">
+        <label className="text-sm text-gray-700 mb-2 block">Search User</label>
         <input 
-          className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+          className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
           value={searchQuery} 
           onChange={(e) => setSearchQuery(e.target.value)} 
           placeholder="Name or Student ID" 
+          disabled={!selectedPosition}
         />
       </div>
     </div>
@@ -670,7 +705,7 @@ export function RolePermissionsPage() {
     <Button
       onClick={() => {
         setIsSetOfficerModalOpen(false);
-        setSelectedPositionCard(null);
+        setSelectedOfficer(null);
         setSelectedPosition(null);
         setSelectedUser(null);
         setSearchQuery('');
@@ -683,7 +718,7 @@ export function RolePermissionsPage() {
     <Button 
       onClick={handleSetOfficer} 
       className="bg-[#2563EB] hover:bg-blue-700 text-white"
-      disabled={!selectedUser}
+      disabled={!selectedPosition || !selectedUser}
     >
       Set Officer
     </Button>

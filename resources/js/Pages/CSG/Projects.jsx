@@ -106,9 +106,7 @@ function CSGProjectsPageInner() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterApprovalStatus, setFilterApprovalStatus] = useState('all');
-  const [budgetItems, setBudgetItems] = useState([
-    { id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }
-  ]);
+  const [budgetItems, setBudgetItems] = useState([]);
   const [newProject, setNewProject] = useState({
     title: '',
     category: '',
@@ -116,6 +114,7 @@ function CSGProjectsPageInner() {
     objective: '',
     venue: '',
     proposedBy: '',
+    budget: '',
     startDate: '',
     endDate: '',
   });
@@ -138,9 +137,9 @@ function CSGProjectsPageInner() {
     approvalStatus: p.approval_status || p.approvalStatus || '',
     progress: p.progress || 0,
     budget: p.budget || 0,
-    budgetBreakdown: p.budget_breakdown
-      ? (typeof p.budget_breakdown === 'string' ? JSON.parse(p.budget_breakdown) : p.budget_breakdown)
-      : (p.budgetBreakdown || []),
+    // budgetBreakdown: p.budget_breakdown
+    //   ? (typeof p.budget_breakdown === 'string' ? JSON.parse(p.budget_breakdown) : p.budget_breakdown)
+    //   : (p.budgetBreakdown || []),
     startDate: p.start_date || p.startDate || '',
     endDate: p.end_date || p.endDate || '',
     createdAt: p.created_at || p.createdAt || '',
@@ -265,49 +264,25 @@ function CSGProjectsPageInner() {
   }, [selectedProjectId]);
 
   const addBudgetItem = () => {
-    const newId = budgetItems.length > 0 
-      ? Math.max(...budgetItems.map(item => item.id)) + 1 
-      : 1;
-    setBudgetItems([...budgetItems, { id: newId, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
+    // Deprecated - no longer used
   };
 
   const removeBudgetItem = (id) => {
-    if (budgetItems.length > 1) {
-      setBudgetItems(budgetItems.filter(item => item.id !== id));
-    }
+    // Deprecated - no longer used
   };
 
   const updateBudgetItem = (id, field, value) => {
-    setBudgetItems(budgetItems.map(item => {
-      if (item.id === id) {
-        const updatedItem = { ...item, [field]: value };
-        
-        if (field === 'quantity' || field === 'unitPrice') {
-          const quantity = field === 'quantity' ? parseFloat(value) || 0 : parseFloat(item.quantity) || 0;
-          const unitPrice = field === 'unitPrice' ? parseFloat(value) || 0 : parseFloat(item.unitPrice) || 0;
-          updatedItem.amount = quantity * unitPrice;
-        }
-        
-        return updatedItem;
-      }
-      return item;
-    }));
+    // Deprecated - no longer used
   };
 
   const calculateTotalBudget = () => {
-    return budgetItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    return parseFloat(newProject.budget) || 0;
   };
 
   const handleCreateProject = async () => {
     if (!newProject.title || !newProject.category || !newProject.description || 
         !newProject.objective || !newProject.venue || !newProject.proposedBy) {
       showToast('Please fill in all required fields', 'error');
-      return;
-    }
-
-    const hasEmptyItems = budgetItems.some(item => !item.item || !item.unitPrice || item.quantity <= 0);
-    if (hasEmptyItems) {
-      showToast('Please fill in all budget items', 'error');
       return;
     }
 
@@ -319,8 +294,9 @@ function CSGProjectsPageInner() {
     formData.append('objective', newProject.objective);
     formData.append('venue', newProject.venue);
     formData.append('category', newProject.category);
-    formData.append('budget', calculateTotalBudget().toString());
-    formData.append('budget_breakdown', JSON.stringify(budgetItems));
+    if (newProject.budget) {
+      formData.append('budget', newProject.budget);
+    }
     formData.append('status', 'Draft');
     formData.append('proposed_by', newProject.proposedBy);
     formData.append('start_date', newProject.startDate);
@@ -362,10 +338,10 @@ function CSGProjectsPageInner() {
         objective: '',
         venue: '',
         proposedBy: '',
+        budget: '',
         startDate: '',
         endDate: '',
       });
-      setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
       setFilePreview(null);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -870,10 +846,10 @@ function CSGProjectsPageInner() {
           objective: '',
           venue: '',
           proposedBy: '',
+          budget: '',
           startDate: '',
           endDate: '',
         });
-        setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
         setFilePreview(null);
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -938,77 +914,19 @@ function CSGProjectsPageInner() {
             />
           </div>
 
-          {/* Budget Breakdown Section */}
-          <div className="grid grid-cols-1 gap-4">
             <div>
-              <FieldLabel>Budget Breakdown (₱)</FieldLabel>
-              <div className="space-y-3">
-                {budgetItems.map((item) => (
-                  <div key={item.id} className="flex gap-2 items-start">
-                    <Input
-                      placeholder="Item name"
-                      value={item.item}
-                      onChange={(e) => updateBudgetItem(item.id, 'item', e.target.value)}
-                      className="flex-1 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Qty"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateBudgetItem(item.id, 'quantity', e.target.value)}
-                      className="w-20 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Price"
-                      min="0"
-                      step="0.01"
-                      value={item.unitPrice}
-                      onChange={(e) => updateBudgetItem(item.id, 'unitPrice', e.target.value)}
-                      className="w-28 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                    />
-                    <div className="w-28 h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium">
-                      ₱{(item.amount || 0).toLocaleString()}
-                    </div>
-                    {budgetItems.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeBudgetItem(item.id)}
-                        className="rounded-lg text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  onClick={addBudgetItem}
-                  variant="outline"
-                  size="sm"
-                  className="w-full rounded-xl"
-                  disabled={budgetItems.some(item => !item.item || !item.unitPrice || item.quantity <= 0)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Budget Item
-                </Button>
-              </div>
-            </div>
-            <div>
-              <FieldLabel>Estimated Total Budget (₱)</FieldLabel>
-              <div className="bg-blue-50 rounded-xl p-4 mt-1">
-                <p className="text-3xl font-semibold text-blue-900">
-                  ₱{calculateTotalBudget().toLocaleString()}
-                </p>
-                <p className="text-xs text-blue-700 mt-1">
-                  Auto-calculated from breakdown items
-                </p>
-              </div>
-            </div>
-          </div>
+              <FieldLabel>Project Budget (Optional)</FieldLabel>
+              <Input
+                type="number"
+                placeholder="Enter project budget amount"
+                value={newProject.budget || ''}
+                onChange={(e) => setNewProject({ ...newProject, budget: e.target.value })}
+                min="0"
+                step="0.01"
+                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+              /> 
+            </div>          
+         
 
           <div>
           <FieldLabel>Project Budget Proof (Optional)</FieldLabel>
@@ -1101,10 +1019,10 @@ function CSGProjectsPageInner() {
                 objective: '',
                 venue: '',
                 proposedBy: '',
+                budget: '',
                 startDate: '',
                 endDate: '',
               });
-              setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
               setFilePreview(null);
               setSelectedFile(null);
               if (fileInputRef.current) fileInputRef.current.value = '';

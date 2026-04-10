@@ -259,10 +259,14 @@ export function SystemLogsPage() {
           <h1 className="text-2xl font-semibold text-gray-900">System Logs</h1>
           <p className="text-gray-500">Monitor all system activities and user actions</p>
         </div>
-        <Button variant="outline" className="rounded-xl">
-          <Download className="w-4 h-4 mr-2" />
-          Export Logs
-        </Button>
+        <button
+        type="button"
+        // onClick={handleExport}
+        className="inline-flex items-center justify-center px-4 py-2 border bg-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+      >
+        <Download className="w-4 h-4 mr-2" />
+        Export CSV
+      </button>
       </div>
 
       {/* Summary Cards */}
@@ -277,7 +281,7 @@ export function SystemLogsPage() {
           </div>
         </Card>
 
-        <Card className="rounded-[20px] p-4 border-0 shadow-sm bg-green-50">
+        <Card className="rounded-[20px] p-4 border-0 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-green-700">Success</p>
@@ -287,7 +291,7 @@ export function SystemLogsPage() {
           </div>
         </Card>
 
-        <Card className="rounded-[20px] p-4 border-0 shadow-sm bg-yellow-50">
+        <Card className="rounded-[20px] p-4 border-0 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-yellow-700">Warnings</p>
@@ -297,7 +301,7 @@ export function SystemLogsPage() {
           </div>
         </Card>
 
-        <Card className="rounded-[20px] p-4 border-0 shadow-sm bg-red-50">
+        <Card className="rounded-[20px] p-4 border-0 shadow-sm ">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-red-700">Failed</p>
@@ -310,10 +314,6 @@ export function SystemLogsPage() {
 
       {/* Filters */}
       <Card className="rounded-[20px] border-0 shadow-sm p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-5 h-5 text-gray-600" />
-          <h2 className="text-gray-900">Filters</h2>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Search */}

@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Chain;
 use App\Models\User;
 use App\Models\User\LedgerEntry;
+use App\Models\User\Project;
 use App\Support\AdviserLedgerFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -87,16 +88,23 @@ class AdviserLedgerController extends Controller
             ->filter()
             ->values();
 
+        $totalProjectBudget = Project::query()
+            ->where('archive', false)
+            ->sum('budget');
+
         return Inertia::render('Adviser/Ledger', [
             'ledgerEntries' => $ordered,
             'auditTrail' => $auditTrail,
             'projectFilterOptions' => $projectNames,
+            'totalProjectBudget' => (float) $totalProjectBudget,
         ]);
     }
 
     public function approve(Request $request, string $id)
     {
-        $entry = LedgerEntry::where('id', $id)->firstOrFail();
+        $entry = LedgerEntry::where('id', $id)->with('project')->firstOrFail();
+        $wasApproved = $entry->approval_status === 'Approved';
+
         $entry->update([
             'approval_status' => 'Approved',
             'approved_by' => auth()->id(),
@@ -104,6 +112,18 @@ class AdviserLedgerController extends Controller
             'updated_by' => auth()->id(),
             'rejected_at' => null,
         ]);
+
+        if (! $wasApproved && $entry->project) {
+            $amount = (float) $entry->amount;
+            if ($amount > 0) {
+                if ($entry->type === 'Expense') {
+                    $entry->project->budget = max(0, (float) $entry->project->budget - $amount);
+                } elseif (in_array($entry->type, ['Income', 'Canvas', 'Donation', 'Sponsorship'], true)) {
+                    $entry->project->budget = (float) $entry->project->budget + $amount;
+                }
+                $entry->project->save();
+            }
+        }
 
         $this->writeAudit(
             'Ledger Entry Approved',

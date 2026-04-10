@@ -47,8 +47,7 @@ class ProjectController extends Controller
                 'objective' => 'required|string',
                 'venue' => 'required|string',
                 'category' => 'required|string',
-                'budget' => 'required|numeric',
-                'budget_breakdown' => 'required|json',
+                'budget' => 'nullable|numeric|min:0',
                 'proposed_by' => 'required|string',
                 'status' => 'nullable|string',
                 'approval_status' => 'nullable|string',
@@ -64,8 +63,7 @@ class ProjectController extends Controller
             $project->objective = $request->objective;
             $project->venue = $request->venue;
             $project->category = $request->category;
-            $project->budget = $request->budget;
-            $project->budget_breakdown = $request->budget_breakdown;
+            $project->budget = $request->budget ?? 0;
             $project->proposed_by = $request->proposed_by;
             $project->start_date = $request->start_date;
             $project->end_date = $request->end_date;
@@ -87,32 +85,6 @@ class ProjectController extends Controller
             $project->updated_at = now();
             
             $project->save();
-
-            // Attempt to create initial ledger entry (won't block project creation if it fails)
-            try {
-                DB::table('ledger_entries')->insert([
-                    'id' => Str::uuid()->toString(),
-                    'project_id' => $project->id,
-                    'type' => 'Expense',
-                    'amount' => $project->budget ?: 0,
-                    'budget_breakdown' => $request->budget_breakdown,
-                    'description' => 'Initial project expense allocation',
-                    'ledger_proof' => null,
-                    'approval_status' => 'Draft',
-                    'is_initial_entry' => true,
-                    'note' => null,
-                    'approved_by' => null,
-                    'created_by' => auth()->id(),
-                    'updated_by' => null,
-                    'approved_at' => null,
-                    'rejected_at' => null,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            } catch (\Exception $e) {
-                // Log the ledger entry creation error but don't fail the project creation
-                \Log::warning('Could not create initial ledger entry for project ' . $project->id . ': ' . $e->getMessage());
-            }
             
             // Return the project with the file URL
             $project->project_proof_url = $project->project_proof ? Storage::url($project->project_proof) : null;
@@ -143,8 +115,7 @@ class ProjectController extends Controller
                 'objective' => 'sometimes|required|string',
                 'venue' => 'sometimes|required|string',
                 'category' => 'sometimes|required|string',
-                'budget' => 'sometimes|required|numeric',
-                'budget_breakdown' => 'sometimes|required|json',
+                'budget' => 'sometimes|nullable|numeric|min:0',
                 'proposed_by' => 'sometimes|required|string',
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
@@ -158,7 +129,6 @@ class ProjectController extends Controller
             if ($request->has('venue')) $project->venue = $request->venue;
             if ($request->has('category')) $project->category = $request->category;
             if ($request->has('budget')) $project->budget = $request->budget;
-            if ($request->has('budget_breakdown')) $project->budget_breakdown = $request->budget_breakdown;
             if ($request->has('proposed_by')) $project->proposed_by = $request->proposed_by;
             if ($request->has('start_date')) $project->start_date = $request->start_date;
             if ($request->has('end_date')) $project->end_date = $request->end_date;
@@ -184,36 +154,6 @@ class ProjectController extends Controller
             }
             
             $project->save();
-            
-            // If budget or budget_breakdown was updated, also update the initial ledger entry
-            if ($request->has('budget') || $request->has('budget_breakdown')) {
-                try {
-                    $initialEntry = LedgerEntry::where('project_id', $project->id)
-                        ->where('is_initial_entry', true)
-                        ->first();
-
-                    if ($initialEntry) {
-                        $updateData = [];
-                        
-                        if ($request->has('budget')) {
-                            $updateData['amount'] = $project->budget;
-                        }
-                        
-                        if ($request->has('budget_breakdown')) {
-                            $updateData['budget_breakdown'] = $project->budget_breakdown;
-                        }
-                        
-                        if (!empty($updateData)) {
-                            $updateData['updated_by'] = auth()->id();
-                            $updateData['updated_at'] = now();
-                            $initialEntry->update($updateData);
-                        }
-                    }
-                } catch (\Exception $e) {
-                    // Log but don't fail the project update
-                    \Log::warning('Could not update initial ledger entry: ' . $e->getMessage());
-                }
-            }
             
             // Add file URL to response
             $project->project_proof_url = $project->project_proof ? Storage::url($project->project_proof) : null;
@@ -301,23 +241,6 @@ class ProjectController extends Controller
             $project->updated_at = now();
             $project->save();
 
-            // Update the initial budget breakdown (ledger entry) to pending adviser approval too
-            $initialLedgerEntry = LedgerEntry::where('project_id', $id)
-                ->where(function ($q) {
-                    $q->where('is_initial_entry', true)
-                      ->orWhere('description', 'Initial project expense allocation');
-                })
-                ->first();
-            
-            // Update initial ledger status from Draft or Rejected to Pending Adviser Approval
-            if ($initialLedgerEntry && in_array($initialLedgerEntry->approval_status, ['Draft', 'Rejected'])) {
-                $initialLedgerEntry->update([
-                    'approval_status' => 'Pending Adviser Approval',
-                    'updated_by' => auth()->id(),
-                    'rejected_at' => null,  // Clear rejection timestamp if it was rejected before
-                ]);
-            }
-            
             // Create approval record (no teacher/adviser table dependency)
             try {
                 $approverEmployeeId = $project->approve_by;
