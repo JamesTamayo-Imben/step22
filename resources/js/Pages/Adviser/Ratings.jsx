@@ -141,10 +141,14 @@ export function RatingsAnalyticsPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Ratings & Analytics</h1>
           <p className="text-gray-500">Student feedback on approved projects (database-backed)</p>
         </div>
-        <Button type="button" variant="outline" className="rounded-xl" onClick={handleExport}>
-          <Download className="w-4 h-4 mr-2" />
-          Export Report
-        </Button>
+         <button
+        type="button"
+        onClick={handleExport}
+        className="inline-flex items-center justify-center px-4 py-2 border bg-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+      >
+        <Download className="w-4 h-4 mr-2" />
+        Export CSV
+      </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

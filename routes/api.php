@@ -2,8 +2,8 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\ChatbotController;
 // Import your controllers here
-use App\Http\Controllers\FinancialTransactionController;
 use App\Http\Controllers\CSG\LedgerEntryController;
 use App\Http\Controllers\Auth\OTPController;
 use App\Http\Controllers\Auth\OnboardingController;
@@ -23,6 +23,8 @@ use App\Http\Controllers\Auth\OnboardingController;
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
+
+Route::post('/chatbot', ChatbotController::class)->middleware('auth:sanctum');
 
 /**
  * AUTHENTICATION - OTP Routes (No auth required)
@@ -62,3 +64,6 @@ Route::get('/ledger-entries/project/{projectId}', [LedgerEntryController::class,
 
 // Route to fetch all entries (accepts project_id as query parameter)
 Route::get('/ledger-entries', [LedgerEntryController::class, 'all']);
+
+// Route to verify blockchain integrity for a project
+Route::get('/projects/{projectId}/verify-chain', [LedgerEntryController::class, 'verifyChain']);

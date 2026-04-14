@@ -13,7 +13,7 @@ class FinancialTransactionController extends Controller
         // 1. Validate the input and file [cite: 251]
         $request->validate([
             'amount' => 'required|numeric',
-            'type' => 'required|in:Income,Expense',
+            'type' => 'required|in:Income,Expense,Canvas,Donation,Sponsorship',
             'description' => 'required|string',
             'ledger_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB limit
         ]);

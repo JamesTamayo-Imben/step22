@@ -35,4 +35,21 @@ return [
         ],
     ],
 
+    'chatbot' => [
+        'provider' => env('CHATBOT_PROVIDER', 'openai'),
+        'system_prompt' => env('CHATBOT_SYSTEM_PROMPT', 'You are a helpful student assistant that answers questions about projects, meetings, badges, and student account workflows.'),
+        'timeout' => env('CHATBOT_TIMEOUT', 30),
+    ],
+
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-3.5-turbo'),
+    ],
+
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-1.5-pro'),
+        'base_uri' => env('GEMINI_API_URI', 'https://generativelanguage.googleapis.com'),
+    ],
+
 ];

@@ -48,6 +48,21 @@ class AdviserDashboardController extends Controller
 
         $pendingApprovalsTotal = $pendingProjects + $pendingLedger + $pendingMeetings;
 
+        // Check for tampered ledger entries across all projects
+        $tamperedCount = 0;
+        $allLedgerEntries = LedgerEntry::query()
+            ->with('project')
+            ->where('archive', false)
+            ->get();
+
+        $projectIds = $allLedgerEntries->pluck('project_id')->unique();
+        foreach ($projectIds as $projectId) {
+            $verification = \App\Support\BlockchainService::verifyChain($projectId);
+            if (isset($verification['tamperedBlocks']) && is_array($verification['tamperedBlocks'])) {
+                $tamperedCount += count($verification['tamperedBlocks']);
+            }
+        }
+
         $ratingAvg = Rating::query()->where('archive', false)->avg('rating_score');
         $avgRating = $ratingAvg !== null ? round((float) $ratingAvg, 2) : 0.0;
 
@@ -100,9 +115,7 @@ class AdviserDashboardController extends Controller
                 // 'pendingLedger' => $pendingLedger,
                 'pendingMeetings' => $pendingMeetings,
                 'avgRating' => $avgRating,
-                'systemAlerts' => min(10, AuditLog::query()->where('archive', false)->where('created_at', '>=', now()->subDay())->where(function ($q) {
-                    $q->where('action', 'like', '%reject%')->orWhere('action', 'like', '%Reject%');
-                })->count()),
+                'tamperedAlerts' => $tamperedCount,
                 'activeCsgCount' => $activeCsgCount,
             ],
             'approvalQueue' => $queue->take(3)->values(),

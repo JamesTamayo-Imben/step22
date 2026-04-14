@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
@@ -21,6 +21,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { CSGProjectDetailsPage } from './ProjectDetails';
+import { CreateProjectModal } from './modal';
 
 function showToast(message, type = 'success') {
   const id = `simple-toast-${Date.now()}`;
@@ -97,6 +98,7 @@ function Select({ className = '', children, value, onValueChange, ...props }) {
 
 function CSGProjectsPageInner() {
   const [projects, setProjects] = useState([]);
+  const [ledgerEntries, setLedgerEntries] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(() => {
     const match = window.location.pathname.match(/\/csg\/projects\/(.+)$/);
@@ -106,9 +108,7 @@ function CSGProjectsPageInner() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterApprovalStatus, setFilterApprovalStatus] = useState('all');
-  const [budgetItems, setBudgetItems] = useState([
-    { id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }
-  ]);
+  const [budgetItems, setBudgetItems] = useState([]);
   const [newProject, setNewProject] = useState({
     title: '',
     category: '',
@@ -116,6 +116,7 @@ function CSGProjectsPageInner() {
     objective: '',
     venue: '',
     proposedBy: '',
+    budget: '',
     startDate: '',
     endDate: '',
   });
@@ -138,9 +139,9 @@ function CSGProjectsPageInner() {
     approvalStatus: p.approval_status || p.approvalStatus || '',
     progress: p.progress || 0,
     budget: p.budget || 0,
-    budgetBreakdown: p.budget_breakdown
-      ? (typeof p.budget_breakdown === 'string' ? JSON.parse(p.budget_breakdown) : p.budget_breakdown)
-      : (p.budgetBreakdown || []),
+    // budgetBreakdown: p.budget_breakdown
+    //   ? (typeof p.budget_breakdown === 'string' ? JSON.parse(p.budget_breakdown) : p.budget_breakdown)
+    //   : (p.budgetBreakdown || []),
     startDate: p.start_date || p.startDate || '',
     endDate: p.end_date || p.endDate || '',
     createdAt: p.created_at || p.createdAt || '',
@@ -177,6 +178,14 @@ function CSGProjectsPageInner() {
     });
   };
 
+  const tamperedProjectIds = new Set( 
+    (ledgerEntries || [])
+      .filter((entry) => entry?.verificationState?.tampered)
+      .map((entry) => String(entry?.project_id || entry?.projectId || ''))
+      .filter(Boolean)
+  );
+  const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
+
   // Fetch projects from backend
   const fetchProjects = async () => {
     try {
@@ -205,6 +214,28 @@ function CSGProjectsPageInner() {
 
   useEffect(() => {
     fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    const fetchLedgerEntries = async () => {
+      try {
+        const response = await fetch('/api/ledger-entries', {
+          headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setLedgerEntries(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch ledger entries for lock state', error);
+      }
+    };
+
+    fetchLedgerEntries();
   }, []);
 
   // Fetch specific project when selectedProjectId is set and not in projects array
@@ -265,49 +296,25 @@ function CSGProjectsPageInner() {
   }, [selectedProjectId]);
 
   const addBudgetItem = () => {
-    const newId = budgetItems.length > 0 
-      ? Math.max(...budgetItems.map(item => item.id)) + 1 
-      : 1;
-    setBudgetItems([...budgetItems, { id: newId, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
+    // Deprecated - no longer used
   };
 
   const removeBudgetItem = (id) => {
-    if (budgetItems.length > 1) {
-      setBudgetItems(budgetItems.filter(item => item.id !== id));
-    }
+    // Deprecated - no longer used
   };
 
   const updateBudgetItem = (id, field, value) => {
-    setBudgetItems(budgetItems.map(item => {
-      if (item.id === id) {
-        const updatedItem = { ...item, [field]: value };
-        
-        if (field === 'quantity' || field === 'unitPrice') {
-          const quantity = field === 'quantity' ? parseFloat(value) || 0 : parseFloat(item.quantity) || 0;
-          const unitPrice = field === 'unitPrice' ? parseFloat(value) || 0 : parseFloat(item.unitPrice) || 0;
-          updatedItem.amount = quantity * unitPrice;
-        }
-        
-        return updatedItem;
-      }
-      return item;
-    }));
+    // Deprecated - no longer used
   };
 
   const calculateTotalBudget = () => {
-    return budgetItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    return parseFloat(newProject.budget) || 0;
   };
 
   const handleCreateProject = async () => {
     if (!newProject.title || !newProject.category || !newProject.description || 
         !newProject.objective || !newProject.venue || !newProject.proposedBy) {
       showToast('Please fill in all required fields', 'error');
-      return;
-    }
-
-    const hasEmptyItems = budgetItems.some(item => !item.item || !item.unitPrice || item.quantity <= 0);
-    if (hasEmptyItems) {
-      showToast('Please fill in all budget items', 'error');
       return;
     }
 
@@ -319,8 +326,9 @@ function CSGProjectsPageInner() {
     formData.append('objective', newProject.objective);
     formData.append('venue', newProject.venue);
     formData.append('category', newProject.category);
-    formData.append('budget', calculateTotalBudget().toString());
-    formData.append('budget_breakdown', JSON.stringify(budgetItems));
+    if (newProject.budget) {
+      formData.append('budget', newProject.budget);
+    }
     formData.append('status', 'Draft');
     formData.append('proposed_by', newProject.proposedBy);
     formData.append('start_date', newProject.startDate);
@@ -362,10 +370,10 @@ function CSGProjectsPageInner() {
         objective: '',
         venue: '',
         proposedBy: '',
+        budget: '',
         startDate: '',
         endDate: '',
       });
-      setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
       setFilePreview(null);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -538,6 +546,15 @@ function CSGProjectsPageInner() {
         </Button>
       );
     }
+
+    // if (isProjectLocked(project.id)) {
+    //   return (
+    //     <Button className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white" disabled>
+    //       <AlertCircle className="w-4 h-4 mr-2" />
+    //       Locked (Tampered)
+    //     </Button>
+    //   );
+    // }
 
     switch (project.approvalStatus) {
       case 'Approved':
@@ -859,271 +876,52 @@ function CSGProjectsPageInner() {
       )}
 
       {/* Create Project Modal */}
-      <Modal
-      open={showCreateModal}
-      onClose={() => {
-        setShowCreateModal(false);
-        setNewProject({
-          title: '',
-          category: '',
-          description: '',
-          objective: '',
-          venue: '',
-          proposedBy: '',
-          startDate: '',
-          endDate: '',
-        });
-        setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
-        setFilePreview(null);
-        setSelectedFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }}
-        title="Create New Project"
-        description="Fill in the project details below"
-      >
-        <div className="space-y-4 pt-6">
-          <div>
-            <FieldLabel>Project Title *</FieldLabel>
-            <Input
-              placeholder="Enter project title"
-              value={newProject.title || ''}
-              onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
-              className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-            />
-          </div>
-
-          <div>
-            <FieldLabel>Category *</FieldLabel>
-            <Select value={newProject.category || ''} onValueChange={(value) => setNewProject({ ...newProject, category: value })}>
-              <option value="">Select category</option>
-              <option value="Social">Social</option>
-              <option value="Sports">Sports</option>
-              <option value="Environmental">Environmental</option>
-              <option value="Technology">Technology</option>
-              <option value="Cultural">Cultural</option>
-              <option value="Education">Education</option>
-              <option value="Health">Health</option>
-            </Select>
-          </div>
-
-          <div>
-            <FieldLabel>Objective *</FieldLabel>
-            <Textarea
-              placeholder="Describe the main objective of the project"
-              value={newProject.objective || ''}
-              onChange={(e) => setNewProject({ ...newProject, objective: e.target.value })}
-              rows={3}
-              className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-            />
-          </div>
-
-          <div>
-            <FieldLabel>Description *</FieldLabel>
-            <Textarea
-              placeholder="Describe the project details and goals"
-              value={newProject.description || ''}
-              onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-              rows={4}
-              className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-            />
-          </div>
-
-          <div>
-            <FieldLabel>Venue *</FieldLabel>
-            <Input
-              placeholder="Enter project venue/location"
-              value={newProject.venue || ''}
-              onChange={(e) => setNewProject({ ...newProject, venue: e.target.value })}
-              className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-            />
-          </div>
-
-          {/* Budget Breakdown Section */}
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <FieldLabel>Budget Breakdown (₱)</FieldLabel>
-              <div className="space-y-3">
-                {budgetItems.map((item) => (
-                  <div key={item.id} className="flex gap-2 items-start">
-                    <Input
-                      placeholder="Item name"
-                      value={item.item}
-                      onChange={(e) => updateBudgetItem(item.id, 'item', e.target.value)}
-                      className="flex-1 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Qty"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateBudgetItem(item.id, 'quantity', e.target.value)}
-                      className="w-20 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Price"
-                      min="0"
-                      step="0.01"
-                      value={item.unitPrice}
-                      onChange={(e) => updateBudgetItem(item.id, 'unitPrice', e.target.value)}
-                      className="w-28 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                    />
-                    <div className="w-28 h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium">
-                      ₱{(item.amount || 0).toLocaleString()}
-                    </div>
-                    {budgetItems.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeBudgetItem(item.id)}
-                        className="rounded-lg text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  onClick={addBudgetItem}
-                  variant="outline"
-                  size="sm"
-                  className="w-full rounded-xl"
-                  disabled={budgetItems.some(item => !item.item || !item.unitPrice || item.quantity <= 0)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Budget Item
-                </Button>
-              </div>
-            </div>
-            <div>
-              <FieldLabel>Estimated Total Budget (₱)</FieldLabel>
-              <div className="bg-blue-50 rounded-xl p-4 mt-1">
-                <p className="text-3xl font-semibold text-blue-900">
-                  ₱{calculateTotalBudget().toLocaleString()}
-                </p>
-                <p className="text-xs text-blue-700 mt-1">
-                  Auto-calculated from breakdown items
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div>
-          <FieldLabel>Project Budget Proof (Optional)</FieldLabel>
-          <div className="flex flex-col items-center gap-3">
-            <button
-              type="button"
-              className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center hover:bg-gray-50 transition"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="w-6 h-6 text-gray-500" />
-              <p className="text-sm text-gray-600 mt-2">Click to upload</p>
-              <p className="text-xs text-gray-500 mt-1">PDF, Images up to 10MB</p>
-            </button>
-            <input 
-              ref={fileInputRef} 
-              type="file" 
-              accept=".pdf,.jpg,.jpeg,.png" 
-              onChange={handleFileUpload} 
-              className="hidden" 
-            />
-            {filePreview && (
-              <div className="w-full p-4 bg-gray-50 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{filePreview.name}</p>
-                    <p className="text-xs text-gray-500">{filePreview.size}</p>
-                  </div>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => { 
-                    setFilePreview(null); 
-                    setSelectedFile(null);
-                    if (fileInputRef.current) fileInputRef.current.value = ''; 
-                  }}
-                >
-                  ✕
-                </Button>
-              </div>
-            )}
-          </div>
-          <p className="text-xs text-gray-500 mt-2">
-            Upload supporting documents for budget justification (e.g., quotations, estimates)
-          </p>
-        </div>
-
-          {/* Proposed By Field */}
-          <div>
-            <FieldLabel>Proposed by *</FieldLabel>
-            <Input
-              placeholder="Enter name of proposer"
-              value={newProject.proposedBy || ''}
-              onChange={(e) => setNewProject({ ...newProject, proposedBy: e.target.value })}
-              className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Start Date</FieldLabel>
-              <Input
-                type="date"
-                value={newProject.startDate || ''}
-                onChange={(e) => setNewProject({ ...newProject, startDate: e.target.value })}
-                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-              />
-            </div>
-            <div>
-              <FieldLabel>End Date</FieldLabel>
-              <Input
-                type="date"
-                value={newProject.endDate || ''}
-                onChange={(e) => setNewProject({ ...newProject, endDate: e.target.value })}
-                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button
-            variant="outline"
-            onClick={() => {
-              setShowCreateModal(false);
-              setNewProject({
-                title: '',
-                category: '',
-                description: '',
-                objective: '',
-                venue: '',
-                proposedBy: '',
-                startDate: '',
-                endDate: '',
-              });
-              setBudgetItems([{ id: 1, item: '', quantity: 1, unitPrice: '', amount: 0 }]);
-              setFilePreview(null);
-              setSelectedFile(null);
-              if (fileInputRef.current) fileInputRef.current.value = '';
-            }}
-            className="flex-1 rounded-xl"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleCreateProject}
-            disabled={!newProject.title || !newProject.category || !newProject.description || 
-                     !newProject.objective || !newProject.venue || !newProject.proposedBy || isLoading}
-            className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-          >
-            {isLoading ? 'Creating...' : 'Create Project'}
-          </Button>
-          </div>
-        </div>
-      </Modal>
+      <CreateProjectModal
+        open={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setNewProject({
+            title: '',
+            category: '',
+            description: '',
+            objective: '',
+            venue: '',
+            proposedBy: '',
+            budget: '',
+            startDate: '',
+            endDate: '',
+          });
+          setFilePreview(null);
+          setSelectedFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }}
+        newProject={newProject}
+        setNewProject={setNewProject}
+        onSave={(data) => {
+          setShowCreateModal(false);
+          setNewProject({
+            title: '',
+            category: '',
+            description: '',
+            objective: '',
+            venue: '',
+            proposedBy: '',
+            budget: '',
+            startDate: '',
+            endDate: '',
+          });
+          setFilePreview(null);
+          setSelectedFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          // Redirect to project details page
+          const projectId = data.id || data.data?.id;
+          if (projectId) {
+            router.visit(`/csg/projects/${projectId}`);
+          } else {
+            window.location.reload();
+          }
+        }}
+      />
     </div>
   );
 }

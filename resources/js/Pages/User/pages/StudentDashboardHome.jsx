@@ -1,4 +1,5 @@
 import { TrendingUp, Award, Trophy, FolderKanban, Calendar, Star, Target, Zap } from 'lucide-react';
+import { Chatbot } from '@/Components/ui/Chatbot';
 
 export function StudentDashboardHome({
   onNavigate,
@@ -213,6 +214,10 @@ const getStatusColor = (status) => {
           <div className="h-full bg-gradient-to-r from-blue-600 to-purple-600 rounded-full" style={{ width: '83%' }}></div>
         </div>
       </div> */}
+
+      <Chatbot title="Project Assistant" />
     </div>
+
+    
   );
 }

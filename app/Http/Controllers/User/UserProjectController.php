@@ -96,7 +96,6 @@ class UserProjectController extends Controller
                     'id' => $entry->id,
                     'type' => $entry->type,
                     'amount' => (float) ($entry->amount ?? 0),
-                    'budgetBreakdown' => (int) ($entry->budget_breakdown ?? 0),
                     'description' => $entry->description,
                     'category' => $entry->category,
                     'ledgerProof' => $entry->ledger_proof,
@@ -165,6 +164,13 @@ class UserProjectController extends Controller
 
         $meetPayload = $this->getMeetingsPayload();
 
+        // Check for tampered ledger entries in this project
+        $tamperedCount = 0;
+        $verification = \App\Support\BlockchainService::verifyChain($project->id);
+        if (isset($verification['tamperedBlocks']) && is_array($verification['tamperedBlocks'])) {
+            $tamperedCount = count($verification['tamperedBlocks']);
+        }
+
         return Inertia::render('User/Dashboard', [
             'projects' => $this->getProjects($user?->id),
             'project' => [
@@ -182,6 +188,7 @@ class UserProjectController extends Controller
                 'objective' => $project->objective ?: 'No objective available.',
                 'proposeBy' => $project->proposed_by ?: 'Not specified',
                 'ratingsCount' => (int) ($project->ratings_count ?? 0),
+                'tamperedAlerts' => $tamperedCount,
                 'ratings' => $project->ratings->map(function ($rating) {
                     return [
                         'id' => $rating->id,
@@ -812,14 +819,7 @@ class UserProjectController extends Controller
 
     private function meetingPastVisibleToStudents(Meeting $m): bool
     {
-        $hasContent = ! empty($m->meeting_proof) || ! empty($m->minutes_content);
-        if (! $hasContent) {
-            return true;
-        }
-        $meta = json_decode($m->action_items ?? '', true);
-        $st = is_array($meta) ? ($meta['adviser_minutes_status'] ?? null) : null;
-
-        return $st === 'approved';
+        return true;
     }
 
     private function formatStudentMeeting(Meeting $m, string $segment): array
@@ -841,6 +841,9 @@ class UserProjectController extends Controller
             'type' => 'Meeting',
             'status' => $m->is_done ? 'Completed' : 'Scheduled',
             'minutesAvailable' => $segment === 'past' && $hasDocs,
+            'meeting_proof' => $m->meeting_proof,
+            'minutes_file_url' => $m->minutes_file_url,
+            'minutes_file_name' => $m->minutes_file_name,
             'attended' => false,
         ];
     }

@@ -19,22 +19,28 @@ import {
   Edit,
   Trash2,
   Send,
+  AlertCircle,
   Plus,
   Upload,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 import {
   showToast,
   Modal,
-  EditProjectModal,
   SubmitConfirmModal,
   SubmitLedgerConfirmModal,
   DeleteConfirmModal,
-  AddLedgerModal,
-  EditLedgerModal,
   UploadProofModal,
   EditActionButtons,
 } from './ProjectEdit';
+
+import {
+  EditProjectModal,
+  AddLedgerModal,
+  EditLedgerModal,
+} from './modal';
 
 // ─── Default project structure ────────────────────────────────────────────────────
 const defaultProject = {
@@ -58,6 +64,7 @@ const defaultProject = {
   createdBy: '',
   archive: 0,
   approvedAt: null,
+  is_initial: 0,
 };
 
 // ─── Mock Data for Status Timeline and Ratings ────────────────────────────────────
@@ -200,6 +207,29 @@ const getLedgerStatusColor = (status) => {
   }
 };
 
+const getTypeColor = (type) => {
+  switch (type) {
+    case 'Expense': return 'bg-red-100 text-red-700';
+    case 'Income': return 'bg-green-100 text-green-700';
+    case 'Donation': return 'bg-blue-100 text-blue-700';
+    case 'Sponsorship': return 'bg-purple-100 text-purple-700';
+    case 'Canvas': return 'bg-gray-100 text-gray-700';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+};
+
+const getTypeAmountColor = (type) => {
+  switch (type) {
+    case 'Expense': return 'text-red-700';
+    case 'Income': return 'text-green-700';
+    case 'Donation': return 'text-green-700';
+    case 'Sponsorship': return 'text-green-700';
+    case 'Canvas': return ' text-gray-700';
+    default: return 'text-gray-700';
+  }
+};
+
+
 const getStatusIcon = (status) => {
   switch (status) {
     case 'Approved': return <CheckCircle className="w-4 h-4 text-green-600" />;
@@ -267,6 +297,7 @@ export function CSGProjectDetailsPage({
   
   const [ledgerEntries, setLedgerEntries] = useState([]);
   const [proofDocuments, setProofDocuments] = useState([]);
+  const [verificationStatus, setVerificationStatus] = useState({ isValid: true, status: 'valid', message: 'Blockchain is valid', tamperedBlocks: [] });
   
   // Status timeline - changed from static to mutable state
   const [statusHistory, setStatusHistory] = useState(mockStatusHistory);
@@ -325,6 +356,15 @@ export function CSGProjectDetailsPage({
   const [showProofViewer, setShowProofViewer] = useState(false);
   const [showLedgerDetails, setShowLedgerDetails] = useState(false);
   
+  // Pagination state for ledger
+  const [currentLedgerPage, setCurrentLedgerPage] = useState(1);
+  const ledgerItemsPerPage = 5;
+  
+  // Reset ledger page when ledger entries change
+  useEffect(() => {
+    setCurrentLedgerPage(1);
+  }, [ledgerEntries]);
+  
   // Selected items
   const [selectedLedger, setSelectedLedger] = useState(null);
   const [selectedProof, setSelectedProof] = useState(null);
@@ -348,6 +388,14 @@ export function CSGProjectDetailsPage({
   const isApprovedOrPending = ['Approved', 'Pending Adviser Approval', 'Ongoing'].includes(project.approvalStatus);
   const isApproved = project.approvalStatus === 'Approved';
   const shouldShowNotes = isApprovedOrPending || project.approvalStatus === 'Rejected';
+
+// tampering disable
+const isTampered = verificationStatus.status === 'tampering_detected' || verificationStatus.status === 'Tampered';
+const tamperedLedgerIds = new Set(
+  (verificationStatus.tamperedBlocks || [])
+    .map((block) => block.ledgerId)
+    .filter(Boolean)
+);
 
   // Debug: Log when status changes to help troubleshoot button visibility
   React.useEffect(() => {
@@ -455,6 +503,7 @@ const formatDate = (dateString) => {
             updatedBy: data.updated_by || data.updatedBy || null,
             archive: data.archive || 0,
             approvedAt: data.approved_at || data.approvedAt || null,
+            is_initial: data.is_initial || 0,
           };
           setProject(normalized);
         }
@@ -493,6 +542,21 @@ const formatDate = (dateString) => {
     .filter((e) => e.type === 'Expense' && e.approval_status === 'Approved')
     .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
 
+  // Calculate effective budget based on approved ledger entries
+  const displayBudget = parseFloat(project.budget) || 0;
+  const computedBudgetFromLedger = ledgerEntries
+    .filter((entry) => entry.approval_status === 'Approved')
+    .reduce((sum, entry) => {
+      const amount = parseFloat(entry.amount) || 0;
+      const type = (entry.type || '').toLowerCase();
+      if (type === 'expense') return sum - amount;
+      if (['income', 'donation', 'sponsorship'].includes(type)) return sum + amount;
+      return sum;
+    }, 0);
+  const budgetDifference = displayBudget - computedBudgetFromLedger;
+  // Only check for budget tampering if a budget exists (greater than 0) and project is not marked as initial
+  const isBudgetTampered = displayBudget > 0 && !project.is_initial && Math.abs(budgetDifference) > 0.01;
+
   const normalizeLedgerEntry = (item) => {
     const breakdownRaw = item.budgetBreakdown || item.budget_breakdown;
     const budgetBreakdown = breakdownRaw
@@ -511,6 +575,8 @@ const formatDate = (dateString) => {
       isInitialEntry,
     };
   };
+
+  const ifBudgetNegative = project.budget < 0;
 
   // Function to build status timeline from ledger entries
   const buildStatusTimeline = (ledgerEntries) => {
@@ -639,11 +705,36 @@ const formatDate = (dateString) => {
       showToastMessage('Unable to load ratings', 'error');
     }
   };
+
+  // Fetch blockchain verification status
+  const fetchVerificationStatus = async () => {
+    if (!projectId) return;
+    
+    try {
+      const response = await fetch(`/api/projects/${projectId}/verify-chain`, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to verify blockchain');
+      }
+      
+      const data = await response.json();
+      setVerificationStatus(data);
+    } catch (error) {
+      console.error('Verification fetch error:', error);
+      setVerificationStatus({ isValid: false, status: 'error', message: 'Unable to verify blockchain' });
+    }
+  };
   
   // Fetch data when component mounts or project changes
   useEffect(() => {
     if (project.id) {
       fetchLedgerEntries();
+      fetchVerificationStatus();
       if (isApproved) {
         fetchProjectRatings();
       }
@@ -744,6 +835,8 @@ const formatDate = (dateString) => {
     archive: (responseData?.archive !== undefined && responseData?.archive !== null) 
       ? responseData.archive 
       : (project.archive !== undefined ? project.archive : 0),
+    // Preserve is_initial field for budget mismatch check
+    is_initial: responseData?.is_initial !== undefined ? responseData.is_initial : (project.is_initial || 0),
     // CRITICAL FIX: Ensure budget breakdown is properly synced
     budgetBreakdown: responseData?.budget_breakdown 
       ? (typeof responseData.budget_breakdown === 'string' ? JSON.parse(responseData.budget_breakdown) : responseData.budget_breakdown)
@@ -776,6 +869,7 @@ const formatDate = (dateString) => {
     approvalStatus: finalProject.approvalStatus,
     status: finalProject.status,
     archive: finalProject.archive,
+    is_initial: finalProject.is_initial,
     budgetBreakdown: finalProject.budgetBreakdown,
   };
   
@@ -921,6 +1015,7 @@ const formatDate = (dateString) => {
       // Wait a moment for the database to be ready, then fetch fresh data
       setTimeout(() => {
         fetchLedgerEntries();
+        fetchVerificationStatus();
       }, 500);
       return;
     }
@@ -966,6 +1061,7 @@ const formatDate = (dateString) => {
       
       // Update ledger entries - useEffect will rebuild timeline
       setLedgerEntries(ledgerEntries.filter(e => e.id !== entryToDelete));
+      fetchVerificationStatus();
       
       showToastMessage('Ledger entry deleted successfully', 'success');
       setDeleteLedgerModalOpen(false);
@@ -1014,6 +1110,7 @@ const formatDate = (dateString) => {
   const handleLedgerEntryUpdate = (updatedEntry) => {
     const mappedEntry = normalizeLedgerEntry(updatedEntry);
     setLedgerEntries((prevEntries) => prevEntries.map(e => e.id === mappedEntry.id ? mappedEntry : e));
+    fetchVerificationStatus();
     
     setShowEditLedgerModal(false);
     setSelectedLedger(null);
@@ -1043,6 +1140,7 @@ const formatDate = (dateString) => {
       const updatedEntry = await response.json();
       // Update ledger entries - useEffect will rebuild timeline
       setLedgerEntries(ledgerEntries.map(e => e.id === id ? updatedEntry : e));
+      fetchVerificationStatus();
       
       showToastMessage('Ledger entry submitted for approval', 'success');
     } catch (error) {
@@ -1174,10 +1272,39 @@ const formatDate = (dateString) => {
             )}
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:w-64">
-            <div className="bg-blue-50 rounded-xl p-4">
-              <DollarSign className="w-5 h-5 text-blue-600 mb-2" />
-              <p className="text-sm text-gray-500">Budget</p>
-              <p className="text-xl font-semibold text-gray-900"> ₱{Number(project.budget || 0).toLocaleString()}</p>
+            <div className={`${isBudgetTampered ? 'bg-red-50 border border-red-200' : 'bg-blue-50'} rounded-xl p-4`}>
+              <DollarSign className={`w-5 h-5 mb-2 ${isBudgetTampered ? 'text-red-600' : 'text-blue-600'}`} />
+             <p className="text-sm text-gray-500">Current Budget</p>
+<p className={`text-xl font-semibold ${
+  isBudgetTampered 
+    ? 'text-red-700' 
+    : Number(project.budget || 0) < 0 
+      ? 'text-red-600' 
+      : 'text-gray-900'
+}`}>
+  ₱{Number(project.budget || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+</p>
+{Number(project.budget || 0) < 0 && !isBudgetTampered && (
+  <p className="text-xs text-red-500 mt-1">
+     Dont panic. The expenses only have exceed the budget.
+  </p>
+)}
+              {isBudgetTampered && (
+                <div className="mt-2">
+                  <p className="text-xs font-semibold text-red-700">Alert: Budget mismatch detected</p>
+                  <p className="text-xs text-red-600">
+                    Ledger-computed: ₱{computedBudgetFromLedger.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-red-600">
+                    Difference: ₱{Math.abs(budgetDifference).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              )}
+              {/* {project.budget > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Base: ₱{Number(project.budget).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              )} */}
             </div>
             <div className="bg-blue-50 rounded-xl p-4">
               <Calendar className="w-5 h-5 text-blue-600 mb-2" />
@@ -1298,50 +1425,6 @@ const formatDate = (dateString) => {
             </div>
           </Card>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="rounded-[20px] border-0 shadow-sm p-6 mt-4">
-              <h2 className="text-lg font-semibold text-gray-900">Initial Budget Summary</h2>
-              <div className="bg-gray-50 rounded-xl p-4 mt-3">
-                <div className="max-h-64 overflow-y-auto">
-                  {Array.isArray(project.budgetBreakdown) && project.budgetBreakdown.length > 0 ? (
-                    project.budgetBreakdown.map((item, index) => (
-                      <div key={item.id || index} className={`flex justify-between py-2 ${index < project.budgetBreakdown.length - 1 ? 'border-b border-gray-200' : ''}`}>
-                        <div>
-                          <span className="text-sm text-gray-900">{item.item}</span>
-                          {item.quantity && (
-                            <span className="text-xs text-gray-500 ml-2">
-                              (₱{(parseFloat(item.unitPrice) || 0).toLocaleString()} x {item.quantity})
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-sm font-medium text-gray-900">
-                          ₱{(parseFloat(item.amount) || 0).toLocaleString()}
-                        </span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-center py-4">No budget items added yet.</p>
-                  )}
-                </div>
-                <div className="flex justify-between pt-3 mt-3 border-t border-gray-300 font-semibold sticky bottom-0 bg-gray-50">
-                  <span className="text-gray-700">Total</span>
-                  <span className="text-blue-600"> ₱{Number(project.budget || 0).toLocaleString()}</span>
-                </div>
-              </div>
-            </Card>
-            
-            <Card className="rounded-[20px] border-0 shadow-sm p-6 mt-4">
-              <h2 className="text-lg font-semibold text-gray-900">Project Proof</h2>
-              <div className="bg-gray-50 rounded-xl p-4 mt-3">
-                {project.proof ? (
-                  <img src={project.proof} alt="Project Proof" className="w-full h-full object-contain" />
-                ) : (
-                  <p className="text-gray-500 text-center py-4">No project proof available.</p>
-                )}
-              </div>
-            </Card>
-          </div>
-          
           {shouldShowNotes && (
             <Card className="rounded-[20px] border-0 shadow-sm p-6 mt-4">
               <h2 className="text-lg font-semibold text-gray-900">
@@ -1377,20 +1460,34 @@ const formatDate = (dateString) => {
       {activeTab === 'ledger' && isApproved && (
         <div className="space-y-6">
           <Card className="rounded-[20px] border-0 shadow-sm p-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-gray-900">Ledger Entries</h2>
-                <Badge className="bg-purple-100 text-purple-700 rounded-lg">
-                  <Shield className="w-3 h-3 mr-1" />Verified
+                <Badge className={`rounded-lg ${
+                  verificationStatus.status === 'tampering_detected' 
+                    ? 'bg-red-100 text-red-700' 
+                    : verificationStatus.status === 'error'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : 'bg-purple-100 text-purple-700'
+                }`}>
+                  <Shield className={`w-3 h-3 mr-1 ${
+                    verificationStatus.status === 'tampering_detected' ? 'text-red-500' : 'text-purple-500'
+                  }`} />
+                  {verificationStatus.status === 'tampering_detected' ? 'Tampered Alert' : 'Verified'}
                 </Badge>
               </div>
-              <Button 
-                onClick={() => setShowAddLedgerModal(true)} 
-                className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Ledger Entry
-              </Button>
+             <Button 
+  onClick={() => setShowAddLedgerModal(true)} 
+  className={`rounded-xl transition-all ${
+    isTampered 
+      ? 'bg-gray-400 cursor-not-allowed opacity-50' 
+      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
+  }`}
+  disabled={isTampered}
+>
+  <Plus className="w-4 h-4 mr-2" />
+  Add Ledger Entry
+</Button>
             </div>
             
             {loading ? (
@@ -1408,103 +1505,260 @@ const formatDate = (dateString) => {
               </div>
             ) : (
               <>
-                {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200 bg-blue-50">
-                        {['ID', 'Type', 'Amount', 'Description', 'Status', 'Actions'].map((h) => (
-                          <th key={h} className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ledgerEntries.map((entry) => (
-                        <tr key={entry.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4 font-mono text-sm text-gray-600">{entry.id.substring(0, 8)}...</td>
-                          <td className="py-3 px-4">
-                            <Badge className={`rounded-lg ${entry.type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                              {entry.type}
-                            </Badge>
-                          </td>
-                          <td className={`py-3 px-4 font-semibold text-gray-900 ${entry.type === 'Income' ? 'text-green-700' : 'text-red-700'}`}>
-                            ₱{parseFloat(entry.amount).toLocaleString()}
-                          </td>
-                          <td className="py-3 px-4 max-w-[200px] truncate text-gray-700">{entry.description}</td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-1">
-                              {getStatusIcon(entry.approval_status)}
-                              <Badge className={`rounded-lg ${getLedgerStatusColor(entry.approval_status)}`}>
-                                {entry.approval_status}
-                              </Badge>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg">
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              {entry.approval_status === 'Draft' && (
-                                <>
-                                  <Button variant="ghost" size="sm" onClick={() => { console.log('🖱️ Desktop edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" onClick={() => { setLedgerToSubmit(entry); setShowSubmitLedgerModal(true); }} className="rounded-lg">
-                                    <Send className="w-4 h-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(entry.id)} className="rounded-lg text-red-600 hover:text-red-700">
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Pagination logic */}
+                {(() => {
+                  const totalLedgerPages = Math.ceil(ledgerEntries.length / ledgerItemsPerPage);
+                  const indexOfLastLedgerItem = currentLedgerPage * ledgerItemsPerPage;
+                  const indexOfFirstLedgerItem = indexOfLastLedgerItem - ledgerItemsPerPage;
+                  const currentLedgerItems = ledgerEntries.slice(indexOfFirstLedgerItem, indexOfLastLedgerItem);
+                  
+                  return (
+                    <>
+                      {/* Desktop Table */}
+                     {/* Desktop Table */}
+<div className="hidden md:block overflow-x-auto">
+  {/* Tampering Warning - Moved OUTSIDE the table */}
+  {isTampered && (
+    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+       <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-800">Security Alert. 
+                  <span className="text-xs text-red-600 ml-2">
+                     A Ledger Entry has been Tampered. Please review the affected entries and contact system administrators immediately.
+                  </span>
+                </p>
+        
+  
+              </div>
+            </div>
+    </div>
+  )}
+  
+  <table className={`w-full ${isTampered ? 'opacity-60 pointer-events-none' : ''}`}>
+    <thead>
+      <tr className="border-b border-gray-200 bg-blue-50">
+        {['ID', 'Type', 'Amount', 'Description', 'Status', 'Actions'].map((h) => (
+          <th key={h} className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{h}</th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {currentLedgerItems.map((entry) => {
+        const entryIsTampered = tamperedLedgerIds.has(entry.id);
+        return (
+          <tr
+            key={entry.id}
+            className={`${entryIsTampered ? 'border-b border-red-200 bg-red-50' : 'border-b border-gray-100 hover:bg-gray-50'}`}
+          >
+            <td className="py-3 px-4 font-mono text-sm text-gray-600">{entry.id.substring(0, 8)}...</td>
+            <td className="py-3 px-4">
+              <Badge className={getTypeColor(entry.type)}>
+                {entry.type}
+              </Badge>
+            </td>
+            <td className={`py-3 px-4 font-semibold text-gray-900 ${getTypeAmountColor(entry.type)}`}>
+              ₱{parseFloat(entry.amount).toLocaleString()}
+            </td>
+            <td className="py-3 px-4 max-w-[200px] truncate text-gray-700">
+              {entry.description}
+              {entryIsTampered && (
+                <div className="mt-2 inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
+                  Tampered
                 </div>
-                
-                {/* Mobile Cards */}
-                <div className="md:hidden space-y-4">
-                  {ledgerEntries.map((entry) => (
-                    <Card key={entry.id} className="rounded-xl p-4 border shadow-sm">
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between">
-                          <span className="font-mono text-sm text-gray-600">{entry.id.substring(0, 8)}...</span>
-                          <Badge className={`rounded-lg ${getLedgerStatusColor(entry.approval_status)}`}>
-                            {entry.approval_status}
-                          </Badge>
+              )}
+            </td>
+            <td className="py-3 px-4">
+              <div className="flex items-center gap-1">
+                {getStatusIcon(entry.approval_status)}
+                <Badge className={`rounded-lg ${getLedgerStatusColor(entry.approval_status)}`}>
+                  {entry.approval_status}
+                </Badge>
+              </div>
+            </td>
+            <td className="py-3 px-4">
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg">
+                  <Eye className="w-4 h-4" />
+                </Button>
+                {entry.approval_status === 'Draft' && !isTampered && (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => { console.log('🖱️ Desktop edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setLedgerToSubmit(entry); setShowSubmitLedgerModal(true); }} className="rounded-lg">
+                      <Send className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(entry.id)} className="rounded-lg text-red-600 hover:text-red-700">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
+                      
+                      {/* Mobile Cards */}
+                      <div className="md:hidden space-y-4">
+  {/* Add tampering warning for mobile */}
+  {isTampered && (
+    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+      <p className="text-red-600 text-sm">
+        This Project Ledger has been Tampered. All transactions will be stopped.
+      </p>
+    </div>
+  )}
+  
+  {currentLedgerItems.map((entry) => {
+    const entryIsTampered = tamperedLedgerIds.has(entry.id);
+    return (
+      <Card
+        key={entry.id}
+        className={`rounded-xl p-4 border shadow-sm ${entryIsTampered ? 'border-red-200 bg-red-50' : ''}`}
+      >
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-mono text-sm text-gray-600">{entry.id.substring(0, 8)}...</span>
+            <div className="flex items-center gap-2">
+              {entryIsTampered && (
+                <Badge className="rounded-lg bg-red-100 text-red-700">
+                  Tampered
+                </Badge>
+              )}
+              <Badge className={`rounded-lg ${getLedgerStatusColor(entry.approval_status)}`}>
+                {entry.approval_status}
+              </Badge>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Badge className={`rounded-lg ${entry.type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              {entry.type}
+            </Badge>
+            <span className="text-xl font-semibold text-gray-900">₱{parseFloat(entry.amount).toLocaleString()}</span>
+          </div>
+          <div>
+            <p className="text-sm text-gray-700">{entry.description}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg flex-1">
+              <Eye className="w-4 h-4 mr-1" />View
+            </Button>
+            {/* Only show action buttons if entry is Draft AND NOT tampered */}
+            {entry.approval_status === 'Draft' && !isTampered && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => { console.log('🖱️ Mobile edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => { setLedgerToSubmit(entry); setShowSubmitLedgerModal(true); }} className="rounded-lg">
+                  <Send className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleDeleteClick(entry.id)} className="rounded-lg text-red-600 hover:text-red-700">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  })}
+</div>
+                      
+                      {/* Pagination */}
+                      {totalLedgerPages > 1 && (
+                        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg mt-6">
+                          <div className="flex flex-1 justify-between sm:hidden">
+                            <Button
+                              onClick={() => setCurrentLedgerPage(prev => Math.max(prev - 1, 1))}
+                              disabled={currentLedgerPage === 1}
+                              className="relative inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Previous
+                            </Button>
+                            <Button
+                              onClick={() => setCurrentLedgerPage(prev => Math.min(prev + 1, totalLedgerPages))}
+                              disabled={currentLedgerPage === totalLedgerPages}
+                              className="relative ml-3 inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Next
+                            </Button>
+                          </div>
+                          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm text-gray-700">
+                                Showing {indexOfFirstLedgerItem + 1} to {Math.min(indexOfLastLedgerItem, ledgerEntries.length)} of {ledgerEntries.length} entries
+                              </p>
+                            </div>
+                            <div>
+                              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                <Button
+                                  onClick={() => setCurrentLedgerPage(prev => Math.max(prev - 1, 1))}
+                                  disabled={currentLedgerPage === 1}
+                                  className="relative inline-flex items-center rounded-l-xl border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <span className="sr-only">Previous</span>
+                                  <ChevronLeft className="h-5 w-5" />
+                                </Button>
+                                
+                                {[...Array(totalLedgerPages)].map((_, i) => {
+                                  const page = i + 1;
+                                  const isCurrentPage = page === currentLedgerPage;
+                                  
+                                  if (
+                                    page === 1 ||
+                                    page === totalLedgerPages ||
+                                    (page >= currentLedgerPage - 1 && page <= currentLedgerPage + 1)
+                                  ) {
+                                    return (
+                                      <Button
+                                        key={page}
+                                        onClick={() => setCurrentLedgerPage(page)}
+                                        className={`relative inline-flex items-center border px-4 py-2 text-sm font-medium ${
+                                          isCurrentPage
+                                            ? 'z-10 bg-blue-600 text-white border-blue-600'
+                                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        {page}
+                                      </Button>
+                                    );
+                                  }
+                                  
+                                  if (page === currentLedgerPage - 2 || page === currentLedgerPage + 2) {
+                                    return (
+                                      <span
+                                        key={page}
+                                        className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+                                      >
+                                        ...
+                                      </span>
+                                    );
+                                  }
+                                  
+                                  return null;
+                                })}
+                                
+                                <Button
+                                  onClick={() => setCurrentLedgerPage(prev => Math.min(prev + 1, totalLedgerPages))}
+                                  disabled={currentLedgerPage === totalLedgerPages}
+                                  className="relative inline-flex items-center rounded-r-xl border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <span className="sr-only">Next</span>
+                                  <ChevronRight className="h-5 w-5" />
+                                </Button>
+                              </nav>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <Badge className={`rounded-lg ${entry.type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {entry.type}
-                          </Badge>
-                          <span className="text-xl font-semibold text-gray-900">₱{parseFloat(entry.amount).toLocaleString()}</span>
-                        </div>
-                        <p className="text-sm text-gray-700">{entry.description}</p>
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant="outline" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg flex-1">
-                            <Eye className="w-4 h-4 mr-1" />View
-                          </Button>
-                          {entry.approval_status === 'Draft' && (
-                            <>
-                              <Button variant="outline" size="sm" onClick={() => { console.log('🖱️ Mobile edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => { setLedgerToSubmit(entry); setShowSubmitLedgerModal(true); }} className="rounded-lg">
-                                <Send className="w-4 h-4" />
-                              </Button>
-                              <Button variant="outline" size="sm" onClick={() => handleDeleteClick(entry.id)} className="rounded-lg text-red-600 hover:text-red-700">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
+                      )}
+                    </>
+                  );
+                })()}
               </>
             )}
             
@@ -1579,35 +1833,37 @@ const formatDate = (dateString) => {
       {/* Tab Content - Status Timeline */}
       {activeTab === 'status' && (
         <div className="space-y-6">
-          <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-purple-50">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">Project Status Timeline</h2>
-            <div className="space-y-0">
-              {(statusHistory || []).map((item, index, arr) => (
-                <div key={item.id} className="flex gap-4 items-start relative">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      item.isCurrent ? 'bg-emerald-500 text-white' : item.isDone ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
-                    }`}>
-                      {item.isDone || item.isCurrent ? <CheckCircle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                    </div>
-                    {index < arr.length - 1 && (
-                      <div className={`w-0.5 h-16 ${item.isDone ? 'bg-blue-400' : 'bg-gray-200'}`} />
-                    )}
-                  </div>
-                  <div className={`pb-6 flex-1 ${index !== arr.length - 1 ? 'border-b border-purple-100' : ''}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-gray-900">{item.label}</p>
-                      {item.isCurrent && <Badge className="bg-emerald-100 text-emerald-700">Current</Badge>}
-                    </div>
-                    <p className="text-sm text-gray-700">{item.description}</p>
-                    <p className="text-xs text-gray-500 mt-1">{item.date || '-'}</p>
-                  </div>
-                </div>
-              ))}
-              {!statusHistory?.length && <p className="text-gray-500">No status history yet.</p>}
+  <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-purple-50">
+    <h2 className="text-lg font-semibold text-gray-900 mb-6">Project Status Timeline</h2>
+    
+    {/* Scrollable container */}
+    <div className="space-y-0 max-h-[500px] overflow-y-auto pr-2">
+      {(statusHistory || []).map((item, index, arr) => (
+        <div key={item.id} className="flex gap-4 items-start relative">
+          <div className="flex flex-col items-center">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+              item.isCurrent ? 'bg-emerald-500 text-white' : item.isDone ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'
+            }`}>
+              {item.isDone || item.isCurrent ? <CheckCircle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
             </div>
-          </Card>
+            {index < arr.length - 1 && (
+              <div className={`w-0.5 h-16 ${item.isDone ? 'bg-blue-400' : 'bg-gray-200'}`} />
+            )}
+          </div>
+          <div className={`pb-6 flex-1 ${index !== arr.length - 1 ? 'border-b border-purple-100' : ''}`}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-semibold text-gray-900">{item.label}</p>
+              {item.isCurrent && <Badge className="bg-emerald-100 text-emerald-700">Current</Badge>}
+            </div>
+            <p className="text-sm text-gray-700">{item.description}</p>
+            <p className="text-xs text-gray-500 mt-1">{item.date || '-'}</p>
+          </div>
         </div>
+      ))}
+      {!statusHistory?.length && <p className="text-gray-500">No status history yet.</p>}
+    </div>
+  </Card>
+</div>
       )}
       
       {/* Tab Content - Ratings */}
@@ -1900,7 +2156,7 @@ const formatDate = (dateString) => {
       {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed bottom-4 right-4 z-50 animate-slide-in ${
-          toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+          toast.type === 'success' ? 'bg-blue-500' : 'bg-red-500'
         } text-white px-6 py-3 rounded-lg shadow-lg`}>
           {toast.message}
         </div>

@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Chain;
+use App\Models\User\LedgerEntry;
 use Illuminate\Support\Str;
 
 class BlockchainService
@@ -104,6 +105,7 @@ class BlockchainService
 
     /**
      * Verify the integrity of the blockchain for a project
+     * Returns detailed verification result
      */
     public static function verifyChain($projectId)
     {
@@ -112,13 +114,24 @@ class BlockchainService
             ->get();
 
         if ($blocks->isEmpty()) {
-            return true; // No chain to verify
+            return [
+                'isValid' => true,
+                'status' => 'valid',
+                'message' => 'No chain to verify',
+                'tamperedBlocks' => [],
+            ];
         }
 
+        $tamperedBlocks = [];
+        $chainBroken = false;
+
         foreach ($blocks as $i => $block) {
+            $issues = [];
+
             // Verify block index sequence
             if ($block->block_index !== $i) {
-                return false;
+                $issues[] = 'Invalid block index';
+                $chainBroken = true;
             }
 
             // Verify hash
@@ -128,23 +141,65 @@ class BlockchainService
             );
 
             if ($block->hash !== $expectedHash) {
-                return false;
+                $issues[] = 'Hash mismatch (chain tampered)';
+                $chainBroken = true;
             }
 
             // Verify link to previous block
             if ($i === 0) {
                 if ($block->prev_hash !== null) {
-                    return false;
+                    $issues[] = 'Genesis block has prev_hash';
+                    $chainBroken = true;
                 }
             } else {
                 $prevBlock = $blocks[$i - 1];
                 if ($block->prev_hash !== $prevBlock->hash) {
-                    return false;
+                    $issues[] = 'Broken link to previous block';
+                    $chainBroken = true;
                 }
+            }
+
+            // Verify snapshot matches current ledger data (for ledger blocks)
+            $snapshot = json_decode($block->data_snapshot, true);
+            if (is_array($snapshot) && isset($snapshot['type']) && $snapshot['type'] === 'ledger') {
+                $currentEntry = LedgerEntry::where('id', $snapshot['ledger_id'])->first();
+                if (!$currentEntry) {
+                    $issues[] = 'Ledger entry deleted';
+                    $chainBroken = true;
+                } else {
+                    // Check key fields for tampering
+                    if ((float)$currentEntry->amount !== (float)($snapshot['amount'] ?? 0)) {
+                        $snapshotAmount = $snapshot['amount'] ?? 'N/A';
+                        $issues[] = "Amount tampered: snapshot {$snapshotAmount}, current {$currentEntry->amount}";
+                        $chainBroken = true;
+                    }
+                    if ($currentEntry->description !== ($snapshot['description'] ?? '')) {
+                        $issues[] = 'Description tampered';
+                        $chainBroken = true;
+                    }
+                    if ($currentEntry->type !== ($snapshot['entry_type'] ?? '')) {
+                        $issues[] = 'Type tampered';
+                        $chainBroken = true;
+                    }
+                }
+            }
+
+            if (!empty($issues)) {
+                $tamperedBlocks[] = [
+                    'blockIndex' => $block->block_index,
+                    'blockId' => $block->id,
+                    'ledgerId' => $snapshot['ledger_id'] ?? null,
+                    'issues' => $issues,
+                ];
             }
         }
 
-        return true;
+        return [
+            'isValid' => !$chainBroken,
+            'status' => $chainBroken ? 'tampering_detected' : 'valid',
+            'message' => $chainBroken ? 'Blockchain integrity compromised' : 'Blockchain is valid',
+            'tamperedBlocks' => $tamperedBlocks,
+        ];
     }
 
     /**

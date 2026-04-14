@@ -401,7 +401,7 @@ const renderAttendees = (attendees) => {
     formData.append('attendees', meetingForm.attendees ? meetingForm.attendees : '');
     
     if (meetingForm.proof && meetingForm.proof instanceof File) {
-      formData.append('proof', meetingForm.proof);
+      formData.append('meeting_proof', meetingForm.proof);
     }
     
     // Add _method for PUT since we're using POST with method override
@@ -800,7 +800,7 @@ const renderAttendees = (attendees) => {
                   attendees: Array.isArray(meeting.attendees) ? meeting.attendees.join(', ') : (meeting.attendees || ''),
                   proof: null,
                 });
-                setProofFilePreview(null);
+                setProofFilePreview((meeting.minutes_file_name || meeting.meeting_proof) ? (meeting.minutes_file_name || meeting.meeting_proof.split('/').pop()) : null);
                 setShowEditModal(true);
               }}
             >
@@ -1239,7 +1239,7 @@ const renderAttendees = (attendees) => {
                   ref={proofFileInputRef}
                   type="file"
                   className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
@@ -1264,6 +1264,9 @@ const renderAttendees = (attendees) => {
                     ✕
                   </button>
                 </div>
+              )}
+              {selectedMeeting?.meeting_proof && !proofFilePreview && (
+                <p className="text-xs text-gray-500 mt-1">Current proof file: {selectedMeeting.meeting_proof.split('/').pop()}</p>
               )}
             </div>
           </div>
@@ -1424,19 +1427,40 @@ const renderAttendees = (attendees) => {
             </div>
          
 
-            <div className="h-40 bg-gray-100 rounded-xl flex items-center justify-center">
-              <div className="text-center">
-                <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 mb-2 font-medium">{selectedMeeting.minutes_file_name || selectedMeeting.minutesFile || 'Meeting Minutes'}</p>
-                <p className="text-sm text-gray-500">Document</p>
+            {selectedMeeting.minutes_file_url ? (
+              <div className="border border-dashed border-blue-200 rounded-xl p-4 bg-blue-50">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">{selectedMeeting.minutes_file_name || selectedMeeting.minutesFile || 'Meeting Document'}</p>
+                    <p className="text-xs text-blue-700">Uploaded meeting documentation</p>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="border border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 text-center text-sm text-gray-500">
+                No meeting documentation available.
+              </div>
+            )}
 
             <div className="flex gap-3 pt-4">
-              <Button className="flex-1 rounded-xl text-white bg-blue-600 hover:bg-blue-700">
-                <Download className="w-4 h-4 mr-2" />
-                Download Minutes
-              </Button>
+              {selectedMeeting.minutes_file_url ? (
+                <Button
+                  onClick={() => window.open(selectedMeeting.minutes_file_url, '_blank')}
+                  className="flex-1 rounded-xl text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Document
+                </Button>
+              ) : (
+                <Button
+                  disabled
+                  className="flex-1 rounded-xl bg-gray-200 text-gray-500 cursor-not-allowed"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Document
+                </Button>
+              )}
               <Button
                 onClick={() => setShowViewMinutesModal(false)}
                 variant="outline"

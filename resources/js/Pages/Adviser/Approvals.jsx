@@ -548,74 +548,22 @@ export default function AdviserApprovalsPage() {
              <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <p className="text-sm text-gray-500 mb-1">Proof *</p>
-                <p className="text-gray-900">{selectedItem.ledger_proof || 'No proof provided'}</p>
+                {selectedItem.ledger_proof ? (
+                  <a
+                    href={`/${selectedItem.ledger_proof}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    <FileText className="w-4 h-4" />
+                    View Proof Document
+                  </a>
+                ) : (
+                  <p className="text-gray-900">No proof id currently provided</p>
+                )}
               </div>
 
              </div>
-
-            {/* Budget Breakdown Details */}
-            <div className="col-span-2">
-              <p className="text-sm text-gray-500 mb-1">Initial Budget Breakdown *</p>
-              {selectedItem.budget_breakdown ? (() => {
-                let parsedBreakdown = selectedItem.budget_breakdown;
-                
-                if (typeof selectedItem.budget_breakdown === 'string') {
-                  try {
-                    const parsed = JSON.parse(selectedItem.budget_breakdown);
-                    if (Array.isArray(parsed)) {
-                      parsedBreakdown = parsed;
-                    }
-                  } catch (e) {
-                    return (
-                      <div className="bg-gray-50 rounded-lg p-3 mt-1">
-                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedItem.budget_breakdown}</p>
-                      </div>
-                    );
-                  }
-                }
-                
-                if (Array.isArray(parsedBreakdown)) {
-                  return (
-                    <div className="bg-gray-50 rounded-lg p-3 mt-1">
-                      <div className="flex justify-between items-center pb-2 mb-2 border-b border-gray-300">
-                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Item (Unit Price x Quantity)</span>
-                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        {parsedBreakdown.map((item, index) => (
-                          <div key={item.id || index} className="flex justify-between items-center py-1">
-                            <div className="flex-1">
-                              <span className="text-sm text-gray-900">{item.item || item.name || 'Unnamed Item'}</span>
-                              {(item.quantity || item.qty) && (
-                                <span className="text-xs text-gray-500 ml-2">
-                                  (₱{(parseFloat(item.unitPrice) || 0).toLocaleString()} x {item.quantity || item.qty})
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-sm font-medium text-blue-600">
-                              ₱{(parseFloat(item.amount) || 0).toLocaleString()}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 font-semibold">
-                        <span className="text-gray-700">Total</span>
-                        <span className="text-blue-600">
-                          ₱{parsedBreakdown.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                }
-                
-                return <p className="text-gray-500 mt-1">No budget breakdown available.</p>;
-              })() : (
-                <p className="text-gray-500 mt-1">No budget breakdown provided.</p>
-              )}
-
-            </div>
 
             {/* Action Buttons */}
             {(selectedItem.status === 'Pending Approval' || selectedItem.status === 'Pending Adviser Approval') && (
@@ -687,68 +635,22 @@ export default function AdviserApprovalsPage() {
               </div>
             </div>
 
-            {/* Budget Breakdown Details */}
-            <div className="col-span-2">
-              <p className="text-sm text-gray-500 mb-1">Budget Breakdown Details *</p>
-              {selectedItem.budget_breakdown ? (() => {
-                let parsedBreakdown = selectedItem.budget_breakdown;
-                
-                if (typeof parsedBreakdown === 'string') {
-                  try {
-                    const parsed = JSON.parse(parsedBreakdown);
-                    if (Array.isArray(parsed)) {
-                      parsedBreakdown = parsed;
-                    }
-                  } catch (e) {
-                    return (
-                      <div className="bg-gray-50 rounded-lg p-3 mt-1">
-                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{parsedBreakdown}</p>
-                      </div>
-                    );
-                  }
-                }
-                
-                if (Array.isArray(parsedBreakdown) && parsedBreakdown.length > 0) {
-                  return (
-                    <div className="bg-gray-50 rounded-lg p-3 mt-1">
-                      <div className="flex justify-between items-center pb-2 mb-2 border-b border-gray-300">
-                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Item (Unit Price x Quantity)</span>
-                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        {parsedBreakdown.map((item, index) => (
-                          <div key={item.id || index} className="flex justify-between items-center py-1">
-                            <div className="flex-1">
-                              <span className="text-sm text-gray-900">{item.item || item.name || 'Unnamed Item'}</span>
-                              {(item.quantity || item.qty) && (
-                                <span className="text-xs text-gray-500 ml-2">
-                                  (₱{(parseFloat(item.unitPrice) || 0).toLocaleString()} x {item.quantity || item.qty})
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-sm font-medium text-blue-600">
-                              ₱{(parseFloat(item.amount) || 0).toLocaleString()}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 font-semibold">
-                        <span className="text-gray-700">Total</span>
-                        <span className="text-blue-600">
-                          ₱{parsedBreakdown.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                }
-                
-                return <p className="text-gray-500 mt-1">No budget breakdown available.</p>;
-              })() : (
-                <p className="text-gray-500 mt-1">No budget breakdown provided.</p>
-              )}
-            </div>
+              <div className="col-span-2">
+                <p className="text-sm text-gray-500 mb-1">Proof *</p>
+                {selectedItem.ledger_proof ? (
+                  <a
+                    href={`/${selectedItem.ledger_proof}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    <FileText className="w-4 h-4" />
+                    View Proof Document
+                  </a>
+                ) : (
+                  <p className="text-gray-900">No proof provided</p>
+                )}
+              </div>
 
             {/* Action Buttons */}
             {(selectedItem.status === 'Pending Approval' || selectedItem.status === 'Pending Adviser Approval') && (

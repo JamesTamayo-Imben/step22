@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -21,6 +21,8 @@ import {
   CheckCircle,
   Clock,
   XCircle,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -95,9 +97,7 @@ function Select({ className = '', children, ...props }) {
 }
 
 function CSGProofPageInner() {
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const { proofDocuments: initialProofDocuments = [], projects: initialProjects = [], transactions: initialTransactions = [] } = usePage().props;
   const [selectedProof, setSelectedProof] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -106,68 +106,7 @@ function CSGProofPageInner() {
   const [filePreview, setFilePreview] = useState(null);
   const fileInputRef = useRef(null);
 
-  const [proofDocuments, setProofDocuments] = useState([
-    {
-      id: 'PROOF-001',
-      fileName: 'Purchase_Receipt_Materials.pdf',
-      linkedTransaction: 'TXN-2024-002',
-      linkedProject: 'Community Outreach Program',
-      uploadDate: '2024-11-05',
-      fileType: 'PDF',
-      fileSize: '2.3 MB',
-      status: 'Approved',
-      uploadedBy: 'Sarah Chen',
-      hash: 'sha256:b8e9f0a1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7',
-    },
-    {
-      id: 'PROOF-002',
-      fileName: 'Transport_Invoice.jpg',
-      linkedTransaction: 'TXN-2024-003',
-      linkedProject: 'Annual Sports Fest',
-      uploadDate: '2024-11-10',
-      fileType: 'Image',
-      fileSize: '1.8 MB',
-      status: 'Pending Adviser Approval',
-      uploadedBy: 'Sarah Chen',
-      hash: 'sha256:c9f0a1b2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8',
-    },
-    {
-      id: 'PROOF-003',
-      fileName: 'Sponsorship_Agreement.pdf',
-      linkedTransaction: 'TXN-2024-005',
-      linkedProject: 'Annual Sports Fest',
-      uploadDate: '2024-11-12',
-      fileType: 'PDF',
-      fileSize: '3.1 MB',
-      status: 'Approved',
-      uploadedBy: 'Sarah Chen',
-      hash: 'sha256:d0a1b2c3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9',
-    },
-    {
-      id: 'PROOF-004',
-      fileName: 'Marketing_Materials_Receipt.jpg',
-      linkedTransaction: 'TXN-2024-004',
-      linkedProject: 'Tech Innovation Summit',
-      uploadDate: '2024-11-15',
-      fileType: 'Image',
-      fileSize: '1.5 MB',
-      status: 'Pending Adviser Approval',
-      uploadedBy: 'Sarah Chen',
-      hash: 'sha256:e1b2c3d4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0',
-    },
-    {
-      id: 'PROOF-005',
-      fileName: 'Equipment_Purchase_Order.pdf',
-      linkedTransaction: 'TXN-2024-002',
-      linkedProject: 'Community Outreach Program',
-      uploadDate: '2024-11-08',
-      fileType: 'PDF',
-      fileSize: '2.7 MB',
-      status: 'Approved',
-      uploadedBy: 'Sarah Chen',
-      hash: 'sha256:f2c3d4e5b6a7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9b0a1',
-    },
-  ]);
+  const [proofDocuments, setProofDocuments] = useState(initialProofDocuments);
 
   const [uploadForm, setUploadForm] = useState({
     linkedTransaction: '',
@@ -175,14 +114,18 @@ function CSGProofPageInner() {
     fileName: '',
   });
 
-  const projects = [
-    'Community Outreach Program',
-    'Annual Sports Fest',
-    'Tech Innovation Summit',
-    'Campus Sustainability Initiative',
-  ];
+  // Modal state variables
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
+  const projects = initialProjects;
   
-  const transactions = ['TXN-2024-002', 'TXN-2024-003', 'TXN-2024-004', 'TXN-2024-005'];
+  const transactions = initialTransactions;
 
   const filteredDocuments = proofDocuments.filter((doc) => {
     const matchesSearch =
@@ -193,6 +136,17 @@ function CSGProofPageInner() {
     const matchesType = filterType === 'all' || doc.fileType === filterType;
     return matchesSearch && matchesStatus && matchesProject && matchesType;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredDocuments.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterStatus, filterProject, filterType]);
 
   const stats = {
     totalDocuments: proofDocuments.length,
@@ -238,30 +192,29 @@ function CSGProofPageInner() {
   };
 
   const handleUpload = () => {
-    if (!uploadForm.linkedTransaction || !uploadForm.linkedProject || !uploadForm.fileName) {
-      showToast('Please fill in all required fields', 'error');
+    if (!uploadForm.linkedTransaction || !uploadForm.linkedProject || !filePreview) {
+      showToast('Please fill in all required fields and select a file', 'error');
       return;
     }
 
-    const newProof = {
-      id: `PROOF-${String(proofDocuments.length + 1).padStart(3, '0')}`,
-      fileName: uploadForm.fileName,
-      linkedTransaction: uploadForm.linkedTransaction,
-      linkedProject: uploadForm.linkedProject,
-      uploadDate: new Date().toISOString().split('T')[0],
-      fileType: uploadForm.fileName.endsWith('.pdf') ? 'PDF' : 'Image',
-      fileSize: '1.2 MB',
-      status: 'Pending Adviser Approval',
-      uploadedBy: 'Sarah Chen',
-      hash: `sha256:${Math.random().toString(36).substring(2, 15)}${Math.random()
-        .toString(36)
-        .substring(2, 15)}`,
-    };
+    const formData = new FormData();
+    formData.append('proof_file', filePreview.file);
 
-    setProofDocuments([newProof, ...proofDocuments]);
-    setShowUploadModal(false);
-    setUploadForm({ linkedTransaction: '', linkedProject: '', fileName: '' });
-    showToast('Proof document uploaded successfully', 'success');
+    router.post(`/csg/ledger-entries/${uploadForm.linkedTransaction}/proof`, formData, {
+      onSuccess: () => {
+        showToast('Proof document uploaded successfully', 'success');
+        setShowUploadModal(false);
+        setFilePreview(null);
+        setUploadForm({ linkedTransaction: '', linkedProject: '', fileName: '' });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        // Refresh the page to get updated data
+        window.location.reload();
+      },
+      onError: (errors) => {
+        showToast('Failed to upload proof document', 'error');
+        console.error('Upload errors:', errors);
+      }
+    });
   };
 
   const handleDelete = () => {
@@ -285,6 +238,7 @@ function CSGProofPageInner() {
       name: file.name,
       size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
       type: file.type,
+      file: file, // Store the actual file object
     });
     setUploadForm({ ...uploadForm, fileName: file.name });
   };
@@ -297,13 +251,6 @@ function CSGProofPageInner() {
           <h1 className="text-2xl font-semibold text-gray-900">Proof of Transactions</h1>
           <p className="text-gray-500">Manage all supporting documents and receipts</p>
         </div>
-        <Button
-          onClick={() => setShowUploadModal(true)}
-          className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
-        >
-          <Upload className="w-4 h-4 mr-2" />
-          Upload Proof
-        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -404,7 +351,7 @@ function CSGProofPageInner() {
 
       {/* Proof Documents Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredDocuments.map((proof) => (
+        {currentItems.map((proof) => (
           <Card key={proof.id} className="rounded-[20px] border-0 shadow-sm p-4 hover:shadow-md transition-all">
             {/* File Preview */}
             <div className="h-32 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl flex items-center justify-center mb-4">
@@ -429,14 +376,17 @@ function CSGProofPageInner() {
                 <p className="text-xs text-gray-400">Uploaded by {proof.uploadedBy}</p>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="">
                 <div className="flex items-center gap-1">
                   {getStatusIcon(proof.status)}
                   <span className={`text-xs font-medium px-2 py-1 rounded-lg ${getStatusColor(proof.status)}`}>
                     {proof.status}
                   </span>
                 </div>
-                <span className="text-xs text-gray-400">{proof.uploadDate}</span>
+                <div>
+                   <span className="text-xs text-gray-400">{proof.uploadDate}</span>
+                </div>
+                {/* <span className="text-xs text-gray-400">{proof.uploadDate}</span> */}
               </div>
 
               {/* Action Buttons */}
@@ -453,7 +403,7 @@ function CSGProofPageInner() {
                   <Eye className="w-4 h-4 mr-1" />
                   View
                 </Button>
-                {proof.status === 'Pending Adviser Approval' && (
+                {/* {proof.status === 'Pending Adviser Approval' && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -465,11 +415,23 @@ function CSGProofPageInner() {
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
-                )}
+                )} */}
               </div>
             </div>
           </Card>
         ))}
+
+        {currentItems.length === 0 && filteredDocuments.length > 0 && (
+          <Card className="col-span-full rounded-[20px] border-0 shadow-sm p-12">
+            <div className="text-center">
+              <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No proof documents found</h3>
+              <p className="text-gray-500 mb-6">
+                Try adjusting your filters or pagination
+              </p>
+            </div>
+          </Card>
+        )}
 
         {filteredDocuments.length === 0 && (
           <Card className="col-span-full rounded-[20px] border-0 shadow-sm p-12">
@@ -481,7 +443,7 @@ function CSGProofPageInner() {
                   ? 'Try adjusting your filters'
                   : 'Upload your first proof document'}
               </p>
-              {!searchQuery && filterStatus === 'all' && filterProject === 'all' && (
+              {/* {!searchQuery && filterStatus === 'all' && filterProject === 'all' && (
                 <Button
                   onClick={() => setShowUploadModal(true)}
                   className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
@@ -489,11 +451,99 @@ function CSGProofPageInner() {
                   <Upload className="w-4 h-4 mr-2" />
                   Upload Proof
                 </Button>
-              )}
+              )} */}
             </div>
           </Card>
         )}
       </div>
+
+      {/* Pagination */}
+      {filteredDocuments.length > 0 && totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
+          <div className="flex flex-1 justify-between sm:hidden">
+            <Button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </Button>
+            <Button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="relative ml-3 inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </Button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredDocuments.length)} of {filteredDocuments.length} documents
+              </p>
+            </div>
+            <div>
+              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                <Button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center rounded-l-xl border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="sr-only">Previous</span>
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                
+                {[...Array(totalPages)].map((_, i) => {
+                  const page = i + 1;
+                  const isCurrentPage = page === currentPage;
+                  
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <Button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`relative inline-flex items-center border px-4 py-2 text-sm font-medium ${
+                          isCurrentPage
+                            ? 'z-10 bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  }
+                  
+                  if (page === currentPage - 2 || page === currentPage + 2) {
+                    return (
+                      <span
+                        key={page}
+                        className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+                  
+                  return null;
+                })}
+                
+                <Button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center rounded-r-xl border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="sr-only">Next</span>
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </nav>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Upload Modal */}
       <Modal
@@ -660,6 +710,10 @@ function CSGProofPageInner() {
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Project</h4>
                 <p className="text-sm text-gray-600">{selectedProof.linkedProject}</p>
               </div>
+               <div className="col-span-2">
+                <h4 className="text-sm font-medium text-gray-700 mb-1">Description</h4>
+                <p className="text-sm text-gray-600">{selectedProof.description}</p>
+              </div>
               <div className="col-span-2">
                 <h4 className="text-sm font-medium text-gray-700 mb-2">File Hash (SHA-256)</h4>
                 <div className="bg-gray-50 rounded-lg p-3 font-mono text-xs text-gray-700 break-all">
@@ -669,10 +723,17 @@ function CSGProofPageInner() {
             </div>
 
             <div className="flex gap-3 pt-4">
-              <Button className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700">
-                <Download className="w-4 h-4 mr-2" />
-                Download
-              </Button>
+              <a
+                href={`/${selectedProof.filePath}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1"
+              >
+                <Button className="w-full rounded-xl bg-blue-600 hover:bg-blue-700">
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </Button>
+              </a>
               <Button
                 onClick={() => setShowViewModal(false)}
                 variant="outline"

@@ -8,7 +8,7 @@ use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Project;
 use App\Models\CSG\Approval;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+// use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -90,21 +90,11 @@ public function uploadProof(Request $request, $id)
             $mappedEntries = $entries->map(function($entry) use ($project) {
                 $entryData = $entry->toArray();
                 
-                // If this is the initial ledger entry (created when project was created)
-                // You can identify it by checking if it's the first entry or by a flag
-                if ($entry->is_initial_entry || $entry->description === 'Initial project expense allocation') {
-                    // For the initial entry, show the project's budget breakdown
-                    $entryData['budget_breakdown'] = $project->budget_breakdown 
-                        ? (is_string($project->budget_breakdown) ? json_decode($project->budget_breakdown, true) : $project->budget_breakdown)
-                        : [];
-                    $entryData['is_initial_entry'] = true;
-                } else {
-                    // For other entries, use their own budget breakdown
-                    $entryData['budget_breakdown'] = $entry->budget_breakdown 
-                        ? (is_string($entry->budget_breakdown) ? json_decode($entry->budget_breakdown, true) : $entry->budget_breakdown)
-                        : [];
-                    $entryData['is_initial_entry'] = false;
-                }
+                // Include the ledger entry's budget breakdown
+                $entryData['budget_breakdown'] = $entry->budget_breakdown 
+                    ? (is_string($entry->budget_breakdown) ? json_decode($entry->budget_breakdown, true) : $entry->budget_breakdown)
+                    : [];
+                $entryData['is_initial_entry'] = $entry->is_initial_entry ?? false;
                 
                 return $entryData;
             });
@@ -138,32 +128,48 @@ public function uploadProof(Request $request, $id)
                 ->orderBy('created_at', 'desc')
                 ->get();
 
+            // Match ProjectDetails ledger-tab logic:
+            // compute verification per project, then mark specific ledger IDs as tampered
+            $projectVerifications = [];
+            $uniqueProjectIds = $entries->pluck('project_id')->filter()->unique();
+            foreach ($uniqueProjectIds as $projectId) {
+                $projectVerifications[$projectId] = \App\Support\BlockchainService::verifyChain($projectId);
+            }
+
             // Process budget breakdown for each entry
-            $processedEntries = $entries->map(function($entry) {
+            $processedEntries = $entries->map(function($entry) use ($projectVerifications) {
                 $entryData = $entry->toArray();
 
-                // For initial entries, ALWAYS pull the current project's budget breakdown
-                // Check multiple conditions to ensure we catch all initial entries
-                $isInitial = $entry->is_initial_entry 
-                    || strpos($entry->description, 'Initial') !== false
-                    || $entry->description === 'Initial project expense allocation';
-                
-                if ($isInitial && $entry->project) {
-                    // Always use project's current budget breakdown for initial entries
-                    $entryData['budget_breakdown'] = $entry->project->budget_breakdown
-                        ? (is_string($entry->project->budget_breakdown) ? json_decode($entry->project->budget_breakdown, true) : $entry->project->budget_breakdown)
-                        : [];
-                    $entryData['is_initial_entry'] = true;
-                } else {
-                    // For non-initial entries, use their own stored budget breakdown
-                    $entryData['budget_breakdown'] = $entry->budget_breakdown
-                        ? (is_string($entry->budget_breakdown) ? json_decode($entry->budget_breakdown, true) : $entry->budget_breakdown)
-                        : [];
-                    $entryData['is_initial_entry'] = $isInitial;
-                }
+                // Use the ledger entry's own budget breakdown
+                $entryData['budget_breakdown'] = $entry->budget_breakdown
+                    ? (is_string($entry->budget_breakdown) ? json_decode($entry->budget_breakdown, true) : $entry->budget_breakdown)
+                    : [];
+                $entryData['is_initial_entry'] = $entry->is_initial_entry ?? false;
 
                 // Add project name for easier display
                 $entryData['project_name'] = $entry->project ? $entry->project->title : 'Unknown Project';
+
+                $verification = $projectVerifications[$entry->project_id] ?? ['isValid' => false, 'status' => 'no_chain', 'tamperedBlocks' => []];
+                $isTampered = collect($verification['tamperedBlocks'] ?? [])->contains(function ($tamperedBlock) use ($entry) {
+                    return ($tamperedBlock['ledgerId'] ?? null) === $entry->id;
+                });
+
+                $verificationState = [
+                    'submitted' => optional($entry->created_at)->format('Y-m-d h:i A') ?? '',
+                    'blockchainStatus' => $verification['status'] ?? 'no_chain',
+                    'blockchainValid' => ! $isTampered && ($verification['isValid'] ?? false),
+                    'tampered' => $isTampered,
+                ];
+
+                if ($entry->approved_at) {
+                    $verificationState['reviewed'] = $entry->approved_at->format('Y-m-d h:i A');
+                    $verificationState['approvedRejected'] = $entry->approved_at->format('Y-m-d h:i A');
+                } elseif ($entry->rejected_at) {
+                    $verificationState['reviewed'] = $entry->rejected_at->format('Y-m-d h:i A');
+                    $verificationState['approvedRejected'] = $entry->rejected_at->format('Y-m-d h:i A');
+                }
+
+                $entryData['verificationState'] = $verificationState;
 
                 return $entryData;
             });
@@ -186,7 +192,7 @@ public function uploadProof(Request $request, $id)
             // Validate the request
             $validated = $request->validate([
                 'project_id' => 'required|exists:projects,id',
-                'type' => 'required|in:Income,Expense',
+                'type' => 'required|in:Income,Expense,Canvas,Donation,Sponsorship',
                 'description' => 'required|string|max:1000',
                 'amount' => 'required|numeric|min:0',
                 'budget_breakdown' => 'nullable|json',
@@ -273,7 +279,7 @@ public function uploadProof(Request $request, $id)
             
             // Validate the request
             $validated = $request->validate([
-                'type' => 'required|in:Income,Expense',
+                'type' => 'required|in:Income,Expense,Canvas,Donation,Sponsorship',
                 'description' => 'required|string|max:1000',
                 'amount' => 'required|numeric|min:0',
                 'budget_breakdown' => 'nullable|json',
@@ -397,6 +403,81 @@ public function uploadProof(Request $request, $id)
             Log::error('Ledger entry restore failed: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to restore ledger entry',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all proof documents from ledger entries
+     */
+    public function getProofDocuments()
+    {
+        try {
+            $entries = LedgerEntry::where('archive', 0)
+                ->whereNotNull('ledger_proof')
+                ->with('project')
+                ->whereHas('project', function ($q) {
+                    $q->where('archive', 0);
+                })
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $proofDocuments = $entries->map(function($entry) {
+                $fileName = basename($entry->ledger_proof);
+                $filePath = $entry->ledger_proof;
+                $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
+                $fileType = in_array(strtolower($fileExtension), ['pdf']) ? 'PDF' : 'Image';
+
+                // Calculate file size
+                $fileSize = 'Unknown';
+                try {
+                    $fullPath = storage_path('app/public/ledger_proofs/' . $fileName);
+                    if (file_exists($fullPath)) {
+                        $fileSizeBytes = filesize($fullPath);
+                        $fileSize = round($fileSizeBytes / (1024 * 1024), 2) . ' MB';
+                    }
+                } catch (\Exception $e) {
+                    // Keep default 'Unknown'
+                }
+
+                return [
+                    'id' => 'PROOF-' . substr($entry->id, 0, 8),
+                    'fileName' => $fileName,
+                    'linkedTransaction' => $entry->id,
+                    'linkedProject' => $entry->project ? $entry->project->title : 'Unknown Project',
+                    'uploadDate' => $entry->created_at->format('Y-m-d'),
+                    'fileType' => $fileType,
+                    'fileSize' => $fileSize,
+                    'status' => $entry->approval_status,
+                    'uploadedBy' => $entry->created_by ? 'User ' . $entry->created_by : 'Unknown',
+                    'hash' => $entry->file_content_hash ?? 'Not available',
+                    'filePath' => $filePath,
+                    'description' => $entry->description ?? 'No description available',
+                ];
+            });
+
+            return response()->json($proofDocuments);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch proof documents',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verify blockchain integrity for a project
+     */
+    public function verifyChain($projectId)
+    {
+        try {
+            $verification = \App\Support\BlockchainService::verifyChain($projectId);
+            
+            return response()->json($verification);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to verify blockchain',
                 'error' => $e->getMessage()
             ], 500);
         }

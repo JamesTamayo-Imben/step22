@@ -134,10 +134,15 @@ Route::get('/adviser/ledger', [AdviserLedgerController::class, 'index'])->name('
 Route::post('/adviser/ledger/{id}/approve', [AdviserLedgerController::class, 'approve'])->name('adviser.ledger.approve');
 Route::post('/adviser/ledger/{id}/reject', [AdviserLedgerController::class, 'reject'])->name('adviser.ledger.reject');
 Route::post('/adviser/ledger/{id}/correction', [AdviserLedgerController::class, 'correction'])->name('adviser.ledger.correction');
+Route::post('/adviser/ledger/{id}/fix-tampered', [AdviserLedgerController::class, 'fixTampered'])->name('adviser.ledger.fix-tampered');
+Route::post('/adviser/ledger/fix-budget-mismatch', [AdviserLedgerController::class, 'fixBudgetMismatch'])->name('adviser.ledger.fix-budget-mismatch');
 
 Route::get('/adviser/role-permissions', [AdviserPermissionController::class, 'index'])->name('adviser.role-permissions');
 Route::post('/adviser/role-permissions/assign-officer', [AdviserPermissionController::class, 'assignOfficer'])->name('adviser.role-permissions.assign-officer');
 Route::post('/adviser/role-permissions/update', [AdviserPermissionController::class, 'updatePermissions'])->name('adviser.role-permissions.update');
+Route::post('/adviser/role-permissions/set-council-term', [AdviserPermissionController::class, 'setCouncilTerm'])->name('adviser.role-permissions.set-council-term');
+Route::get('/adviser/role-permissions/get-council-term', [AdviserPermissionController::class, 'getCouncilTerm'])->name('adviser.role-permissions.get-council-term');
+
 
 Route::get('/adviser/ratings', [AdviserRatingsController::class, 'index'])->name('adviser.ratings');
 
@@ -184,7 +189,15 @@ Route::get('/csg/ledger', function () {
 })->name('csg.ledger');
 
 Route::get('/csg/proof', function () {
-    return Inertia::render('CSG/Proof');
+    $proofDocuments = app(\App\Http\Controllers\CSG\LedgerEntryController::class)->getProofDocuments()->getData();
+    $projects = \App\Models\CSG\Project::where('archive', 0)->pluck('title')->toArray();
+    $transactions = \App\Models\CSG\LedgerEntry::where('archive', 0)->pluck('id')->toArray();
+
+    return Inertia::render('CSG/Proof', [
+        'proofDocuments' => $proofDocuments,
+        'projects' => $projects,
+        'transactions' => $transactions,
+    ]);
 })->name('csg.proof');
 
 Route::get('/csg/meetings', function () {
@@ -245,6 +258,7 @@ Route::prefix('api')->group(function () {
     Route::prefix('ledger-entries')->group(function () {
         Route::get('/', [LedgerEntryController::class, 'all']);
         Route::get('/project/{projectId}', [LedgerEntryController::class, 'index']);
+        Route::get('/proof-documents', [LedgerEntryController::class, 'getProofDocuments']);
         Route::post('/', [LedgerEntryController::class, 'store']);
         Route::put('/{id}', [LedgerEntryController::class, 'update']);
         Route::delete('/{id}', [LedgerEntryController::class, 'destroy']);
@@ -255,6 +269,8 @@ Route::prefix('api')->group(function () {
     // Meeting Management Routes
     Route::prefix('meetings')->group(function () {
         Route::get('/', [MeetingController::class, 'all']);
+        Route::get('/upcoming/count', [MeetingController::class, 'countUpcoming']);
+        Route::get('/upcoming/list', [MeetingController::class, 'getUpcomingMeetings']);
         Route::post('/', [MeetingController::class, 'store']);
         Route::put('/{id}', [MeetingController::class, 'update']);
         Route::delete('/{id}', [MeetingController::class, 'destroy']);
