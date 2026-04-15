@@ -112,8 +112,8 @@ class ProjectController extends Controller
                     'category' => 'Project Budget Baseline',
                     'approval_status' => 'Draft',
                     'note' => 'Auto-generated baseline on project creation',
-                    'created_by' => auth()->id(),
-                    'updated_by' => auth()->id(),
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
                     'archive' => 0,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -258,7 +258,7 @@ class ProjectController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
-    }
+   }
 
     public function submitForApproval($id)
     {

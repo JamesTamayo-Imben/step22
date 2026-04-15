@@ -1,3 +1,17 @@
 git pull origin main --no-rebase
 
 
+
+
+Step 1: Choose a Reconciliation Strategy
+
+git config pull.rebase false
+
+Step 2: Pull the Remote Changes
+
+git pull origin main
+//Ctrl+O, Enter, Ctrl+X
+
+Step 3: Push Your Work
+
+git push origin main
