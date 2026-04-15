@@ -143,7 +143,7 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
     }
     
     // ito muna error message sa google sign in
-    setError("Google login is currently disabled. Please use email/password login.");
+    // setError("Google login is currently disabled. Please use email/password login.");
   };
 
   const goToRegister = () => {

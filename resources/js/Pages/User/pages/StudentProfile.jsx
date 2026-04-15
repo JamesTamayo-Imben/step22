@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Inertia } from '@inertiajs/inertia';
-import { usePage } from '@inertiajs/react';
+import { usePage, useForm } from '@inertiajs/react';
 import { useSupabase } from '@/context/SupabaseContext';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
@@ -18,6 +18,7 @@ import {
   Lock,
   Key,
   LogOut,
+  X,
 } from 'lucide-react';
 
 const profileStats = [
@@ -46,6 +47,8 @@ const recentActivity = [
 export default function StudentProfilePage({ onNavigate }) {
   const { props } = usePage();
   const [profileData, setProfileData] = useState(null);
+  const [showEditPhoneModal, setShowEditPhoneModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const accountInfoRef = useRef(null);
 
   // Initialize profile data from Laravel user (step2 database)
@@ -110,6 +113,193 @@ export default function StudentProfilePage({ onNavigate }) {
       default: 
         return 'bg-gray-100';
     }
+  };
+
+  // Edit Phone Modal Component
+  const EditPhoneModal = () => {
+    const [phoneInput, setPhoneInput] = useState(profileData?.phone || '');
+    const [isSaving, setIsSaving] = useState(false);
+    const { patch } = useForm({ phone: phoneInput });
+
+    const handleSavePhone = (e) => {
+      e.preventDefault();
+      setIsSaving(true);
+      patch(route('profile.update'), {
+        onSuccess: () => {
+          setProfileData(prev => ({ ...prev, phone: phoneInput }));
+          setShowEditPhoneModal(false);
+          setIsSaving(false);
+        },
+        onError: () => {
+          setIsSaving(false);
+        },
+      });
+    };
+
+    return (
+      <>
+        {showEditPhoneModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <Card className="w-full max-w-sm p-6 rounded-[20px] border-0 shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Edit Phone Number</h3>
+                <button
+                  onClick={() => setShowEditPhoneModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+              <form onSubmit={handleSavePhone} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    value={phoneInput}
+                    onChange={(e) => setPhoneInput(e.target.value)}
+                    placeholder="09xxxxxxxxx"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  />
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPhoneModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {isSaving ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </form>
+            </Card>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  // Change Password Modal Component
+  const ChangePasswordModal = () => {
+    const [passwordData, setPasswordData] = useState({
+      current_password: '',
+      password: '',
+      password_confirmation: '',
+    });
+    const [errors, setErrors] = useState({});
+    const [isSaving, setIsSaving] = useState(false);
+    const { put } = useForm(passwordData);
+
+    const handleChangePassword = (e) => {
+      e.preventDefault();
+      setErrors({});
+      setIsSaving(true);
+      
+      put(route('password.update'), {
+        preserveScroll: true,
+        onSuccess: () => {
+          setPasswordData({
+            current_password: '',
+            password: '',
+            password_confirmation: '',
+          });
+          setShowChangePasswordModal(false);
+          setIsSaving(false);
+        },
+        onError: (err) => {
+          setErrors(err);
+          setIsSaving(false);
+        },
+      });
+    };
+
+    return (
+      <>
+        {showChangePasswordModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <Card className="w-full max-w-sm p-6 rounded-[20px] border-0 shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Change Password</h3>
+                <button
+                  onClick={() => setShowChangePasswordModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.current_password}
+                    onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  />
+                  {errors.current_password && (
+                    <p className="text-red-600 text-sm mt-1">{errors.current_password}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.password}
+                    onChange={(e) => setPasswordData({ ...passwordData, password: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  />
+                  {errors.password && (
+                    <p className="text-red-600 text-sm mt-1">{errors.password}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.password_confirmation}
+                    onChange={(e) => setPasswordData({ ...passwordData, password_confirmation: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  />
+                  {errors.password_confirmation && (
+                    <p className="text-red-600 text-sm mt-1">{errors.password_confirmation}</p>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePasswordModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {isSaving ? 'Saving...' : 'Change'}
+                  </button>
+                </div>
+              </form>
+            </Card>
+          </div>
+        )}
+      </>
+    );
   };
 
   return (
@@ -186,36 +376,7 @@ export default function StudentProfilePage({ onNavigate }) {
           </div>
 
           <div className="space-y-6">
-            {/* Profile Picture Section */}
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-6 pb-6 border-b">
-              <div className="relative">
-                {profileData?.picture ? (
-                  <img 
-                    src={profileData.picture} 
-                    alt="Profile"
-                    className="w-24 h-24 rounded-xl object-cover border-2 border-blue-200"
-                  />
-                ) : (
-                  <div className="w-24 h-24 rounded-xl bg-blue-100 border-2 border-blue-200 flex items-center justify-center text-xl font-medium text-blue-600">
-                    {profileData?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'U'}
-                  </div>
-                )}
-                <button className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors">
-                  <Camera className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Profile Picture</h3>
-                <p className="text-sm text-gray-600 mb-3">Update your profile picture from your computer</p>
-                <button 
-                  onClick={() => onNavigate('edit-picture')}
-                  className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                >
-                  <Camera className="w-4 h-4" />
-                  Edit Picture
-                </button>
-              </div>
-            </div>
+            {/* Profile picture / upload removed as per requested UI simplification */}
 
             {/* Account Information Grid - Read Only */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -253,9 +414,19 @@ export default function StudentProfilePage({ onNavigate }) {
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Calendar className="w-5 h-5 text-blue-600" />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Phone</p>
-                  <p className="text-gray-900 font-medium">{profileData?.phone || 'Not provided'}</p>
+                <div className="flex-1 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Phone</p>
+                    <p className="text-gray-900 font-medium">{profileData?.phone || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <button
+                      onClick={() => setShowEditPhoneModal(true)}
+                      className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-md text-sm font-medium transition-colors"
+                    >
+                      Edit Phone
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -287,20 +458,14 @@ export default function StudentProfilePage({ onNavigate }) {
 
             {/* Action Buttons */}
             <div className="pt-6 border-t flex flex-col sm:flex-row gap-3">
-              <button 
-                onClick={() => onNavigate('edit-password')}
+              <button
+                onClick={() => setShowChangePasswordModal(true)}
                 className="flex-1 px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <Key className="w-5 h-5" />
-                Edit Password
+                Change Password
               </button>
-              <button 
-                onClick={() => onNavigate('2fa')}
-                className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
-              >
-                <Lock className="w-5 h-5" />
-                Two-Factor Authentication
-              </button>
+              {/* Two-factor authentication removed from this view per request */}
             </div>
           </div>
         </Card>
@@ -413,6 +578,10 @@ export default function StudentProfilePage({ onNavigate }) {
           </button>
         </div>
       </Card>
+
+      {/* Modals */}
+      <EditPhoneModal />
+      <ChangePasswordModal />
     </div>
   );
 }

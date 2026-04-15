@@ -1073,7 +1073,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 --
 ALTER TABLE `teacher_adviser`
   ADD CONSTRAINT `teacher_adviser_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `teacher_adviser_ibfk_2` FOREIGN KEY (`institute_id`) REFERENCES `permission` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `teacher_adviser_ibfk_2` FOREIGN KEY (`institute_id`) REFERENCES `institute` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `users`

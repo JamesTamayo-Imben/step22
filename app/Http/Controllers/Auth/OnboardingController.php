@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\SuccessMail;
 use App\Models\User;
 use App\Models\Course;
 use App\Models\Institute;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 class OnboardingController extends Controller
 {
@@ -321,16 +323,15 @@ public function complete(Request $request)
                 if ($role === 'professor' || $role === 'teacher') {
                     $roleRecord = Role::where('slug', 'teacher')->first();
 
-                    // Current DB schema has teacher_adviser.institute_id constrained to permission.id.
-                    // To prevent FK crashes during onboarding, only persist institute_id when it matches permission IDs.
+                    // Validate that institute_id exists in the institute table
                     $teacherInstituteId = $validated['institute_id'] ?? null;
                     if ($teacherInstituteId) {
-                        $isValidForeignKey = DB::table('permission')
+                        $isValidForeignKey = DB::table('institute')
                             ->where('id', $teacherInstituteId)
                             ->exists();
 
                         if (!$isValidForeignKey) {
-                            Log::warning('⚠️ Onboarding teacher institute_id does not match current FK target (permission.id). Saving as NULL.', [
+                            Log::warning('⚠️ Onboarding teacher institute_id does not exist in institute table. Saving as NULL.', [
                                 'user_id' => $userId,
                                 'provided_institute_id' => $teacherInstituteId,
                             ]);
@@ -349,6 +350,40 @@ public function complete(Request $request)
                     return ['type' => 'teacher', 'message' => 'Teacher linked to institute successfully'];
                 }
             });
+
+            // After successful onboarding, send welcome email
+            try {
+                $user = User::find($userId);
+                $instituteName = null;
+                $employeeId = null;
+
+                // Get institute name if teacher
+                if ($result['type'] === 'teacher' && isset($validated['institute_id'])) {
+                    $institute = DB::table('institute')->where('id', $validated['institute_id'])->first();
+                    $instituteName = $institute ? $institute->name : null;
+                    $employeeId = $validated['employee_id'] ?? null;
+                }
+
+                // Send success email
+                Mail::to($user->email)->send(new SuccessMail(
+                    $user->first_name,
+                    $result['type'],
+                    $instituteName,
+                    $employeeId
+                ));
+
+                Log::info('✅ Welcome email sent to user', [
+                    'user_id' => $userId,
+                    'email' => $user->email,
+                    'role' => $result['type'],
+                ]);
+            } catch (\Exception $emailError) {
+                Log::warning('⚠️ Failed to send welcome email', [
+                    'user_id' => $userId,
+                    'error' => $emailError->getMessage(),
+                ]);
+                // Don't fail the entire request if email fails
+            }
 
             return response()->json([
                 'success' => true,

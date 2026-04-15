@@ -10,6 +10,8 @@ use App\Models\User\Rating;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class ProjectController extends Controller
@@ -103,7 +105,7 @@ class ProjectController extends Controller
             
             return response()->json($project, 201);
         } catch (\Exception $e) {
-            \Log::error('Project creation failed: ' . $e->getMessage());
+            Log::error('Project creation failed: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to create project',
                 'error' => $e->getMessage()
@@ -172,7 +174,7 @@ class ProjectController extends Controller
             
             return response()->json($project, 200);
         } catch (\Exception $e) {
-            \Log::error('Project update failed: ' . $e->getMessage());
+            Log::error('Project update failed: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to update project',
                 'error' => $e->getMessage()
@@ -257,9 +259,9 @@ class ProjectController extends Controller
             try {
                 $approverEmployeeId = $project->approve_by;
 
-                if (!$approverEmployeeId && auth()->check()) {
+                if (!$approverEmployeeId && Auth::check()) {
                     // use current logged-in user id as fallback employee_id
-                    $approverEmployeeId = (string) auth()->id();
+                    $approverEmployeeId = (string) Auth::id();
                 }
 
                 Approval::create([
@@ -271,7 +273,7 @@ class ProjectController extends Controller
                 ]);
             } catch (\Exception $approvalError) {
                 // Log success path and continue. Data may still be in project record.
-                \Log::warning('Approval insertion skipped due to error: ' . $approvalError->getMessage());
+                Log::warning('Approval insertion skipped due to error: ' . $approvalError->getMessage());
             }
             
             return response()->json([
