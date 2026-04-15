@@ -18,6 +18,7 @@ import {
   UserPlus,
   CheckCircle,
   Repeat,
+  Calendar,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -151,15 +152,57 @@ export function RolePermissionsPage() {
   });
 
   const [isSetOfficerModalOpen, setIsSetOfficerModalOpen] = useState(false);
+  const [isCouncilTermModalOpen, setIsCouncilTermModalOpen] = useState(false);
+  const [councilStartDate, setCouncilStartDate] = useState('');
+  const [councilEndDate, setCouncilEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPosition, setSelectedPosition] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedCSGFilter, setSelectedCSGFilter] = useState('');
   const [selectedOfficer, setSelectedOfficer] = useState(null);
+  const [isLoadingTerm, setIsLoadingTerm] = useState(true);
+
+  useEffect(() => {
+  const fetchCouncilTerm = async () => {
+    setIsLoadingTerm(true);
+    try {
+      const response = await fetch('/adviser/role-permissions/get-council-term');
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('Fetched term dates:', data); // Debug log
+        setCouncilStartDate(data.startDate || '');
+        setCouncilEndDate(data.endDate || '');
+      } else {
+        console.error('Failed to fetch term:', data);
+        setCouncilStartDate('');
+        setCouncilEndDate('');
+      }
+    } catch (error) {
+      console.error('Failed to fetch council term:', error);
+      setCouncilStartDate('');
+      setCouncilEndDate('');
+    } finally {
+      setIsLoadingTerm(false);
+    }
+  };
+  
+  fetchCouncilTerm();
+}, []);
+
 
   const [councilOfficers, setCouncilOfficers] = useState(initialCouncilOfficers);
   const [csgPositions, setCSGPositions] = useState(initialCsgPositions);
   const [rolePermissions, setRolePermissions] = useState(initialRoles);
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+};
 
   const filteredUsers = useMemo(() => {
     const q = (searchQuery || '').toLowerCase();
@@ -287,6 +330,65 @@ export function RolePermissionsPage() {
     setIsSetOfficerModalOpen(true);
   };
 
+ const handleSetCouncilTerm = async () => {
+  if (!councilStartDate || !councilEndDate) {
+    showToast('Please select both start and end dates', 'error');
+    return;
+  }
+
+  if (new Date(councilStartDate) >= new Date(councilEndDate)) {
+    showToast('Start date must be before end date', 'error');
+    return;
+  }
+
+  // Store the dates for immediate update
+  const newStartDate = councilStartDate;
+  const newEndDate = councilEndDate;
+
+  try {
+    const response = await fetch('/adviser/role-permissions/set-council-term', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+      },
+      body: JSON.stringify({
+        startDate: councilStartDate,
+        endDate: councilEndDate,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      // Immediately update the state with the new dates
+      setCouncilStartDate(newStartDate);
+      setCouncilEndDate(newEndDate);
+      
+      showToast(data.message || 'Council term updated successfully');
+      setIsCouncilTermModalOpen(false);
+      
+      // Optional: Refresh the council officers list to show updated term dates
+      // This ensures all officers have the new term dates
+      setTimeout(() => {
+        router.reload({ only: ['councilOfficers'] });
+      }, 500);
+    } else {
+      showToast(data.message || 'Failed to set council term', 'error');
+    }
+  } catch (error) {
+    showToast(error.message || 'Failed to set council term', 'error');
+  }
+};
+
+  
+
+  const openCouncilTermModal = () => {
+    setCouncilStartDate('');
+    setCouncilEndDate('');
+    setIsCouncilTermModalOpen(true);
+  };
+
   const handleSetOfficer = () => {
     if (!selectedUser || !selectedPosition) {
       showToast('Please select a user to assign', 'error');
@@ -335,14 +437,10 @@ export function RolePermissionsPage() {
             <p className="text-gray-500">Configure role-based access control</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          {/* <Button onClick={handleReset} variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Reset to Default
+          <Button onClick={openCouncilTermModal} className="bg-[#2563EB] hover:bg-blue-700 text-white">
+            <Calendar className="w-4 h-4 mr-2" />
+            Set Council Term
           </Button>
-          <Button onClick={handleSave} className="bg-[#2563EB] hover:bg-blue-700 text-white">
-            <Save className="w-4 h-4 mr-2" />
-            Save Changes
-          </Button> */}
         </div>
       </div>
 
@@ -350,10 +448,13 @@ export function RolePermissionsPage() {
       <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-gray-900 flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#2563EB]" />
-              CSG Council Officers
-            </h2>
+            <h2 className="text-gray-900 flex items-center">
+  {/* <Users className="w-5 h-5 text-[#2563EB]" /> */}
+  CSG Council Officers 
+    <span className='text-sm text-blue-600 font-medium ml-2'>
+      {formatDate(councilStartDate)} to {formatDate(councilEndDate)}
+    </span>
+</h2>
             <p className="text-sm text-gray-500 mt-1">Manage and assign council officer positions</p>
           </div>
         </div>
@@ -724,6 +825,71 @@ export function RolePermissionsPage() {
     </Button>
   </div>
 </Modal>
+
+      <Modal
+        open={isCouncilTermModalOpen}
+        onClose={() => {
+          setIsCouncilTermModalOpen(false);
+          setCouncilStartDate('');
+          setCouncilEndDate('');
+        }}
+        title="Set Council Term"
+        description="Set the start and end dates for the CSG council term. This will update all current CSG officers' term dates."
+      >
+        <div className="space-y-4 pt-4">
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">Council Start Date</label>
+            <input
+              type="date"
+              value={councilStartDate}
+              onChange={(e) => setCouncilStartDate(e.target.value)}
+              className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition px-3"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">Council End Date</label>
+            <input
+              type="date"
+              value={councilEndDate}
+              onChange={(e) => setCouncilEndDate(e.target.value)}
+              className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition px-3"
+            />
+          </div>
+          {councilStartDate && councilEndDate && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800">
+                <span className="font-medium">Council Term:</span> {new Date(councilStartDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })} to {new Date(councilEndDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
+            </div>
+          )}
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-800">
+              <span className="font-medium">Note:</span> This will update the council term for all CSG members in the student_csg_officers table.
+            </p>
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button
+            onClick={() => {
+              setIsCouncilTermModalOpen(false);
+              setCouncilStartDate('');
+              setCouncilEndDate('');
+            }}
+            variant="outline"
+            className="border-gray-300 text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSetCouncilTerm}
+            className="bg-[#2563EB] hover:bg-blue-700 text-white"
+            disabled={!councilStartDate || !councilEndDate}
+          >
+            <Calendar className="w-4 h-4 mr-2" />
+            Set Council Term
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

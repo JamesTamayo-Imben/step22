@@ -34,10 +34,14 @@ import {
   XCircle,
   AlertCircle,
   Lock,
+  Calendar1,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 
 import ProjectsPage from './Projects';
 import LedgerPage from './Ledger';
+import { CreateProjectModal } from './modal';
 
 // Helper function to calculate status based on dates
 function getAutoStatus(startDate, endDate, approvalStatus) {
@@ -185,8 +189,10 @@ function RatingsPage() { return <Card className="p-8">Ratings (placeholder)</Car
 function PerformancePage() { return <Card className="p-8">Performance Panel (placeholder)</Card>; }
 function ProfilePage() { return <Card className="p-8">Profile (placeholder)</Card>; }
 
-export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, projects: initialProjects = [], recentLedgerEntries = [], upcomingMeetings: initialMeetings = [] }) {
+export function CSGOfficerDashboard({ currentView, statistics = {}, projects: initialProjects = [], recentLedgerEntries = [], upcomingMeetings: initialMeetings = [] }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showStatCardPointer, setShowStatCardPointer] = useState(false);
+  const [highlightedStatCard, setHighlightedStatCard] = useState(null);
   const [budgetItems, setBudgetItems] = useState([
     { id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }
   ]);
@@ -222,11 +228,27 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
       (project.approval_status || project.status || '').toLowerCase() === 'approved'
     );
   });
-  
+
+  //filter meeting o only show upcomming
+  const [upcomingMeetings, setUpcomingMeetings] = useState(() => {
+    return initialMeetings.filter(meeting => !meeting.is_done && !meeting.archive);
+  });
+
   const [ledgerEntries, setLedgerEntries] = useState(recentLedgerEntries);
   const [meetingList, setMeetingList] = useState(initialMeetings);
   const [ledgerFilePreview, setLedgerFilePreview] = useState(null);
   const ledgerFileInputRef = useRef(null);
+
+  const tamperedProjectIds = new Set(
+    (ledgerEntries || [])
+      .filter((entry) => entry?.verificationState?.tampered)
+      .map((entry) => String(entry?.project_id || entry?.projectId || ''))
+      .filter(Boolean)
+  );
+  const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
+  const unlockedDashboardProjects = dashboardProjects.filter((project) => !isProjectLocked(project.id));
+
+
 
   // Calculate stats based on approved projects only
   const approvedProjects = dashboardProjects;
@@ -235,6 +257,12 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
     pending: statistics.pendingApprovals ?? 0,
     avgNet: statistics.avgNetPerProject ?? 0,
   };
+  
+  const upcommingMeetingsCount = upcomingMeetings;
+  const meetingStatusCounts = {
+    upcoming: upcommingMeetingsCount.length,
+  };
+
 
   // Fetch projects on component mount to ensure we have latest approved projects
   useEffect(() => {
@@ -337,6 +365,11 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
     const totalAmount = calculateTotalBudget();
     if (totalAmount <= 0) {
       showToast('Please add at least one budget item with a valid amount', 'error');
+      return;
+    }
+
+    if (isProjectLocked(ledgerForm.project_id)) {
+      showToast('This project ledger is locked due to tampering. Resolve the issue first.', 'error');
       return;
     }
 
@@ -614,20 +647,32 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
     }
   };
 
-  function StatsCard({ title, value, hint, icon, iconBg = 'bg-gray-100', iconColor = 'text-gray-700' }) {
+  const handleStatCardClick = (cardName) => {
+    setHighlightedStatCard(cardName);
+    setShowStatCardPointer(true);
+    // Auto-hide after 5 seconds
+    setTimeout(() => setShowStatCardPointer(false), 8000);
+  };
+
+  function StatsCard({ title, value, hint, icon, iconBg = 'bg-gray-100', iconColor = 'text-gray-700', cardName, onClick }) {
     return (
-      <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500">{title}</p>
-            <p className="text-2xl text-gray-900 mt-1">{value}</p>
-            {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+      <button
+        onClick={() => onClick && onClick(cardName)}
+        className="w-full text-left hover:shadow-md transition-shadow"
+      >
+        <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white cursor-pointer hover:shadow-lg transition-all">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">{title}</p>
+              <p className="text-2xl text-gray-900 mt-1">{value}</p>
+              {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+            </div>
+            <div className={`w-12 h-12 ${iconBg} rounded-xl flex items-center justify-center`}>
+              {icon && React.cloneElement(icon, { className: `w-6 h-6 ${iconColor}` })}
+            </div>
           </div>
-          <div className={`w-12 h-12 ${iconBg} rounded-xl flex items-center justify-center`}>
-            {icon && React.cloneElement(icon, { className: `w-6 h-6 ${iconColor}` })}
-          </div>
-        </div>
-      </Card>
+        </Card>
+      </button>
     );
   }
 
@@ -684,7 +729,9 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
 
           <Button
             onClick={() => setShowLedgerModal(true)}
-            className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+            className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={unlockedDashboardProjects.length === 0}
+            title={unlockedDashboardProjects.length === 0 ? 'All approved projects are locked due to tampering.' : undefined}
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Ledger Entry
@@ -740,7 +787,7 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
               className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="">Select Project</option>
-              {dashboardProjects.map((project) => (
+              {unlockedDashboardProjects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.title || project.name}
                 </option>
@@ -902,7 +949,7 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
             </Button>
             <Button
               onClick={handleAddLedgerEntry}
-              disabled={!ledgerForm.description || !ledgerForm.project_id || !ledgerForm.type || calculateTotalBudget() <= 0}
+              disabled={!ledgerForm.description || !ledgerForm.project_id || !ledgerForm.type || calculateTotalBudget() <= 0 || isProjectLocked(ledgerForm.project_id)}
               className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
             >
               Save Entry
@@ -911,8 +958,8 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
         </div>
       </Modal>
 
-      {/* STEP 10: Add the Modal */}
-      <Modal
+      {/* Create Project Modal */}
+      <CreateProjectModal
         open={showCreateModal}
         onClose={() => {
           setShowCreateModal(false);
@@ -923,7 +970,7 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
             objective: '',
             venue: '',
             proposedBy: '',
-             budget: '',
+            budget: '',
             startDate: '',
             endDate: '',
           });
@@ -931,202 +978,36 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
           setSelectedFile(null);
           if (fileInputRef.current) fileInputRef.current.value = '';
         }}
-        title="Create New Project"
-        description="Fill in the project details below"
-      >
-        <div className="space-y-4 pt-6">
-          {/* STEP 10.1: Project Title Field */}
-          <div>
-            <FieldLabel>Project Title *</FieldLabel>
-            <Input
-              placeholder="Enter project title"
-              value={newProject.title || ''}
-              onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
-              className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-            />
-          </div>
-
-          {/* STEP 10.2: Category Field */}
-          <div>
-            <FieldLabel>Category *</FieldLabel>
-            <Select value={newProject.category} onValueChange={(value) => setNewProject({ ...newProject, category: value })}>
-              <option value="">Select category</option>
-              <option value="Social">Social</option>
-              <option value="Sports">Sports</option>
-              <option value="Environmental">Environmental</option>
-              <option value="Technology">Technology</option>
-              <option value="Cultural">Cultural</option>
-              <option value="Education">Education</option>
-              <option value="Health">Health</option>
-            </Select>
-          </div>
-
-          <div>
-            <FieldLabel>Objective *</FieldLabel>
-            <Textarea
-              placeholder="Describe the main objective of the project"
-              value={newProject.objective || ''}
-              onChange={(e) => setNewProject({ ...newProject, objective: e.target.value })}
-              rows={3}
-              className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-            />
-          </div>
-          
-          {/* STEP 10.3: Description Field */}
-          <div>
-            <FieldLabel>Description *</FieldLabel>
-            <Textarea
-              placeholder="Describe the project objectives and goals"
-              value={newProject.description}
-              onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-              rows={4}
-              className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-            />
-          </div>
-
-          <div>
-            <FieldLabel>Venue *</FieldLabel>
-            <Input
-              placeholder="Enter project venue/location"
-              value={newProject.venue || ''}
-              onChange={(e) => setNewProject({ ...newProject, venue: e.target.value })}
-              className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-            />
-          </div>
-
-          {/* STEP 10.4: Project Budget Field */}
-          <div>
-                       <FieldLabel>Project Budget (Optional)</FieldLabel>
-                       <Input
-                         type="number"
-                         placeholder="Enter project budget amount"
-                         value={newProject.budget || ''}
-                         onChange={(e) => setNewProject({ ...newProject, budget: e.target.value })}
-                         min="0"
-                         step="0.01"
-                         className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                       /> 
-                     </div>    
-
-          {/* STEP 10.5: File Upload Section */}
-          <div>
-            <FieldLabel>Project Budget Proof (Optional)</FieldLabel>
-            <div className="flex flex-col items-center gap-3">
-              <button
-                type="button"
-                className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center hover:bg-gray-50 transition"
-                onClick={() => fileInputRef.current && fileInputRef.current.click()}
-              >
-                <Upload className="w-6 h-6 text-gray-500" />
-                <p className="text-sm text-gray-600 mt-2">Click to upload</p>
-                <p className="text-xs text-gray-500 mt-1">PDF, Images up to 10MB</p>
-              </button>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-
-              {filePreview && (
-                <div className="w-full p-4 bg-gray-50 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{filePreview.name}</p>
-                        <p className="text-xs text-gray-500">{filePreview.size}</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setFilePreview(null);
-                        setSelectedFile(null);
-                        if (fileInputRef.current) fileInputRef.current.value = '';
-                      }}
-                    >
-                      ✕
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* STEP 10.6: Proposed By Field */}
-          <div>
-            <FieldLabel>Proposed by *</FieldLabel>
-            <Input
-              placeholder="Enter name of proposer"
-              value={newProject.proposedBy}
-              onChange={(e) => setNewProject({ ...newProject, proposedBy: e.target.value })}
-              className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-            />
-          </div>
-
-          {/* STEP 10.7: Date Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Start Date</FieldLabel>
-              <Input
-                type="date"
-                value={newProject.startDate}
-                onChange={(e) => setNewProject({ ...newProject, startDate: e.target.value })}
-                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-              />
-            </div>
-            <div>
-              <FieldLabel>End Date</FieldLabel>
-              <Input
-                type="date"
-                value={newProject.endDate}
-                onChange={(e) => setNewProject({ ...newProject, endDate: e.target.value })}
-                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-              />
-            </div>
-          </div>
-
-          {/* STEP 10.8: Form Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowCreateModal(false);
-                setNewProject({
-                  title: '',
-                  category: '',
-                  description: '',
-                  objective: '',
-                  venue: '',
-                  proposedBy: '',
-                  startDate: '',
-                  endDate: '',
-                });
-                setFilePreview(null);
-                setSelectedFile(null);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-              }}
-              className="flex-1 rounded-xl"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateProject}
-              disabled={!newProject.title || !newProject.category || !newProject.description || !newProject.objective || !newProject.venue || !newProject.proposedBy}
-              className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
-            >
-              Create Project
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        newProject={newProject}
+        setNewProject={setNewProject}
+        onSave={(data) => {
+          setShowCreateModal(false);
+          setNewProject({
+            title: '',
+            category: '',
+            description: '',
+            objective: '',
+            venue: '',
+            proposedBy: '',
+            budget: '',
+            startDate: '',
+            endDate: '',
+          });
+          setFilePreview(null);
+          setSelectedFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          // Redirect to project details page
+          const projectId = data.id || data.data?.id;
+          if (projectId) {
+            router.visit(`/csg/projects/${projectId}`);
+          } else {
+            window.location.reload();
+          }
+        }}
+      />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="stats-grid-section">
         <StatsCard
           title="Active Projects"
           value={projectStatusCounts.active}
@@ -1134,6 +1015,8 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
           icon={<FolderKanban />}
           iconBg="bg-blue-50"
           iconColor="text-blue-600"
+          cardName="activeProjects"
+          onClick={handleStatCardClick}
         />
         <StatsCard
           title="Avg. Net Per Project"
@@ -1142,6 +1025,18 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
           icon={<DollarSign />}
           iconBg="bg-green-50"
           iconColor="text-green-600"
+          cardName="avgNetPerProject"
+          onClick={handleStatCardClick}
+        />
+        <StatsCard
+          title="Upcoming Meetings"
+          value={meetingStatusCounts?.upcoming || 0}
+          hint="Scheduled events"
+          icon={<Calendar1 />}
+          iconBg="bg-gray-50"
+          iconColor="text-gray-600"
+          cardName="upcomingMeetings"
+          onClick={handleStatCardClick}
         />
         <StatsCard
           title="Avg. Rating"
@@ -1150,19 +1045,151 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
           icon={<Star />}
           iconBg="bg-yellow-50"
           iconColor="text-yellow-600"
-        />
-        <StatsCard
-          title="Student Satisfaction Rate"
-          value={`${statistics.csatRate || 0}%`}
-          hint="CSAT Score"
-          icon={<Users />}
-          iconBg="bg-purple-50"
-          iconColor="text-purple-600"
+          cardName="avgRating"
+          onClick={handleStatCardClick}
         />
       </div>
 
+      {/* Pointer Overlay for Stat Cards */}
+      {showStatCardPointer && (
+        <div className="fixed top-0 left-0 right-0 bottom-0 z-40 pointer-events-none">
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-black/40"></div>
+          
+          {/* Pointer Container */}
+          <div 
+            className="absolute transform -translate-x-1/2 z-50 pointer-events-auto" 
+            style={{ 
+              left: highlightedStatCard === 'activeProjects' ? 'calc(50%)' :
+                    highlightedStatCard === 'avgNetPerProject' ? 'calc(17%)' :
+                    highlightedStatCard === 'upcomingMeetings' ? 'calc(65%)' :
+                    'calc(70%)',
+              top: highlightedStatCard === 'activeProjects' ? 'calc(41% + 150px)' :
+                   highlightedStatCard === 'avgNetPerProject' ? 'calc(26% + 150px)' :
+                   highlightedStatCard === 'upcomingMeetings' ? 'calc(26% + 150px)' :
+                   'calc(29%)'
+            }}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowStatCardPointer(false)}
+              className="absolute -top-2 -right-2 bg-white rounded-full p-2 hover:bg-gray-100 shadow-lg z-10"
+            >
+              <X className="w-5 h-5 text-gray-800" />
+            </button>
+
+            {/* Text Box with Arrow */}
+            <div className="bg-white text-gray-900 px-6 py-4 rounded-xl shadow-xl max-w-xs flex items-start gap-4">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-blue-600 mb-1">
+                  {highlightedStatCard === 'activeProjects' && 'Active Projects'}
+                  {highlightedStatCard === 'avgNetPerProject' && 'Average Net Per Project'}
+                  {highlightedStatCard === 'upcomingMeetings' && 'Upcoming Meetings'}
+                  {highlightedStatCard === 'avgRating' && 'Average Rating'}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {highlightedStatCard === 'activeProjects' && 'Active Projects are the count of currently in progress projects. Click here to view the full list.'}
+                  {highlightedStatCard === 'avgNetPerProject' && 'Avg. Net Per Project shows the average net amount (income - expenses) across all projects. Click to see financial details.'}
+                  {highlightedStatCard === 'upcomingMeetings' && 'Upcoming Meetings are scheduled events related to projects. Click to view the calendar and details.'}
+                  {highlightedStatCard === 'avgRating' && 'Avg. Rating is the average student rating for completed projects.'}
+                </p>
+              </div>
+              {/* Animated Arrow Icon */}
+              <div className="flex-shrink-0">
+                {highlightedStatCard === 'activeProjects' && <ArrowUp className="w-6 h-6 text-blue-600 animate-bounce" />}
+                {highlightedStatCard === 'avgNetPerProject' && <ArrowDown className="w-6 h-6 text-blue-600 animate-bounce" />}
+                {highlightedStatCard === 'upcomingMeetings' && <ArrowDown className="w-6 h-6 text-blue-600 animate-bounce" />}
+                {highlightedStatCard === 'avgRating' && <ArrowUp className="w-6 h-6 text-blue-600 animate-bounce" />}
+              </div>
+            </div>
+          </div>
+
+          {/* Highlight Stat Card */}
+          <style>{`
+            @keyframes pulse-highlight {
+              0%, 100% {
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+              }
+              50% {
+                box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+              }
+            }
+            .stat-card-highlight {
+              animation: pulse-highlight 2s infinite;
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Highlight the stat card when pointer is showing */}
+      {showStatCardPointer && (
+        <style>{`
+          ${highlightedStatCard === 'activeProjects' ? `
+            #active-projects-card {
+              position: relative;
+              z-index: 100 !important;
+            }
+            #active-projects-card::after {
+              content: '';
+              position: absolute;
+              inset: -8px;
+              border: 3px solid #2563EB;
+              border-radius: 1rem;
+              box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2), 0 0 20px rgba(37, 99, 235, 0.5);
+              animation: pulse-highlight 2s infinite;
+              pointer-events: none;
+            }
+          ` : highlightedStatCard === 'avgNetPerProject' ? `
+            #recent-ledger-card {
+              position: relative;
+              z-index: 100 !important;
+            }
+            #recent-ledger-card::after {
+              content: '';
+              position: absolute;
+              inset: -8px;
+              border: 3px solid #2563EB;
+              border-radius: 1rem;
+              box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2), 0 0 20px rgba(37, 99, 235, 0.5);
+              animation: pulse-highlight 2s infinite;
+              pointer-events: none;
+            }
+          ` : highlightedStatCard === 'upcomingMeetings' ? `
+            #upcoming-meetings-card {
+              position: relative;
+              z-index: 100 !important;
+            }
+            #upcoming-meetings-card::after {
+              content: '';
+              position: absolute;
+              inset: -8px;
+              border: 3px solid #2563EB;
+              border-radius: 1rem;
+              box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2), 0 0 20px rgba(37, 99, 235, 0.5);
+              animation: pulse-highlight 2s infinite;
+              pointer-events: none;
+            }
+          ` : `
+            #stats-grid-section > button:nth-child(4) {
+              position: relative;
+              z-index: 50 !important;
+            }
+            #stats-grid-section > button:nth-child(4)::after {
+              content: '';
+              position: absolute;
+              inset: -8px;
+              border: 3px solid #2563EB;
+              border-radius: 1rem;
+              box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2), 0 0 20px rgba(37, 99, 235, 0.5);
+              animation: pulse-highlight 2s infinite;
+              pointer-events: none;
+            }
+          `}
+        `}</style>
+      )}
+
       {/* Active Projects - Now only shows approved projects */}
-      <Card className="p-6 rounded-2xl border-0 shadow-sm bg-white">
+      <Card id="active-projects-card" className="p-6 rounded-2xl border-0 shadow-sm bg-white">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-gray-900">Active Projects</h2>
         </div>
@@ -1203,7 +1230,7 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
 
       {/* Recent Ledger & Upcoming Meetings */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-       <Card className="p-6 rounded-2xl border-0 shadow-sm bg-white">
+       <Card id="recent-ledger-card" className="p-6 h-[300px] rounded-2xl border-0 shadow-sm bg-white">
   <h2 className="text-gray-900 mb-4">Recent Ledger Entries</h2>
   <div className="max-h-96 overflow-y-auto space-y-3">
     {ledgerEntries && ledgerEntries.length > 0 ? (
@@ -1217,7 +1244,7 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
         const amount = entry.amount || 0;
         
         return (
-          <div key={entry.id || index} className="flex items-center justify-between py-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+          <div key={entry.id || index} onClick={() => router.visit('/csg/ledger')} className="flex items-center justify-between py-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
             <div className="flex items-center gap-3 flex-1">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isIncome ? 'bg-green-100' : isExpense ? 'bg-red-100' : 'bg-gray-100'}`}>
                 <DollarSign className={`w-4 h-4 ${isIncome ? 'text-green-600' : isExpense ? 'text-red-600' : 'text-gray-600'}`} />
@@ -1267,11 +1294,13 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
   </div>
 </Card>
 
-        <Card className="p-6 rounded-2xl border-0 shadow-sm bg-white">
+        <Card id="upcoming-meetings-card" className="p-6 rounded-2xl border-0 shadow-sm bg-white">
           <h2 className="text-gray-900 mb-4">Upcoming Meetings</h2>
           <div className="space-y-3">
             {meetingList && meetingList.length > 0 ? (
               meetingList.slice(0, 5).map((meeting, index) => (
+                          <div onClick={() => router.visit('/csg/meetings')} className="flex items-center justify-between py-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+
                 <div key={meeting.id || index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Calendar className="w-5 h-5 text-blue-600" />
@@ -1281,6 +1310,7 @@ export function CSGOfficerDashboard({ currentView, onNavigate, statistics = {}, 
                     <p className="text-xs text-gray-500">{meeting.date} • {meeting.time}</p>
                     <p className="text-xs text-gray-400 mt-1">{meeting.attendees} expected attendees</p>
                   </div>
+                </div>
                 </div>
               ))
             ) : (

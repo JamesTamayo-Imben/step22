@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { StudentModal } from '@/Components/ui/StudentModal';
-import { ArrowLeft, Star, Calendar, DollarSign, FileText, CheckCircle, Wallet, Clock3 } from 'lucide-react';
+import { Chatbot } from '@/Components/ui/Chatbot';
+import { ArrowLeft, Star, Calendar, DollarSign, FileText, CheckCircle, Wallet, Clock3, Shield, XCircle } from 'lucide-react';
 
 export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [showRatingModal, setShowRatingModal] = useState(false);
@@ -31,6 +32,9 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
     // If approved, calculate status based on dates
     const startDate = project.startDate || project.start_date;
     const endDate = project.endDate || project.end_date;
+
+    //if the bidget becomes negative note
+    const ifBudgetNegative = project.budget < 0;
     
     if (!startDate || !endDate) {
       return 'Draft';
@@ -49,7 +53,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return 'Draft';
       }
-      
+       
       if (today < start) {
         return 'Upcoming';
       } else if (today > end) {
@@ -85,6 +89,38 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
         return 'bg-gray-100 text-gray-700';
     }
   };
+
+  const getStatusBadgeColor = (type) => {
+    switch (type) {
+      case 'Draft':
+        return 'bg-gray-200 text-gray-700';
+      case 'Upcoming':
+        return 'bg-purple-200 text-purple-700';
+      case 'Ongoing':
+        return 'bg-blue-200 text-blue-700';
+      case 'Completed':
+        return 'bg-green-200 text-green-700';
+      case 'Pending Adviser Approval':
+        return 'bg-yellow-200 text-yellow-700';
+      case 'Approved':
+        return 'bg-blue-200 text-blue-700';
+      case 'Rejected':
+        return 'bg-red-200 text-red-700';
+      default:
+        return 'bg-gray-200 text-gray-700';
+    }
+  };
+
+    const getTypeColor = (type) => {
+  switch (type) {
+    case 'Expense': return 'bg-red-100 text-red-700';
+    case 'Income': return 'bg-green-100 text-green-700';
+    case 'Donation': return 'bg-blue-100 text-blue-700';
+    case 'Sponsorship': return 'bg-purple-100 text-purple-700';
+    case 'Canvas': return 'bg-gray-100 text-gray-700';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+};
 
   const handleSubmitRating = async () => {
     if (!rating) return;
@@ -143,12 +179,23 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
                 <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200">
                   {project.category || 'General'}
                 </Badge>
+                {project.tamperedAlerts > 0 ? (
+                  <Badge className="bg-red-100 text-red-700 rounded-lg">
+                    <XCircle className="w-3 h-3 mr-1" />{project.tamperedAlerts} Tampered
+                  </Badge>
+                ) : (
+                  <Badge className="bg-green-100 text-green-700 rounded-lg">
+                    <Shield className="w-3 h-3 mr-1" />Verified
+                  </Badge>
+                )}
                 <Badge className={getStatusColor(getCalculatedStatus())}>
                   {getCalculatedStatus()}
                 </Badge>
               </div>
               <p className="text-gray-600 leading-relaxed">{project.objective || 'No objective available.'}</p>
             </div>
+
+      
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
               <div className="flex items-center gap-3">
@@ -190,11 +237,18 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
             <p className="text-sm text-gray-600">End Date</p>
             <p className="text-lg font-semibold text-gray-900">{project.endDate || 'N/A'}</p>
           </div>
-          <div className="bg-blue-50 rounded-xl p-4">
-            <DollarSign className="w-5 h-5 text-blue-600 mb-2" />
-            <p className="text-sm text-gray-600">Budget</p>
-            <p className="text-2xl font-bold text-gray-900">₱{Number(project.budget || 0).toLocaleString()}</p>
-          </div>
+         <div className="bg-blue-50 rounded-xl p-4">
+  <DollarSign className="w-5 h-5 text-blue-600 mb-2" />
+  <p className="text-sm text-gray-600">Budget</p>
+  <p className={`text-2xl font-bold ${Number(project.budget || 0) < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+    ₱{Number(project.budget || 0).toLocaleString()}
+  </p>
+  {Number(project.budget || 0) < 0 && (
+    <p className="text-xs text-red-600 mt-1">
+      Don't worry, the Budget is Negative because of the expenses. No need to panic!
+    </p>
+  )}
+</div>
           <div className="bg-blue-50 rounded-xl p-4">
             <Star className="w-5 h-5 text-blue-600 mb-2" />
             <p className="text-sm text-gray-600">Approval</p>
@@ -223,7 +277,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
           <div className="rounded-2xl border border-blue-100 bg-white p-4 md:p-5">
             <div className='mb-4'>
               <p className='text-sm text-gray-500 mb-1'>Project Details *</p>
-            <p className="text-gray-900 truncate">{project.description || 'No description available.'}</p>
+            <p className="text-gray-900">{project.description || 'No description available.'}</p>
             </div>
             <div className='mb-4'>
               <p className='text-sm text-gray-500 mb-1'>Project Proposer *</p>
@@ -267,14 +321,30 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
 
       {activeTab === 'ledger' && (
         <Card className="rounded-[20px] border-0 shadow-sm p-6">
+          
           <h2 className="text-xl font-bold text-gray-900 mb-4">Ledger</h2>
+
+          {/* Tamper Alert */}
+      {project.tamperedAlerts > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="text-sm font-medium text-red-800">Data Tampering Detected</h4>
+              <p className="text-sm text-red-700 mt-1">
+                {project.tamperedAlerts} ledger entr{project.tamperedAlerts === 1 ? 'y' : 'ies'} in this project {project.tamperedAlerts === 1 ? 'has' : 'have'} been modified after approval. Contact your adviser for assistance.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(project.ledgerEntries || []).map((entry) => (
               <button
                 key={entry.id}
                 onClick={() => setSelectedLedgerEntry(entry)}
                 className={`rounded-xl border p-4 ${
-                  entry.type === 'Income' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                  getTypeColor(entry.type)
                 } text-left hover:shadow-md transition-shadow`}
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
@@ -282,7 +352,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
                     <p className="text-xs text-gray-500">Transaction ID</p>
                     <p className="font-mono text-xs text-gray-700">{entry.id}</p>
                   </div>
-                  <Badge className={entry.type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                  <Badge className={getTypeColor(entry.type)}>
                     {entry.type}
                   </Badge>
                 </div>
@@ -290,7 +360,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
                   <Wallet className="w-4 h-4 text-gray-700" />
                   <p className="text-lg font-bold text-gray-900">₱{Number(entry.amount || 0).toLocaleString()}</p>
                 </div>
-                <p className="text-sm text-gray-700 mb-3">{entry.description || '-'}</p>
+                <p className="text-sm text-gray-700 mb-3 truncate">{entry.description || '-'}</p>
                 <div className="flex items-center justify-between text-xs">
                   <span className="px-2 py-1 rounded-md bg-white text-gray-700 border">{entry.approvalStatus}</span>
                   <span className="text-gray-600">{entry.createdAt || '-'}</span>
@@ -312,13 +382,13 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
                 onClick={() => setSelectedProofDocument(proof)}
                 className="border border-indigo-100 bg-white rounded-xl p-4 text-left hover:shadow-md transition-shadow"
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <FileText className="w-4 h-4 text-indigo-600" />
-                  <div>
-                    <p className="font-medium text-gray-900">{proof.fileName}</p>
-                    <p className="text-xs text-gray-500">Linked: {proof.linkedTransaction}</p>
-                  </div>
-                </div>
+               <div className="flex items-center gap-2 mb-3">
+  <FileText className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+  <div className="min-w-0 flex-1">  {/* ← Add this */}
+    <p className="font-medium text-gray-900 truncate">{proof.fileName}</p>
+    <p className="text-xs text-gray-500 truncate">Linked: {proof.linkedTransaction}</p>
+  </div>
+</div>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-500">{proof.uploadDate}</p>
                   <div className="flex items-center gap-2">
@@ -331,7 +401,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
                     >
                       View Proof
                     </a>
-                    <Badge className="bg-indigo-100 text-indigo-700">{proof.status}</Badge>
+                    <Badge className="bg-green-100 text-green-700">{proof.status}</Badge>
                   </div>
                 </div>
               </button>
@@ -436,10 +506,10 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Category</p><p className="font-medium text-gray-900">{selectedLedgerEntry.category || '-'}</p></div>
+              {/* <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Category</p><p className="font-medium text-gray-900">{selectedLedgerEntry.category || '-'}</p></div> */}
               <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Created</p><p className="font-medium text-gray-900">{selectedLedgerEntry.createdAt || '-'}</p></div>
               <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Approved</p><p className="font-medium text-gray-900">{selectedLedgerEntry.approvedAt || '-'}</p></div>
-              <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Rejected</p><p className="font-medium text-gray-900">{selectedLedgerEntry.rejectedAt || '-'}</p></div>
+              {/* <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Rejected</p><p className="font-medium text-gray-900">{selectedLedgerEntry.rejectedAt || '-'}</p></div> */}
             </div>
 
             <div className="rounded-xl border bg-white p-4">
@@ -478,7 +548,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-gray-900">{selectedProofDocument.fileName || 'Proof Document'}</p>
-                  <p className="text-xs text-gray-600 mt-1">Document ID: {selectedProofDocument.id}</p>
+                  <p className="text-xs text-gray-600 mt-1 truncate">Document ID: {selectedProofDocument.id}</p>
                 </div>
                 <Badge className="bg-indigo-100 text-indigo-700">{selectedProofDocument.status || '-'}</Badge>
               </div>
@@ -588,8 +658,12 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
             </button>
           </div>
 
+          
+
         </div>
       </StudentModal>
     </div>
+
+    
   );
 }

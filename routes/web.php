@@ -134,10 +134,15 @@ Route::get('/adviser/ledger', [AdviserLedgerController::class, 'index'])->name('
 Route::post('/adviser/ledger/{id}/approve', [AdviserLedgerController::class, 'approve'])->name('adviser.ledger.approve');
 Route::post('/adviser/ledger/{id}/reject', [AdviserLedgerController::class, 'reject'])->name('adviser.ledger.reject');
 Route::post('/adviser/ledger/{id}/correction', [AdviserLedgerController::class, 'correction'])->name('adviser.ledger.correction');
+Route::post('/adviser/ledger/{id}/fix-tampered', [AdviserLedgerController::class, 'fixTampered'])->name('adviser.ledger.fix-tampered');
+Route::post('/adviser/ledger/fix-budget-mismatch', [AdviserLedgerController::class, 'fixBudgetMismatch'])->name('adviser.ledger.fix-budget-mismatch');
 
 Route::get('/adviser/role-permissions', [AdviserPermissionController::class, 'index'])->name('adviser.role-permissions');
 Route::post('/adviser/role-permissions/assign-officer', [AdviserPermissionController::class, 'assignOfficer'])->name('adviser.role-permissions.assign-officer');
 Route::post('/adviser/role-permissions/update', [AdviserPermissionController::class, 'updatePermissions'])->name('adviser.role-permissions.update');
+Route::post('/adviser/role-permissions/set-council-term', [AdviserPermissionController::class, 'setCouncilTerm'])->name('adviser.role-permissions.set-council-term');
+Route::get('/adviser/role-permissions/get-council-term', [AdviserPermissionController::class, 'getCouncilTerm'])->name('adviser.role-permissions.get-council-term');
+
 
 Route::get('/adviser/ratings', [AdviserRatingsController::class, 'index'])->name('adviser.ratings');
 
@@ -264,6 +269,8 @@ Route::prefix('api')->group(function () {
     // Meeting Management Routes
     Route::prefix('meetings')->group(function () {
         Route::get('/', [MeetingController::class, 'all']);
+        Route::get('/upcoming/count', [MeetingController::class, 'countUpcoming']);
+        Route::get('/upcoming/list', [MeetingController::class, 'getUpcomingMeetings']);
         Route::post('/', [MeetingController::class, 'store']);
         Route::put('/{id}', [MeetingController::class, 'update']);
         Route::delete('/{id}', [MeetingController::class, 'destroy']);

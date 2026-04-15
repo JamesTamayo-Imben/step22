@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage, router } from '@inertiajs/react';
 import ReactDOM from 'react-dom';
+import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
   FileText,
@@ -21,6 +22,8 @@ import {
   ChevronLeft,
   ChevronRight,
   DollarSign,
+  Shield,
+  Verified,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -72,6 +75,73 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
+function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry }) {
+  if (!isOpen) return null;
+
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Restore Ledger Entry
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div className="mb-6">
+            <p className="text-gray-700 mb-2">
+              This will restore the ledger entry to its approved blockchain state.
+            </p>
+            <p className="text-red-600 font-medium">
+              Any recent changes will be lost. This action cannot be undone.
+            </p>
+            {entry && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Entry ID:</span> {entry.id}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  <span className="font-medium">Project:</span> {entry.projectName}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  <span className="font-medium">Amount:</span> ₱{Number(entry.amount).toLocaleString()}
+                </p>
+              </div>
+            )}
+          </div>
+           <p className="text-red-600 font-sm mb-2">
+            * We advise that you take a screenshot of this tampering, which can be used as proof.
+            </p>
+          
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+            >
+              Restore Entry
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function csvEscape(val) {
   const s = String(val ?? '');
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
@@ -87,18 +157,21 @@ export default function LedgerApprovalsPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [isCorrectionDialogOpen, setIsCorrectionDialogOpen] = useState(false);
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [isBudgetMismatchModalOpen, setIsBudgetMismatchModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [correctionReason, setCorrectionReason] = useState('');
 
   const [filterProject, setFilterProject] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [ledgerPage, setLedgerPage] = useState(1);
 
   useEffect(() => {
     setLedgerPage(1);
-  }, [filterProject, filterStatus, searchQuery]);
+  }, [filterProject, filterStatus, searchQuery, filterCategory]);
 
   const stats = useMemo(() => {
     const approvedEntries = ledgerEntries.filter(
@@ -111,6 +184,17 @@ export default function LedgerApprovalsPage() {
     const totalExpenses = approvedEntries
       .filter((e) => e.transactionType === 'Expense')
       .reduce((sum, e) => sum + Number(e.amount), 0);
+
+    const computedBudgetFromLedger = approvedEntries.reduce((sum, e) => {
+      const amount = Number(e.amount) || 0;
+      const type = (e.transactionType || '').toLowerCase();
+     if (type === 'expense') return sum - amount;
+      if (['income', 'donation', 'sponsorship'].includes(type)) return sum + amount;
+      return sum;
+    }, 0);
+
+    const budgetDifference = (Number(totalProjectBudget) || 0) - computedBudgetFromLedger;
+    const isBudgetTampered = Math.abs(budgetDifference) > 0.01;
 
     const uniqueProjects = new Set(
       approvedEntries
@@ -128,8 +212,11 @@ export default function LedgerApprovalsPage() {
       averageExpenses: projectCount ? totalExpenses / projectCount : 0,
       averageNet: projectCount ? (totalIncome - totalExpenses) / projectCount : 0,
       totalProjectBudget: Number(totalProjectBudget) || 0,
+      computedBudgetFromLedger,
+      budgetDifference,
+      isBudgetTampered,
     };
-  }, [ledgerEntries]);
+  }, [ledgerEntries, totalProjectBudget]);
 
   const handleViewDetails = (entry) => {
     setSelectedEntry(entry);
@@ -191,22 +278,57 @@ const getTypeAmountColor = (type) => {
     });
   };
 
+  const handleFixTampered = (entry) => {
+    if (!entry) return;
+    setSelectedEntry(entry);
+    setIsRestoreModalOpen(true);
+  };
+
+  const handleConfirmRestore = () => {
+    if (!selectedEntry) return;
+    
+    router.post(route('adviser.ledger.fix-tampered', selectedEntry.id), {}, {
+      preserveScroll: true,
+      onSuccess: () => {
+        showToast('Ledger entry restored from blockchain snapshot');
+        setIsDetailsOpen(false);
+        setSelectedEntry(null);
+        setIsRestoreModalOpen(false);
+      },
+      onError: () => {
+        showToast('Could not restore entry', 'error');
+        setIsRestoreModalOpen(false);
+      },
+    });
+  };
+
   const handleCorrection = () => {
-    if (!selectedEntry || !correctionReason.trim()) {
+    if (!correctionReason.trim()) {
       showToast('Please provide a correction reason', 'error');
       return;
     }
-    if (!window.confirm('Submit this correction request to the officer?')) return;
+    if (!window.confirm('Request correction for this ledger entry?')) return;
     router.post(route('adviser.ledger.correction', selectedEntry.id), { reason: correctionReason.trim() }, {
       preserveScroll: true,
       onSuccess: () => {
-        showToast('Correction request saved');
+        showToast('Correction requested');
         setCorrectionReason('');
         setIsCorrectionDialogOpen(false);
         setIsDetailsOpen(false);
         setSelectedEntry(null);
       },
-      onError: () => showToast('Could not save correction', 'error'),
+      onError: () => showToast('Could not request correction', 'error'),
+    });
+  };
+
+  const handleFixBudgetMismatch = () => {
+    router.post(route('adviser.ledger.fix-budget-mismatch'), {}, {
+      preserveScroll: true,
+      onSuccess: () => {
+        showToast('Project budgets synchronized from ledger');
+        setIsBudgetMismatchModalOpen(false);
+      },
+      onError: () => showToast('Could not synchronize project budgets', 'error'),
     });
   };
 
@@ -231,6 +353,7 @@ const getTypeAmountColor = (type) => {
         return false;
       }
     }
+    if (filterCategory !== 'all' && entry.transactionType !== filterCategory) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const blob = [
@@ -238,13 +361,13 @@ const getTypeAmountColor = (type) => {
         entry.projectName,
         entry.enteredBy,
         entry.description,
-        entry.category,
+        entry.transactionType,
         entry.ledgerHash,
       ].filter(Boolean).join(' ').toLowerCase();
       if (!blob.includes(q)) return false;
     }
     return true;
-  }), [ledgerEntries, filterProject, filterStatus, searchQuery]);
+  }), [ledgerEntries, filterProject, filterStatus, searchQuery, filterCategory]);
 
   const ledgerTotalPages = Math.max(1, Math.ceil(filteredEntries.length / TABLE_PAGE_SIZE));
   const pagedLedger = filteredEntries.slice((ledgerPage - 1) * TABLE_PAGE_SIZE, ledgerPage * TABLE_PAGE_SIZE);
@@ -339,17 +462,29 @@ const getTypeAmountColor = (type) => {
                 </div>
               </div>
             </div>
-            <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+            <div className={`p-6 rounded-[20px] border-0 shadow-sm ${stats.isBudgetTampered ? 'bg-red-50 border border-red-200' : 'bg-white'}`}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">CSG Total Project Budget</p>
-                  <p className="text-2xl text-blue-600 mt-1">
+                  <p className={`text-2xl mt-1 ${stats.isBudgetTampered ? 'text-red-700' : 'text-blue-600'}`}>
                     ₱{stats.totalProjectBudget.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Sum of budgets for projects</p>
+                  {stats.isBudgetTampered ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setIsBudgetMismatchModalOpen(true)}
+                        className="mt-2 inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                      >
+                        View Mismatch Details
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-1">Sum of budgets for projects</p>
+                  )}
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-blue-600" />
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stats.isBudgetTampered ? 'bg-red-100' : 'bg-blue-100'}`}>
+                  <DollarSign className={`w-6 h-6 ${stats.isBudgetTampered ? 'text-red-600' : 'text-blue-600'}`} />
                 </div>
               </div>
             </div>
@@ -391,11 +526,37 @@ const getTypeAmountColor = (type) => {
                     <option value="Rejected">Rejected</option>
                   </select>
 
+                   <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="Expense">Expense</option>
+                    <option value="Income">Income</option>
+                    <option value="Canvas">Canvas</option>
+                    <option value="Donation">Donation</option>
+                    <option value="Sponsorship">Sponsorship</option>
+                  </select>
+
                 </div>
               </div>
 
               <div className="rounded-[20px] border-0 shadow-sm bg-white overflow-hidden">
-                <div className="overflow-x-auto">
+               <div>
+                 <div className="overflow-x-auto space-y-4 p-6">
+                    <div className="flex items-center gap-2">
+                                <h2 className="text-lg font-semibold text-gray-900">Ledger Entries</h2>
+                                {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) ? (
+                                  <Badge className="bg-red-100 text-red-700 rounded-lg">
+                                    <XCircle className="w-3 h-3 mr-1" />Tampered Alert
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-purple-100 text-purple-700 rounded-lg">
+                                    <Shield className="w-3 h-3 mr-1" />Verified
+                                  </Badge>
+                                )}
+                              </div>
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
@@ -406,6 +567,7 @@ const getTypeAmountColor = (type) => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verification</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proof</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
@@ -413,43 +575,62 @@ const getTypeAmountColor = (type) => {
                     <tbody className="divide-y divide-gray-200">
   {pagedLedger.length === 0 ? (
     <tr>
-      <td colSpan={9} className="px-6 py-4 text-center">
+      <td colSpan={10} className="px-6 py-4 text-center">
         <p className="text-sm text-gray-500 py-4">No items for the selected filters.</p>
-      </td>
-    </tr>
+       </td>
+     </tr>
   ) : (
     pagedLedger.map((entry) => (
       <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
         <td className="px-6 py-4">
           <div className="flex items-center gap-2 max-w-[100px]">
-            {/* <Hash className="w-4 h-4 text-gray-400" /> */}
             <span className="text-sm text-blue-600 truncate">{entry.id}</span>
           </div>
-        </td>
+         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <p className="text-sm text-gray-900">{entry.projectName}</p>
-        </td>
+         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <p className="text-sm text-gray-900">{entry.enteredBy}</p>
-        </td>
+         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <p className={`text-sm ${getTypeAmountColor(entry.transactionType)}`}>
             ₱{Number(entry.amount).toLocaleString()}
           </p>
-        </td>
+         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
            getTypeColor(entry.transactionType)
           }`}>
             {entry.transactionType}
           </span>
-        </td>
+         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <p className="text-sm text-gray-600">{entry.date ? new Date(entry.date).toLocaleDateString() : '—'}</p>
-        </td>
+         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           {getStatusBadge(entry.status)}
-        </td>
+         </td>
+        <td className="px-6 py-4 whitespace-nowrap">
+          <div className="flex items-center gap-1">
+            {entry && entry.verificationState && entry.verificationState.tampered ? (
+              <>
+                <XCircle className="w-4 h-4 text-red-600" />
+                <span className="text-xs text-red-600">Tampered</span>
+              </>
+            ) : entry && entry.verificationState && entry.verificationState.blockchainValid ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                <span className="text-xs text-green-600">Verified</span>
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                <span className="text-xs text-yellow-600">No Chain</span>
+              </>
+            )}
+          </div>
+         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <div className="flex items-center gap-1">
             {entry.proofAttached ? (
@@ -464,7 +645,7 @@ const getTypeAmountColor = (type) => {
               </>
             )}
           </div>
-        </td>
+         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <button
             type="button"
@@ -473,13 +654,14 @@ const getTypeAmountColor = (type) => {
           >
             <Eye className="w-4 h-4" /> View
           </button>
-        </td>
-      </tr>
+         </td>
+       </tr>
     ))
   )}
 </tbody>
-                  </table>
+                   </table>
                 </div>
+               </div>
               </div>
 
               {filteredEntries.length > TABLE_PAGE_SIZE && (
@@ -500,6 +682,28 @@ const getTypeAmountColor = (type) => {
       <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Ledger Entry Details">
         {selectedEntry && (
           <div className="space-y-6 pt-4">
+            {selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.tampered && (
+              <div className="border-t pt-6">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-red-800">Data Tampering Detected</h4>
+                      <p className="text-sm text-red-700 mt-1">
+                        This entry has been modified after approval. You can restore it to its approved state using the blockchain snapshot.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleFixTampered(selectedEntry)}
+                        className="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        <RotateCcw className="w-4 h-4 mr-2 inline" /> Fix Tampered Data
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <h4 className="text-sm font-medium text-gray-500 mb-3">Basic Information</h4>
               <div className="space-y-3 pt-3">
@@ -608,10 +812,10 @@ const getTypeAmountColor = (type) => {
                   <div className="w-2 h-2 bg-blue-600 rounded-full mt-1.5" />
                   <div>
                     <p className="text-sm font-medium">Submitted</p>
-                    <p className="text-xs text-gray-500">{selectedEntry.verificationState?.submitted}</p>
+                    <p className="text-xs text-gray-500">{selectedEntry && selectedEntry.verificationState ? selectedEntry.verificationState.submitted : ''}</p>
                   </div>
                 </div>
-                {selectedEntry.verificationState?.reviewed && (
+                {selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.reviewed && (
                   <div className="flex items-start gap-3">
                     <div className="w-2 h-2 bg-blue-600 rounded-full mt-1.5" />
                     <div>
@@ -620,7 +824,21 @@ const getTypeAmountColor = (type) => {
                     </div>
                   </div>
                 )}
-                {selectedEntry.verificationState?.approvedRejected && (
+                <div className="flex items-start gap-3">
+                  <div className={`w-2 h-2 rounded-full mt-1.5 ${
+                    selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.tampered ? 'bg-red-600' :
+                    selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.blockchainValid ? 'bg-green-600' : 'bg-gray-400'
+                  }`} />
+                  <div>
+                    <p className="text-sm font-medium">Blockchain Verification</p>
+                    <p className="text-xs text-gray-500">
+                      {selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.tampered ? 'Data integrity compromised' :
+                       selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.blockchainValid ? 'Verified and secure' :
+                       'No blockchain record'}
+                    </p>
+                  </div>
+                </div>
+                {selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.approvedRejected && (
                   <div className="flex items-start gap-3">
                     <div className={`w-2 h-2 rounded-full mt-1.5 ${selectedEntry.status === 'Approved' ? 'bg-green-600' : 'bg-red-600'}`} />
                     <div>
@@ -629,7 +847,7 @@ const getTypeAmountColor = (type) => {
                     </div>
                   </div>
                 )}
-                {selectedEntry.verificationState?.corrected && (
+                {selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.corrected && (
                   <div className="flex items-start gap-3">
                     <div className="w-2 h-2 bg-purple-600 rounded-full mt-1.5" />
                     <div>
@@ -643,6 +861,8 @@ const getTypeAmountColor = (type) => {
                 )}
               </div>
             </div>
+
+          
 
             {/* {selectedEntry.allowAdviserActions && (
               <div className="border-t pt-6 flex flex-col gap-3">
@@ -731,6 +951,74 @@ const getTypeAmountColor = (type) => {
           </div>
         </div>
       </Modal>
+
+      <Modal
+        open={isBudgetMismatchModalOpen}
+        onClose={() => setIsBudgetMismatchModalOpen(false)}
+        title="Budget Mismatch Details"
+      >
+        <div className="space-y-4 pt-4">
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200">
+            <p className="text-sm font-medium text-red-800">Tampering Alert</p>
+            <p className="text-sm text-red-700 mt-1">
+              The projects table budget total does not match the computed budget from approved ledger entries.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-3 rounded-lg bg-gray-50 border">
+              <p className="text-xs text-gray-500">Projects Table Total</p>
+              <p className="text-sm font-semibold text-gray-900">
+                ₱{stats.totalProjectBudget.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="p-3 rounded-lg bg-gray-50 border">
+              <p className="text-xs text-gray-500">Ledger Computed Total</p>
+              <p className="text-sm font-semibold text-gray-900">
+                ₱{stats.computedBudgetFromLedger.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+              <p className="text-xs text-red-600">Difference</p>
+              <p className="text-sm font-semibold text-red-700">
+                ₱{Math.abs(stats.budgetDifference).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+
+        <p className='text-xs text-red-600'>
+          
+        </p>
+
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setIsBudgetMismatchModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={handleFixBudgetMismatch}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+            >
+              Fix Budget Mismatch
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Restore Confirmation Modal */}
+      <ConfirmRestoreModal
+        isOpen={isRestoreModalOpen}
+        onClose={() => {
+          setIsRestoreModalOpen(false);
+          setSelectedEntry(null);
+        }}
+        onConfirm={handleConfirmRestore}
+        entry={selectedEntry}
+      />
     </AuthenticatedLayout>
   );
 }

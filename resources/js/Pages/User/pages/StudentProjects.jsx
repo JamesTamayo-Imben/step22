@@ -11,6 +11,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [cardsPerPage, setCardsPerPage] = useState(6);
+  const [ledgerEntries, setLedgerEntries] = useState([]);
 
   useEffect(() => {
     const updateCardsPerPage = () => {
@@ -23,6 +24,28 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
     updateCardsPerPage();
     window.addEventListener('resize', updateCardsPerPage);
     return () => window.removeEventListener('resize', updateCardsPerPage);
+  }, []);
+
+  useEffect(() => {
+    const fetchLedgerEntries = async () => {
+      try {
+        const response = await fetch('/api/ledger-entries', {
+          headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setLedgerEntries(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch ledger entries', error);
+      }
+    };
+
+    fetchLedgerEntries();
   }, []);
 
   const categories = useMemo(() => {
@@ -97,6 +120,13 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
     return { Icon: FolderKanban, color: 'from-slate-500 to-slate-700' };
   };
 
+  const tamperedProjectIds = new Set(
+    (ledgerEntries || [])
+      .filter((entry) => entry?.verificationState?.tampered)
+      .map((entry) => String(entry?.project_id || entry?.projectId || ''))
+      .filter(Boolean)
+  );
+  const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
   const getStatusColor = (status) => {
     switch (status) {
       case 'Draft':
@@ -239,16 +269,26 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
 
               {/* Actions */}
               <div className="flex gap-2">
+                {isProjectLocked(project.id) ? (
+                  <Button
+                    disabled
+                    className="flex-1 rounded-xl opacity-50 bg-red-600 hover:bg-red-700 text-white disabled:opacity-90 disabled:cursor-not-allowed"
+                  >
+                    Locked (Tampered)
+                  </Button>
+                ) : (
                 <Button 
                   onClick={() => onViewDetails(project.id)}
                   className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   View Details
                 </Button>
+                )}
                 <Button
                   onClick={() => onViewDetails(project.id)}
                   variant="outline"
                   className="rounded-xl"
+                  disabled={isProjectLocked(project.id)}
                 >
                   <Star className={`w-4 h-4 ${userRatingMap[project.id] ? 'fill-yellow-400 text-yellow-400' : ''}`} />
                 </Button>

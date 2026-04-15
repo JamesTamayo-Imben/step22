@@ -27,8 +27,18 @@ class ProjectController extends Controller
             if (!$project) {
                 return response()->json(['message' => 'Project not found'], 404);
             }
+
+            // Check for tampered ledger entries in this project
+            $tamperedCount = 0;
+            $verification = \App\Support\BlockchainService::verifyChain($project->id);
+            if (isset($verification['tamperedBlocks']) && is_array($verification['tamperedBlocks'])) {
+                $tamperedCount = count($verification['tamperedBlocks']);
+            }
+
+            $projectData = $project->toArray();
+            $projectData['tamperedAlerts'] = $tamperedCount;
             
-            return response()->json($project, 200);
+            return response()->json($projectData, 200);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch project',

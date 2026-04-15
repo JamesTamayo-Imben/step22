@@ -726,4 +726,56 @@ class AdviserPermissionController extends Controller
         // In future, implement permission storage
         return response()->json(['message' => 'Permissions updated successfully']);
     }
+
+    public function setCouncilTerm(Request $request)
+    {
+        $request->validate([
+            'startDate' => 'required|date',
+            'endDate' => 'required|date|after:startDate',
+        ]);
+
+        try {
+            // Update all CSG members with the new council term dates
+            $updated = StudentCsgOfficer::where('archive', false)
+                ->where('csg_is_active', true)
+                ->where('csg_position', '!=', 'Member')
+                ->update([
+                    'csg_term_start' => $request->startDate,
+                    'csg_term_end' => $request->endDate,
+                ]);
+
+            return response()->json([
+                'message' => "Council term updated for {$updated} officers",
+                'updated' => $updated,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update council term: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getCouncilTerm()
+{
+    // Get any active CSG officer to get the term dates
+    // (assuming all officers have the same term dates)
+    $officer = StudentCsgOfficer::where('archive', false)
+        ->where('csg_is_active', true)
+        ->where('csg_position', '!=', 'Member')
+        ->whereNotNull('csg_term_start')
+        ->whereNotNull('csg_term_end')
+        ->first();
+    
+    if ($officer && $officer->csg_term_start && $officer->csg_term_end) {
+        return response()->json([
+            'startDate' => $officer->csg_term_start,
+            'endDate' => $officer->csg_term_end,
+        ]);
+    }
+    
+    return response()->json([
+        'startDate' => null,
+        'endDate' => null,
+    ]);
+}
 }

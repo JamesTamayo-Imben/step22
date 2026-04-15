@@ -35,7 +35,7 @@ export function AdminAdviserDashboard({
     pendingProjects: stats.pendingProjects ?? 0,
     pendingMeetings: stats.pendingMeetings ?? 0,
     avgRating: typeof stats.avgRating === 'number' ? stats.avgRating : 0,
-    systemAlerts: stats.systemAlerts ?? 0,
+    tamperedAlerts: stats.tamperedAlerts ?? 0,
     activeCsgCount: stats.activeCsgCount ?? 0,
   };
   
@@ -143,9 +143,9 @@ export function AdminAdviserDashboard({
           iconColor="text-blue-600" 
         />
         <StatsCard 
-          title="Reject alerts (24h)" 
-          value={String(s.systemAlerts)} 
-          hint="From audit log" 
+          title="Tampered Alerts" 
+          value={String(s.tamperedAlerts)} 
+          hint="Blockchain integrity issues" 
           icon={<AlertCircle />} 
           iconBg="bg-red-50" 
           iconColor="text-red-600" 

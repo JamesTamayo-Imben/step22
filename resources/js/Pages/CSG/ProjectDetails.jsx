@@ -19,6 +19,7 @@ import {
   Edit,
   Trash2,
   Send,
+  AlertCircle,
   Plus,
   Upload,
   ChevronLeft,
@@ -28,15 +29,18 @@ import {
 import {
   showToast,
   Modal,
-  EditProjectModal,
   SubmitConfirmModal,
   SubmitLedgerConfirmModal,
   DeleteConfirmModal,
-  AddLedgerModal,
-  EditLedgerModal,
   UploadProofModal,
   EditActionButtons,
 } from './ProjectEdit';
+
+import {
+  EditProjectModal,
+  AddLedgerModal,
+  EditLedgerModal,
+} from './modal';
 
 // ─── Default project structure ────────────────────────────────────────────────────
 const defaultProject = {
@@ -292,6 +296,7 @@ export function CSGProjectDetailsPage({
   
   const [ledgerEntries, setLedgerEntries] = useState([]);
   const [proofDocuments, setProofDocuments] = useState([]);
+  const [verificationStatus, setVerificationStatus] = useState({ isValid: true, status: 'valid', message: 'Blockchain is valid', tamperedBlocks: [] });
   
   // Status timeline - changed from static to mutable state
   const [statusHistory, setStatusHistory] = useState(mockStatusHistory);
@@ -382,6 +387,14 @@ export function CSGProjectDetailsPage({
   const isApprovedOrPending = ['Approved', 'Pending Adviser Approval', 'Ongoing'].includes(project.approvalStatus);
   const isApproved = project.approvalStatus === 'Approved';
   const shouldShowNotes = isApprovedOrPending || project.approvalStatus === 'Rejected';
+
+// tampering disable
+const isTampered = verificationStatus.status === 'tampering_detected' || verificationStatus.status === 'Tampered';
+const tamperedLedgerIds = new Set(
+  (verificationStatus.tamperedBlocks || [])
+    .map((block) => block.ledgerId)
+    .filter(Boolean)
+);
 
   // Debug: Log when status changes to help troubleshoot button visibility
   React.useEffect(() => {
@@ -529,6 +542,17 @@ const formatDate = (dateString) => {
 
   // Calculate effective budget based on approved ledger entries
   const displayBudget = parseFloat(project.budget) || 0;
+  const computedBudgetFromLedger = ledgerEntries
+    .filter((entry) => entry.approval_status === 'Approved')
+    .reduce((sum, entry) => {
+      const amount = parseFloat(entry.amount) || 0;
+      const type = (entry.type || '').toLowerCase();
+      if (type === 'expense') return sum - amount;
+      if (['income', 'donation', 'sponsorship'].includes(type)) return sum + amount;
+      return sum;
+    }, 0);
+  const budgetDifference = displayBudget - computedBudgetFromLedger;
+  const isBudgetTampered = Math.abs(budgetDifference) > 0.01;
 
   const normalizeLedgerEntry = (item) => {
     const breakdownRaw = item.budgetBreakdown || item.budget_breakdown;
@@ -548,6 +572,8 @@ const formatDate = (dateString) => {
       isInitialEntry,
     };
   };
+
+  const ifBudgetNegative = project.budget < 0;
 
   // Function to build status timeline from ledger entries
   const buildStatusTimeline = (ledgerEntries) => {
@@ -676,11 +702,36 @@ const formatDate = (dateString) => {
       showToastMessage('Unable to load ratings', 'error');
     }
   };
+
+  // Fetch blockchain verification status
+  const fetchVerificationStatus = async () => {
+    if (!projectId) return;
+    
+    try {
+      const response = await fetch(`/api/projects/${projectId}/verify-chain`, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to verify blockchain');
+      }
+      
+      const data = await response.json();
+      setVerificationStatus(data);
+    } catch (error) {
+      console.error('Verification fetch error:', error);
+      setVerificationStatus({ isValid: false, status: 'error', message: 'Unable to verify blockchain' });
+    }
+  };
   
   // Fetch data when component mounts or project changes
   useEffect(() => {
     if (project.id) {
       fetchLedgerEntries();
+      fetchVerificationStatus();
       if (isApproved) {
         fetchProjectRatings();
       }
@@ -958,6 +1009,7 @@ const formatDate = (dateString) => {
       // Wait a moment for the database to be ready, then fetch fresh data
       setTimeout(() => {
         fetchLedgerEntries();
+        fetchVerificationStatus();
       }, 500);
       return;
     }
@@ -1003,6 +1055,7 @@ const formatDate = (dateString) => {
       
       // Update ledger entries - useEffect will rebuild timeline
       setLedgerEntries(ledgerEntries.filter(e => e.id !== entryToDelete));
+      fetchVerificationStatus();
       
       showToastMessage('Ledger entry deleted successfully', 'success');
       setDeleteLedgerModalOpen(false);
@@ -1051,6 +1104,7 @@ const formatDate = (dateString) => {
   const handleLedgerEntryUpdate = (updatedEntry) => {
     const mappedEntry = normalizeLedgerEntry(updatedEntry);
     setLedgerEntries((prevEntries) => prevEntries.map(e => e.id === mappedEntry.id ? mappedEntry : e));
+    fetchVerificationStatus();
     
     setShowEditLedgerModal(false);
     setSelectedLedger(null);
@@ -1080,6 +1134,7 @@ const formatDate = (dateString) => {
       const updatedEntry = await response.json();
       // Update ledger entries - useEffect will rebuild timeline
       setLedgerEntries(ledgerEntries.map(e => e.id === id ? updatedEntry : e));
+      fetchVerificationStatus();
       
       showToastMessage('Ledger entry submitted for approval', 'success');
     } catch (error) {
@@ -1211,10 +1266,34 @@ const formatDate = (dateString) => {
             )}
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:w-64">
-            <div className="bg-blue-50 rounded-xl p-4">
-              <DollarSign className="w-5 h-5 text-blue-600 mb-2" />
-              <p className="text-sm text-gray-500">Current Budget</p>
-              <p className="text-xl font-semibold text-gray-900">₱{project.budget?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <div className={`${isBudgetTampered ? 'bg-red-50 border border-red-200' : 'bg-blue-50'} rounded-xl p-4`}>
+              <DollarSign className={`w-5 h-5 mb-2 ${isBudgetTampered ? 'text-red-600' : 'text-blue-600'}`} />
+             <p className="text-sm text-gray-500">Current Budget</p>
+<p className={`text-xl font-semibold ${
+  isBudgetTampered 
+    ? 'text-red-700' 
+    : Number(project.budget || 0) < 0 
+      ? 'text-red-600' 
+      : 'text-gray-900'
+}`}>
+  ₱{Number(project.budget || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+</p>
+{Number(project.budget || 0) < 0 && !isBudgetTampered && (
+  <p className="text-xs text-red-500 mt-1">
+     Dont panic. The expenses only have exceed the budget.
+  </p>
+)}
+              {isBudgetTampered && (
+                <div className="mt-2">
+                  <p className="text-xs font-semibold text-red-700">Alert: Budget mismatch detected</p>
+                  <p className="text-xs text-red-600">
+                    Ledger-computed: ₱{computedBudgetFromLedger.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-red-600">
+                    Difference: ₱{Math.abs(budgetDifference).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              )}
               {/* {project.budget > 0 && (
                 <p className="text-xs text-gray-500 mt-1">
                   Base: ₱{Number(project.budget).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1375,20 +1454,34 @@ const formatDate = (dateString) => {
       {activeTab === 'ledger' && isApproved && (
         <div className="space-y-6">
           <Card className="rounded-[20px] border-0 shadow-sm p-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-gray-900">Ledger Entries</h2>
-                <Badge className="bg-purple-100 text-purple-700 rounded-lg">
-                  <Shield className="w-3 h-3 mr-1" />Verified
+                <Badge className={`rounded-lg ${
+                  verificationStatus.status === 'tampering_detected' 
+                    ? 'bg-red-100 text-red-700' 
+                    : verificationStatus.status === 'error'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : 'bg-purple-100 text-purple-700'
+                }`}>
+                  <Shield className={`w-3 h-3 mr-1 ${
+                    verificationStatus.status === 'tampering_detected' ? 'text-red-500' : 'text-purple-500'
+                  }`} />
+                  {verificationStatus.status === 'tampering_detected' ? 'Tampered Alert' : 'Verified'}
                 </Badge>
               </div>
-              <Button 
-                onClick={() => setShowAddLedgerModal(true)} 
-                className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Ledger Entry
-              </Button>
+             <Button 
+  onClick={() => setShowAddLedgerModal(true)} 
+  className={`rounded-xl transition-all ${
+    isTampered 
+      ? 'bg-gray-400 cursor-not-allowed opacity-50' 
+      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
+  }`}
+  disabled={isTampered}
+>
+  <Plus className="w-4 h-4 mr-2" />
+  Add Ledger Entry
+</Button>
             </div>
             
             {loading ? (
@@ -1416,102 +1509,159 @@ const formatDate = (dateString) => {
                   return (
                     <>
                       {/* Desktop Table */}
-                      <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-gray-200 bg-blue-50">
-                              {['ID', 'Type', 'Amount', 'Description', 'Status', 'Actions'].map((h) => (
-                                <th key={h} className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {currentLedgerItems.map((entry) => (
-                              <tr key={entry.id} className="border-b border-gray-100 hover:bg-gray-50">
-                                <td className="py-3 px-4 font-mono text-sm text-gray-600">{entry.id.substring(0, 8)}...</td>
-                                <td className="py-3 px-4">
-                                  <Badge className={getTypeColor(entry.type)}>
-                                    {entry.type}
-                                  </Badge>
-                                </td>
-                                <td className={`py-3 px-4 font-semibold text-gray-900 ${getTypeAmountColor(entry.type)}`}>
-                                  ₱{parseFloat(entry.amount).toLocaleString()}
-                                </td>
-                                <td className="py-3 px-4 max-w-[200px] truncate text-gray-700">{entry.description}</td>
-                                <td className="py-3 px-4">
-                                  <div className="flex items-center gap-1">
-                                    {getStatusIcon(entry.approval_status)}
-                                    <Badge className={`rounded-lg ${getLedgerStatusColor(entry.approval_status)}`}>
-                                      {entry.approval_status}
-                                    </Badge>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-4">
-                                  <div className="flex gap-2">
-                                    <Button variant="ghost" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg">
-                                      <Eye className="w-4 h-4" />
-                                    </Button>
-                                    {entry.approval_status === 'Draft' && (
-                                      <>
-                                        <Button variant="ghost" size="sm" onClick={() => { console.log('🖱️ Desktop edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
-                                          <Edit className="w-4 h-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="sm" onClick={() => { setLedgerToSubmit(entry); setShowSubmitLedgerModal(true); }} className="rounded-lg">
-                                          <Send className="w-4 h-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(entry.id)} className="rounded-lg text-red-600 hover:text-red-700">
-                                          <Trash2 className="w-4 h-4" />
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                     {/* Desktop Table */}
+<div className="hidden md:block overflow-x-auto">
+  {/* Tampering Warning - Moved OUTSIDE the table */}
+  {isTampered && (
+    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+       <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-800">Security Alert. 
+                  <span className="text-xs text-red-600 ml-2">
+                     A Ledger Entry has been Tampered. Please review the affected entries and contact system administrators immediately.
+                  </span>
+                </p>
+        
+  
+              </div>
+            </div>
+    </div>
+  )}
+  
+  <table className={`w-full ${isTampered ? 'opacity-60 pointer-events-none' : ''}`}>
+    <thead>
+      <tr className="border-b border-gray-200 bg-blue-50">
+        {['ID', 'Type', 'Amount', 'Description', 'Status', 'Actions'].map((h) => (
+          <th key={h} className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{h}</th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {currentLedgerItems.map((entry) => {
+        const entryIsTampered = tamperedLedgerIds.has(entry.id);
+        return (
+          <tr
+            key={entry.id}
+            className={`${entryIsTampered ? 'border-b border-red-200 bg-red-50' : 'border-b border-gray-100 hover:bg-gray-50'}`}
+          >
+            <td className="py-3 px-4 font-mono text-sm text-gray-600">{entry.id.substring(0, 8)}...</td>
+            <td className="py-3 px-4">
+              <Badge className={getTypeColor(entry.type)}>
+                {entry.type}
+              </Badge>
+            </td>
+            <td className={`py-3 px-4 font-semibold text-gray-900 ${getTypeAmountColor(entry.type)}`}>
+              ₱{parseFloat(entry.amount).toLocaleString()}
+            </td>
+            <td className="py-3 px-4 max-w-[200px] truncate text-gray-700">
+              {entry.description}
+              {entryIsTampered && (
+                <div className="mt-2 inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
+                  Tampered
+                </div>
+              )}
+            </td>
+            <td className="py-3 px-4">
+              <div className="flex items-center gap-1">
+                {getStatusIcon(entry.approval_status)}
+                <Badge className={`rounded-lg ${getLedgerStatusColor(entry.approval_status)}`}>
+                  {entry.approval_status}
+                </Badge>
+              </div>
+            </td>
+            <td className="py-3 px-4">
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg">
+                  <Eye className="w-4 h-4" />
+                </Button>
+                {entry.approval_status === 'Draft' && !isTampered && (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => { console.log('🖱️ Desktop edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setLedgerToSubmit(entry); setShowSubmitLedgerModal(true); }} className="rounded-lg">
+                      <Send className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(entry.id)} className="rounded-lg text-red-600 hover:text-red-700">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
                       
                       {/* Mobile Cards */}
                       <div className="md:hidden space-y-4">
-                        {currentLedgerItems.map((entry) => (
-                          <Card key={entry.id} className="rounded-xl p-4 border shadow-sm">
-                            <div className="space-y-3">
-                              <div className="flex items-start justify-between">
-                                <span className="font-mono text-sm text-gray-600">{entry.id.substring(0, 8)}...</span>
-                                <Badge className={`rounded-lg ${getLedgerStatusColor(entry.approval_status)}`}>
-                                  {entry.approval_status}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <Badge className={`rounded-lg ${entry.type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                  {entry.type}
-                                </Badge>
-                                <span className="text-xl font-semibold text-gray-900">₱{parseFloat(entry.amount).toLocaleString()}</span>
-                              </div>
-                              <p className="text-sm text-gray-700">{entry.description}</p>
-                              <div className="flex flex-wrap gap-2">
-                                <Button variant="outline" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg flex-1">
-                                  <Eye className="w-4 h-4 mr-1" />View
-                                </Button>
-                                {entry.approval_status === 'Draft' && (
-                                  <>
-                                    <Button variant="outline" size="sm" onClick={() => { console.log('🖱️ Mobile edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
-                                      <Edit className="w-4 h-4" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => { setLedgerToSubmit(entry); setShowSubmitLedgerModal(true); }} className="rounded-lg">
-                                      <Send className="w-4 h-4" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={() => handleDeleteClick(entry.id)} className="rounded-lg text-red-600 hover:text-red-700">
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
+  {/* Add tampering warning for mobile */}
+  {isTampered && (
+    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+      <p className="text-red-600 text-sm">
+        This Project Ledger has been Tampered. All transactions will be stopped.
+      </p>
+    </div>
+  )}
+  
+  {currentLedgerItems.map((entry) => {
+    const entryIsTampered = tamperedLedgerIds.has(entry.id);
+    return (
+      <Card
+        key={entry.id}
+        className={`rounded-xl p-4 border shadow-sm ${entryIsTampered ? 'border-red-200 bg-red-50' : ''}`}
+      >
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-mono text-sm text-gray-600">{entry.id.substring(0, 8)}...</span>
+            <div className="flex items-center gap-2">
+              {entryIsTampered && (
+                <Badge className="rounded-lg bg-red-100 text-red-700">
+                  Tampered
+                </Badge>
+              )}
+              <Badge className={`rounded-lg ${getLedgerStatusColor(entry.approval_status)}`}>
+                {entry.approval_status}
+              </Badge>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Badge className={`rounded-lg ${entry.type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              {entry.type}
+            </Badge>
+            <span className="text-xl font-semibold text-gray-900">₱{parseFloat(entry.amount).toLocaleString()}</span>
+          </div>
+          <div>
+            <p className="text-sm text-gray-700">{entry.description}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg flex-1">
+              <Eye className="w-4 h-4 mr-1" />View
+            </Button>
+            {/* Only show action buttons if entry is Draft AND NOT tampered */}
+            {entry.approval_status === 'Draft' && !isTampered && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => { console.log('🖱️ Mobile edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
+                  <Edit className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => { setLedgerToSubmit(entry); setShowSubmitLedgerModal(true); }} className="rounded-lg">
+                  <Send className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleDeleteClick(entry.id)} className="rounded-lg text-red-600 hover:text-red-700">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  })}
+</div>
                       
                       {/* Pagination */}
                       {totalLedgerPages > 1 && (
@@ -2000,7 +2150,7 @@ const formatDate = (dateString) => {
       {/* Toast Notification */}
       {toast.show && (
         <div className={`fixed bottom-4 right-4 z-50 animate-slide-in ${
-          toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+          toast.type === 'success' ? 'bg-blue-500' : 'bg-red-500'
         } text-white px-6 py-3 rounded-lg shadow-lg`}>
           {toast.message}
         </div>

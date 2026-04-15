@@ -265,4 +265,63 @@ public function update(Request $request, $id)
             ], 500);
         }
     }
+
+    /**
+     * Get count of upcoming meetings
+     * Meetings with scheduled_date >= now and is_done = false
+     */
+    public function countUpcoming()
+    {
+        try {
+            $count = Meeting::countUpcoming();
+            
+            return response()->json([
+                'upcoming_count' => $count,
+                'message' => "You have {$count} upcoming meetings",
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to count upcoming meetings',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all upcoming meetings
+     * Meetings with scheduled_date >= now and is_done = false
+     */
+    public function getUpcomingMeetings()
+    {
+        try {
+            $meetings = Meeting::getUpcoming();
+            
+            $processedMeetings = $meetings->map(function($meeting) {
+                return [
+                    'id' => $meeting->id,
+                    'student_id' => $meeting->student_id,
+                    'title' => $meeting->title,
+                    'description' => $meeting->description,
+                    'scheduled_date' => $meeting->scheduled_date,
+                    'created_at' => $meeting->created_at,
+                    'is_done' => $meeting->is_done,
+                    'expected_attendees' => $meeting->expected_attendees ?? 0,
+                    'attendees' => $meeting->attendees ?? [],
+                    'status' => $meeting->status,
+                    'date' => $meeting->date,
+                    'time' => $meeting->time,
+                ];
+            });
+            
+            return response()->json([
+                'upcoming_meetings' => $processedMeetings,
+                'count' => $processedMeetings->count(),
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch upcoming meetings',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

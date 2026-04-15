@@ -69,7 +69,9 @@ class AdviserLedgerFormatter
         ?string $enteredByName,
         string $roleLabel,
         $chainBlock = null,
-        $predecessorChainBlock = null
+        $predecessorChainBlock = null,
+        array $verification = [],
+        bool $isSpecificLedgerTampered = false
     ): array
     {
         $proofPath = $entry->ledger_proof;
@@ -106,6 +108,12 @@ class AdviserLedgerFormatter
         if ($status === 'Corrected' && $correctionReason) {
             $verificationState['corrected'] = optional($entry->updated_at)->format('Y-m-d h:i A') ?? '';
         }
+
+        // Add blockchain verification status
+        $verification = $verification ?: [];
+        $verificationState['blockchainStatus'] = $verification['status'] ?? 'no_chain';
+        $verificationState['blockchainValid'] = !$isSpecificLedgerTampered && ($verification['isValid'] ?? false);
+        $verificationState['tampered'] = $isSpecificLedgerTampered;
 
         $allowAdviserActions = ($entry->approval_status === 'Pending Adviser Approval');
 

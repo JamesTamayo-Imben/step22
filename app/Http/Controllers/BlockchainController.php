@@ -17,7 +17,7 @@ class BlockchainController extends Controller
         $project = Project::where('id', $projectId)->where('archive', false)->firstOrFail();
 
         $chain = BlockchainService::getChainForProject($projectId);
-        $isValid = BlockchainService::verifyChain($projectId);
+        $verification = BlockchainService::verifyChain($projectId);
 
         return Inertia::render('Blockchain/Show', [
             'project' => [
@@ -27,7 +27,7 @@ class BlockchainController extends Controller
                 'amount' => $project->budget,
             ],
             'chain' => $chain,
-            'isValid' => $isValid,
+            'verification' => $verification,
             'integrity' => [
                 'totalBlocks' => $chain->count(),
                 'genesisHash' => $chain->first()?->hash,
@@ -44,12 +44,12 @@ class BlockchainController extends Controller
         $projectId = $request->get('project_id');
         
         $project = Project::where('id', $projectId)->where('archive', false)->firstOrFail();
-        $isValid = BlockchainService::verifyChain($projectId);
+        $verification = BlockchainService::verifyChain($projectId);
 
         return response()->json([
             'project_id' => $projectId,
             'project_title' => $project->title,
-            'is_valid' => $isValid,
+            'verification' => $verification,
             'verified_at' => now()->toIso8601String(),
         ]);
     }
@@ -61,7 +61,7 @@ class BlockchainController extends Controller
     {
         $project = Project::where('id', $projectId)->where('archive', false)->firstOrFail();
         $chain = BlockchainService::getChainForProject($projectId);
-        $isValid = BlockchainService::verifyChain($projectId);
+        $verification = BlockchainService::verifyChain($projectId);
 
         return response()->json([
             'project' => [
@@ -70,7 +70,7 @@ class BlockchainController extends Controller
                 'status' => $project->approval_status,
             ],
             'chain' => $chain,
-            'integrity_verified' => $isValid,
+            'verification' => $verification,
             'exported_at' => now()->toIso8601String(),
         ]);
     }

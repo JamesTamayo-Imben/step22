@@ -80,6 +80,32 @@ class Meeting extends Model
     }
 
     /**
+     * Scope to get upcoming meetings
+     */
+    public function scopeUpcoming($query)
+    {
+        return $query->where('is_done', false)
+            ->where('scheduled_date', '>=', Carbon::now())
+            ->where('archive', false);
+    }
+
+    /**
+     * Count upcoming meetings
+     */
+    public static function countUpcoming()
+    {
+        return self::upcoming()->count();
+    }
+
+    /**
+     * Get all upcoming meetings
+     */
+    public static function getUpcoming()
+    {
+        return self::upcoming()->orderBy('scheduled_date', 'asc')->get();
+    }
+
+    /**
      * Get the file name from meeting proof path
      */
     public function getMinutesFileNameAttribute()

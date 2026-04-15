@@ -164,6 +164,13 @@ class UserProjectController extends Controller
 
         $meetPayload = $this->getMeetingsPayload();
 
+        // Check for tampered ledger entries in this project
+        $tamperedCount = 0;
+        $verification = \App\Support\BlockchainService::verifyChain($project->id);
+        if (isset($verification['tamperedBlocks']) && is_array($verification['tamperedBlocks'])) {
+            $tamperedCount = count($verification['tamperedBlocks']);
+        }
+
         return Inertia::render('User/Dashboard', [
             'projects' => $this->getProjects($user?->id),
             'project' => [
@@ -181,6 +188,7 @@ class UserProjectController extends Controller
                 'objective' => $project->objective ?: 'No objective available.',
                 'proposeBy' => $project->proposed_by ?: 'Not specified',
                 'ratingsCount' => (int) ($project->ratings_count ?? 0),
+                'tamperedAlerts' => $tamperedCount,
                 'ratings' => $project->ratings->map(function ($rating) {
                     return [
                         'id' => $rating->id,

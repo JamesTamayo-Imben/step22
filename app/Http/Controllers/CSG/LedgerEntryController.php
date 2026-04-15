@@ -8,7 +8,7 @@ use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Project;
 use App\Models\CSG\Approval;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+// use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -128,8 +128,16 @@ public function uploadProof(Request $request, $id)
                 ->orderBy('created_at', 'desc')
                 ->get();
 
+            // Match ProjectDetails ledger-tab logic:
+            // compute verification per project, then mark specific ledger IDs as tampered
+            $projectVerifications = [];
+            $uniqueProjectIds = $entries->pluck('project_id')->filter()->unique();
+            foreach ($uniqueProjectIds as $projectId) {
+                $projectVerifications[$projectId] = \App\Support\BlockchainService::verifyChain($projectId);
+            }
+
             // Process budget breakdown for each entry
-            $processedEntries = $entries->map(function($entry) {
+            $processedEntries = $entries->map(function($entry) use ($projectVerifications) {
                 $entryData = $entry->toArray();
 
                 // Use the ledger entry's own budget breakdown
@@ -140,6 +148,28 @@ public function uploadProof(Request $request, $id)
 
                 // Add project name for easier display
                 $entryData['project_name'] = $entry->project ? $entry->project->title : 'Unknown Project';
+
+                $verification = $projectVerifications[$entry->project_id] ?? ['isValid' => false, 'status' => 'no_chain', 'tamperedBlocks' => []];
+                $isTampered = collect($verification['tamperedBlocks'] ?? [])->contains(function ($tamperedBlock) use ($entry) {
+                    return ($tamperedBlock['ledgerId'] ?? null) === $entry->id;
+                });
+
+                $verificationState = [
+                    'submitted' => optional($entry->created_at)->format('Y-m-d h:i A') ?? '',
+                    'blockchainStatus' => $verification['status'] ?? 'no_chain',
+                    'blockchainValid' => ! $isTampered && ($verification['isValid'] ?? false),
+                    'tampered' => $isTampered,
+                ];
+
+                if ($entry->approved_at) {
+                    $verificationState['reviewed'] = $entry->approved_at->format('Y-m-d h:i A');
+                    $verificationState['approvedRejected'] = $entry->approved_at->format('Y-m-d h:i A');
+                } elseif ($entry->rejected_at) {
+                    $verificationState['reviewed'] = $entry->rejected_at->format('Y-m-d h:i A');
+                    $verificationState['approvedRejected'] = $entry->rejected_at->format('Y-m-d h:i A');
+                }
+
+                $entryData['verificationState'] = $verificationState;
 
                 return $entryData;
             });
@@ -431,6 +461,23 @@ public function uploadProof(Request $request, $id)
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch proof documents',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verify blockchain integrity for a project
+     */
+    public function verifyChain($projectId)
+    {
+        try {
+            $verification = \App\Support\BlockchainService::verifyChain($projectId);
+            
+            return response()->json($verification);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to verify blockchain',
                 'error' => $e->getMessage()
             ], 500);
         }
