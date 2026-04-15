@@ -1294,9 +1294,9 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   </div>
 </Card>
 
-        <Card id="upcoming-meetings-card" className="p-6 rounded-2xl border-0 shadow-sm bg-white">
+        <Card id="upcoming-meetings-card" className="p-6 h-[300px]  rounded-2xl border-0 shadow-sm bg-white">
           <h2 className="text-gray-900 mb-4">Upcoming Meetings</h2>
-          <div className="space-y-3">
+          <div className="max-h-96 overflow-y-auto space-y-3">
             {meetingList && meetingList.length > 0 ? (
               meetingList.slice(0, 5).map((meeting, index) => (
                           <div onClick={() => router.visit('/csg/meetings')} className="flex items-center justify-between py-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
