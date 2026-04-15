@@ -33,7 +33,6 @@ class AdviserApprovalController extends Controller
 
         $ledgerPending = LedgerEntry::query()
             ->where('approval_status', 'Pending Adviser Approval')
-            ->where('is_initial_entry', false)
             ->with('project')
             ->orderByDesc('updated_at')
             ->get();
@@ -57,7 +56,6 @@ class AdviserApprovalController extends Controller
 
         $rejectedLedger = LedgerEntry::query()
             ->where('approval_status', 'Rejected')
-            ->where('is_initial_entry', false)
             ->with('project')
             ->orderByDesc('updated_at')
             ->get()
@@ -86,7 +84,6 @@ class AdviserApprovalController extends Controller
 
         $approvedLedger = LedgerEntry::query()
             ->where('approval_status', 'Approved')
-            ->where('is_initial_entry', false)
             ->with('project')
             ->orderByDesc('updated_at')
             ->get()
@@ -153,6 +150,7 @@ class AdviserApprovalController extends Controller
     private function approveProject(string $id, $userId, string $notes = ''): void
     {
         $project = Project::where('id', $id)->where('archive', false)->firstOrFail();
+        $wasApproved = $project->approval_status === 'Approved';
         $project->update([
             'approval_status' => 'Approved',
             'approve_by' => (string) $userId,
@@ -170,6 +168,36 @@ class AdviserApprovalController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to create genesis block for project: ' . $e->getMessage());
+        }
+
+        // Approve and chain the initial baseline ledger when project is first approved.
+        if (! $wasApproved) {
+            $initialLedger = LedgerEntry::query()
+                ->where('project_id', $project->id)
+                ->where('type', 'Initial')
+                ->where('archive', false)
+                ->orderBy('created_at')
+                ->first();
+
+            if ($initialLedger && $initialLedger->approval_status !== 'Approved') {
+                $initialLedger->update([
+                    'approval_status' => 'Approved',
+                    'approved_by' => $userId,
+                    'approved_at' => now(),
+                    'updated_by' => $userId,
+                    'note' => $initialLedger->note ?: 'Auto-approved with project approval',
+                ]);
+
+                try {
+                    BlockchainService::addBlockToChain($initialLedger->id, $project->id, [
+                        'description' => $initialLedger->description,
+                        'amount' => $initialLedger->amount,
+                        'type' => $initialLedger->type,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to add initial baseline block to chain: ' . $e->getMessage());
+                }
+            }
         }
 
         $this->writeAudit(
@@ -217,9 +245,12 @@ class AdviserApprovalController extends Controller
             $amount = (float) $entry->amount;
             if ($amount > 0) {
                 if ($entry->type === 'Expense') {
-                    $entry->project->budget = max(0, (float) $entry->project->budget - $amount);
-                } elseif (in_array($entry->type, ['Income',  'Donation', 'Sponsorship'], true)) {
+                    $entry->project->budget = (float) $entry->project->budget - $amount;
+                } elseif (in_array($entry->type, ['Income', 'Donation', 'Sponsorship'], true)) {
                     $entry->project->budget = (float) $entry->project->budget + $amount;
+                } elseif ($entry->type === 'Initial') {
+                    // Initial entries are baseline snapshots and should not re-apply budget changes.
+                    $entry->project->budget = (float) $entry->project->budget;
                 } elseif ($entry->type === 'Canvas') {
                     // For Canvas entries, we can decide how to adjust the budget. Assuming it adds to the budget:
                     $entry->project->budget = (float) $entry->project->budget;

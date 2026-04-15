@@ -211,6 +211,7 @@ const getTypeColor = (type) => {
   switch (type) {
     case 'Expense': return 'bg-red-100 text-red-700';
     case 'Income': return 'bg-green-100 text-green-700';
+    case 'Initial': return 'bg-indigo-100 text-indigo-700';
     case 'Donation': return 'bg-blue-100 text-blue-700';
     case 'Sponsorship': return 'bg-purple-100 text-purple-700';
     case 'Canvas': return 'bg-gray-100 text-gray-700';
@@ -222,6 +223,7 @@ const getTypeAmountColor = (type) => {
   switch (type) {
     case 'Expense': return 'text-red-700';
     case 'Income': return 'text-green-700';
+    case 'Initial': return 'text-indigo-700';
     case 'Donation': return 'text-green-700';
     case 'Sponsorship': return 'text-green-700';
     case 'Canvas': return ' text-gray-700';
@@ -545,17 +547,17 @@ const formatDate = (dateString) => {
   // Calculate effective budget based on approved ledger entries
   const displayBudget = parseFloat(project.budget) || 0;
   const computedBudgetFromLedger = ledgerEntries
-    .filter((entry) => entry.approval_status === 'Approved')
+    .filter((entry) => entry.approval_status === 'Approved'
+    || entry.type === "Initial")
     .reduce((sum, entry) => {
       const amount = parseFloat(entry.amount) || 0;
       const type = (entry.type || '').toLowerCase();
-      if (type === 'expense') return sum - amount;
-      if (['income', 'donation', 'sponsorship'].includes(type)) return sum + amount;
+      if (type === 'expense') return Math.max(0, sum - amount);
+      if (['initial', 'income', 'donation', 'sponsorship', 'canvas'].includes(type)) return sum + amount;
       return sum;
     }, 0);
   const budgetDifference = displayBudget - computedBudgetFromLedger;
-  // Only check for budget tampering if a budget exists (greater than 0) and project is not marked as initial
-  const isBudgetTampered = displayBudget > 0 && !project.is_initial && Math.abs(budgetDifference) > 0.01;
+  const isBudgetTampered = displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
 
   const normalizeLedgerEntry = (item) => {
     const breakdownRaw = item.budgetBreakdown || item.budget_breakdown;
@@ -565,14 +567,11 @@ const formatDate = (dateString) => {
           : (typeof breakdownRaw === 'string' ? JSON.parse(breakdownRaw) : breakdownRaw))
       : [];
 
-    const isInitialEntry = item.isInitialEntry || item.is_initial_entry || item.description === 'Initial project expense allocation';
-
     return {
       ...item,
       requiresProof: !!item.ledger_proof,
       referenceNumber: item.reference_number || item.referenceNumber || '',
       budgetBreakdown,
-      isInitialEntry,
     };
   };
 
@@ -649,10 +648,7 @@ const formatDate = (dateString) => {
       
       const data = await response.json();
       
-      const mappedEntries = Array.isArray(data) ? data.map((item) => normalizeLedgerEntry({
-        ...item,
-        isInitialEntry: item.description === 'Initial project expense allocation' || item.is_initial_entry === true,
-      })) : [];
+      const mappedEntries = Array.isArray(data) ? data.map((item) => normalizeLedgerEntry(item)) : [];
       
       setLedgerEntries(mappedEntries);
       
@@ -669,7 +665,6 @@ const formatDate = (dateString) => {
           hash: entry.id,
           filePath: entry.ledger_proof,
           budgetBreakdown: entry.budgetBreakdown,
-          isInitialEntry: entry.isInitialEntry,
         }));
       
       setProofDocuments(proofs);
@@ -1286,7 +1281,7 @@ const formatDate = (dateString) => {
 </p>
 {Number(project.budget || 0) < 0 && !isBudgetTampered && (
   <p className="text-xs text-red-500 mt-1">
-     Dont panic. The expenses only have exceed the budget.
+     Dont panic its Organic. The expenses only have exceed the budget.
   </p>
 )}
               {isBudgetTampered && (
@@ -1546,6 +1541,7 @@ const formatDate = (dateString) => {
     <tbody>
       {currentLedgerItems.map((entry) => {
         const entryIsTampered = tamperedLedgerIds.has(entry.id);
+        const isInitialEntry = (entry.type || '').toLowerCase() === 'initial';
         return (
           <tr
             key={entry.id}
@@ -1581,7 +1577,7 @@ const formatDate = (dateString) => {
                 <Button variant="ghost" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg">
                   <Eye className="w-4 h-4" />
                 </Button>
-                {entry.approval_status === 'Draft' && !isTampered && (
+                {entry.approval_status === 'Draft' && !isTampered && !isInitialEntry && (
                   <>
                     <Button variant="ghost" size="sm" onClick={() => { console.log('🖱️ Desktop edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
                       <Edit className="w-4 h-4" />
@@ -1616,6 +1612,7 @@ const formatDate = (dateString) => {
   
   {currentLedgerItems.map((entry) => {
     const entryIsTampered = tamperedLedgerIds.has(entry.id);
+    const isInitialEntry = (entry.type || '').toLowerCase() === 'initial';
     return (
       <Card
         key={entry.id}
@@ -1649,7 +1646,7 @@ const formatDate = (dateString) => {
               <Eye className="w-4 h-4 mr-1" />View
             </Button>
             {/* Only show action buttons if entry is Draft AND NOT tampered */}
-            {entry.approval_status === 'Draft' && !isTampered && (
+            {entry.approval_status === 'Draft' && !isTampered && !isInitialEntry && (
               <>
                 <Button variant="outline" size="sm" onClick={() => { console.log('🖱️ Mobile edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
                   <Edit className="w-4 h-4" />
@@ -1973,9 +1970,7 @@ const formatDate = (dateString) => {
               </div>
 
               <div className="col-span-2">
-  <p className="text-sm text-gray-500 mb-1">
-    {selectedLedger.isInitialEntry ? 'Initial Project Budget Breakdown' : 'Transaction Budget Breakdown *'}
-  </p>
+  <p className="text-sm text-gray-500 mb-1">Transaction Budget Breakdown *</p>
   {selectedLedger.budgetBreakdown && selectedLedger.budgetBreakdown.length > 0 ? (
     <div className="bg-gray-50 rounded-lg p-3 mt-1">
       {/* Header */}
@@ -2012,11 +2007,7 @@ const formatDate = (dateString) => {
       </div>
     </div>
   ) : (
-    <p className="text-gray-500 mt-1">
-      {selectedLedger.isInitialEntry 
-        ? 'No initial budget breakdown available' 
-        : 'No budget breakdown for this transaction'}
-    </p>
+    <p className="text-gray-500 mt-1">No budget breakdown for this transaction</p>
   )}
 </div>
 

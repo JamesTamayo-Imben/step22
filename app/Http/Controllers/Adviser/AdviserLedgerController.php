@@ -117,6 +117,8 @@ class AdviserLedgerController extends Controller
 
         $totalProjectBudget = Project::query()
             ->where('archive', false)
+            ->where('approval_status', 'Approved')
+            // ->where('type', 'Initial')
             ->sum('budget');
 
         return Inertia::render('Adviser/Ledger', [
@@ -130,6 +132,9 @@ class AdviserLedgerController extends Controller
    public function approve(Request $request, string $id)
 {
     $entry = LedgerEntry::where('id', $id)->with('project')->firstOrFail();
+    if ($entry->type === 'Initial') {
+        return back()->withErrors(['error' => 'Initial baseline entries are managed automatically.']);
+    }
     $wasApproved = $entry->approval_status === 'Approved';
 
     $entry->update([
@@ -144,7 +149,7 @@ class AdviserLedgerController extends Controller
         $amount = (float) $entry->amount;
         if ($amount > 0) {
             if ($entry->type === 'Expense') {
-                $entry->project->budget = (float) $entry->project->budget - $amount;  // Removed max(0, ...)
+                    $entry->project->budget = (float) $entry->project->budget - $amount;
             } elseif (in_array($entry->type, ['Income', 'Canvas', 'Donation', 'Sponsorship'], true)) {
                 $entry->project->budget = (float) $entry->project->budget + $amount;
             }
@@ -170,6 +175,9 @@ class AdviserLedgerController extends Controller
         ]);
 
         $entry = LedgerEntry::where('id', $id)->firstOrFail();
+        if ($entry->type === 'Initial') {
+            return back()->withErrors(['error' => 'Initial baseline entries are managed automatically.']);
+        }
         $entry->update([
             'approval_status' => 'Rejected',
             'note' => $data['reason'],
@@ -197,6 +205,9 @@ class AdviserLedgerController extends Controller
         ]);
 
         $entry = LedgerEntry::where('id', $id)->firstOrFail();
+        if ($entry->type === 'Initial') {
+            return back()->withErrors(['error' => 'Initial baseline entries are managed automatically.']);
+        }
         $prefix = AdviserLedgerFormatter::CORRECTION_PREFIX;
         $newNote = $prefix.' '.$data['reason'];
         $entry->update([
@@ -260,6 +271,8 @@ class AdviserLedgerController extends Controller
     {
         $projects = Project::query()
             ->where('archive', false)
+            ->where('approval_status', 'Approved')
+            // ->where('type', 'Initial')
             ->get();
 
         $updatedCount = 0;
@@ -276,8 +289,11 @@ class AdviserLedgerController extends Controller
             foreach ($approvedEntries as $entry) {
                 $amount = (float) $entry->amount;
                 if ($entry->type === 'Expense') {
-                     $computedBudget = $computedBudget - $amount;
-                        } elseif (in_array($entry->type, ['Income', 'Donation', 'Sponsorship'], true)) {
+                    $computedBudget = $computedBudget - $amount;
+                } elseif (
+                    $entry->type === 'Initial' ||
+                    in_array($entry->type, ['Income', 'Donation', 'Sponsorship', 'Canvas'], true)
+                ) {
                     $computedBudget += $amount;
                 }
             }

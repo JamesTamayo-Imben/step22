@@ -188,8 +188,8 @@ export default function LedgerApprovalsPage() {
     const computedBudgetFromLedger = approvedEntries.reduce((sum, e) => {
       const amount = Number(e.amount) || 0;
       const type = (e.transactionType || '').toLowerCase();
-     if (type === 'expense') return sum - amount;
-      if (['income', 'donation', 'sponsorship'].includes(type)) return sum + amount;
+      if (type === 'expense') return (sum - amount);
+      if (type === 'initial' || ['income', 'donation', 'sponsorship', 'canvas'].includes(type)) return sum + amount;
       return sum;
     }, 0);
 
@@ -227,6 +227,7 @@ export default function LedgerApprovalsPage() {
   switch (type) {
     case 'Expense': return 'bg-red-100 text-red-700';
     case 'Income': return 'bg-green-100 text-green-700';
+    case 'Initial': return 'bg-indigo-100 text-indigo-700';
     case 'Donation': return 'bg-blue-100 text-blue-700';
     case 'Sponsorship': return 'bg-purple-100 text-purple-700';
     case 'Canvas': return 'bg-gray-100 text-gray-700';
@@ -238,6 +239,7 @@ const getTypeAmountColor = (type) => {
   switch (type) {
     case 'Expense': return 'text-red-700';
     case 'Income': return 'text-green-700';
+    case 'Initial': return 'text-indigo-700';
     case 'Donation': return 'text-green-700';
     case 'Sponsorship': return 'text-green-700';
     case 'Canvas': return ' text-gray-700';

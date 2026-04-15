@@ -94,7 +94,6 @@ public function uploadProof(Request $request, $id)
                 $entryData['budget_breakdown'] = $entry->budget_breakdown 
                     ? (is_string($entry->budget_breakdown) ? json_decode($entry->budget_breakdown, true) : $entry->budget_breakdown)
                     : [];
-                $entryData['is_initial_entry'] = $entry->is_initial_entry ?? false;
                 
                 return $entryData;
             });
@@ -144,7 +143,6 @@ public function uploadProof(Request $request, $id)
                 $entryData['budget_breakdown'] = $entry->budget_breakdown
                     ? (is_string($entry->budget_breakdown) ? json_decode($entry->budget_breakdown, true) : $entry->budget_breakdown)
                     : [];
-                $entryData['is_initial_entry'] = $entry->is_initial_entry ?? false;
 
                 // Add project name for easier display
                 $entryData['project_name'] = $entry->project ? $entry->project->title : 'Unknown Project';
@@ -199,7 +197,6 @@ public function uploadProof(Request $request, $id)
                 'proof_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
                 'ledger_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
                 'approval_status' => 'nullable|string',
-                'is_initial_entry' => 'nullable|boolean',
                 'created_by' => 'nullable|exists:users,id',
             ]);
             
@@ -211,7 +208,6 @@ public function uploadProof(Request $request, $id)
             $entry->amount = $request->amount;
             $entry->description = $request->description;
             $entry->approval_status = $request->approval_status ?? 'Draft';
-            $entry->is_initial_entry = $request->is_initial_entry ?? false;
             $entry->created_by = $request->created_by;
             
             // Handle budget breakdown (store as JSON)
@@ -276,6 +272,12 @@ public function uploadProof(Request $request, $id)
     {
         try {
             $entry = LedgerEntry::findOrFail($id);
+
+            if ($entry->type === 'Initial') {
+                return response()->json([
+                    'message' => 'Initial baseline entries cannot be edited.',
+                ], 403);
+            }
             
             // Validate the request
             $validated = $request->validate([
@@ -324,6 +326,12 @@ public function uploadProof(Request $request, $id)
     {
         try {
             $entry = LedgerEntry::findOrFail($id);
+
+            if ($entry->type === 'Initial') {
+                return response()->json([
+                    'message' => 'Initial baseline entries are submitted automatically with project approval.',
+                ], 403);
+            }
             
             // Update approval status to Pending Adviser Approval
             $entry->approval_status = 'Pending Adviser Approval';
@@ -371,6 +379,13 @@ public function uploadProof(Request $request, $id)
     {
         try {
             $entry = LedgerEntry::findOrFail($id);
+
+            if ($entry->type === 'Initial') {
+                return response()->json([
+                    'message' => 'Initial baseline entries cannot be archived.',
+                ], 403);
+            }
+
             $entry->archive = 1;
             $entry->updated_at = now();
             $entry->save();
