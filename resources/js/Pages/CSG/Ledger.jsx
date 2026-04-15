@@ -685,6 +685,7 @@ const handleSaveUpload = async () => {
   switch (type) {
     case 'Expense': return 'bg-red-100 text-red-700';
     case 'Income': return 'bg-green-100 text-green-700';
+    case 'Initial': return 'bg-indigo-100 text-indigo-700';
     case 'Donation': return 'bg-blue-100 text-blue-700';
     case 'Sponsorship': return 'bg-purple-100 text-purple-700';
     case 'Canvas': return 'bg-gray-100 text-gray-700';
@@ -696,6 +697,7 @@ const getTypeAmountColor = (type) => {
   switch (type) {
     case 'Expense': return 'text-red-700';
     case 'Income': return 'text-green-700';
+    case 'Initial': return 'text-indigo-700';
     case 'Donation': return 'text-green-700';
     case 'Sponsorship': return 'text-green-700';
     case 'Canvas': return ' text-gray-700';
@@ -948,6 +950,7 @@ const getTypeAmountColor = (type) => {
       <div className="space-y-3">
         {currentItems.map((entry) => {
           const entryLocked = isProjectLocked(entry.project_id);
+          const isInitialEntry = (entry.type || '').toLowerCase() === 'initial';
           return (
          <Card key={entry.id} className={`rounded-xl border-0 shadow-sm transition-all duration-200 overflow-x-auto ${
            entry.verificationState?.tampered ? 'ring-2 ring-red-200 bg-red-50' : ''
@@ -1017,7 +1020,7 @@ const getTypeAmountColor = (type) => {
                     <Eye className="w-3.5 h-3.5 mr-1" /> 
                   </Button>
                   
-                  {!entry.is_initial_entry && (entry.status === 'Draft' || entry.status === 'Rejected') && (
+                  {(entry.status === 'Draft' || entry.status === 'Rejected') && !isInitialEntry && (
                     <>
                       <Button
                         variant="ghost"

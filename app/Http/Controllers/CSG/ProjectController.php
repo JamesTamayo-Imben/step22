@@ -99,6 +99,26 @@ class ProjectController extends Controller
             $project->updated_at = now();
             
             $project->save();
+
+            // Create an initial baseline ledger entry when project starts with budget.
+            if ((float) ($project->budget ?? 0) > 0) {
+                LedgerEntry::create([
+                    'id' => (string) Str::uuid(),
+                    'project_id' => $project->id,
+                    'type' => 'Initial',
+                    'amount' => (float) $project->budget,
+                    'budget_breakdown' => json_encode([]),
+                    'description' => 'Initial project budget baseline',
+                    'category' => 'Project Budget Baseline',
+                    'approval_status' => 'Draft',
+                    'note' => 'Auto-generated baseline on project creation',
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                    'archive' => 0,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
             
             // Return the project with the file URL
             $project->project_proof_url = $project->project_proof ? Storage::url($project->project_proof) : null;
