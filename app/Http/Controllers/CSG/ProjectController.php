@@ -92,7 +92,7 @@ class ProjectController extends Controller
                 
                 // Store the file
                 $filePath = Storage::disk('public')->putFileAs('project_proofs', $file, $fileName);
-                $project->project_proof = $filePath;
+                $project->project_proof = 'storage/project_proofs/' . $fileName;
             }
             
             $project->created_at = now();
@@ -176,15 +176,18 @@ class ProjectController extends Controller
             
             // Handle file upload if new file is provided
             if ($request->hasFile('project_proof')) {
-                // Delete old file if exists
-                if ($project->project_proof && Storage::disk('public')->exists($project->project_proof)) {
-                    Storage::disk('public')->delete($project->project_proof);
+                // Delete old file if exists - extract actual path from storage prefix
+                if ($project->project_proof) {
+                    $actualPath = str_replace('storage/', '', $project->project_proof);
+                    if (Storage::disk('public')->exists($actualPath)) {
+                        Storage::disk('public')->delete($actualPath);
+                    }
                 }
                 
                 $file = $request->file('project_proof');
                 $fileName = time() . '_' . $file->getClientOriginalName();
                 $filePath = $file->storeAs('project_proofs', $fileName, 'public');
-                $project->project_proof = $filePath;
+                $project->project_proof = 'storage/project_proofs/' . $fileName;
             }
             
             $project->save();

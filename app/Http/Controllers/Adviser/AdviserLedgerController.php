@@ -17,6 +17,30 @@ class AdviserLedgerController extends Controller
 {
     public function index()
     {
+        $projectNames = LedgerEntry::query()
+            ->join('projects', 'ledger_entries.project_id', '=', 'projects.id')
+            ->where('projects.archive', false)
+            ->distinct()
+            ->orderBy('projects.title')
+            ->pluck('projects.title')
+            ->filter()
+            ->values();
+
+        $totalProjectBudget = Project::query()
+            ->where('archive', false)
+            ->where('approval_status', 'Approved')
+            ->sum('budget');
+
+        return Inertia::render('Adviser/Ledger', [
+            'ledgerEntries' => Inertia::defer(fn() => $this->getLedgerEntriesData()),
+            'auditTrail' => Inertia::defer(fn() => $this->getAuditTrailData()),
+            'projectFilterOptions' => $projectNames,
+            'totalProjectBudget' => (float) $totalProjectBudget,
+        ]);
+    }
+
+    private function getLedgerEntriesData()
+    {
         $entries = LedgerEntry::query()
             ->with('project')
             ->orderBy('created_at', 'asc')
@@ -54,9 +78,6 @@ class AdviserLedgerController extends Controller
         $prevChain = null;
         foreach ($entries as $entry) {
             $name = $this->userName($entry->created_by);
-            /**
-             * @var LedgerEntry|null $prev
-             */
             $currentChain = $entryChainBlocks[$entry->id] ?? null;
             $verification = $projectVerifications[$entry->project_id] ?? ['isValid' => false, 'status' => 'no_chain', 'tamperedBlocks' => []];
             
@@ -78,15 +99,17 @@ class AdviserLedgerController extends Controller
                 $prevChain,
                 $verification,
                 $isTampered
-                
             );
             $prev = $entry;
             $prevChain = $currentChain;
         }
 
-        $ordered = collect($rows)->sortByDesc('date')->values()->all();
+        return collect($rows)->sortByDesc('date')->values()->all();
+    }
 
-        $auditTrail = AuditLog::query()
+    private function getAuditTrailData()
+    {
+        return AuditLog::query()
             ->with(['user.role'])
             ->where(function ($q) {
                 $q->where('module', 'ledger')
@@ -104,32 +127,10 @@ class AdviserLedgerController extends Controller
                 'timestamp' => optional($log->created_at)->format('Y-m-d h:i A') ?? '',
                 'ipAddress' => $log->ip_address ?? '—',
                 'details' => $log->details ?? '',
-            ]);
-
-        $projectNames = LedgerEntry::query()
-            ->join('projects', 'ledger_entries.project_id', '=', 'projects.id')
-            ->where('projects.archive', false)
-            ->distinct()
-            ->orderBy('projects.title')
-            ->pluck('projects.title')
-            ->filter()
-            ->values();
-
-        $totalProjectBudget = Project::query()
-            ->where('archive', false)
-            ->where('approval_status', 'Approved')
-            // ->where('type', 'Initial')
-            ->sum('budget');
-
-        return Inertia::render('Adviser/Ledger', [
-            'ledgerEntries' => $ordered,
-            'auditTrail' => $auditTrail,
-            'projectFilterOptions' => $projectNames,
-            'totalProjectBudget' => (float) $totalProjectBudget,
-        ]);
+            ])->values()->all();
     }
 
-   public function approve(Request $request, string $id)
+    public function approve(Request $request, string $id)
 {
     $entry = LedgerEntry::where('id', $id)->with('project')->firstOrFail();
     if ($entry->type === 'Initial') {

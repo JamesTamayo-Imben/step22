@@ -40,7 +40,7 @@ class AdviserApprovalController extends Controller
         $ledgerRows = $ledgerPending->map(fn (LedgerEntry $e) => $this->serializeLedgerCard($e));
 
         $proofRows = $ledgerPending
-            ->filter(fn (LedgerEntry $e) => ! empty($e->ledger_proof))
+            ->filter(fn (LedgerEntry $e) => ! empty($e->ledger_proof) || ($e->type === 'Initial' && ! empty($e->project?->project_proof)))
             ->map(fn (LedgerEntry $e) => $this->serializeProofCard($e))
             ->values();
 
@@ -400,7 +400,7 @@ class AdviserApprovalController extends Controller
             'created_by' => $this->userName($p->created_by),
             'created_at' => optional($p->created_at)->format('Y-m-d H:i:s') ?? 'N/A',
             'proposed_by' => $p->proposed_by ?? 'Not specified',
-            'ledger_proof' => $p->ledger_proof ?? null,
+            'project_proof' => $p->project_proof ?? null,
         ];
     }
 
@@ -410,6 +410,13 @@ class AdviserApprovalController extends Controller
         if ($forceStatus === null && $e->approval_status === 'Rejected') {
             $status = 'Rejected';
         }
+
+        // Get project_proof from the initial ledger entry for this project
+        $initialEntry = $e->project?->ledgerEntries()?->oldest()->first();
+        $projectProof = $initialEntry?->project?->project_proof ?? $e->project?->project_proof ?? null;
+
+        // If this is an Initial entry, use the project_proof as the ledger_proof
+        $ledgerProof = ($e->type === 'Initial') ? $e->project?->project_proof : $e->ledger_proof;
 
         return [
             'id' => $e->id,
@@ -426,7 +433,8 @@ class AdviserApprovalController extends Controller
             'created_by' => $this->userName($e->created_by),
             'created_at' => optional($e->created_at)->format('Y-m-d H:i:s') ?? 'N/A',
             'entry_type' => $e->type ?? 'Expense',
-            'ledger_proof' => $e->ledger_proof,
+            'ledger_proof' => $ledgerProof,
+            'project_proof' => $projectProof,
         ];
     }
 
@@ -434,7 +442,8 @@ class AdviserApprovalController extends Controller
     {
         $card = $this->serializeLedgerCard($e);
         $card['type'] = 'proof';
-        $card['title'] = basename($e->ledger_proof ?? 'proof');
+        $proofPath = ($e->type === 'Initial') ? $e->project?->project_proof : $e->ledger_proof;
+        $card['title'] = basename($proofPath ?? 'proof');
 
         return $card;
     }

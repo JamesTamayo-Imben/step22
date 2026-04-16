@@ -74,7 +74,8 @@ class AdviserLedgerFormatter
         bool $isSpecificLedgerTampered = false
     ): array
     {
-        $proofPath = $entry->ledger_proof;
+        // For Initial entries, use project_proof; otherwise use ledger_proof
+        $proofPath = ($entry->type === 'Initial') ? $entry->project?->project_proof : $entry->ledger_proof;
         $proofAttached = ! empty($proofPath);
 
         $proofFiles = [];

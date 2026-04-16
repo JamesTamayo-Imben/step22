@@ -547,19 +547,25 @@ export default function AdviserApprovalsPage() {
             {/* Proof */}
              <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Proof *</p>
-                {selectedItem.ledger_proof ? (
-                  <a
-                    href={`/${selectedItem.ledger_proof}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline"
-                  >
-                    <FileText className="w-4 h-4" />
-                    View Proof Document
-                  </a>
+                <p className="text-sm text-gray-500 mb-1">Proof Document *</p>
+                {selectedItem.project_proof ? (
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                    <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                    <a
+                      href={`/${selectedItem.project_proof}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline flex-1 break-all text-sm"
+                    >
+                      View Proof Document
+                    </a>
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  </div>
                 ) : (
-                  <p className="text-gray-900">No proof id currently provided</p>
+                  <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                    <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                    <p className="text-yellow-700 text-sm flex-1">No proof document provided</p>
+                  </div>
                 )}
               </div>
 
@@ -636,19 +642,25 @@ export default function AdviserApprovalsPage() {
             </div>
 
               <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Proof *</p>
+                <p className="text-sm text-gray-500 mb-1">Proof Document *</p>
                 {selectedItem.ledger_proof ? (
-                  <a
-                    href={`/${selectedItem.ledger_proof}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline"
-                  >
-                    <FileText className="w-4 h-4" />
-                    View Proof Document
-                  </a>
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                    <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                    <a
+                      href={`/${selectedItem.ledger_proof}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 hover:underline flex-1 break-all text-sm"
+                    >
+                      View Proof Document
+                    </a>
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  </div>
                 ) : (
-                  <p className="text-gray-900">No proof provided</p>
+                  <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                    <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                    <p className="text-yellow-700 text-sm flex-1">No proof document provided</p>
+                  </div>
                 )}
               </div>
 

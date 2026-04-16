@@ -15,11 +15,15 @@ class CSGProjectController extends Controller
 {
     public function index()
     {
-        $projects = Project::query()->where('archive', 0)->latest('created_at')->get();
-
+        // Only pass empty array initially, load via deferred props
         return Inertia::render('CSG/Projects', [
-            'projects' => $projects,
+            'projects' => Inertia::defer(fn() => $this->getProjectsData()),
         ]);
+    }
+
+    private function getProjectsData()
+    {
+        return Project::query()->where('archive', 0)->latest('created_at')->get();
     }
 
     public function store(Request $request)

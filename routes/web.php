@@ -189,14 +189,10 @@ Route::get('/csg/ledger', function () {
 })->name('csg.ledger');
 
 Route::get('/csg/proof', function () {
-    $proofDocuments = app(\App\Http\Controllers\CSG\LedgerEntryController::class)->getProofDocuments()->getData();
-    $projects = \App\Models\CSG\Project::where('archive', 0)->pluck('title')->toArray();
-    $transactions = \App\Models\CSG\LedgerEntry::where('archive', 0)->pluck('id')->toArray();
-
     return Inertia::render('CSG/Proof', [
-        'proofDocuments' => $proofDocuments,
-        'projects' => $projects,
-        'transactions' => $transactions,
+        'proofDocuments' => Inertia::defer(fn() => app(\App\Http\Controllers\CSG\LedgerEntryController::class)->getProofDocuments()->getData()),
+        'projects' => Inertia::defer(fn() => \App\Models\CSG\Project::where('archive', 0)->pluck('title')->toArray()),
+        'transactions' => Inertia::defer(fn() => \App\Models\CSG\LedgerEntry::where('archive', 0)->pluck('id')->toArray()),
     ]);
 })->name('csg.proof');
 

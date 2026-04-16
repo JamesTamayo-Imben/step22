@@ -15,36 +15,18 @@ class CSGDashboardController extends Controller
     public function index()
     {
         $stats = $this->computeCSGDashboardStats();
-        return Inertia::render('CSG/Dashboard', $stats);
+        
+        // Return only statistics immediately, defer sensitive data to prevent leakage
+        return Inertia::render('CSG/Dashboard', [
+            'statistics' => $stats['statistics'],
+            'projects' => Inertia::defer(fn() => $this->getProjectsData()),
+            'recentLedgerEntries' => Inertia::defer(fn() => $this->getLedgerEntriesData()),
+            'upcomingMeetings' => Inertia::defer(fn() => $this->getMeetingsData()),
+        ]);
     }
 
-    private function computeCSGDashboardStats()
+    private function getProjectsData()
     {
-        $activeProjectsCount = Project::where('archive', 0)->count();
-        $pendingApprovalCount = Project::where('archive', 0)->where('approval_status', 'Pending Adviser Approval')->count();
-
-        // Calculate average rating and CSAT
-        $ratings = Rating::where('archive', false)->get();
-        $averageRating = $ratings->count() > 0 ? round($ratings->avg('rating_score'), 2) : 0.0;
-        
-        // CSAT: ratings of 3-5 stars = satisfied, 1-2 stars = not satisfied
-        $satisfied = $ratings->whereIn('rating_score', [3, 4, 5])->count();
-        $csatRate = $ratings->count() > 0 ? (int) round(100 * $satisfied / $ratings->count()) : 0;
-        $totalRatings = $ratings->count();
-
-        $ledgerSumsPerProject = LedgerEntry::select('project_id',
-            DB::raw("SUM(CASE WHEN type = 'Income' THEN amount ELSE 0 END) as income"),
-            DB::raw("SUM(CASE WHEN type = 'Expense' THEN amount ELSE 0 END) as expense")
-        )
-        ->where('approval_status', 'Approved')
-        ->groupBy('project_id')
-        ->get();
-
-        $projectNetValues = $ledgerSumsPerProject->map(fn($row) => (float) $row->income - (float) $row->expense);
-        $avgNetForProject = $projectNetValues->count() > 0
-            ? round($projectNetValues->avg(), 2)
-            : 0;
-
         $projects = Project::where('archive', 0)
             ->latest('created_at')
             ->take(4)
@@ -76,6 +58,11 @@ class CSGDashboardController extends Controller
                 ];
             });
 
+        return $projects;
+    }
+
+    private function getLedgerEntriesData()
+    {
         $recentLedgerEntries = LedgerEntry::with('project')
             ->latest('created_at')
             ->take(5)
@@ -91,6 +78,11 @@ class CSGDashboardController extends Controller
                 ];
             });
 
+        return $recentLedgerEntries;
+    }
+
+    private function getMeetingsData()
+    {
         $upcomingMeetings = Meeting::where('archive', false)
             ->where('is_done', false)
             ->orderBy('scheduled_date', 'asc')
@@ -106,6 +98,36 @@ class CSGDashboardController extends Controller
                 ];
             });
 
+        return $upcomingMeetings;
+    }
+
+    private function computeCSGDashboardStats()
+    {
+        $activeProjectsCount = Project::where('archive', 0)->count();
+        $pendingApprovalCount = Project::where('archive', 0)->where('approval_status', 'Pending Adviser Approval')->count();
+
+        // Calculate average rating and CSAT
+        $ratings = Rating::where('archive', false)->get();
+        $averageRating = $ratings->count() > 0 ? round($ratings->avg('rating_score'), 2) : 0.0;
+        
+        // CSAT: ratings of 3-5 stars = satisfied, 1-2 stars = not satisfied
+        $satisfied = $ratings->whereIn('rating_score', [3, 4, 5])->count();
+        $csatRate = $ratings->count() > 0 ? (int) round(100 * $satisfied / $ratings->count()) : 0;
+        $totalRatings = $ratings->count();
+
+        $ledgerSumsPerProject = LedgerEntry::select('project_id',
+            DB::raw("SUM(CASE WHEN type = 'Income' THEN amount ELSE 0 END) as income"),
+            DB::raw("SUM(CASE WHEN type = 'Expense' THEN amount ELSE 0 END) as expense")
+        )
+        ->where('approval_status', 'Approved')
+        ->groupBy('project_id')
+        ->get();
+
+        $projectNetValues = $ledgerSumsPerProject->map(fn($row) => (float) $row->income - (float) $row->expense);
+        $avgNetForProject = $projectNetValues->count() > 0
+            ? round($projectNetValues->avg(), 2)
+            : 0;
+
         return [
             'statistics' => [
                 'activeProjects' => $activeProjectsCount,
@@ -115,9 +137,6 @@ class CSGDashboardController extends Controller
                 'csatRate' => $csatRate,
                 'totalRatings' => $totalRatings,
             ],
-            'projects' => $projects,
-            'recentLedgerEntries' => $recentLedgerEntries,
-            'upcomingMeetings' => $upcomingMeetings,
         ];
     }
 }
