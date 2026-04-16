@@ -514,7 +514,7 @@ const formatDate = (dateString) => {
                   <div>
                     <p className="text-sm text-gray-900 mb-1">{officer.name}</p>
                     <p className="text-xs text-gray-500">{officer.email}</p>
-                    <p className="text-xs text-gray-500">{officer.userId}</p>
+                    <p className="text-xs text-gray-500">Student ID: {officer.id}</p>
                     <div className="mt-3 pt-3 border-t border-gray-200">
                       <Button
                         onClick={() => openOfficerModal(officer)}
@@ -534,7 +534,7 @@ const formatDate = (dateString) => {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-3">
           {rolePermissions.map((role) => {
             const isSelected = selectedRole === role.name;
@@ -725,7 +725,7 @@ const formatDate = (dateString) => {
             </div>
           </Card>
         </div>
-      </div>
+      </div> */}
 
      <Modal
   open={isSetOfficerModalOpen}

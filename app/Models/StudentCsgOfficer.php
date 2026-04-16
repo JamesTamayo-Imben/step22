@@ -11,6 +11,8 @@ class StudentCsgOfficer extends Model
     use HasFactory;
 
     protected $table = 'student_csg_officers';
+    protected $keyType = 'string';
+    public $incrementing = false;
 
     protected $fillable = [
         'id',

@@ -545,17 +545,23 @@ const formatDate = (dateString) => {
     .reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
 
   // Calculate effective budget based on approved ledger entries
-  const displayBudget = parseFloat(project.budget) || 0;
-  const computedBudgetFromLedger = ledgerEntries
-    .filter((entry) => entry.approval_status === 'Approved'
-    || entry.type === "Initial")
-    .reduce((sum, entry) => {
-      const amount = parseFloat(entry.amount) || 0;
-      const type = (entry.type || '').toLowerCase();
-      if (type === 'expense') return Math.max(0, sum - amount);
-      if (['initial', 'income', 'donation', 'sponsorship', 'canvas'].includes(type)) return sum + amount;
+const displayBudget = parseFloat(project.budget) || 0;
+const computedBudgetFromLedger = ledgerEntries
+  .filter((entry) => entry.approval_status === 'Approved' || entry.type === "Initial")
+  .reduce((sum, entry) => {
+    const amount = parseFloat(entry.amount) || 0;
+    const type = (entry.type || '').toLowerCase();
+    
+    if (type === 'expense') {
+      // If amount is negative, it effectively adds to budget
+      // If amount is positive, it subtracts from budget
+      return sum - amount;
+    }
+    if (type === 'canvas') {
       return sum;
-    }, 0);
+    }
+    return sum + amount;
+  }, 0);
   const budgetDifference = displayBudget - computedBudgetFromLedger;
   const isBudgetTampered = displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
 
@@ -1930,123 +1936,167 @@ const formatDate = (dateString) => {
       
       {/* ── Modals ── */}
       <Modal open={showLedgerDetails} onClose={() => { setShowLedgerDetails(false); setSelectedLedger(null); }} title="Ledger Entry Details">
-        {selectedLedger && (
-          <div className="space-y-4 pt-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Transaction ID *</p>
-                <p className="font-mono text-sm text-gray-900 break-all">{selectedLedger.id}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Type *</p>
-                <Badge className={`rounded-lg ${selectedLedger.type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {selectedLedger.type}
-                </Badge>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Total Amount *</p>
-                <p className="text-xl font-semibold text-blue-600">₱{parseFloat(selectedLedger.amount).toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Status * </p>
-                <div className="flex items-center gap-1">
-                  {getStatusIcon(selectedLedger.approval_status)}
-                  <Badge className={`rounded-lg ${getLedgerStatusColor(selectedLedger.approval_status)}`}>
-                    {selectedLedger.approval_status}
-                  </Badge>
-                </div>
-              </div>
-              <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Description *</p>
-                <p className="text-gray-900">{selectedLedger.description}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Created By *</p>
-                <p className="text-sm text-gray-900">{selectedLedger.created_by || 'N/A'}</p>
-              </div>
-                <div>
-                <p className="text-sm text-gray-500 mb-1">Created At *</p>
-                <p className="text-sm text-gray-900">{selectedLedger.created_at ? new Date(selectedLedger.created_at).toLocaleDateString() : 'N/A'}</p>
-              </div>
-
-              <div className="col-span-2">
-  <p className="text-sm text-gray-500 mb-1">Transaction Budget Breakdown *</p>
-  {selectedLedger.budgetBreakdown && selectedLedger.budgetBreakdown.length > 0 ? (
-    <div className="bg-gray-50 rounded-lg p-3 mt-1">
-      {/* Header */}
-      <div className="flex justify-between items-center pb-2 mb-2 border-b border-gray-300">
-        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Item (Unit Price x Quantity)</span>
-        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
-      </div>
-      
-      {/* Items */}
-      <div className="space-y-1">
-        {selectedLedger.budgetBreakdown.map((item, index) => (
-          <div key={item.id || index} className="flex justify-between items-center py-1">
-            <div className="flex-1">
-              <span className="text-sm text-gray-900">{item.item}</span>
-              {(item.quantity || item.qty) && (
-                <span className="text-xs text-gray-500 ml-2">
-                  (₱{(parseFloat(item.unitPrice) || 0).toLocaleString()} x {item.quantity || item.qty})
-                </span>
-              )}
-            </div>
-            <span className="text-sm font-medium text-blue-600">
-              ₱{(parseFloat(item.amount) || 0).toLocaleString()}
-            </span>
+  {selectedLedger && (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Transaction ID *</p>
+          <p className="font-mono text-sm text-gray-900 break-all">{selectedLedger.id}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Type *</p>
+          <Badge className={`rounded-lg ${selectedLedger.type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+            {selectedLedger.type}
+          </Badge>
+        </div>
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Total Amount *</p>
+          <p className="text-xl font-semibold text-blue-600">₱{parseFloat(selectedLedger.amount).toLocaleString()}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Status * </p>
+          <div className="flex items-center gap-1">
+            {getStatusIcon(selectedLedger.approval_status)}
+            <Badge className={`rounded-lg ${getLedgerStatusColor(selectedLedger.approval_status)}`}>
+              {selectedLedger.approval_status}
+            </Badge>
           </div>
-        ))}
-      </div>
-      
-      {/* Total */}
-      <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 font-semibold">
-        <span className="text-gray-700">Total</span>
-        <span className="text-blue-600">
-          ₱{selectedLedger.budgetBreakdown.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}
-        </span>
+        </div>
+        
+        <div className="col-span-2">
+          <p className="text-sm text-gray-500 mb-1">Description *</p>
+          <p className="text-gray-900">{selectedLedger.description}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Created By *</p>
+          <p className="text-sm text-gray-900">{selectedLedger.created_by || 'N/A'}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Created At *</p>
+          <p className="text-sm text-gray-900">{selectedLedger.created_at ? new Date(selectedLedger.created_at).toLocaleDateString() : 'N/A'}</p>
+        </div>
+
+        <div className="col-span-2">
+          <p className="text-sm text-gray-500 mb-1">Transaction Budget Breakdown *</p>
+          {selectedLedger.budgetBreakdown && selectedLedger.budgetBreakdown.length > 0 ? (
+            <div className="bg-gray-50 rounded-lg p-3 mt-1">
+              {/* Header */}
+              <div className="flex justify-between items-center pb-2 mb-2 border-b border-gray-300">
+                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Item (Unit Price x Quantity)</span>
+                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
+              </div>
+              
+              {/* Items */}
+              <div className="space-y-1">
+                {selectedLedger.budgetBreakdown.map((item, index) => (
+                  <div key={item.id || index} className="flex justify-between items-center py-1">
+                    <div className="flex-1">
+                      <span className="text-sm text-gray-900">{item.item}</span>
+                      {(item.quantity || item.qty) && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          (₱{(parseFloat(item.unitPrice) || 0).toLocaleString()} x {item.quantity || item.qty})
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-blue-600">
+                      ₱{(parseFloat(item.amount) || 0).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Total */}
+              <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 font-semibold">
+                <span className="text-gray-700">Total</span>
+                <span className="text-blue-600">
+                  ₱{selectedLedger.budgetBreakdown.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-500 mt-1">No budget breakdown for this transaction</p>
+          )}
+        </div>
+
+        {/* ADD PROOF SECTION HERE */}
+        <div className="col-span-2">
+  <p className="text-sm text-gray-500 mb-1">Proof Document *</p>
+  {selectedLedger.ledger_proof ? (
+    <div className="bg-gray-50 rounded-lg p-3 mt-1">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <FileText className="w-8 h-8 text-blue-600" />
+          <div>
+            <p className="text-sm font-medium text-gray-900">
+              {selectedLedger.ledger_proof.split('/').pop()}
+            </p>
+            <p className="text-xs text-gray-500">
+              {selectedLedger.ledger_proof.split('.').pop().toUpperCase()} file
+            </p>
+          </div>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => {
+            // Open proof in new tab
+            const proofUrl = selectedLedger.ledger_proof.startsWith('/') 
+              ? selectedLedger.ledger_proof 
+              : `/${selectedLedger.ledger_proof}`;
+            window.open(proofUrl, '_blank');
+          }}
+          className="rounded-lg"
+        >
+          <Eye className="w-4 h-4 mr-1" /> View
+        </Button>
       </div>
     </div>
   ) : (
-    <p className="text-gray-500 mt-1">No budget breakdown for this transaction</p>
+    <div className="bg-gray-50 rounded-lg p-3 mt-1">
+      <div className="flex items-center gap-2">
+        <FileText className="w-5 h-5 text-gray-400" />
+        <p className="text-sm text-gray-500">No proof document uploaded for this transaction</p>
+      </div>
+    </div>
   )}
 </div>
 
-              {/* note here */}
-              {shouldShowNotes && (
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-500 mb-1">
-                    {selectedLedger.approval_status === 'Rejected' ? 'Rejection Notes *' : 'Approver Notes *'}
-                  </p>
-                  <div className={`rounded-lg p-4 ${
-                    selectedLedger.approval_status === 'Rejected' ? 'bg-red-50' : 'bg-blue-50'
-                  }`}>
-                    <p className={`text-sm ${
-                      selectedLedger.approval_status === 'Rejected' ? 'text-red-900' : 'text-blue-900'
-                    }`}>
-                      {selectedLedger.note || (selectedLedger.approval_status === 'Rejected' 
-                        ? 'No rejection reason provided.' 
-                        : 'No notes available.')}
-                    </p>
-                    <p className={`text-xs mt-2 ${
-                      selectedLedger.approval_status === 'Rejected' ? 'text-red-600' : 'text-blue-600'
-                    }`}>
-                      - {selectedLedger.approved_by || 'Not assigned'}
-                    </p>
-                    <p className={`text-xs mt-1 ${
-                      selectedLedger.approval_status === 'Rejected' ? 'text-red-600' : 'text-blue-600'
-                    }`}>
-                      - {selectedLedger.approved_at ? `Approved on ${new Date(selectedLedger.approved_at).toLocaleDateString()}` : 'Not yet approved'}
-                    </p>
-                  </div>
-                </div>
-              )}
+        {/* note here */}
+        {shouldShowNotes && (
+          <div className="col-span-2">
+            <p className="text-sm text-gray-500 mb-1">
+              {selectedLedger.approval_status === 'Rejected' ? 'Rejection Notes *' : 'Approver Notes *'}
+            </p>
+            <div className={`rounded-lg p-4 ${
+              selectedLedger.approval_status === 'Rejected' ? 'bg-red-50' : 'bg-blue-50'
+            }`}>
+              <p className={`text-sm ${
+                selectedLedger.approval_status === 'Rejected' ? 'text-red-900' : 'text-blue-900'
+              }`}>
+                {selectedLedger.note || (selectedLedger.approval_status === 'Rejected' 
+                  ? 'No rejection reason provided.' 
+                  : 'No notes available.')}
+              </p>
+              <p className={`text-xs mt-2 ${
+                selectedLedger.approval_status === 'Rejected' ? 'text-red-600' : 'text-blue-600'
+              }`}>
+                - {selectedLedger.approved_by || 'Not assigned'}
+              </p>
+              <p className={`text-xs mt-1 ${
+                selectedLedger.approval_status === 'Rejected' ? 'text-red-600' : 'text-blue-600'
+              }`}>
+                - {selectedLedger.approved_at ? `Approved on ${new Date(selectedLedger.approved_at).toLocaleDateString()}` : 'Not yet approved'}
+              </p>
             </div>
-            <Button onClick={() => setShowLedgerDetails(false)} className="w-full rounded-xl" variant="outline">
-              Close
-            </Button>
           </div>
         )}
-      </Modal>
+      </div>
+      <Button onClick={() => setShowLedgerDetails(false)} className="w-full rounded-xl" variant="outline">
+        Close
+      </Button>
+    </div>
+  )}
+</Modal>
       
       <Modal open={showProofViewer} onClose={() => { setShowProofViewer(false); setSelectedProof(null); }} title="Proof Document">
         {selectedProof && (

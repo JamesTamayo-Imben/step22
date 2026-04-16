@@ -198,10 +198,10 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
           <h1 className="text-2xl font-semibold text-gray-900">Project Ratings</h1>
           <p className="text-gray-500">Student feedback and satisfaction ratings for CSG projects</p>
         </div>
-        <Button type="button" variant="outline" className="rounded-xl" onClick={handleExport}>
+        {/* <Button type="button" variant="outline" className="rounded-xl" onClick={handleExport}>
           <Download className="w-4 h-4 mr-2" />
           Export Report
-        </Button>
+        </Button> */}
       </div>
 
       {/* Overview Cards - KPI Dashboard */}

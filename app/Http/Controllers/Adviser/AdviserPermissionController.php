@@ -39,10 +39,10 @@ class AdviserPermissionController extends Controller
             ->map(function ($officers, $position) {
                 $officer = $officers->first();
                 return [
+                    'id' => $officer->id ?? '',
                     'userId' => $officer->user_id ?? '',
                     'position' => $position,
                     'name' => $officer->user?->name ?? '',
-                    'userId' => $officer->user_id ?? '',
                     'email' => $officer->user?->email ?? '',
                 ];
             })
@@ -87,8 +87,8 @@ class AdviserPermissionController extends Controller
            
 ->map(function ($officer) {
     return [
-        'id' => $officer->user_id,  // Add this for React compatibility
-        'studentId' => $officer->user_id,  // Keep for display if needed
+        'id' => $officer->user_id,  // User ID for React key
+        'studentId' => $officer->id,  // Actual student ID (primary key of student_csg_officers)
         'name' => $officer->user->name,
         'email' => $officer->user->email,
         'avatar' => strtoupper(substr($officer->user->name, 0, 2)),

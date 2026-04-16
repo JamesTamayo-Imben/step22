@@ -260,12 +260,10 @@ function LedgerPageInner() {
     requiresProof: true,
   });
 
+
+
   const projects = allProjects.length > 0 ? allProjects : [
-    { id: '1', title: 'Community Outreach Program' },
-    { id: '2', title: 'Annual Sports Fest' },
-    { id: '3', title: 'Tech Innovation Summit' },
-    { id: '4', title: 'Campus Sustainability Initiative' },
-    { id: '5', title: 'Mental Health Awareness Week' },
+    { id: '1', title: 'Create a Project First' },
   ];
 
   const filteredEntries = ledgerEntries.filter(entry => {
@@ -401,6 +399,9 @@ setIsLoading(true);
     const selectedProject = projects.find(p => p.id === projectId);
     const projectName = selectedProject?.title || 'Unknown Project';
 
+    //locked the add ledger button if there is no projects to select from;
+
+
     // Add the new entry to the state
     setLedgerEntries([
       {
@@ -523,6 +524,9 @@ const handleEditEntry = async () => {
     setIsUploading(false);
   }
 };
+
+//show notes if the entry is approved is approved
+// const shouldshowNotes = (entry) => {entry.status === 'Approved'};
 
 // Update handleDeleteEntry to use API
 const handleDeleteEntry = async () => {
@@ -805,7 +809,7 @@ const getTypeAmountColor = (type) => {
           <p className="text-gray-500">Track all financial transactions across projects</p>
         </div>
         <div className="flex gap-2">
-          <Button
+          {/* <Button
             onClick={() => {
               setIsRefreshing(true);
               fetchLedgerEntries();
@@ -816,10 +820,12 @@ const getTypeAmountColor = (type) => {
             title="Refresh ledger data"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
+          </Button> */}
           <Button
             onClick={() => setShowAddModal(true)}
-            className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+            className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={allProjects.length === 0}
+            title={allProjects.length === 0 ? 'No projects available. Create a project first.' : undefined}
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Ledger Entry
@@ -1676,6 +1682,36 @@ const getTypeAmountColor = (type) => {
           )}
         </div>
 
+      
+      {/* notes */}
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-500 mb-1">
+                    {selectedEntry.approval_status === 'Rejected' ? 'Rejection Notes *' : 'Approver Notes *'}
+                  </p>
+                  <div className={`rounded-lg p-4 ${
+                    selectedEntry.approval_status === 'Rejected' ? 'bg-red-50' : 'bg-blue-50'
+                  }`}>
+                    <p className={`text-sm ${
+                      selectedEntry.approval_status === 'Rejected' ? 'text-red-900' : 'text-blue-900'
+                    }`}>
+                      {selectedEntry.note || (selectedEntry.approval_status === 'Rejected' 
+                        ? 'No rejection reason provided.' 
+                        : 'No notes available.')}
+                    </p>
+                    <p className={`text-xs mt-2 ${
+                      selectedEntry.approval_status === 'Rejected' ? 'text-red-600' : 'text-blue-600'
+                    }`}>
+                      - {selectedEntry.approved_by || 'Not assigned'}
+                    </p>
+                    <p className={`text-xs mt-1 ${
+                      selectedEntry.approval_status === 'Rejected' ? 'text-red-600' : 'text-blue-600'
+                    }`}>
+                      - {selectedEntry.approved_at ? `Approved on ${new Date(selectedEntry.approved_at).toLocaleDateString()}` : 'Not yet approved'}
+                    </p>
+                  </div>
+                </div>
+            
+
 
         {/* Blockchain Verification Status */}
         <div className="col-span-2">
@@ -1688,19 +1724,19 @@ const getTypeAmountColor = (type) => {
             <div className="flex items-center gap-2 mb-2">
               {selectedEntry.verificationState?.tampered ? (
                 <AlertCircle className="w-5 h-5 text-red-600" />
-              ) : selectedEntry.verificationState?.blockchainValid ? (
+              ) : selectedEntry.verificationState?.blockchainValid && (selectedEntry.approval_status === 'Approved' || selectedEntry.status === 'Approved') ? (
                 <Shield className="w-5 h-5 text-green-600" />
               ) : (
                 <Clock className="w-5 h-5 text-yellow-600" />
               )}
               <span className={`text-sm font-medium ${
                 selectedEntry.verificationState?.tampered ? 'text-red-800' :
-                selectedEntry.verificationState?.blockchainValid ? 'text-green-800' :
+                selectedEntry.verificationState?.blockchainValid && (selectedEntry.approval_status === 'Approved' || selectedEntry.status === 'Approved') ? 'text-green-800' :
                 'text-yellow-800'
               }`}>
                 {selectedEntry.verificationState?.tampered ? 'TAMPERED - Integrity Compromised' :
-                 selectedEntry.verificationState?.blockchainValid ? 'Verified - Blockchain Valid' :
-                 'Unverified - No Blockchain'}
+                 selectedEntry.verificationState?.blockchainValid && (selectedEntry.approval_status === 'Approved' || selectedEntry.status === 'Approved') ? 'Verified' :
+                 'Unverified - Pending'}
               </span>
             </div>
             {selectedEntry.verificationState?.tampered && (
