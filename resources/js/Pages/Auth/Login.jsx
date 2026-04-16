@@ -28,9 +28,9 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
       }
       // Comment muna
       // Validate email domain
-      // if (!uname.endsWith("@kld.edu.ph")) {
-      //   throw new Error("Email must be a valid KLD school email (@kld.edu.ph)");
-      // }
+      if (!uname.endsWith("@kld.edu.ph")) {
+        throw new Error("Email must be a valid KLD school email (@kld.edu.ph)");
+      }
 
       if (!password) {
         throw new Error("Please enter your password");

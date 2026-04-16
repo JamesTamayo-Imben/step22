@@ -342,7 +342,7 @@ export default function GlobalReportsPage() {
             </Card>
 
             {/* Engagement Reports */}
-            <Card className="rounded-[20px] border-0 shadow-sm p-6">
+            {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <Award className="w-6 h-6 text-yellow-600" />
@@ -396,7 +396,7 @@ export default function GlobalReportsPage() {
                   <p className="text-sm text-gray-600">active participants</p>
                 </div>
               </div>
-            </Card>
+            </Card> */}
 
             {/* Export Summary */}
             <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-r from-blue-50 to-blue-50">

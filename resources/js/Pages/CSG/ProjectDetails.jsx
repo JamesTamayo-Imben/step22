@@ -1287,7 +1287,7 @@ const computedBudgetFromLedger = ledgerEntries
 </p>
 {Number(project.budget || 0) < 0 && !isBudgetTampered && (
   <p className="text-xs text-red-500 mt-1">
-     Dont panic its Organic. The expenses only have exceed the budget.
+     Dont panic. The expenses only have exceed the budget.
   </p>
 )}
               {isBudgetTampered && (

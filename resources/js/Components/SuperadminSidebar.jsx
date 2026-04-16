@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Inertia } from '@inertiajs/inertia';
-import { usePage } from '@inertiajs/react';
+import { usePage, router } from '@inertiajs/react';
 import {
   LayoutDashboard,
   Users,
@@ -26,13 +26,13 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'user-management', label: 'User Management', icon: Users },
     { id: 'roles-permissions', label: 'Roles & Permissions', icon: Shield },
-    { id: 'system-settings', label: 'System Settings', icon: Settings },
+    // { id: 'system-settings', label: 'System Settings', icon: Settings },
     { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
-    { id: 'data-backup', label: 'Data & Backup', icon: Database },
-    { id: 'engagement-rules', label: 'Engagement Rules', icon: TrendingUp },
-    { id: 'master-data', label: 'Master Data', icon: Database },
-    { id: 'global-reports', label: 'Global Reports', icon: FileText },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
+    // { id: 'data-backup', label: 'Data & Backup', icon: Database },
+    // { id: 'engagement-rules', label: 'Engagement Rules', icon: TrendingUp },
+    // { id: 'master-data', label: 'Master Data', icon: Database },
+    // { id: 'global-reports', label: 'Global Reports', icon: FileText },
+    // { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'profile', label: 'Profile', icon: User },
   ];
 
@@ -83,7 +83,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
   const handleNavigate = (viewId) => {
     setSelectedView(viewId);
     if (typeof onNavigate === 'function') return onNavigate(viewId);
-    Inertia.visit(viewToUrl(viewId));
+    router.visit(viewToUrl(viewId));
     return null;
   };
 
@@ -155,6 +155,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
               return (
                 <li key={item.id}>
                   <button
+                    type="button"
                     onClick={() => {
                       setIsMobileMenuOpen(false);
                       handleNavigate(item.id);
@@ -209,6 +210,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
               return (
                 <li key={item.id}>
                   <button
+                    type="button"
                     onClick={() => handleNavigate(item.id)}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                       isActive ? `bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md` : 'text-gray-600 hover:bg-blue-50'

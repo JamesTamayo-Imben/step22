@@ -200,7 +200,7 @@ export function AdminAdviserDashboard({
         </Card>
       </div>
 
-      <Card className="p-6 rounded-2xl border-0 shadow-sm bg-white">
+      {/* <Card className="p-6 rounded-2xl border-0 shadow-sm bg-white">
         <h2 className="text-gray-900 mb-4">Recent System Logs</h2>
         <div className="space-y-3">
           {recentActivity.length === 0 && (
@@ -213,7 +213,7 @@ export function AdminAdviserDashboard({
             </div>
           ))}
         </div>
-      </Card>
+      </Card> */}
     </div>
   );
 }

@@ -108,6 +108,10 @@ function CSGProofPageInner() {
 
   const [proofDocuments, setProofDocuments] = useState(initialProofDocuments);
 
+  useEffect(() => {
+    setProofDocuments(initialProofDocuments);
+  }, [initialProofDocuments]);
+
   const [uploadForm, setUploadForm] = useState({
     linkedTransaction: '',
     linkedProject: '',
@@ -729,9 +733,9 @@ function CSGProofPageInner() {
                 rel="noopener noreferrer"
                 className="flex-1"
               >
-                <Button className="w-full rounded-xl bg-blue-600 hover:bg-blue-700">
-                  <Download className="w-4 h-4 mr-2" />
-                  Download
+                <Button className="w-full text-white rounded-xl bg-blue-600 hover:bg-blue-700">
+                  {/* <Download className="w-4 h-4 mr-2" /> */}
+                  View
                 </Button>
               </a>
               <Button

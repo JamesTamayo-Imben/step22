@@ -83,8 +83,8 @@ export function StudentNavbar({
     { id: 'projects', label: 'Projects', icon: FolderKanban },
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     // { id: 'points', label: 'Points', icon: TrendingUp },
-    { id: 'badges', label: 'Badges', icon: Award },
-    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
+    // { id: 'badges', label: 'Badges', icon: Award },
+    // { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
   ];
   const navbarNotifications = (notificationsData || []).slice(0, 5);
 
@@ -231,18 +231,18 @@ export function StudentNavbar({
                       <Award className="w-4 h-4" />
                       Notifications
                     </button>
-                    {onSwitchRole && userData?.canSwitch && (
+                   {onSwitchRole && userData?.canSwitch && (
                       <>
-                        <div className="border-t my-1"></div>
+                        {/* <div className="border-t my-1"></div>
                         <button
                           onClick={() => { onSwitchRole(); setIsProfileMenuOpen(false); }}
                           className="w-full flex items-center gap-2 px-4 py-3 text-orange-600 hover:bg-orange-50 text-left"
                         >
                           <Repeat className="w-4 h-4" />
                           Switch to Officer Mode
-                        </button>
+                        </button> */}
                       </>
-                    )}
+                    )} 
                     <div className="border-t my-1"></div>
                     <button
                       onClick={() => { 
@@ -453,7 +453,7 @@ export function StudentNavbar({
       </aside>
 
       {/* Mobile Bottom Quick Access Bar (Points & Badges) */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 px-4 py-3">
+      {/* <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 px-4 py-3">
         <div className="flex gap-3">
           <button
             onClick={() => onNavigate('badges')}
@@ -470,14 +470,13 @@ export function StudentNavbar({
             className="flex-1 flex items-center justify-center gap-2 py-2 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-lg shadow-md"
           >
             <Trophy className="w-4 h-4" />
-            {/* <TrendingUp className="w-4 h-4" /> */}
             <div className="text-left">
               <p className="text-xs opacity-90">Leaderboard</p>
               <p className="text-sm">#24</p>
             </div>
           </button>
         </div>
-      </div>
+      </div> */}
     </>
   );
 }

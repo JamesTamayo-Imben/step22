@@ -58,6 +58,10 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
         throw new Error("Please fill in all required fields.");
       }
 
+       if (!form.email.endsWith("@kld.edu.ph")) {
+        throw new Error("Email must be a valid KLD school email (@kld.edu.ph)");
+      }
+
       if (form.password.length < 8) {
         throw new Error("Password must be at least 8 characters.");
       }
@@ -256,7 +260,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
 
           {/* Error */}
           {error && (
-            <div className="mb-4 text-sm text-red-600">
+            <div className="mb-4 p-3 text-sm text-red-700 bg-red-50 rounded-lg border border-red-200">
               {error}
             </div>
           )}

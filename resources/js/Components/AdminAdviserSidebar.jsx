@@ -30,7 +30,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
     { id: 'feedback-review', label: 'Role & Permissions', icon: ShieldCheck },
     { id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp },
     { id: 'system-logs', label: 'System Logs', icon: FileText },
-     { id: 'notifications', label: 'Notifications', icon: Bell },
+    //  { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'profile', label: 'Profile', icon: User },
   ];
   // Derive active view from pathname when parent doesn't provide `currentView`.

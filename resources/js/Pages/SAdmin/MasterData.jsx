@@ -300,7 +300,7 @@ export default function MasterDataPage() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {/* <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <Card className="rounded-[20px] p-4 border-0 shadow-sm bg-blue-50">
                 <div className="flex items-center justify-between">
                   <div>
@@ -350,7 +350,7 @@ export default function MasterDataPage() {
                   <DollarSign className="w-8 h-8 text-yellow-600" />
                 </div>
               </Card>
-            </div>
+            </div> */}
 
             {/* Tabs */}
             <Card className="rounded-[20px] border-0 shadow-sm">
