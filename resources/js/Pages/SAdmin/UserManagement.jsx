@@ -15,6 +15,19 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Bulk registration modal state - Step 1: Select role type
+  const [bulkRegModal, setBulkRegModal] = useState({
+    open: false,
+    step: 1, // 1: select role, 2: input emails/names
+    selectedRole: null,
+    registrationType: null, // 'single' or 'multiple'
+    emails: '', // text area for multiple emails
+    singleName: '',
+    singleEmail: '',
+    result: null, // 'success', 'error', null
+    successMessage: '',
+  });
+
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({
     open: false,
@@ -31,33 +44,6 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
   // Debounce timer for search
   const searchTimeoutRef = useRef(null);
 
-  // Create form state with dynamic fields
-  const [createForm, setCreateForm] = useState({
-    name: '',
-    email: '',
-    role_id: '',
-    password: '',
-    password_confirmation: '',
-    phone: '',
-    // Student fields
-    student_id: '',
-    // Teacher/Adviser fields
-    employee_id: '',
-    specialization: '',
-    office_location: '',
-  });
-
-  const [formFields, setFormFields] = useState({
-    baseFields: {},
-    roleSpecificFields: {},
-  });
-
-  const [formErrors, setFormErrors] = useState({});
-
-  // Password visibility state
-  const [showPassword, setShowPassword] = useState(false);
-  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
-
   // Cleanup timeout on component unmount
   useEffect(() => {
     return () => {
@@ -67,35 +53,199 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     };
   }, []);
 
-  // Fetch form fields when role changes
-  const fetchFormFields = async (roleId) => {
-    if (!roleId) {
-      setFormFields({ baseFields: {}, roleSpecificFields: {} });
-      return;
-    }
-
-    try {
-      const response = await fetch(`/sadmin/users/form-fields/${roleId}`, {
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-      const data = await response.json();
-      setFormFields({
-        baseFields: data.baseFields || {},
-        roleSpecificFields: data.roleSpecificFields || {},
-      });
-    } catch (error) {
-      console.error('Error fetching form fields:', error);
-      showToast('Error loading form fields', 'error');
-    }
+  // Generate password from email: lpcalibuso@kld.edu.ph -> lpcalibusoKLD2026
+  const generatePasswordFromEmail = (email) => {
+    const username = email.split('@')[0]; // Get part before @
+    const year = new Date().getFullYear();
+    return `${username}KLD${year}`;
   };
 
-  // Handle role change and fetch dynamic fields (for create form)
-  const handleRoleChangeForCreateForm = (roleId) => {
-    setCreateForm({ ...createForm, role_id: roleId });
-    fetchFormFields(roleId);
+  // Validate email: check format, domain, and if exists
+  const validateEmail = (email) => {
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return { valid: false, error: `Invalid email format: ${email}` };
+    }
+
+    // Check if email domain is legitimate (must be @kld.edu.ph or known institutional domain)
+    const domain = email.split('@')[1]?.toLowerCase();
+    const validDomains = ['kld.edu.ph', 'kld.com.ph', 'step.edu.ph']; // Add other valid domains as needed
+    
+    if (!domain || !validDomains.some(d => domain.endsWith(d))) {
+      return { valid: false, error: `Email must use institutional domain (kld.edu.ph, etc.): ${email}` };
+    }
+
+    return { valid: true };
+  };
+
+  // Open bulk registration modal - Step 1
+  const openBulkRegModal = () => {
+    setBulkRegModal({
+      open: true,
+      step: 1,
+      selectedRole: null,
+      registrationType: null,
+      emails: '',
+      singleName: '',
+      singleEmail: '',
+      result: null,
+      successMessage: '',
+    });
+  };
+
+  // Handle role selection in Step 1
+  const handleRoleSelect = (roleId, registrationType) => {
+    setBulkRegModal(prev => ({
+      ...prev,
+      selectedRole: roleId,
+      registrationType: registrationType,
+      step: 2, // Move to Step 2
+    }));
+  };
+
+  // Handle bulk registration submission
+  const handleBulkRegSubmit = async () => {
+    setIsLoading(true);
+    try {
+      let emailsToRegister = [];
+
+      if (bulkRegModal.registrationType === 'single') {
+        // Single registration
+        if (!bulkRegModal.singleName || !bulkRegModal.singleEmail) {
+          showToast('Please fill in name and email', 'error');
+          setIsLoading(false);
+          return;
+        }
+
+        // Validate single email
+        const emailValidation = validateEmail(bulkRegModal.singleEmail);
+        if (!emailValidation.valid) {
+          showToast(emailValidation.error, 'error');
+          setIsLoading(false);
+          return;
+        }
+
+        emailsToRegister = [{
+          email: bulkRegModal.singleEmail,
+          name: bulkRegModal.singleName,
+        }];
+      } else {
+        // Multiple registration - parse emails
+        const emailLines = bulkRegModal.emails
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line);
+
+        if (emailLines.length === 0) {
+          showToast('Please enter at least one email', 'error');
+          setIsLoading(false);
+          return;
+        }
+
+        if (emailLines.length > 10) {
+          showToast('Maximum 10 emails allowed', 'error');
+          setIsLoading(false);
+          return;
+        }
+
+        // Parse emails and extract names
+        let validEmails = [];
+        let invalidEmails = [];
+
+        emailLines.forEach((line, index) => {
+          // Support both "Name email@kld.edu.ph" and just "email@kld.edu.ph"
+          let email = '';
+          let name = '';
+
+          // Check if line contains email
+          const emailMatch = line.match(/[\w\.-]+@[\w\.-]+\.\w+/);
+          if (emailMatch) {
+            email = emailMatch[0];
+            // Extract name if provided (everything before email)
+            const beforeEmail = line.substring(0, line.indexOf(email)).trim();
+            name = beforeEmail || email.split('@')[0]; // Use email part if no name
+          } else {
+            // Assume it's just an email
+            email = line;
+            name = email.split('@')[0];
+          }
+
+          // Validate email format and domain
+          const emailValidation = validateEmail(email);
+          if (emailValidation.valid) {
+            validEmails.push({ email, name });
+          } else {
+            invalidEmails.push({
+              email,
+              reason: emailValidation.error
+            });
+          }
+        });
+
+        if (validEmails.length === 0) {
+          showToast('No valid emails found. ' + invalidEmails.map(e => `${e.email}: ${e.reason}`).join('; '), 'error');
+          setIsLoading(false);
+          return;
+        }
+
+        // Show warning if some emails are invalid
+        if (invalidEmails.length > 0) {
+          const warnings = invalidEmails.map(e => `${e.email}: ${e.reason}`).join('\n');
+          showToast(`Skipping invalid emails:\n${warnings}\nProceeding with ${validEmails.length} valid email(s)`, 'warning');
+        }
+
+        emailsToRegister = validEmails;
+      }
+
+      // Send to backend
+      const response = await fetch('/sadmin/users/bulk-create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+        },
+        body: JSON.stringify({
+          role_id: bulkRegModal.selectedRole,
+          users: emailsToRegister,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Show success result
+        setBulkRegModal(prev => ({
+          ...prev,
+          result: 'success',
+          successMessage: data.message || 'Users created successfully. Invitation emails sent.',
+        }));
+
+        setTimeout(() => {
+          setBulkRegModal(prev => ({ ...prev, open: false }));
+          setIsLoading(false);
+          showToast('Users created and emails sent!', 'success');
+          fetchFilteredUsers(searchQuery, filterRole, filterStatus, 1);
+        }, 3000);
+      } else {
+        setBulkRegModal(prev => ({ ...prev, result: 'error' }));
+        showToast(data.message || 'Failed to create users', 'error');
+        setTimeout(() => {
+          setBulkRegModal(prev => ({ ...prev, result: null }));
+          setIsLoading(false);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error creating users:', error);
+      setBulkRegModal(prev => ({ ...prev, result: 'error' }));
+      showToast('Error: ' + error.message, 'error');
+      setTimeout(() => {
+        setBulkRegModal(prev => ({ ...prev, result: null }));
+        setIsLoading(false);
+      }, 2000);
+    }
   };
 
   const roleBadge = (role) => {
@@ -590,7 +740,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                 <h1 className="text-gray-900 text-2xl font-semibold">User Management</h1>
                 <p className="text-gray-500">Add, suspend, and manage platform users</p>
               </div>
-              <Button onClick={() => setShowCreateModal(true)} className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 lg:w-auto w-full" disabled={isLoading}>
+              <Button onClick={() => openBulkRegModal()} className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 lg:w-auto w-full" disabled={isLoading}>
                 <Plus className="w-4 h-4 mr-2" />
                 Create User
               </Button>
@@ -788,153 +938,145 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
         </div>
       </div>
 
+      {/* STEP 1: Select Role Type Modal */}
       <Modal
-        open={showCreateModal}
-        onClose={() => {
-          setShowPassword(false);
-          setShowPasswordConfirmation(false);
-          setShowCreateModal(false);
-        }}
-        title="Create User"
-        description="Create a new platform user"
-        maxWidthClass="max-w-2xl"
+        open={bulkRegModal.open && bulkRegModal.step === 1}
+        onClose={() => setBulkRegModal(prev => ({ ...prev, open: false }))}
+        title="Register New Users"
+        description="Choose how you want to register users"
+        maxWidthClass="max-w-md"
       >
-        <div className="space-y-4 pt-6 max-h-96 overflow-y-auto">
-          {/* Base Fields - Always Shown */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Name *</label>
-              <Input placeholder="Juan Dela Cruz" value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} className={`flex-1 w-full rounded-xl border ${formErrors.name ? 'border-red-500' : 'border-gray-300'} bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition h-10`} />
-              {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name[0]}</p>}
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Role *</label>
-              <Select
-                className="flex-1 w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition h-10"
-                value={createForm.role_id} onValueChange={handleRoleChangeForCreateForm}>
-                <SelectItem value="">Select a role</SelectItem>
-                {roles.map((role) => (
-                  <SelectItem key={role.id} value={role.id.toString()}>
-                    {role.name}
-                  </SelectItem>
-                ))}
-              </Select>
-              {formErrors.role_id && <p className="text-red-500 text-xs mt-1">{formErrors.role_id[0]}</p>}
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm text-gray-700 mb-1">Email *</label>
-              <Input placeholder="juan.delacruz@example.com" type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} className={`flex-1 w-full rounded-xl border ${formErrors.email ? 'border-red-500' : 'border-gray-300'} bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition h-10`} />
-              {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email[0]}</p>}
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Password *</label>
-              <div className="relative">
-                <Input 
-                  placeholder="••••••••" 
-                  type={showPassword ? 'text' : 'password'} 
-                  value={createForm.password} 
-                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} 
-                  className={`flex-1 w-full rounded-xl border ${formErrors.password ? 'border-red-500' : 'border-gray-300'} bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition h-10 pr-10`} 
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password[0]}</p>}
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Confirm Password *</label>
-              <div className="relative">
-                <Input 
-                  placeholder="••••••••" 
-                  type={showPasswordConfirmation ? 'text' : 'password'} 
-                  value={createForm.password_confirmation} 
-                  onChange={(e) => setCreateForm({ ...createForm, password_confirmation: e.target.value })} 
-                  className={`flex-1 w-full rounded-xl border ${formErrors.password_confirmation ? 'border-red-500' : 'border-gray-300'} bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition h-10 pr-10`} 
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPasswordConfirmation ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {formErrors.password_confirmation && <p className="text-red-500 text-xs mt-1">{formErrors.password_confirmation[0]}</p>}
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Phone</label>
-              <Input placeholder="09991234567" value={createForm.phone} onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })} className="flex-1 w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition h-10" />
-            </div>
-          </div>
-
-          {/* Role-Specific Fields */}
-          {createForm.role_id && Object.keys(formFields.roleSpecificFields).length > 0 && (
-            <div className="border-t pt-4 mt-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">
-                {createForm.role_id === '359f4170-235d-11f1-9647-10683825ce81' ? 'Student Information' : createForm.role_id === '159ef712-235d-11f1-9647-10683825ce81' ? 'Adviser Information' : 'Teacher Information'}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(formFields.roleSpecificFields).map(([fieldName, fieldConfig]) => (
-                  <div key={fieldName} className={fieldConfig.type === 'select' ? (fieldName === 'adviser_id' ? 'md:col-span-2' : '') : ''}>
-                    <label className="block text-sm text-gray-700 mb-1">
-                      {fieldConfig.label}
-                      {fieldConfig.required && ' *'}
-                    </label>
-                    {fieldConfig.type === 'text' || fieldConfig.type === 'email' || fieldConfig.type === 'tel' || fieldConfig.type === 'date' ? (
-                      <Input
-                        type={fieldConfig.type}
-                        placeholder={fieldConfig.label}
-                        value={createForm[fieldName] || ''}
-                        onChange={(e) => setCreateForm({ ...createForm, [fieldName]: e.target.value })}
-                        className="flex-1 w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition h-10"
-                      />
-                    ) : fieldConfig.type === 'select' ? (
-                      <Select
-                        value={createForm[fieldName] || ''}
-                        onValueChange={(v) => setCreateForm({ ...createForm, [fieldName]: v })}
-                        className="flex-1 w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition h-10"
+        <div className="py-6 space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800 mb-4">Select Role:</h3>
+            <div className="grid grid-cols-1 gap-3 mb-6">
+              {roles
+                .filter(role => role.name !== 'Superadmin' && role.name !== 'Super Admin') // Filter out admin roles
+                .map((role) => (
+                  <div key={role.id}>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">{role.name}</h4>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => handleRoleSelect(role.id, 'single')}
+                        className="flex-1 text-white rounded-lg bg-blue-600 hover:bg-blue-700 text-sm"
+                        disabled={isLoading}
                       >
-                        <SelectItem value="">Select {fieldConfig.label}</SelectItem>
-                        {fieldConfig.options && Array.isArray(fieldConfig.options) ? (
-                          // Array of strings (year levels, etc.)
-                          fieldConfig.options.map((opt) => (
-                            <SelectItem key={opt} value={opt}>
-                              {opt}
-                            </SelectItem>
-                          ))
-                        ) : fieldConfig.options && typeof fieldConfig.options === 'object' ? (
-                          // Object with id:name pairs (advisers)
-                          Object.entries(fieldConfig.options).map(([id, name]) => (
-                            <SelectItem key={id} value={id.toString()}>
-                              {name}
-                            </SelectItem>
-                          ))
-                        ) : null}
-                      </Select>
-                    ) : null}
+                        Single
+                      </Button>
+
+                      {/* Show only if Student or Ordinary Teacher */}
+                      {(['Student', 'Ordinary Teacher'].includes(role.name)) && (
+                        <Button
+                          onClick={() => handleRoleSelect(role.id, 'multiple')}
+                          className="flex-1 text-white rounded-lg bg-green-600 hover:bg-green-700 text-sm"
+                          disabled={isLoading}
+                        >
+                        Multiple (Max 10)
+                      </Button>
+                      )}
+                    </div>
+
                   </div>
                 ))}
-              </div>
             </div>
-          )}
-        </div>
-
-        <div className="flex gap-3 pt-4 border-t mt-4">
-          <Button variant="outline" onClick={() => {
-            setShowPassword(false);
-            setShowPasswordConfirmation(false);
-            setShowCreateModal(false);
-          }} className="flex-1 rounded-xl" disabled={isLoading}>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setBulkRegModal(prev => ({ ...prev, open: false }))}
+            className="w-full rounded-lg"
+          >
             Cancel
           </Button>
-          <Button onClick={handleCreate} className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-            {isLoading ? 'Creating...' : 'Create'}
-          </Button>
+        </div>
+      </Modal>
+
+      {/* STEP 2: Input Emails Modal */}
+      <Modal
+        open={bulkRegModal.open && bulkRegModal.step === 2}
+        onClose={() => {
+          setBulkRegModal(prev => ({ ...prev, step: 1, registrationType: null }));
+        }}
+        title={bulkRegModal.registrationType === 'single' ? 'Register Single User' : 'Register Multiple Users'}
+        description=""
+        maxWidthClass="max-w-lg"
+      >
+        <div className="py-6 space-y-4">
+          {bulkRegModal.result === null && (
+            <>
+              <div>
+                <label className="block text-sm text-gray-700 mb-2">
+                  {bulkRegModal.registrationType === 'single' ? 'Full Name *' : 'Email(s) - One per line (Max 10)'}
+                </label>
+                {bulkRegModal.registrationType === 'single' ? (
+                  <>
+                    <Input
+                      placeholder="Juan Dela Cruz"
+                      value={bulkRegModal.singleName}
+                      onChange={(e) => setBulkRegModal(prev => ({ ...prev, singleName: e.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition h-10 mb-3"
+                    />
+                    <Input
+                      placeholder="juan.delacruz@kld.edu.ph"
+                      type="email"
+                      value={bulkRegModal.singleEmail}
+                      onChange={(e) => setBulkRegModal(prev => ({ ...prev, singleEmail: e.target.value }))}
+                      className="w-full rounded-lg border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition h-10"
+                    />
+                  </>
+                ) : (
+                  <textarea
+                    placeholder={`student1@kld.edu.ph\nstudent2@kld.edu.ph\nstudent3@kld.edu.ph\n\nOr with names:\nJuan Dela Cruz juan@kld.edu.ph\nMaria Santos maria@kld.edu.ph`}
+                    value={bulkRegModal.emails}
+                    onChange={(e) => setBulkRegModal(prev => ({ ...prev, emails: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition p-3"
+                    rows="8"
+                  />
+                )}
+                <p className="text-xs text-gray-500 mt-2">
+                  System will auto-generate passwords and send invitation emails with role-specific signup links.
+                </p>
+              </div>
+            </>
+          )}
+
+          {bulkRegModal.result === 'success' && (
+            <div className="text-center py-4">
+              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+              <p className="text-gray-700 font-semibold mb-2">Success!</p>
+              <p className="text-sm text-gray-600">{bulkRegModal.successMessage}</p>
+              <p className="text-xs text-gray-500 mt-3">Closing in a moment...</p>
+            </div>
+          )}
+
+          {bulkRegModal.result === 'error' && (
+            <div className="text-center py-4">
+              <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <p className="text-gray-700 font-semibold">Error</p>
+              <p className="text-sm text-gray-600">Failed to create users. Please try again.</p>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            {bulkRegModal.result === null && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setBulkRegModal(prev => ({ ...prev, step: 1, registrationType: null }))}
+                  className="flex-1 rounded-lg"
+                  disabled={isLoading}
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={() => handleBulkRegSubmit()}
+                  className="flex-1 text-white rounded-lg bg-blue-600 hover:bg-blue-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Creating...' : 'Create & Send Invitations'}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </Modal>
 

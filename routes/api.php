@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ChatbotController;
 use App\Http\Controllers\CSG\LedgerEntryController;
 use App\Http\Controllers\Auth\OTPController;
 use App\Http\Controllers\Auth\OnboardingController;
+use App\Http\Controllers\Auth\BulkRegistrationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,6 +33,25 @@ Route::post('/chatbot', ChatbotController::class)->middleware('auth:sanctum');
 Route::post('/send-otp', [OTPController::class, 'sendOTP']);
 Route::post('/verify-otp', [OTPController::class, 'verifyOTP']);
 Route::post('/resend-otp', [OTPController::class, 'resendOTP']);
+
+/**
+ * BULK REGISTRATION - Role Specific Registration (No auth required)
+ */
+Route::post('/auth/register-teacher', [BulkRegistrationController::class, 'registerTeacher']);
+Route::post('/auth/register-student', [BulkRegistrationController::class, 'registerStudent']);
+
+/**
+ * DATA PROVIDERS - Courses and Institutes (No auth required)
+ */
+Route::get('/courses', function () {
+    $courses = \App\Models\Course::where('archive', 0)->select('id', 'name')->get();
+    return response()->json(['courses' => $courses]);
+});
+
+Route::get('/institutes', function () {
+    $institutes = \App\Models\Institute::where('archive', 0)->select('id', 'name')->get();
+    return response()->json(['institutes' => $institutes]);
+});
 
 /**
  * ONBOARDING ROUTES

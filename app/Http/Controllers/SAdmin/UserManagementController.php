@@ -7,11 +7,13 @@ use App\Models\User;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\Role;
-use App\Models\Institute;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class UserManagementController extends Controller
 {
@@ -439,5 +441,197 @@ class UserManagementController extends Controller
             'message' => 'User role updated successfully',
             'user' => $user->load('role'),
         ]);
+    }
+
+    /**
+     * Bulk create users with auto-generated passwords and send invitation emails
+     * Passwords are generated as: username + KLD + current_year (e.g., lpcalibusoKLD2026)
+     */
+    public function bulkCreate(Request $request)
+    {
+        $validated = $request->validate([
+            'role_id' => ['required', 'uuid', 'exists:roles,id'],
+            'users' => ['required', 'array', 'max:10'], // Max 10 users
+            'users.*.email' => ['required', 'email'],
+            'users.*.name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $role = Role::find($validated['role_id']);
+        if (!$role) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid role selected',
+            ], 422);
+        }
+
+        $createdUsers = [];
+        $errors = [];
+
+        try {
+            foreach ($validated['users'] as $index => $userData) {
+                try {
+                    $email = $userData['email'];
+
+                    // Validate email format
+                    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        $errors[$index] = "Invalid email format: {$email}";
+                        continue;
+                    }
+
+                    // Validate email domain - exact match only
+                    $domain = strtolower(explode('@', $email)[1] ?? '');
+                    $validDomains = ['kld.edu.ph', 'kld.com.ph', 'step.edu.ph'];
+                    
+                    if (!in_array($domain, $validDomains, true)) {
+                        $errors[$index] = "Email must use institutional domain (kld.edu.ph, kld.com.ph, or step.edu.ph): {$email}";
+                        continue;
+                    }
+
+                    // Check if user already exists
+                    if (User::where('email', $email)->exists()) {
+                        $errors[$index] = "Email already in use: {$email}";
+                        continue;
+                    }
+
+                    // Generate password from email: extract username before @ and append KLDyear
+                    $username = explode('@', $email)[0]; // Get part before @
+                    $year = now()->year;
+                    $generatedPassword = $username . 'KLD' . $year;
+
+                    // Extract first and last name from full name
+                    $nameParts = explode(' ', $userData['name'], 2);
+                    $firstName = $nameParts[0];
+                    $lastName = $nameParts[1] ?? '';
+
+                    // Create Supabase Auth user first (non-critical if fails)
+                    $this->createSupabaseAuthUser($email, $generatedPassword, $firstName, $lastName);
+
+                    // Create the user in local database
+                    $user = User::create([
+                        'id' => Str::uuid(),
+                        'name' => $userData['name'],
+                        'email' => $email,
+                        'password' => bcrypt($generatedPassword),
+                        'role_id' => $validated['role_id'],
+                        'status' => 'active',
+                    ]);
+
+                    // Prepare email data with role-specific signup link
+                    $signupLink = $role->name === 'Student' 
+                        ? route('register.student', [
+                            'email' => $user->email,
+                            'password' => $generatedPassword,
+                            'name' => $user->name,
+                        ])
+                        : route('register.teacher', [
+                            'email' => $user->email,
+                            'password' => $generatedPassword,
+                            'name' => $user->name,
+                        ]);
+
+                    // Queue the invitation email
+                    try {
+                        Mail::send('emails.user-invitation', [
+                            'name' => $user->name,
+                            'email' => $user->email,
+                            'password' => $generatedPassword,
+                            'role' => $role->name,
+                            'signupLink' => $signupLink,
+                        ], function ($message) use ($user) {
+                            $message->to($user->email)
+                                    ->subject('Welcome! Complete Your Registration');
+                        });
+                    } catch (\Exception $mailError) {
+                        Log::warning("Failed to send invitation email to {$user->email}: " . $mailError->getMessage());
+                        // Continue anyway - user was created, email just failed
+                    }
+
+                    $createdUsers[] = [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'password' => $generatedPassword, // Send back for verification (should be removed in production)
+                    ];
+
+                } catch (\Exception $e) {
+                    $errors[$index] = $e->getMessage();
+                }
+            }
+
+            $successCount = count($createdUsers);
+            $errorCount = count($errors);
+
+            if ($successCount > 0) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Successfully created {$successCount} user(s). Invitation emails sent.",
+                    'created' => $successCount,
+                    'users' => $createdUsers,
+                    'errors' => $errorCount > 0 ? $errors : null,
+                ], 201);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create users',
+                    'errors' => $errors,
+                ], 422);
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bulk creation failed: ' . $e->getMessage(),
+                'errors' => [$e->getMessage()],
+            ], 500);
+        }
+    }
+
+    /**
+     * Create user in Supabase Auth (Backend - Server-side)
+     * Using Service Role Key for secure backend user creation
+     */
+    private function createSupabaseAuthUser($email, $password, $firstName, $lastName)
+    {
+        try {
+            $supabaseUrl = env('VITE_SUPABASE_URL');
+            $serviceRoleKey = env('SUPABASE_SERVICE_ROLE_KEY');
+
+            if (!$supabaseUrl || !$serviceRoleKey) {
+                // Silently skip if Supabase not configured
+                return;
+            }
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $serviceRoleKey,
+                'Content-Type' => 'application/json',
+                'apikey' => $serviceRoleKey,
+            ])->post($supabaseUrl . '/auth/v1/admin/users', [
+                'email' => $email,
+                'password' => $password,
+                'email_confirm' => true,
+                'user_metadata' => [
+                    'firstName' => $firstName,
+                    'lastName' => $lastName,
+                    'full_name' => "$firstName $lastName",
+                    'display_name' => "$firstName $lastName",
+                ],
+            ]);
+
+            if ($response->failed()) {
+                // Log warning but don't throw - Supabase is non-critical
+                Log::warning('Failed to create Supabase Auth user', [
+                    'email' => $email,
+                    'status' => $response->status(),
+                ]);
+                return;
+            }
+
+        } catch (\Exception $e) {
+            // Log exception but don't throw - Supabase is non-critical
+            Log::warning('Exception creating Supabase Auth user', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

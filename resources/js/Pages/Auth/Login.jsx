@@ -223,11 +223,11 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
           </button>
 
           {/* Divider */}
-          <div className="flex items-center my-6">
+          {/*<div className="flex items-center my-6">
             <div className="flex-grow border-t border-gray-300"></div>
             <span className="mx-4 text-xs text-gray-500">OR</span>
             <div className="flex-grow border-t border-gray-300"></div>
-          </div>
+          </div>*/}
 
           {/* Error */}
           {error && (
@@ -239,7 +239,7 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
 
-            <div>
+            {/* <div>
               <label className="block text-sm text-gray-600 mb-1">
                 Email Address
               </label>
@@ -253,9 +253,9 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
                   className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                 />
               </div>
-            </div>
+            </div> */}
 
-            <div>
+            {/* <div>
               <label className="block text-sm text-gray-600 mb-1">
                 Password
               </label>
@@ -280,10 +280,10 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
                   )}
                 </button>
               </div>
-            </div>
+            </div> */}
 
             {/* Remember + Forgot */}
-            <div className="flex items-center justify-between text-sm">
+            {/* <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2 text-gray-600">
                 <input
                   type="checkbox"
@@ -297,10 +297,10 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
               <Link href={route('password.request')} className="text-blue-600 hover:underline">
                 Forgot password?
               </Link>
-            </div>
+            </div> */}
 
             {/* Login Button */}
-            <button
+            {/* <button
               type="submit"
               disabled={isLoading}
               aria-busy={isLoading}
@@ -308,16 +308,16 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
               style={{ background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)" }}
             >
               {isLoading ? "Logging in..." : "Login"}
-            </button>
+            </button> */}
           </form>
 
           {/* Register */}
-          <p className="text-center text-sm text-gray-600 mt-6">
+          {/* <p className="text-center text-sm text-gray-600 mt-6">
             Don't have an account?{" "}
             <button onClick={goToRegister} className="text-blue-600 hover:underline">
               Sign up
             </button>
-          </p>
+          </p> */}
         </div>
       </div>
     </div>

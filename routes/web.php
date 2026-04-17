@@ -54,6 +54,15 @@ Route::get('/user-guide', function () {
     return Inertia::render('UserGuide');
 })->name('user-guide');
 
+// Role-specific registration pages
+Route::get('/auth/register-teacher', function () {
+    return Inertia::render('Auth/RegisterTeacher');
+})->name('register.teacher');
+
+Route::get('/auth/register-student', function () {
+    return Inertia::render('Auth/RegisterStudent');
+})->name('register.student');
+
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
@@ -69,6 +78,7 @@ Route::get('/sadmin/users/search', [UserManagementController::class, 'search'])-
 Route::get('/sadmin/users/form-fields/{roleId}', [UserManagementController::class, 'getFormFields'])->name('sadmin.users.form-fields');
 
 Route::post('/sadmin/users', [UserManagementController::class, 'create'])->name('sadmin.users.create');
+Route::post('/sadmin/users/bulk-create', [UserManagementController::class, 'bulkCreate'])->name('sadmin.users.bulk-create');
 Route::post('/sadmin/users/store', [UserManagementController::class, 'store'])->name('sadmin.users.store');
 Route::patch('/sadmin/users/{user}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('sadmin.users.toggle-status');
 Route::post('/sadmin/users/{user}/reset-password', [UserManagementController::class, 'resetPassword'])->name('sadmin.users.reset-password');
