@@ -442,7 +442,7 @@ const formatDate = (dateString) => {
             Set Council Term
           </Button>
         </div>
-      </div>
+      </div> 
 
 
       <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">

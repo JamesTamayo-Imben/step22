@@ -14,6 +14,7 @@ use App\Http\Controllers\CSG\LedgerEntryController;
 use App\Http\Controllers\CSG\MeetingController;
 use App\Http\Controllers\CSG\ProjectController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\SAdmin\SAdminDashboardController;
 use App\Http\Controllers\SAdmin\UserManagementController;
 use App\Http\Controllers\User\UserProjectController;
@@ -75,9 +76,11 @@ Route::patch('/sadmin/users/{user}/role', [UserManagementController::class, 'upd
 Route::patch('/sadmin/users/{user}/restore', [UserManagementController::class, 'restore'])->name('sadmin.users.restore');
 Route::delete('/sadmin/users/{user}', [UserManagementController::class, 'destroy'])->name('sadmin.users.destroy');
 
-Route::get('/sadmin/roles', function () {
-    return Inertia::render('SAdmin/RolesPermissions');
-})->name('sadmin.roles');
+Route::get('/sadmin/roles', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'rolesPermissions'])->name('sadmin.roles');
+Route::post('/admin/role-permissions/assign-officer', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'assignOfficer'])->name('admin.role-permissions.assign-officer');
+Route::post('/admin/role-permissions/set-council-term', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'setCouncilTerm'])->name('admin.role-permissions.set-council-term');
+Route::get('/admin/role-permissions/get-council-term', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'getCouncilTerm'])->name('admin.role-permissions.get-council-term');
+Route::post('/admin/role-permissions/assign-adviser', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'assignAdviser'])->name('admin.role-permissions.assign-adviser');
 
 Route::get('/sadmin/data-backup', function () {
     return Inertia::render('SAdmin/DataBackup');
@@ -359,10 +362,19 @@ Route::middleware('auth')->group(function () {
     });
 });
 
+// Route::middleware('auth')->group(function () {
+//     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+//     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+//      Route::patch('/profile/phone', [ProfileController::class, 'updatePhone'])->name('profile.phone.update'); // Add this line
+//     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+// Route::put('password', [PasswordController::class, 'update'])->name('password.update');});
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/phone', [ProfileController::class, 'updatePhone'])->name('profile.phone.update'); // Add this line
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::put('password', [PasswordController::class, 'update'])->name('password.update');
 });
 
 // Secret superadmin login route (Easter egg)

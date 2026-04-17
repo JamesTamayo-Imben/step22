@@ -1,6 +1,6 @@
 import React from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import {
   Users,
@@ -9,15 +9,115 @@ import {
   Database,
   TrendingUp,
   AlertCircle,
+  BarChart3,
+  PieChart as PieChartIcon,
 } from 'lucide-react';
 
-export default function SAdminDashboard({ stats = {} }) {
+const PieChart = ({ data, colors }) => {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  let offset = 0;
+  const slices = data.map((item, idx) => {
+    const percentage = (item.value / total) * 100;
+    const startAngle = (offset / 100) * 360;
+    const endAngle = ((offset + percentage) / 100) * 360;
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = (endAngle * Math.PI) / 180;
+
+    const x1 = 50 + 45 * Math.cos(startRad);
+    const y1 = 50 + 45 * Math.sin(startRad);
+    const x2 = 50 + 45 * Math.cos(endRad);
+    const y2 = 50 + 45 * Math.sin(endRad);
+
+    const largeArc = percentage > 50 ? 1 : 0;
+
+    const pathData = [
+      `M 50 50`,
+      `L ${x1} ${y1}`,
+      `A 45 45 0 ${largeArc} 1 ${x2} ${y2}`,
+      'Z',
+    ].join(' ');
+
+    offset += percentage;
+    return { pathData, color: colors[idx], label: item.name, value: item.value };
+  });
+
+  return (
+    <div className="flex items-center gap-4">
+      <svg width="120" height="120" viewBox="0 0 100 100">
+        {slices.map((slice, idx) => (
+          <path key={idx} d={slice.pathData} fill={slice.color} stroke="white" strokeWidth="1" />
+        ))}
+      </svg>
+      <div className="space-y-2 text-sm">
+        {slices.map((slice, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: slice.color }}></div>
+            <span className="text-gray-600">{slice.label}: {slice.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const LineChart = ({ data }) => {
+  const maxValue = Math.max(...data.map(d => d.count), 1);
+  return (
+    <div className="flex items-end gap-2 h-32">
+      {data.map((item, idx) => (
+        <div key={idx} className="flex-1 flex flex-col items-center gap-2">
+          <div
+            className="w-full bg-blue-500 rounded-t transition-all"
+            style={{
+              height: `${(item.count / maxValue) * 100}%`,
+              minHeight: item.count > 0 ? '4px' : '2px',
+            }}
+          ></div>
+          <span className="text-xs text-gray-500 text-center">{item.date}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const BarChart = ({ data }) => {
+  const maxValue = Math.max(...data.map(d => d.value), 1);
+  return (
+    <div className="space-y-3">
+      {data.slice(0, 5).map((item, idx) => (
+        <div key={idx}>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm text-gray-700">{item.name}</span>
+            <span className="text-sm font-semibold text-gray-900">{item.value}</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-blue-500 h-2 rounded-full transition-all"
+              style={{ width: `${(item.value / maxValue) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default function SAdminDashboard({ stats = {}, charts = {} }) {
   const s = {
     totalUsers: stats.totalUsers ?? 0,
     activeRoles: stats.activeRoles ?? 0,
     approvedProjects: stats.approvedProjects ?? 0,
     pendingApprovals: stats.pendingApprovals ?? 0,
     auditEventsWeek: stats.auditEventsWeek ?? 0,
+    totalCsgOfficers: stats.totalCsgOfficers ?? 0,
+    totalAdvisers: stats.totalAdvisers ?? 0,
+  };
+
+  const chartData = {
+    projectStatus: charts.projectStatus ?? [],
+    auditByDay: charts.auditByDay ?? [],
+    usersByRole: charts.usersByRole ?? [],
+    ledgerStatus: charts.ledgerStatus ?? [],
   };
 
   return (
@@ -63,9 +163,9 @@ export default function SAdminDashboard({ stats = {} }) {
               <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">Approved Projects</p>
-                    <p className="text-2xl text-gray-900 mt-1">{s.approvedProjects}</p>
-                    <p className="text-xs text-gray-500 mt-1">Approved and not archived</p>
+                    <p className="text-sm text-gray-500">CSG Officers</p>
+                    <p className="text-2xl text-gray-900 mt-1">{s.totalCsgOfficers}</p>
+                    <p className="text-xs text-gray-500 mt-1">Active positions</p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                     <Activity className="w-6 h-6 text-green-600" />
@@ -76,9 +176,9 @@ export default function SAdminDashboard({ stats = {} }) {
               <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">Pipeline</p>
-                    <p className="text-2xl text-gray-900 mt-1">{s.pendingApprovals}</p>
-                    <p className="text-xs text-gray-500 mt-1">Projects + ledger pending approval</p>
+                    <p className="text-sm text-gray-500">Advisers</p>
+                    <p className="text-2xl text-gray-900 mt-1">{s.totalAdvisers}</p>
+                    <p className="text-xs text-gray-500 mt-1">Assigned advisers</p>
                   </div>
                   <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                     <Database className="w-6 h-6 text-orange-600" />
@@ -87,41 +187,89 @@ export default function SAdminDashboard({ stats = {} }) {
               </Card>
             </div>
 
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-gray-900 font-semibold">Approved Projects</h2>
+                  <TrendingUp className="w-5 h-5 text-gray-400" />
+                </div>
+                <p className="text-3xl font-bold text-gray-900">{s.approvedProjects}</p>
+                <p className="text-sm text-gray-500 mt-2">Projects with approved status</p>
+              </Card>
+
+              <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-gray-900 font-semibold">Pending Approvals</h2>
+                  <AlertCircle className="w-5 h-5 text-orange-400" />
+                </div>
+                <p className="text-3xl font-bold text-gray-900">{s.pendingApprovals}</p>
+                <p className="text-sm text-gray-500 mt-2">Projects and ledger entries awaiting approval</p>
+              </Card>
+            </div>
+
             <Card className="p-5 rounded-[20px] border-0 shadow-sm bg-white flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <AlertCircle className="w-8 h-8 text-orange-500" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Audit activity</p>
+                  <p className="text-sm font-medium text-gray-900">Audit Activity</p>
                   <p className="text-xs text-gray-500">Entries recorded in the last 7 days</p>
                 </div>
               </div>
               <p className="text-2xl font-semibold text-gray-900 tabular-nums">{s.auditEventsWeek.toLocaleString()}</p>
             </Card>
 
-            <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-              <h2 className="text-gray-900 font-semibold mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { href: '/sadmin/users', icon: Users, color: 'text-purple-600', border: 'hover:border-purple-300 hover:bg-purple-50', title: 'Manage Users', desc: 'Add, edit, or remove users' },
-                  { href: '/sadmin/roles', icon: Shield, color: 'text-blue-600', border: 'hover:border-blue-300 hover:bg-blue-50', title: 'Roles & Permissions', desc: 'Configure access control' },
-                  { href: '/sadmin/engagement-rules', icon: TrendingUp, color: 'text-green-600', border: 'hover:border-green-300 hover:bg-green-50', title: 'Engagement Rules', desc: 'Set point and badge rules' },
-                  { href: '/sadmin/audit-logs', icon: AlertCircle, color: 'text-orange-600', border: 'hover:border-orange-300 hover:bg-orange-50', title: 'Audit Logs', desc: 'View system activity' },
-                ].map((a) => {
-                  const Icon = a.icon;
-                  return (
-                    <button
-                      key={a.href}
-                      onClick={() => (window.location.href = a.href)}
-                      className={`p-4 border border-gray-200 rounded-xl transition-all text-left ${a.border}`}
-                    >
-                      <Icon className={`w-8 h-8 ${a.color} mb-2`} />
-                      <p className="text-sm text-gray-900">{a.title}</p>
-                      <p className="text-xs text-gray-500 mt-1">{a.desc}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </Card>
+            {/* Analytics Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Project Status Chart */}
+              {chartData.projectStatus.length > 0 && (
+                <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+                  <div className="flex items-center gap-2 mb-4">
+                    <PieChartIcon className="w-5 h-5 text-blue-600" />
+                    <h2 className="text-gray-900 font-semibold">Project Status Distribution</h2>
+                  </div>
+                  <PieChart
+                    data={chartData.projectStatus}
+                    colors={['#10b981', '#f97316', '#ef4444', '#6b7280']}
+                  />
+                </Card>
+              )}
+
+              {/* Ledger Status Chart */}
+              {chartData.ledgerStatus.length > 0 && (
+                <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+                  <div className="flex items-center gap-2 mb-4">
+                    <PieChartIcon className="w-5 h-5 text-green-600" />
+                    <h2 className="text-gray-900 font-semibold">Ledger Entry Status</h2>
+                  </div>
+                  <PieChart
+                    data={chartData.ledgerStatus}
+                    colors={['#10b981', '#f97316', '#ef4444']}
+                  />
+                </Card>
+              )}
+            </div>
+
+            {/* Audit Activity Chart */}
+            {chartData.auditByDay.length > 0 && (
+              <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+                <div className="flex items-center gap-2 mb-6">
+                  <BarChart3 className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-gray-900 font-semibold">Audit Activity (Last 7 Days)</h2>
+                </div>
+                <LineChart data={chartData.auditByDay} />
+              </Card>
+            )}
+
+            {/* Users by Role Chart */}
+            {chartData.usersByRole.length > 0 && (
+              <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+                <div className="flex items-center gap-2 mb-6">
+                  <BarChart3 className="w-5 h-5 text-purple-600" />
+                  <h2 className="text-gray-900 font-semibold">Users by Role</h2>
+                </div>
+                <BarChart data={chartData.usersByRole} />
+              </Card>
+            )}
           </div>
         </div>
       </div>
