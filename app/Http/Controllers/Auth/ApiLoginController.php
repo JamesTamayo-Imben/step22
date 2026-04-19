@@ -63,6 +63,17 @@ class ApiLoginController extends Controller
             ], 401);
         }
 
+        // Check if user is archived
+        if ($user->archive) {
+            Log::warning('Archived user login attempt', [
+                'email' => $validated['email'],
+                'user_id' => $user->id,
+            ]);
+            return response()->json([
+                'message' => 'This account is no longer available.',
+            ], 404);
+        }
+
         // Check if user is active
         if ($user->status !== 'active') {
             Log::warning('Account not active during login attempt', [

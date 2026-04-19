@@ -49,6 +49,16 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Check if user is archived
+        $user = Auth::user();
+        if ($user && $user->archive) {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+            throw ValidationException::withMessages([
+                'email' => 'This account is no longer available.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

@@ -17,7 +17,7 @@ class SAdminDashboardController extends Controller
     public function index()
     {
         $totalUsers = User::query()->where('archive', false)->count();
-        $activeRoles = Role::query()->count();
+        $activeRoles = Role::query()->whereNotIn('name', ['Student'])->count();
         $approvedProjects = Project::query()->where('archive', false)->where('approval_status', 'Approved')->count();
         $pendingApprovals = Project::query()
             ->where('archive', false)
@@ -58,12 +58,27 @@ class SAdminDashboardController extends Controller
 
         // Users by role
         $usersByRole = [];
-        $roles = Role::query()->get();
+        $roles = Role::query()->whereNotIn('name', ['Student'])->get();
+        
         foreach ($roles as $role) {
-            $usersByRole[] = [
-                'name' => $role->name,
-                'value' => User::query()->where('archive', false)->where('role_id', $role->id)->count(),
-            ];
+            if ($role->name === 'Teacher') {
+                // Combine Teacher and Student counts into Member
+                $teacherCount = User::query()->where('archive', false)->where('role_id', $role->id)->count();
+                $studentRole = Role::query()->where('name', 'Student')->first();
+                $studentCount = 0;
+                if ($studentRole) {
+                    $studentCount = User::query()->where('archive', false)->where('role_id', $studentRole->id)->count();
+                }
+                $usersByRole[] = [
+                    'name' => 'Member',
+                    'value' => $teacherCount + $studentCount,
+                ];
+            } else {
+                $usersByRole[] = [
+                    'name' => $role->name,
+                    'value' => User::query()->where('archive', false)->where('role_id', $role->id)->count(),
+                ];
+            }
         }
 
         // CSG and Adviser counts

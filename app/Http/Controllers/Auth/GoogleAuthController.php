@@ -55,6 +55,18 @@ class GoogleAuthController extends Controller
             // ========== FIND OR CREATE USER ==========
             $user = User::where('email', $email)->first();
 
+            // Check if user exists and is archived
+            if ($user && $user->archive) {
+                Log::warning('❌ Archived user Google OAuth login attempt', [
+                    'email' => $email,
+                    'user_id' => $user->id,
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This account is no longer available.',
+                ], 404);
+            }
+
             if ($user) {
                 // Update existing user
                 Log::info('📝 Updating existing Google user', ['email' => $email, 'id' => $supabaseId]);
