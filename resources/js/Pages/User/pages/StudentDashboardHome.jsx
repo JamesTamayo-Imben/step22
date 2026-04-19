@@ -147,7 +147,7 @@ const getStatusColor = (status) => {
 
       {/* Recent Badges & Upcoming Events */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+        {/* <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-gray-900">Recent Badges</h2>
             <button
@@ -167,7 +167,7 @@ const getStatusColor = (status) => {
             ))}
             {!recentBadges?.length && <p className="text-sm text-gray-500 col-span-3">No recent badges.</p>}
           </div>
-        </div>
+        </div> */}
 
         <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
           <div className="flex items-center justify-between mb-4">
