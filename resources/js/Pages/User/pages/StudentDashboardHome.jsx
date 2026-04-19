@@ -29,15 +29,15 @@ const getStatusColor = (status) => {
     <div className="space-y-6 pb-6">
       {/* Welcome Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-[20px] p-8 text-white shadow-lg">
-        <h1 className="text-white mb-2">Welcome back, Student!</h1>
-        <p className="text-blue-100 mb-6">Track your progress and stay updated</p>
+        <h1 className="text-white mb-2">Welcome back, {stats.name || 'User'}!</h1>
+        <p className="text-blue-100">Track your progress and stay updated</p>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {/* <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+        {/* <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <TrendingUp className="w-6 h-6 mb-2" />
             <p className="text-2xl mb-1">500</p>
             <p className="text-xs text-blue-100">Total Points</p>
-          </div> */}
+          </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <Award className="w-6 h-6 mb-2" />
             <p className="text-2xl mb-1">{stats.badgesEarned ?? 0}</p>
@@ -53,7 +53,7 @@ const getStatusColor = (status) => {
             <p className="text-2xl mb-1">Level {stats.engagementLevel ?? (leaderboardSummary?.level || 1)}</p>
             <p className="text-xs text-blue-100">Engagement Level</p>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Quick Actions */}
@@ -146,7 +146,7 @@ const getStatusColor = (status) => {
       </div>
 
       {/* Recent Badges & Upcoming Events */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-gray-900">Recent Badges</h2>

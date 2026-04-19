@@ -83,22 +83,47 @@ class CSGDashboardController extends Controller
 
     private function getMeetingsData()
     {
-        $upcomingMeetings = Meeting::where('archive', false)
-            ->where('is_done', false)
-            ->orderBy('scheduled_date', 'asc')
-            ->take(5)
-            ->get()
-            ->map(function ($meeting) {
+        try {
+            $now = now();
+            $upcomingMeetings = Meeting::where('archive', false)
+                ->where('is_done', false)
+                ->orderBy('scheduled_date', 'desc') // Null values come last with DESC
+                ->take(5)
+                ->get();
+
+            \Illuminate\Support\Facades\Log::info('🔍 Upcoming meetings query result:', [
+                'count' => $upcomingMeetings->count(),
+                'now' => $now,
+                'meetings' => $upcomingMeetings->map(fn($m) => [
+                    'title' => $m->title,
+                    'scheduled_date' => $m->scheduled_date,
+                    'date' => $m->date,
+                    'time' => $m->time,
+                ])->toArray(),
+            ]);
+
+            $mapped = $upcomingMeetings->map(function ($meeting) {
                 return [
                     'id' => $meeting->id,
                     'title' => $meeting->title,
-                    'date' => optional($meeting->scheduled_date)->format('M d, Y'),
-                    'time' => optional($meeting->scheduled_date)->format('h:i A'),
+                    'date' => $meeting->date ?? 'No Date',
+                    'time' => $meeting->time ?? 'No Time',
                     'attendees' => $meeting->expected_attendees ?? 0,
+                    'is_done' => $meeting->is_done,
+                    'archive' => $meeting->archive,
                 ];
-            });
+            })
+            ->values()
+            ->toArray();
 
-        return $upcomingMeetings;
+            return $mapped;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('❌ Error fetching upcoming meetings:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return [];
+        }
     }
 
     private function computeCSGDashboardStats()
