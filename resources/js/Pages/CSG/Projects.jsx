@@ -549,7 +549,9 @@ function CSGProjectsPageInner() {
 
     // if (isProjectLocked(project.id)) {
     //   return (
-    //     <Button className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white" disabled>
+    //     <Button className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white" 
+    //     disabled
+    //     >
     //       <AlertCircle className="w-4 h-4 mr-2" />
     //       Locked (Tampered)
     //     </Button>

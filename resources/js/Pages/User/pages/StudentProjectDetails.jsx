@@ -17,9 +17,20 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [selectedProofDocument, setSelectedProofDocument] = useState(null);
   const [showAllComments, setShowAllComments] = useState(false);
 
+  // Check if user has already rated this project
+  const hasUserRated = currentProject?.currentUserRating !== null && currentProject?.currentUserRating !== undefined;
+  
+  // Disable rating button if user has already rated
+  const isRatingDisabled = hasUserRated;
+
   // Sync state with project prop whenever it changes
   useEffect(() => {
     setCurrentProject(project);
+    // Update rating state if project has existing rating
+    if (project?.currentUserRating) {
+      setRating(project.currentUserRating.rating || 0);
+      setComment(project.currentUserRating.comment || '');
+    }
   }, [project]);
 
   const getProofUrl = (path) => {
@@ -235,13 +246,26 @@ function maskUserName(fullName) {
                 <span className="text-sm text-gray-500">({currentProject.ratingsCount || 0} ratings)</span>
               </div>
 
-              <button
-                onClick={() => setShowRatingModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors"
-              >
-                <Star className="w-4 h-4" />
-                Rate this Project
-              </button>
+              {/* Rating Button - Disabled if user has already rated */}
+              <div className="flex flex-col items-end gap-2">
+                <button
+                  onClick={() => setShowRatingModal(true)}
+                  disabled={isRatingDisabled}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
+                    isRatingDisabled 
+                      ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  <Star className="w-4 h-4" />
+                  {isRatingDisabled ? 'Already Rated' : 'Rate this Project'}
+                </button>
+                {/* {isRatingDisabled && (
+                  <p className="text-xs text-yellow-600">
+                    You have already rated this project. Thank you!
+                  </p>
+                )} */}
+              </div>
             </div>
           </div>
         </div>
@@ -322,24 +346,6 @@ function maskUserName(fullName) {
               </div>
             </div>
           </div>
-          {/* <div className="mt-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-xl p-4 bg-white border border-blue-100">
-              <p className="text-xs text-gray-500">Status</p>
-              <p className="font-semibold text-gray-900 mt-1">{getCalculatedStatus()}</p>
-            </div>
-            <div className="rounded-xl p-4 bg-white border border-blue-100">
-              <p className="text-xs text-gray-500">Approval</p>
-              <p className="font-semibold text-gray-900 mt-1">{project.approvalStatus || 'Pending'}</p>
-            </div>
-            <div className="rounded-xl p-4 bg-white border border-blue-100">
-              <p className="text-xs text-gray-500">Budget</p>
-              <p className="font-semibold text-gray-900 mt-1">₱{Number(project.budget || 0).toLocaleString()}</p>
-            </div>
-            <div className="rounded-xl p-4 bg-white border border-blue-100">
-              <p className="text-xs text-gray-500">Ratings</p>
-              <p className="font-semibold text-gray-900 mt-1">{project.ratingsCount || 0}</p>
-            </div>
-          </div> */}
         </Card>
       )}
 
@@ -408,7 +414,7 @@ function maskUserName(fullName) {
               >
                <div className="flex items-center gap-2 mb-3">
   <FileText className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-  <div className="min-w-0 flex-1">  {/* ← Add this */}
+  <div className="min-w-0 flex-1">
     <p className="font-medium text-gray-900 truncate">{proof.fileName}</p>
     <p className="text-xs text-gray-500 truncate">Linked: {proof.linkedTransaction}</p>
   </div>
@@ -469,6 +475,25 @@ function maskUserName(fullName) {
       {activeTab === 'ratings' && (
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-yellow-50">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Ratings</h2>
+          
+          {/* Show user's own rating at the top if they have rated */}
+          {hasUserRated && (
+            <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <p className="text-sm font-medium text-blue-800 mb-2">Your Rating</p>
+              <div className="flex items-center gap-3">
+                <div className="flex">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-5 h-5 ${i < rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm text-gray-600">{comment || 'No comment provided.'}</span>
+              </div>
+            </div>
+          )}
+          
           <div className="space-y-6">
             {(showAllComments ? (currentProject.ratings || []) : (currentProject.ratings || []).slice(0, 5)).map((review) => (
               <div key={review.id} className="flex gap-4 pb-6 border-b border-yellow-100 last:border-0">
@@ -530,11 +555,9 @@ function maskUserName(fullName) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              {/* <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Category</p><p className="font-medium text-gray-900">{selectedLedgerEntry.category || '-'}</p></div> */}
               <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Created</p><p className="font-medium text-gray-900">{selectedLedgerEntry.createdAt || '-'}</p></div>
               <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Approved</p><p className="font-medium text-gray-900">{selectedLedgerEntry.approvedAt || '-'}</p></div>
               <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Approved By</p><p className="font-medium text-gray-900">{selectedLedgerEntry.approvedBy || '-'}</p></div>
-              {/* <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Rejected</p><p className="font-medium text-gray-900">{selectedLedgerEntry.rejectedAt || '-'}</p></div> */}
             </div>
 
             <div className="rounded-xl border bg-white p-4">

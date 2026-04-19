@@ -189,7 +189,7 @@ export default function LedgerApprovalsPage() {
       const amount = Number(e.amount) || 0;
       const type = (e.transactionType || '').toLowerCase();
       if (type === 'expense') return (sum - amount);
-      if (type === 'initial' || ['income', 'donation', 'sponsorship', 'canvas'].includes(type)) return sum + amount;
+      if (type === 'initial' || ['income', 'donation', 'sponsorship'].includes(type)) return sum + amount;
       return sum;
     }, 0);
 

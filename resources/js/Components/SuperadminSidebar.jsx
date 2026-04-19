@@ -27,13 +27,13 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     { id: 'user-management', label: 'User Management', icon: Users },
     { id: 'roles-permissions', label: 'Roles & Permissions', icon: Shield },
     // { id: 'system-settings', label: 'System Settings', icon: Settings },
-    { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
+    // { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
     // { id: 'data-backup', label: 'Data & Backup', icon: Database },
     // { id: 'engagement-rules', label: 'Engagement Rules', icon: TrendingUp },
     // { id: 'master-data', label: 'Master Data', icon: Database },
     // { id: 'global-reports', label: 'Global Reports', icon: FileText },
     // { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'profile', label: 'Profile', icon: User },
+    // { id: 'profile', label: 'Profile', icon: User },
   ];
 
   function getViewFromPath() {

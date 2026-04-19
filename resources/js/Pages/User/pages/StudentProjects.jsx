@@ -123,33 +123,41 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
   // Check if project has budget mismatch
   const getProjectBudgetStatus = (projectId) => {
     const projectLedgers = (ledgerEntries || []).filter(
-      (entry) => String(entry?.project_id || entry?.projectId || '') === String(projectId || '')
+      (entry) => String(entry?.project_id || entry?.projectId || '') === String(projectId || '') && entry?.approval_status === 'Approved'
     );
     
     const project = projects.find(p => p.id === projectId);
     if (!project) return { isMismatched: false };
     
+    // Don't mark as mismatched if there are no ledger entries yet - wait for data to load
+    if (ledgerEntries.length > 0 && projectLedgers.length === 0) {
+      return { isMismatched: false };
+    }
+    
     const displayBudget = parseFloat(project.budget) || 0;
     
-    const computedBudgetFromLedger = projectLedgers
-      .filter((entry) => entry.approval_status === 'Approved')
-      .reduce((sum, entry) => {
-        const amount = parseFloat(entry.amount) || 0;
-        const type = (entry.type || '').toLowerCase();
-        
-        if (type === 'expense') {
-          return sum - amount;
-        }
+    // Compute the ledger entries sum for the project
+    // - Add amounts for Income, Donation, Sponsorship, Initial types
+    // - Subtract amounts for Expense type
+    const computedBudgetFromLedger = projectLedgers.reduce((sum, entry) => {
+      const amount = parseFloat(entry.amount) || 0;
+      const entryType = (entry.type || '').toLowerCase();
+      
+      if (['income', 'donation', 'sponsorship', 'initial'].includes(entryType)) {
         return sum + amount;
-      }, 0);
+      } else if (entryType === 'expense') {
+        return sum - amount;
+      }
+      return sum;
+    }, 0); 
     
     const budgetDifference = displayBudget - computedBudgetFromLedger;
-    const isMismatched = displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
+    const isMismatched = ledgerEntries.length > 0 && displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
     
     return { isMismatched };
   };
 
-  const lockedProjectIds = new Set([
+  const lockedProjectIds = useMemo(() => new Set([
     ...(ledgerEntries || [])
       .filter((entry) => entry?.verificationState?.tampered)
       .map((entry) => String(entry?.project_id || entry?.projectId || ''))
@@ -158,7 +166,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
       .filter(p => getProjectBudgetStatus(p.id).isMismatched)
       .map(p => String(p.id || ''))
       .filter(Boolean)
-  ]);
+  ]), [ledgerEntries, projects]);
   
   const isProjectLocked = (projectId) => lockedProjectIds.has(String(projectId || ''));
   const getStatusColor = (status) => {

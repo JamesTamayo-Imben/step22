@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Project;
 use App\Models\CSG\Approval;
+use App\Models\User;
 use Illuminate\Http\Request;
 // use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -95,6 +96,11 @@ public function uploadProof(Request $request, $id)
                     ? (is_string($entry->budget_breakdown) ? json_decode($entry->budget_breakdown, true) : $entry->budget_breakdown)
                     : [];
                 
+                // Transform approved_by from ID to user name
+                if ($entryData['approved_by']) {
+                    $entryData['approved_by'] = $this->getUserName($entryData['approved_by']);
+                }
+                
                 return $entryData;
             });
             
@@ -168,6 +174,11 @@ public function uploadProof(Request $request, $id)
                 }
 
                 $entryData['verificationState'] = $verificationState;
+                
+                // Transform approved_by from ID to user name
+                if ($entryData['approved_by']) {
+                    $entryData['approved_by'] = $this->getUserName($entryData['approved_by']);
+                }
 
                 return $entryData;
             });
@@ -429,6 +440,49 @@ public function uploadProof(Request $request, $id)
     public function getProofDocuments()
     {
         try {
+            $proofDocuments = [];
+
+            // 1. Get initial proofs from projects
+            $projects = \App\Models\CSG\Project::where('archive', 0)
+                ->whereNotNull('project_proof')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            foreach ($projects as $project) {
+                $fileName = basename($project->project_proof);
+                $filePath = $project->project_proof;
+                $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
+                $fileType = in_array(strtolower($fileExtension), ['pdf']) ? 'PDF' : 'Image';
+
+                // Calculate file size
+                $fileSize = 'Unknown';
+                try {
+                    $fullPath = storage_path('app/public/ledger_proofs/' . $fileName);
+                    if (file_exists($fullPath)) {
+                        $fileSizeBytes = filesize($fullPath);
+                        $fileSize = round($fileSizeBytes / (1024 * 1024), 2) . ' MB';
+                    }
+                } catch (\Exception $e) {
+                    // Keep default 'Unknown'
+                }
+
+                $proofDocuments[] = [
+                    'id' => 'PROOF-INITIAL-' . substr($project->id, 0, 8),
+                    'fileName' => $fileName,
+                    'linkedTransaction' => $project->id,
+                    'linkedProject' => $project->title,
+                    'uploadDate' => $project->created_at->format('Y-m-d'),
+                    'fileType' => $fileType,
+                    'fileSize' => $fileSize,
+                    'status' => 'Approved',
+                    'uploadedBy' => $project->created_by ? 'User ' . $project->created_by : 'Unknown',
+                    'hash' => 'N/A',
+                    'filePath' => $filePath,
+                    'description' => 'Initial Project Proof',
+                ];
+            }
+
+            // 2. Get ledger entry proofs
             $entries = LedgerEntry::where('archive', 0)
                 ->whereNotNull('ledger_proof')
                 ->with('project')
@@ -438,7 +492,7 @@ public function uploadProof(Request $request, $id)
                 ->orderBy('created_at', 'desc')
                 ->get();
 
-            $proofDocuments = $entries->map(function($entry) {
+            foreach ($entries as $entry) {
                 $fileName = basename($entry->ledger_proof);
                 $filePath = $entry->ledger_proof;
                 $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
@@ -456,7 +510,7 @@ public function uploadProof(Request $request, $id)
                     // Keep default 'Unknown'
                 }
 
-                return [
+                $proofDocuments[] = [
                     'id' => 'PROOF-' . substr($entry->id, 0, 8),
                     'fileName' => $fileName,
                     'linkedTransaction' => $entry->id,
@@ -470,7 +524,7 @@ public function uploadProof(Request $request, $id)
                     'filePath' => $filePath,
                     'description' => $entry->description ?? 'No description available',
                 ];
-            });
+            }
 
             return response()->json($proofDocuments);
         } catch (\Exception $e) {
@@ -496,5 +550,17 @@ public function uploadProof(Request $request, $id)
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Helper method to get user name from user ID
+     */
+    private function getUserName($userId)
+    {
+        if (!$userId) {
+            return 'Unknown';
+        }
+        $user = User::find($userId);
+        return $user ? $user->name : 'Unknown';
     }
 }

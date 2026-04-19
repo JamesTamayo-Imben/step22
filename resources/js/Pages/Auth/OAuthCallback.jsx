@@ -169,9 +169,29 @@ export default function OAuthCallback() {
             setShowOnboarding(true);
             setValidating(false);
           } else {
-            // Existing user with completed profile: go directly to dashboard.
-            console.log('✅ Profile already completed, redirecting to /user');
-            router.visit('/user');
+           // Existing user with completed profile: redirect based on role
+console.log('✅ Profile already completed, checking role for redirect');
+console.log('📧 Email:', data.user.email);
+console.log('👤 Role:', data.user.role?.slug);
+
+// Determine redirect path based on role slug
+let redirectPath = '/user'; // Default redirect for student/teacher
+
+if (data.user.role?.slug === 'superadmin') {
+  redirectPath = '/sadmin'; // Super admin dashboard
+} else if (data.user.role?.slug === 'admin') {
+  redirectPath = '/adviser/dashboard'; // Adviser/Admin dashboard
+} else if (data.user.role?.slug === 'csg') {
+  redirectPath = '/csg/dashboard'; // CSG dashboard
+} else if (data.user.role?.slug === 'student' || data.user.role?.slug === 'teacher') {
+  redirectPath = '/user'; // User dashboard for students and teachers
+} else {
+  // Default fallback for any other roles
+  redirectPath = '/user';
+}
+
+console.log(`🚀 Redirecting to ${redirectPath} based on role: ${data.user.role?.slug}`);
+router.visit(redirectPath);
           }
 
 

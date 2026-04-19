@@ -717,7 +717,58 @@ class AdviserPermissionController extends Controller
             'is_csg' => true,
         ]);
 
+        // Update the user's role_id to admin (adviser) role
+        $user = User::find($candidate->user_id);
+        if ($user) {
+            // Get the admin/adviser role ID (admin role slug)
+            $csgRole = \App\Models\Role::where('slug', 'csg')->first();
+            if ($csgRole) {
+                $user->update([
+                    'role_id' => $csgRole->id,
+                ]);
+            }
+        }
+
         // return response()->json(['message' => 'Officer assigned successfully']);
+    }
+
+    public function removeOfficer(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'userId' => 'required|exists:users,id',
+        ]);
+
+        $userId = $request->userId;
+
+        // Find the CSG officer record
+        $officer = StudentCsgOfficer::where('user_id', $userId)
+            ->where('archive', false)
+            ->first();
+
+        if (! $officer) {
+            return response()->json(['message' => 'Officer record not found.'], 422);
+        }
+
+        // Revert the officer back to Member role
+        $officer->update([
+            'csg_position' => 'Member',
+            'csg_is_active' => false,
+            'is_csg' => false,
+        ]);
+
+        // Revert the user's role back to student role
+        $user = User::find($userId);
+        if ($user) {
+            // Get the student role ID (student role slug)
+            $studentRole = Role::where('slug', 'student')->first();
+            if ($studentRole) {
+                $user->update([
+                    'role_id' => $studentRole->id,
+                ]);
+            }
+        }
+
+        // return response()->json(['message' => 'Officer removed successfully']);
     }
 
     public function updatePermissions(Request $request)
