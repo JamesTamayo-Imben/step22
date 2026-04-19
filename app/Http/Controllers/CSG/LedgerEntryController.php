@@ -208,7 +208,7 @@ public function uploadProof(Request $request, $id)
             $entry->amount = $request->amount;
             $entry->description = $request->description;
             $entry->approval_status = $request->approval_status ?? 'Draft';
-            $entry->created_by = $request->created_by;
+            $entry->created_by = Auth::id();
             
             // Handle budget breakdown (store as JSON)
             if ($request->has('budget_breakdown')) {

@@ -194,7 +194,8 @@ export default function LedgerApprovalsPage() {
     }, 0);
 
     const budgetDifference = (Number(totalProjectBudget) || 0) - computedBudgetFromLedger;
-    const isBudgetTampered = Math.abs(budgetDifference) > 0.01;
+    // Only show mismatch when ledger entries are actually loaded (not during initial page load)
+    const isBudgetTampered = ledgerEntries.length > 0 && Math.abs(budgetDifference) > 0.01;
 
     const uniqueProjects = new Set(
       approvedEntries

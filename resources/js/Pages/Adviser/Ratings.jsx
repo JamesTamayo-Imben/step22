@@ -50,6 +50,20 @@ function AvatarFallback({ children, className = '' }) {
   );
 }
 
+// Mask user name for privacy: "John Doe" becomes "J******* D*******"
+function maskUserName(fullName) {
+  if (!fullName) return '******* *******';
+  const names = fullName.trim().split(/\s+/).filter(Boolean);
+  if (names.length === 0) return '******* *******';
+  
+  return names
+    .map((name) => {
+      if (name.length <= 1) return name;
+      return name[0] + '*'.repeat(name.length - 1);
+    })
+    .join(' ');
+}
+
 function csvEscape(val) {
   const s = String(val ?? '');
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
@@ -368,7 +382,7 @@ export function RatingsAnalyticsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
-                      <p className="text-sm text-gray-900">{rating.studentName}</p>
+                      <p className="text-sm text-gray-900">{maskUserName(rating.studentName)}</p>
                       <p className="text-xs text-gray-500">{rating.projectName}</p>
                     </div>
                     <span className="text-xs text-gray-500">{rating.date}</span>

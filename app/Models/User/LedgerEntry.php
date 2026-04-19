@@ -45,4 +45,19 @@ class LedgerEntry extends Model
     {
         return $this->belongsTo(Project::class, 'project_id', 'id');
     }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'approved_by', 'id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by', 'id');
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'updated_by', 'id');
+    }
 }

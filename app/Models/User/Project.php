@@ -60,4 +60,14 @@ class Project extends Model
     {
         return $this->hasMany(LedgerEntry::class, 'project_id', 'id');
     }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'approve_by', 'id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by', 'id');
+    }
 }

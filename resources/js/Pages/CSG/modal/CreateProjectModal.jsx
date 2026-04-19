@@ -81,6 +81,21 @@ function Select({ className = '', children, value, onValueChange, ...props }) {
   );
 }
 
+// ─── Helper Functions ───────────────────────────────────────────────────────
+
+function getMinimumStartDate() {
+  const today = new Date();
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  return nextMonth.toISOString().split('T')[0];
+}
+
+function getMinimumEndDate(startDate) {
+  if (!startDate) return null;
+  const start = new Date(startDate);
+  const minEndDate = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+  return minEndDate.toISOString().split('T')[0];
+}
+
 // ─── Create Project Modal ───────────────────────────────────────────────────
 
 export function CreateProjectModal({
@@ -323,8 +338,19 @@ export function CreateProjectModal({
             <FieldLabel>Start Date</FieldLabel>
             <Input
               type="date"
+              min={getMinimumStartDate()}
               value={newProject.startDate || ''}
-              onChange={(e) => setNewProject({ ...newProject, startDate: e.target.value })}
+              onChange={(e) => {
+                const selectedDate = e.target.value;
+                const minDate = getMinimumStartDate();
+                
+                if (selectedDate && selectedDate < minDate) {
+                  showToast('Start date must be at least 1 month from today', 'error');
+                  return;
+                }
+                
+                setNewProject({ ...newProject, startDate: selectedDate });
+              }}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
@@ -332,8 +358,19 @@ export function CreateProjectModal({
             <FieldLabel>End Date</FieldLabel>
             <Input
               type="date"
+              min={getMinimumEndDate(newProject.startDate)}
               value={newProject.endDate || ''}
-              onChange={(e) => setNewProject({ ...newProject, endDate: e.target.value })}
+              onChange={(e) => {
+                const selectedDate = e.target.value;
+                const minDate = getMinimumEndDate(newProject.startDate);
+                
+                if (selectedDate && selectedDate < minDate) {
+                  showToast('End date must be at least one day after the start date', 'error');
+                  return;
+                }
+                
+                setNewProject({ ...newProject, endDate: selectedDate });
+              }}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>

@@ -120,13 +120,47 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
     return { Icon: FolderKanban, color: 'from-slate-500 to-slate-700' };
   };
 
-  const tamperedProjectIds = new Set(
-    (ledgerEntries || [])
+  // Check if project has budget mismatch
+  const getProjectBudgetStatus = (projectId) => {
+    const projectLedgers = (ledgerEntries || []).filter(
+      (entry) => String(entry?.project_id || entry?.projectId || '') === String(projectId || '')
+    );
+    
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return { isMismatched: false };
+    
+    const displayBudget = parseFloat(project.budget) || 0;
+    
+    const computedBudgetFromLedger = projectLedgers
+      .filter((entry) => entry.approval_status === 'Approved')
+      .reduce((sum, entry) => {
+        const amount = parseFloat(entry.amount) || 0;
+        const type = (entry.type || '').toLowerCase();
+        
+        if (type === 'expense') {
+          return sum - amount;
+        }
+        return sum + amount;
+      }, 0);
+    
+    const budgetDifference = displayBudget - computedBudgetFromLedger;
+    const isMismatched = displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
+    
+    return { isMismatched };
+  };
+
+  const lockedProjectIds = new Set([
+    ...(ledgerEntries || [])
       .filter((entry) => entry?.verificationState?.tampered)
       .map((entry) => String(entry?.project_id || entry?.projectId || ''))
+      .filter(Boolean),
+    ...projects
+      .filter(p => getProjectBudgetStatus(p.id).isMismatched)
+      .map(p => String(p.id || ''))
       .filter(Boolean)
-  );
-  const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
+  ]);
+  
+  const isProjectLocked = (projectId) => lockedProjectIds.has(String(projectId || ''));
   const getStatusColor = (status) => {
     switch (status) {
       case 'Draft':

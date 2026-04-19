@@ -24,7 +24,7 @@ class ProjectController extends Controller
     public function show($id)
     {
         try {
-            $project = Project::find($id);
+            $project = Project::with(['approver:id,name', 'creator:id,name'])->find($id);
             
             if (!$project) {
                 return response()->json(['message' => 'Project not found'], 404);
@@ -39,6 +39,8 @@ class ProjectController extends Controller
 
             $projectData = $project->toArray();
             $projectData['tamperedAlerts'] = $tamperedCount;
+            $projectData['approveBy'] = $project->approver?->name ?? null;
+            $projectData['createdBy'] = $project->creator?->name ?? null;
             
             return response()->json($projectData, 200);
         } catch (\Exception $e) {
@@ -84,6 +86,8 @@ class ProjectController extends Controller
             $project->approval_status = $request->approval_status ?? 'Draft';
             $project->archive = 0;
             $project->is_initial = $request->is_initial ?? 0;
+            $project->created_by = Auth::id();
+            $project->updated_by = Auth::id();
             
             // Handle file upload
             if ($request->hasFile('project_proof')) {
@@ -101,8 +105,9 @@ class ProjectController extends Controller
             $project->save();
 
             // Create an initial baseline ledger entry when project starts with budget.
+            $initialLedger = null;
             if ((float) ($project->budget ?? 0) > 0) {
-                LedgerEntry::create([
+                $initialLedger = LedgerEntry::create([
                     'id' => (string) Str::uuid(),
                     'project_id' => $project->id,
                     'type' => 'Initial',
@@ -120,10 +125,20 @@ class ProjectController extends Controller
                 ]);
             }
             
-            // Return the project with the file URL
+            // Return the project with the file URL and initial ledger
             $project->project_proof_url = $project->project_proof ? Storage::url($project->project_proof) : null;
             
-            return response()->json($project, 201);
+            $responseData = $project->toArray();
+            if ($initialLedger) {
+                $responseData['initial_ledger'] = [
+                    'id' => $initialLedger->id,
+                    'amount' => (float) $initialLedger->amount,
+                    'approval_status' => $initialLedger->approval_status,
+                    'created_at' => $initialLedger->created_at,
+                ];
+            }
+            
+            return response()->json($responseData, 201);
         } catch (\Exception $e) {
             Log::error('Project creation failed: ' . $e->getMessage());
             return response()->json([
@@ -162,7 +177,26 @@ class ProjectController extends Controller
             if ($request->has('objective')) $project->objective = $request->objective;
             if ($request->has('venue')) $project->venue = $request->venue;
             if ($request->has('category')) $project->category = $request->category;
-            if ($request->has('budget')) $project->budget = $request->budget;
+            
+            // If budget is being changed, update the Initial ledger entry too to prevent mismatch
+            if ($request->has('budget')) {
+                $oldBudget = $project->budget;
+                $newBudget = $request->budget;
+                $project->budget = $newBudget;
+                
+                // Update the Initial ledger entry if budget changed and project not yet approved
+                if ((float)$oldBudget !== (float)$newBudget && $project->approval_status !== 'Approved') {
+                    LedgerEntry::where('project_id', $project->id)
+                        ->where('type', 'Initial')
+                        ->where('archive', 0)
+                        ->update([
+                            'amount' => (float)$newBudget,
+                            'updated_by' => Auth::id(),
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
+            
             if ($request->has('proposed_by')) $project->proposed_by = $request->proposed_by;
             if ($request->has('start_date')) $project->start_date = $request->start_date;
             if ($request->has('end_date')) $project->end_date = $request->end_date;
@@ -172,6 +206,7 @@ class ProjectController extends Controller
             if ($request->has('note')) $project->note = $request->note;
             if ($request->has('approve_by')) $project->approve_by = $request->approve_by;
             
+            $project->updated_by = Auth::id();
             $project->updated_at = now();
             
             // Handle file upload if new file is provided
@@ -195,7 +230,23 @@ class ProjectController extends Controller
             // Add file URL to response
             $project->project_proof_url = $project->project_proof ? Storage::url($project->project_proof) : null;
             
-            return response()->json($project, 200);
+            // Include the Initial ledger entry in response to show updated budget immediately
+            $initialLedger = LedgerEntry::where('project_id', $project->id)
+                ->where('type', 'Initial')
+                ->where('archive', 0)
+                ->first();
+            
+            $responseData = $project->toArray();
+            if ($initialLedger) {
+                $responseData['initial_ledger'] = [
+                    'id' => $initialLedger->id,
+                    'amount' => (float) $initialLedger->amount,
+                    'approval_status' => $initialLedger->approval_status,
+                    'updated_at' => $initialLedger->updated_at,
+                ];
+            }
+            
+            return response()->json($responseData, 200);
         } catch (\Exception $e) {
             Log::error('Project update failed: ' . $e->getMessage());
             return response()->json([

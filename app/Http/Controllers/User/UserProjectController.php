@@ -75,6 +75,8 @@ class UserProjectController extends Controller
                 'ledgerEntries' => function ($query) {
                     $query->latest('created_at');
                 },
+                'ledgerEntries.approver:id,name',
+                'approver:id,name',
             ])
             ->withAvg(['ratings' => function ($query) {
                 $query->where('archive', 0);
@@ -101,7 +103,7 @@ class UserProjectController extends Controller
                     'ledgerProof' => $entry->ledger_proof,
                     'approvalStatus' => $entry->approval_status ?: 'Draft',
                     'note' => $entry->note,
-                    'approvedBy' => $entry->approved_by,
+                    'approvedBy' => $entry->approver?->name ?? 'Unknown',
                     'createdAt' => optional($entry->created_at)->format('Y-m-d H:i'),
                     'approvedAt' => optional($entry->approved_at)->format('Y-m-d H:i'),
                     'rejectedAt' => optional($entry->rejected_at)->format('Y-m-d H:i'),
@@ -187,6 +189,7 @@ class UserProjectController extends Controller
                 'venue' => $project->venue ?: 'No venue specified.',
                 'objective' => $project->objective ?: 'No objective available.',
                 'proposeBy' => $project->proposed_by ?: 'Not specified',
+                'approvedBy' => $project->approver?->name ?? 'CSG Adviser',
                 'ratingsCount' => (int) ($project->ratings_count ?? 0),
                 'tamperedAlerts' => $tamperedCount,
                 'ratings' => $project->ratings->map(function ($rating) {

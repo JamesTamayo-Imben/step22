@@ -32,6 +32,20 @@ function showToast(message, type = 'success') {
   }, 2200);
 }
 
+// Mask user name for privacy: "John Doe" becomes "J******* D*******"
+function maskUserName(fullName) {
+  if (!fullName) return '******* *******';
+  const names = fullName.trim().split(/\s+/).filter(Boolean);
+  if (names.length === 0) return '******* *******';
+  
+  return names
+    .map((name) => {
+      if (name.length <= 1) return name;
+      return name[0] + '*'.repeat(name.length - 1);
+    })
+    .join(' ');
+}
+
 function Select({ className = '', children, value, onValueChange, ...props }) {
   return (
     <select
@@ -378,7 +392,7 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
                           <div className="flex items-start justify-between gap-2 mb-1">
                             <div>
                               <p className="text-sm font-medium text-gray-900">
-                                {comment.studentName}
+                                {maskUserName(comment.studentName)}
                               </p>
                               <div className="flex items-center gap-2 mt-1">
                                 <div className="flex">{renderSmallStars(comment.rating)}</div>

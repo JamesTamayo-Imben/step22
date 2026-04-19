@@ -82,6 +82,21 @@ function Select({ className = '', children, value, onValueChange, ...props }) {
   );
 }
 
+// ─── Helper Functions ───────────────────────────────────────────────────────
+
+function getMinimumStartDate() {
+  const today = new Date();
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  return nextMonth.toISOString().split('T')[0];
+}
+
+function getMinimumEndDate(startDate) {
+  if (!startDate) return null;
+  const start = new Date(startDate);
+  const minEndDate = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+  return minEndDate.toISOString().split('T')[0];
+}
+
 // ─── Edit Project Modal ──────────────────────────────────────────────────────
 
 export function EditProjectModal({
@@ -172,6 +187,9 @@ export function EditProjectModal({
     showToast('Project updated successfully', 'success');
     onSave(updatedProject);
     handleClose();
+    
+    // Reload page to show all updated data
+    setTimeout(() => window.location.reload(), 500);
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
@@ -325,8 +343,19 @@ export function EditProjectModal({
             <FieldLabel>Start Date</FieldLabel>
             <Input
               type="date"
+              min={getMinimumStartDate()}
               value={editForm.startDate || ''}
-              onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+              onChange={(e) => {
+                const selectedDate = e.target.value;
+                const minDate = getMinimumStartDate();
+                
+                if (selectedDate && selectedDate < minDate) {
+                  showToast('Start date must be at least 1 month from today', 'error');
+                  return;
+                }
+                
+                setEditForm({ ...editForm, startDate: selectedDate });
+              }}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
             />
           </div>
@@ -334,6 +363,7 @@ export function EditProjectModal({
             <FieldLabel>End Date</FieldLabel>
             <Input
               type="date"
+              min={getMinimumEndDate(editForm.startDate)}
               value={editForm.endDate || ''}
               onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
