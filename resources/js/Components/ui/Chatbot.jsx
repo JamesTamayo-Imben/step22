@@ -160,7 +160,7 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
           className="fixed bottom-6 right-6 bg-[#2563EB] hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 ease-in-out hover:scale-110 z-40"
           aria-label="Open STEPH chat"
         >
-          <MessageCircleCheckIcon className="w-6 h-6 sm:w-8 sm:h-8" />
+          <MessageCircleCheckIcon className="w-5 h-5" />
         </button>
       ) : (
         <div className="flex flex-col w-[calc(100vw-2rem)] max-w-sm sm:max-w-md h-[70vh] sm:h-[500px] rounded-[24px] border border-gray-100 shadow-2xl bg-white overflow-hidden">
