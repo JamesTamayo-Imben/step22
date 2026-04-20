@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\Role;
+use App\Models\StudentCsgOfficer;
 use App\Mail\OTPMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -121,6 +123,16 @@ class OTPController extends Controller
                 $otpData['firstName'],
                 $otpData['lastName']
             );
+
+            // If user is a student, create StudentCsgOfficer record
+            $role = Role::find($otpData['role_id']);
+            if ($role && $role->slug === 'student') {
+                StudentCsgOfficer::create([
+                    'id' => $user->id,
+                    'user_id' => $user->id,
+                    // Other fields will be set later during profile completion
+                ]);
+            }
 
             // Clear the OTP from cache
             Cache::forget("otp_{$request->email}");

@@ -28,7 +28,7 @@ export default function VerifyOTPPage({ email, onVerifySuccess, onBackToRegister
       }
 
       // Call backend to verify OTP
-      const response = await fetch("/api/otp/verify", {
+      const response = await fetch("/api/verify-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -70,7 +70,7 @@ export default function VerifyOTPPage({ email, onVerifySuccess, onBackToRegister
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/otp/resend", {
+      const response = await fetch("/api/resend-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

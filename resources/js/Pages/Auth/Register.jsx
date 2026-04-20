@@ -87,7 +87,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
       };
       console.log("📤 Request payload:", payload);
 
-      const response = await fetch("/api/otp/send", {
+      const response = await fetch("/api/send-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
