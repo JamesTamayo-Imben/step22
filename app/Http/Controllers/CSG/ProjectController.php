@@ -91,38 +91,61 @@ class ProjectController extends Controller
             
             // Handle file upload
             if ($request->hasFile('project_proof')) {
-                $file = $request->file('project_proof');
-                $fileName = time() . '_' . $file->getClientOriginalName();
-                
-                // Store the file
-                $filePath = Storage::disk('public')->putFileAs('project_proofs', $file, $fileName);
-                $project->project_proof = 'storage/project_proofs/' . $fileName;
+                try {
+                    $file = $request->file('project_proof');
+                    $fileName = time() . '_' . Str::random(10) . '_' . $file->getClientOriginalName();
+                    
+                    // Store the file
+                    $filePath = Storage::disk('public')->putFileAs('project_proofs', $file, $fileName);
+                    $project->project_proof = 'storage/project_proofs/' . $fileName;
+                    
+                    Log::info('✅ Project proof file uploaded', [
+                        'project_id' => $project->id,
+                        'file_name' => $fileName,
+                        'file_path' => $filePath,
+                    ]);
+                } catch (\Exception $fileError) {
+                    Log::warning('⚠️ Failed to upload project proof file', [
+                        'error' => $fileError->getMessage(),
+                    ]);
+                    // Don't fail the project creation if file upload fails
+                }
             }
             
             $project->created_at = now();
             $project->updated_at = now();
             
+            // Save project to database
             $project->save();
+            Log::info('✅ Project saved to database', ['project_id' => $project->id]);
 
             // Create an initial baseline ledger entry when project starts with budget.
             $initialLedger = null;
             if ((float) ($project->budget ?? 0) > 0) {
-                $initialLedger = LedgerEntry::create([
-                    'id' => (string) Str::uuid(),
-                    'project_id' => $project->id,
-                    'type' => 'Initial',
-                    'amount' => (float) $project->budget,
-                    'budget_breakdown' => null,
-                    'description' => 'Initial project budget baseline',
-                    'category' => 'Project Budget Baseline',
-                    'approval_status' => 'Draft',
-                    'note' => 'Auto-generated baseline on project creation',
-                    'created_by' => Auth::id(),
-                    'updated_by' => Auth::id(),
-                    'archive' => 0,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                try {
+                    $initialLedger = LedgerEntry::create([
+                        'id' => (string) Str::uuid(),
+                        'project_id' => $project->id,
+                        'type' => 'Initial',
+                        'amount' => (float) $project->budget,
+                        'budget_breakdown' => null,
+                        'description' => 'Initial project budget baseline',
+                        'category' => 'Project Budget Baseline',
+                        'approval_status' => 'Draft',
+                        'note' => 'Auto-generated baseline on project creation',
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
+                        'archive' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    Log::info('✅ Initial ledger entry created', ['ledger_id' => $initialLedger->id]);
+                } catch (\Exception $ledgerError) {
+                    Log::warning('⚠️ Failed to create initial ledger entry', [
+                        'error' => $ledgerError->getMessage(),
+                    ]);
+                    // Don't fail the project creation if ledger creation fails
+                }
             }
             
             // Return the project with the file URL and initial ledger
@@ -138,10 +161,23 @@ class ProjectController extends Controller
                 ];
             }
             
+            Log::info('✅ Project creation successful', ['project_id' => $project->id]);
             return response()->json($responseData, 201);
-        } catch (\Exception $e) {
-            Log::error('Project creation failed: ' . $e->getMessage());
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('❌ Project validation error', ['errors' => $e->errors()]);
             return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('❌ Project creation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
                 'message' => 'Failed to create project',
                 'error' => $e->getMessage()
             ], 500);

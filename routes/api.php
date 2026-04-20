@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\ChatbotController;
 // Import your controllers here
 use App\Http\Controllers\CSG\LedgerEntryController;
+use App\Http\Controllers\CSG\ProjectController;
 use App\Http\Controllers\Auth\OTPController;
 use App\Http\Controllers\Auth\OnboardingController;
 use App\Http\Controllers\Auth\BulkRegistrationController;
@@ -119,3 +120,10 @@ Route::get('/ledger-entries', [LedgerEntryController::class, 'all']);
 
 // Route to verify blockchain integrity for a project
 Route::get('/projects/{projectId}/verify-chain', [LedgerEntryController::class, 'verifyChain']);
+
+/**
+ * CSG PROJECT API ROUTES
+ */
+Route::apiResource('projects', ProjectController::class, [
+    'only' => ['index', 'store', 'show', 'update', 'destroy']
+]);

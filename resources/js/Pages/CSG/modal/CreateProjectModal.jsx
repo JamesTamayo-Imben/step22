@@ -168,11 +168,31 @@ export function CreateProjectModal({
         body: formData,
       });
 
-      const data = await response.json();
-
+      // Check if response is ok first
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to create project');
+        console.error('❌ Server error response:', response.status, response.statusText);
+        const contentType = response.headers.get('content-type') || '';
+        const isJsonResponse = contentType.includes('application/json');
+        
+        if (isJsonResponse) {
+          const data = await response.json();
+          throw new Error(data.message || `Server error: ${response.status}`);
+        } else {
+          const text = await response.text();
+          console.error('Non-JSON response:', text.substring(0, 500));
+          throw new Error(`Server error: ${response.status} - ${response.statusText}`);
+        }
       }
+
+      // Try to parse JSON response
+      const contentType = response.headers.get('content-type') || '';
+      const isJsonResponse = contentType.includes('application/json');
+      
+      if (!isJsonResponse) {
+        throw new Error('Server did not return JSON response');
+      }
+
+      const data = await response.json();
 
       showToast('Project created successfully', 'success');
       handleClose();
@@ -182,7 +202,8 @@ export function CreateProjectModal({
         onSave(data);
       }
     } catch (err) {
-      showToast(err.message, 'error');
+      console.error('❌ Project creation error:', err);
+      showToast(err.message || 'Failed to create project', 'error');
     } finally {
       setIsLoading(false);
     }
