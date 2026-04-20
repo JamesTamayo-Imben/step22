@@ -207,6 +207,12 @@ const formatDate = (dateString) => {
   });
 };
 
+// Check if a user is already assigned to a CSG officer position
+const isUserInCSG = (userId) => {
+  return councilOfficers.some(officer => officer.userId === userId);
+};
+
+
   const filteredUsers = useMemo(() => {
     const q = (searchQuery || '').toLowerCase();
     if (!q) return csgOfficerCandidates;
@@ -834,7 +840,10 @@ const formatDate = (dateString) => {
               <p className="text-xs text-gray-500">{user.email}</p>
               <p className="text-xs text-gray-400">ID: {user.studentId}</p>
             </div>
-            {selectedUser === user.id && <CheckCircle className="w-5 h-5 text-[#2563EB] flex-shrink-0" />}
+            {selectedUser === user.id 
+  ? <CheckCircle className="w-5 h-5 text-[#2563EB] flex-shrink-0" />
+  : isUserInCSG(user.id) && <CheckCircle className="w-5 h-5 text-blue-900 flex-shrink-0" />
+}
           </button>
         ))
       ) : (

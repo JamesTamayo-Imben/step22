@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Inertia } from '@inertiajs/inertia';
 import { usePage, router } from '@inertiajs/react';
+// import { router } from '@inertiajs/react'
 import { 
   LayoutDashboard, 
   FolderKanban, 
@@ -264,16 +265,14 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
             </div>
           )}
           
-          <form method="POST" action="/logout" className="w-full">
-            <input type="hidden" name="_token" value={csrfToken} />
-            <button
-              type="submit"
-              className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
-          </form>
+         <button
+  type="button"
+  onClick={() => router.post('/logout')}
+  className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all"
+>
+  <LogOut className="w-5 h-5 pointer-events-none" />
+  <span className="pointer-events-none">Logout</span>
+</button>
         </div>
       </aside>
 
@@ -394,16 +393,14 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
               <p className="text-xs text-gray-500">{user?.email || 'No email'}</p>
             </div>
           </div>
-          <form method="POST" action="/logout" className="w-full">
-            <input type="hidden" name="_token" value={csrfToken} />
-            <button
-              type="submit"
-              className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
-          </form>
+          <button
+  type="button"
+  onClick={() => router.post('/logout')}
+  className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all"
+>
+  <LogOut className="w-5 h-5 pointer-events-none" />
+  <span className="pointer-events-none">Logout</span>
+</button>
         </div>
       </aside>
 

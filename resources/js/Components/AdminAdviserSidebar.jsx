@@ -174,16 +174,14 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
         </nav>
 
         <div className="p-4 border-t border-gray-200">
-          <form method="POST" action="/logout" className="w-full">
-            <input type="hidden" name="_token" value={csrfToken} />
-            <button
-              type="submit"
-              className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
-          </form>
+         <button
+  type="button"
+  onClick={() => router.post('/logout')}
+  className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all"
+>
+  <LogOut className="w-5 h-5 pointer-events-none" />
+  <span className="pointer-events-none">Logout</span>
+</button>
         </div>
       </aside>
 
@@ -256,16 +254,14 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
               <p className="text-xs text-gray-500">{user?.email || 'No email'}</p>
             </div>
           </div>
-          <form method="POST" action="/logout" className="w-full">
-            <input type="hidden" name="_token" value={csrfToken} />
-            <button
-              type="submit"
-              className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-all"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="text-sm">Logout</span>
-            </button>
-          </form>
+         <button
+  type="button"
+  onClick={() => router.post('/logout')}
+  className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all"
+>
+  <LogOut className="w-5 h-5 pointer-events-none" />
+  <span className="pointer-events-none">Logout</span>
+</button>
         </div>
       </aside>
     </>

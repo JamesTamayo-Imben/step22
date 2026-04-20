@@ -8,7 +8,7 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -16,7 +16,13 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
+
+    if (!rememberMe) {
+      setError("Please check 'Remember me' before logging in.");
+      return;
+    }
+
+     setIsLoading(true);
 
     try {
       const uname = username.trim();
@@ -82,6 +88,8 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
     if (onNavigateToRegister) return onNavigateToRegister();
     window.location.href = '/register';
   };
+
+  
 
   return (
     <div className="min-h-screen flex">
@@ -219,12 +227,12 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
             </button>
           </form>
 
-          {/* <p className="text-center text-sm text-gray-600 mt-6">
+          <p className="text-center text-sm text-gray-600 mt-6">
             Don't have an account?{" "}
             <button onClick={goToRegister} className="text-blue-600 hover:underline">
               Sign up
             </button>
-          </p> */}
+          </p>
         </div>
       </div>
     </div>

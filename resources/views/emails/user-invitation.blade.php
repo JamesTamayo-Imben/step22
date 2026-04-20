@@ -20,7 +20,7 @@
             overflow: hidden;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
             color: white;
             padding: 40px 20px;
             text-align: center;
@@ -49,11 +49,11 @@
             margin: 8px 0;
         }
         .credentials-box strong {
-            color: #667eea;
+            color: #0f62dd;
         }
         .cta-button {
             display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
             color: white;
             padding: 14px 32px;
             text-decoration: none;
@@ -65,7 +65,7 @@
         }
         .cta-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 12px rgba(30, 113, 221, 0.4);
         }
         .instructions {
             background-color: #f9fafb;
@@ -83,7 +83,7 @@
         }
         .role-badge {
             display: inline-block;
-            background-color: #667eea;
+            background-color: #0f62dd;
             color: white;
             padding: 6px 14px;
             border-radius: 20px;
@@ -99,7 +99,7 @@
             color: #666;
         }
         .footer a {
-            color: #667eea;
+            color: #0f62dd;
             text-decoration: none;
         }
     </style>
@@ -107,7 +107,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎓 Welcome to KLD School Platform</h1>
+            <h1>Welcome to KLD School Platform</h1>
         </div>
 
         <div class="content">
@@ -120,7 +120,7 @@
                 <p><strong>Password:</strong> {{ $password }}</p>
             </div>
 
-            <p style="color: #dc2626; font-weight: bold;">⚠️ Important: Please change this password immediately after your first login for security.</p>
+            <p style="color: #dc2626; font-weight: bold;">Important: Please change this password immediately after your first login for security.</p>
 
             <div class="role-badge">{{ $role }}</div>
 

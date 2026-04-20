@@ -202,6 +202,12 @@ export function RolePermissionsPage() {
     });
   };
 
+//if the student is already part of csg make its checkcircle icon color blue
+const isUserInCSG = (userId) => {
+  return councilOfficers.some(officer => officer.userId === userId);
+};
+
+
   const filteredUsers = useMemo(() => {
     const q = (searchQuery || '').toLowerCase();
     if (!q) return csgOfficerCandidates;
@@ -697,7 +703,10 @@ export function RolePermissionsPage() {
                     <p className="text-xs text-gray-500">{user.email}</p>
                     <p className="text-xs text-gray-400">ID: {user.studentId}</p>
                   </div>
-                  {selectedUser === user.id && <CheckCircle className="w-5 h-5 text-[#2563EB] flex-shrink-0" />}
+                  {selectedUser === user.id 
+  ? <CheckCircle className="w-5 h-5 text-[#2563EB] flex-shrink-0" />
+  : isUserInCSG(user.id) && <CheckCircle className="w-5 h-5 text-blue-900 flex-shrink-0" />
+}
                 </button>
               ))
             ) : (
