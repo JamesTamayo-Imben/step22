@@ -362,6 +362,16 @@ public function complete(Request $request)
                 $emailLocal = $emailParts[0]; // Get part before @
                 $temporaryPassword = $emailLocal . 'KLD' . date('Y');
                 
+                // 🔐 Store hashed temporary password in database
+                $user->update([
+                    'password' => Hash::make($temporaryPassword),
+                ]);
+                
+                Log::info('✅ Temporary password stored in database', [
+                    'user_id' => $userId,
+                    'email' => $user->email,
+                ]);
+                
                 $studentId = null;
                 $employeeId = null;
 
@@ -467,6 +477,16 @@ public function complete(Request $request)
                 $emailParts = explode('@', $user->email);
                 $emailLocal = $emailParts[0]; // Get part before @
                 $temporaryPassword = $emailLocal . 'KLD' . date('Y');
+
+                // 🔐 Store hashed temporary password in database
+                $user->update([
+                    'password' => Hash::make($temporaryPassword),
+                ]);
+                
+                Log::info('✅ Temporary password stored in database (skip flow)', [
+                    'user_id' => $userId,
+                    'email' => $user->email,
+                ]);
 
                 // Determine user's role (if assigned) for email
                 $userRole = $user->role?->slug ?? 'user';
