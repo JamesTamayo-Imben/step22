@@ -289,6 +289,11 @@ class UserManagementController extends Controller
                 'status' => 'active',
             ]);
 
+            // Generate invitation token for teachers/professors (so they can complete registration via link)
+            if (in_array($role->name, ['Ordinary Teacher', 'Admin/Adviser'])) {
+                $user->generateInvitationToken();
+            }
+
             // Create role-specific records
             if ($role->name === 'Student') {
                 Student::create([
@@ -302,6 +307,16 @@ class UserManagementController extends Controller
                     'specialization' => $validated['specialization'] ?? null,
                     'office_location' => $validated['office_location'] ?? null,
                     'is_adviser' => in_array($role->name, ['Admin/Adviser']) ? 1 : 0,
+                ]);
+            }
+
+            // Generate registration link for teachers/professors
+            $registrationLink = null;
+            if (in_array($role->name, ['Ordinary Teacher', 'Admin/Adviser'])) {
+                $registrationLink = route('register.teacher', [
+                    'token' => $user->invitation_token,
+                    'email' => urlencode($user->email),
+                    'name' => urlencode($user->name),
                 ]);
             }
 
@@ -321,6 +336,7 @@ class UserManagementController extends Controller
                     'createdAt' => $user->created_at->format('M d, Y'),
                     'lastLogin' => null,
                 ],
+                'registrationLink' => $registrationLink, // Frontend can use this to send via email
             ], 201);
         } catch (\Exception $e) {
             return response()->json([

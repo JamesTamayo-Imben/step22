@@ -30,9 +30,7 @@ class Teacher extends Model
     protected $fillable = [
         'id',               // This is the Employee ID (Primary Key)
         'user_id',          // Foreign key to users table
-        'permission_id',    // Foreign key to permission table
-        'office_location',
-        'specialization',
+        'institute_id',     // Foreign key to institute table
         'is_adviser',
         'archive',
     ];
@@ -51,6 +49,14 @@ class Teacher extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Get the institute this teacher belongs to.
+     */
+    public function institute(): BelongsTo
+    {
+        return $this->belongsTo(Institute::class, 'institute_id');
     }
 
     /**

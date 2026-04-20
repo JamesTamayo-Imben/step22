@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\ChatbotController;
 // Import your controllers here
 use App\Http\Controllers\CSG\LedgerEntryController;
@@ -43,14 +44,34 @@ Route::post('/auth/register-student', [BulkRegistrationController::class, 'regis
 /**
  * DATA PROVIDERS - Courses and Institutes (No auth required)
  */
-Route::get('/courses', function () {
-    $courses = \App\Models\Course::where('archive', 0)->select('id', 'name')->get();
-    return response()->json(['courses' => $courses]);
+Route::get('/institutes', function () {
+    try {
+        Log::info('Fetching institutes from table: institute');
+        $institutes = \App\Models\Institute::where('archive', 0)->select('id', 'name')->get();
+        Log::info('Institutes fetched successfully', ['count' => count($institutes)]);
+        return response()->json(['institutes' => $institutes]);
+    } catch (\Exception $e) {
+        Log::error('Failed to fetch institutes', ['error' => $e->getMessage()]);
+        return response()->json([
+            'error' => $e->getMessage(),
+            'institutes' => []
+        ], 500);
+    }
 });
 
-Route::get('/institutes', function () {
-    $institutes = \App\Models\Institute::where('archive', 0)->select('id', 'name')->get();
-    return response()->json(['institutes' => $institutes]);
+Route::get('/courses', function () {
+    try {
+        Log::info('Fetching courses from table: course');
+        $courses = \App\Models\Course::where('archive', 0)->select('id', 'name')->get();
+        Log::info('Courses fetched successfully', ['count' => count($courses)]);
+        return response()->json(['courses' => $courses]);
+    } catch (\Exception $e) {
+        Log::error('Failed to fetch courses', ['error' => $e->getMessage()]);
+        return response()->json([
+            'error' => $e->getMessage(),
+            'courses' => []
+        ], 500);
+    }
 });
 
 /**

@@ -17,6 +17,8 @@ export default function RegisterTeacherPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [institutes, setInstitutes] = useState([]);
+  const [invitationToken, setInvitationToken] = useState(null);
+  const [isInvitedRegistration, setIsInvitedRegistration] = useState(false);
 
   // Pre-fill form from URL query parameters and fetch institutes
   useEffect(() => {
@@ -24,6 +26,16 @@ export default function RegisterTeacherPage() {
     const email = searchParams.get('email') || '';
     const password = searchParams.get('password') || '';
     const name = searchParams.get('name') || '';
+    const token = searchParams.get('token') || '';
+
+    // If token exists, this is an invited registration
+    if (token) {
+      setInvitationToken(token);
+      setIsInvitedRegistration(true);
+      console.log('🔗 Invitation token detected:', token.substring(0, 10) + '...');
+      console.log('📧 Pre-filled email:', email);
+      console.log('👤 Pre-filled name:', name);
+    }
 
     setForm(prev => {
       const newForm = {
@@ -43,13 +55,25 @@ export default function RegisterTeacherPage() {
 
     // Fetch institutes
     fetch('/api/institutes')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
-        if (data.institutes) {
+        console.log('Institutes data received:', data);
+        if (data.institutes && Array.isArray(data.institutes)) {
           setInstitutes(data.institutes);
+          console.log('Institutes set:', data.institutes);
+        } else {
+          console.warn('Institutes data not in expected format:', data);
         }
       })
-      .catch(err => console.error('Failed to fetch institutes:', err));
+      .catch(err => {
+        console.error('Failed to fetch institutes:', err);
+        setError(`Failed to load institutes: ${err.message}`);
+      });
   }, []);
 
   const handleChange = (field, value) => {
@@ -62,52 +86,172 @@ export default function RegisterTeacherPage() {
     setIsLoading(true);
 
     try {
-      // Validation
-      if (!form.firstName || !form.lastName) {
-        throw new Error('Please provide your full name');
-      }
+      // If this is an invited registration, only require password
+      if (isInvitedRegistration) {
+        if (!form.password) {
+          throw new Error('Password is required');
+        }
+        
+        if (form.password.length < 8) {
+          throw new Error('Password must be at least 8 characters');
+        }
 
-      if (!form.employeeId) {
-        throw new Error('Please provide your employee ID');
-      }
+        console.log('🔗 Completing invited teacher registration');
+        console.log('📧 Email:', form.email);
+        console.log('🔐 Token:', invitationToken.substring(0, 10) + '...');
 
-      if (!form.email) {
-        throw new Error('Email is required');
-      }
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-      if (!form.password) {
-        throw new Error('Password is required');
-      }
+        const response = await fetch('/api/auth/register-teacher', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken || '',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            invitation_token: invitationToken,
+            password: form.password,
+            phone: form.phone || null,
+          }),
+        });
 
-      // Send registration request
-      const response = await fetch('/api/auth/register-teacher', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
-        },
-        body: JSON.stringify({
+        console.log('📡 Response status:', response.status);
+
+        const contentType = response.headers.get('content-type');
+        let data;
+        
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+          console.log('✅ Response data:', data);
+        } else {
+          const text = await response.text();
+          console.error('❌ Response is HTML, not JSON');
+          throw new Error('Server returned HTML instead of JSON.');
+        }
+
+        if (response.ok) {
+          console.log('✅ Registration completed successfully!');
+          setSuccess(true);
+          // Redirect to login page after success so user can log in
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+        } else {
+          throw new Error(data.message || 'Registration failed');
+        }
+      } else {
+        // Standard registration (no token)
+        // Validation
+        if (!form.firstName || !form.lastName) {
+          throw new Error('Please provide your full name');
+        }
+
+        if (!form.employeeId) {
+          throw new Error('Please provide your employee ID');
+        }
+
+        if (!form.email) {
+          throw new Error('Email is required');
+        }
+
+        if (!form.password) {
+          throw new Error('Password is required');
+        }
+
+        // Send registration request
+        console.log('🚀 Sending registration request to /api/auth/register-teacher');
+        console.log('📋 Form data:', {
           firstName: form.firstName,
           lastName: form.lastName,
           email: form.email,
-          password: form.password,
           employeeId: form.employeeId,
           institute: form.institute || null,
           phone: form.phone || null,
           role: 'teacher',
-        }),
-      });
+        });
 
-      const data = await response.json();
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        console.log('🔐 CSRF Token:', csrfToken ? '✅ Present' : '❌ Missing');
 
-      if (response.ok) {
-        setSuccess(true);
-        // Redirect to login after success
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 2000);
-      } else {
-        throw new Error(data.message || 'Registration failed');
+        // Problema ka
+
+        // The email has already been taken.
+        // This error can occur if the email provided is already registered in the system. The backend should ideally return a clear error message indicating that the email is already in use. Make sure to check the backend validation rules and error handling to ensure that it returns a proper JSON response with an appropriate status code (e.g., 422 Unprocessable Entity) when this happens.
+        // how to fix
+        // To fix the "email has already been taken" error, you should ensure that your backend API endpoint for registering a teacher checks if the email already exists in the database before attempting to create a new user. If the email is already registered, the backend should return a JSON response with an appropriate error message and status code (like 422 Unprocessable Entity). On the frontend, you can then display this error message to the user. Additionally, you can implement client-side validation to check if the email is already in use before submitting the form, although this should not replace server-side validation. Make sure to handle this error gracefully in your UI, informing the user that they need to use a different email address or log in if they already have an account.
+
+        // provide code and what it is
+        // what i want is update the one that sadmin create not add it to the table
+
+        const response = await fetch('/api/auth/register-teacher', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken || '',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            firstName: form.firstName,
+            lastName: form.lastName,
+            email: form.email,
+            password: form.password,
+            employeeId: form.employeeId,
+            institute: form.institute || null,
+            phone: form.phone || null,
+            role: 'teacher',
+          }),
+        });
+        
+        // const response = await fetch('/api/auth/register-teacher', {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //     'X-CSRF-TOKEN': csrfToken || '',
+        //     'Accept': 'application/json',
+        //   },
+        //   body: JSON.stringify({
+        //     firstName: form.firstName,
+        //     lastName: form.lastName,
+        //     email: form.email,
+        //     password: form.password,
+        //     employeeId: form.employeeId,
+        //     institute: form.institute || null,
+        //     phone: form.phone || null,
+        //     role: 'teacher',
+        //   }),
+        // });
+
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response headers:', {
+          contentType: response.headers.get('content-type'),
+        });
+
+        // First check if response is JSON
+        const contentType = response.headers.get('content-type');
+        let data;
+        
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+          
+          console.log('✅ Response data:', data);
+        } else {
+          // Response is HTML (error page), not JSON
+          const text = await response.text();
+          console.error('❌ Response is HTML, not JSON');
+          console.error('📝 First 200 chars:', text.substring(0, 200));
+          throw new Error('Server returned HTML instead of JSON. The API endpoint may not exist or there\'s a server error.');
+        }
+
+        if (response.ok) {
+          setSuccess(true);
+          // Redirect to login page after success so user can log in
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+        } else {
+          throw new Error(data.message || 'Registration failed');
+        }
       }
     } catch (err) {
       setError(err.message);
@@ -211,8 +355,12 @@ export default function RegisterTeacherPage() {
             </div>
           </div>
 
-          <h2 className="text-center text-2xl text-gray-800 mb-2">Teacher Registration</h2>
-          <p className="text-center text-sm text-gray-500 mb-6">Complete your profile to get started</p>
+          <h2 className="text-center text-2xl text-gray-800 mb-2">
+            {isInvitedRegistration ? 'Complete Your Registration' : 'Teacher Registration'}
+          </h2>
+          <p className="text-center text-sm text-gray-500 mb-6">
+            {isInvitedRegistration ? 'Set your password to activate your account' : 'Complete your profile to get started'}
+          </p>
 
           {/* Error */}
           {error && (
@@ -231,75 +379,125 @@ export default function RegisterTeacherPage() {
               </div>
             )}
 
-            {form.password && (
+            {isInvitedRegistration && form.firstName && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                <p className="text-xs text-gray-600 mb-1">Initial Password (Change after login)</p>
-                <code className="text-sm font-mono text-gray-800">{form.password}</code>
+                <p className="text-xs text-gray-600 mb-1">Name (Pre-filled)</p>
+                <p className="text-sm font-semibold text-gray-800">{form.firstName} {form.lastName}</p>
               </div>
             )}
 
-            {/* First + Last Name */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Show full name fields only for standard registration */}
+            {!isInvitedRegistration && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">First Name *</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      placeholder="Juan"
+                      value={form.firstName}
+                      onChange={(e) => handleChange('firstName', e.target.value)}
+                      className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Last Name *</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      placeholder="Dela Cruz"
+                      value={form.lastName}
+                      onChange={(e) => handleChange('lastName', e.target.value)}
+                      className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Email field only for standard registration */}
+            {!isInvitedRegistration && !form.email && (
               <div>
-                <label className="block text-sm text-gray-600 mb-1">First Name *</label>
+                <label className="block text-sm text-gray-600 mb-1">Email *</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
-                    placeholder="Juan"
-                    value={form.firstName}
-                    onChange={(e) => handleChange('firstName', e.target.value)}
+                    type="email"
+                    placeholder="your.email@kld.edu.ph"
+                    value={form.email}
+                    onChange={(e) => handleChange('email', e.target.value)}
                     className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                   />
                 </div>
               </div>
+            )}
 
+            {/* Employee ID - only for standard registration */}
+            {!isInvitedRegistration && (
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Last Name *</label>
+                <label className="block text-sm text-gray-600 mb-1">Employee ID *</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
-                    placeholder="Dela Cruz"
-                    value={form.lastName}
-                    onChange={(e) => handleChange('lastName', e.target.value)}
+                    type="text"
+                    placeholder="T-12345"
+                    value={form.employeeId}
+                    onChange={(e) => handleChange('employeeId', e.target.value)}
                     className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                   />
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Employee ID */}
+            {/* Institute (Optional) - only for standard registration */}
+            {!isInvitedRegistration && (
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Institute</label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <select
+                    value={form.institute}
+                    onChange={(e) => handleChange('institute', e.target.value)}
+                    className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                  >
+                    <option value="">Select an institute</option>
+                    {institutes.map((institute) => (
+                      <option key={institute.id} value={institute.id}>
+                        {institute.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Password - required for both */}
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Employee ID *</label>
+              <label className="block text-sm text-gray-600 mb-1">
+                {isInvitedRegistration ? 'Set Your Password *' : 'Password *'}
+              </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
-                  type="text"
-                  placeholder="T-12345"
-                  value={form.employeeId}
-                  onChange={(e) => handleChange('employeeId', e.target.value)}
-                  className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={(e) => handleChange('password', e.target.value)}
+                  className="w-full h-10 pl-9 pr-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                 />
-              </div>
-            </div>
-
-            {/* Institute (Optional) */}
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">Institute</label>
-              <div className="relative">
-                <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <select
-                  value={form.institute}
-                  onChange={(e) => handleChange('institute', e.target.value)}
-                  className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <option value="">Select an institute</option>
-                  {institutes.map((institute) => (
-                    <option key={institute.id} value={institute.id}>
-                      {institute.name}
-                    </option>
-                  ))}
-                </select>
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
+              {isInvitedRegistration && (
+                <p className="text-xs text-gray-500 mt-1">Minimum 8 characters required</p>
+              )}
             </div>
 
             {/* Phone (Optional) */}
@@ -325,7 +523,7 @@ export default function RegisterTeacherPage() {
               className={`w-full h-10 rounded-xl text-white font-medium transition ${isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
               style={{ background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)" }}
             >
-              {isLoading ? 'Completing Registration...' : 'Complete Registration'}
+              {isLoading ? (isInvitedRegistration ? 'Completing Registration...' : 'Registering...') : (isInvitedRegistration ? 'Complete Registration' : 'Register')}
             </button>
           </form>
 

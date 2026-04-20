@@ -7,6 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class Institute extends Model
 {
     /**
+     * The table associated with the model.
+     */
+    protected $table = 'institute';
+
+    /**
      * Indicates if the IDs are auto-incrementing.
      *
      * @var bool
@@ -23,6 +28,7 @@ class Institute extends Model
     protected $fillable = [
         'name',
         'description',
+        'archive',
     ];
 
     protected $hidden = [];

@@ -24,12 +24,11 @@ class Student extends Model
 
     /**
      * Fillable columns matching your SQL schema exactly.
-     * Removed: year_level, course (string), department, gpa, enrollment_date, etc.
      */
     protected $fillable = [
         'id',               // The actual Student ID (Primary Key)
         'user_id',          // Foreign key to users table
-        'adviser_id',       // Foreign key to teacher_adviser table
+        'course_id',        // Foreign key to course table
         'is_csg',
         'csg_position',
         'csg_term_start',

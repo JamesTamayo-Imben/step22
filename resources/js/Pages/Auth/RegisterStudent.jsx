@@ -43,13 +43,25 @@ export default function RegisterStudentPage() {
 
     // Fetch courses
     fetch('/api/courses')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
-        if (data.courses) {
+        console.log('Courses data received:', data);
+        if (data.courses && Array.isArray(data.courses)) {
           setCourses(data.courses);
+          console.log('Courses set:', data.courses);
+        } else {
+          console.warn('Courses data not in expected format:', data);
         }
       })
-      .catch(err => console.error('Failed to fetch courses:', err));
+      .catch(err => {
+        console.error('Failed to fetch courses:', err);
+        setError(`Failed to load courses: ${err.message}`);
+      });
   }, []);
 
   const handleChange = (field, value) => {
@@ -80,11 +92,26 @@ export default function RegisterStudentPage() {
       }
 
       // Send registration request
+      console.log('🚀 Sending registration request to /api/auth/register-student');
+      console.log('📋 Form data:', {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        studentId: form.studentId,
+        course: form.course || null,
+        phone: form.phone || null,
+        role: 'student',
+      });
+
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      console.log('🔐 CSRF Token:', csrfToken ? '✅ Present' : '❌ Missing');
+
       const response = await fetch('/api/auth/register-student', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+          'X-CSRF-TOKEN': csrfToken || '',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
           firstName: form.firstName,
@@ -98,13 +125,31 @@ export default function RegisterStudentPage() {
         }),
       });
 
-      const data = await response.json();
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', {
+        contentType: response.headers.get('content-type'),
+      });
+
+      // First check if response is JSON
+      const contentType = response.headers.get('content-type');
+      let data;
+      
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+        console.log('✅ Response data:', data);
+      } else {
+        // Response is HTML (error page), not JSON
+        const text = await response.text();
+        console.error('❌ Response is HTML, not JSON');
+        console.error('📝 First 200 chars:', text.substring(0, 200));
+        throw new Error('Server returned HTML instead of JSON. The API endpoint may not exist or there\'s a server error.');
+      }
 
       if (response.ok) {
         setSuccess(true);
-        // Redirect to login after success
+        // Redirect to CSG dashboard after success
         setTimeout(() => {
-          window.location.href = '/login';
+          window.location.href = '/csg/dashboard';
         }, 2000);
       } else {
         throw new Error(data.message || 'Registration failed');
@@ -269,7 +314,7 @@ export default function RegisterStudentPage() {
 
             {/* Student ID */}
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Student ID *</label>
+              <label className="block text-sm text-gray-600 mb-1">Student ID * <span className="text-xs text-gray-500">(Any ID allowed)</span></label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input

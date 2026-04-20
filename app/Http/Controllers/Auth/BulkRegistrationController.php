@@ -17,15 +17,106 @@ class BulkRegistrationController extends Controller
 {
     /**
      * Register a teacher with invitation data
+     * If the teacher already has a existing user record created by superadmin, complete registration using token
      */
     public function registerTeacher(Request $request)
     {
+        // Check if this is an invited teacher using a token
+        $invitationToken = $request->input('invitation_token');
+        
+        if ($invitationToken) {
+            return $this->completeTeacherRegistration($request, $invitationToken);
+        }
+
+        // Standard registration (no token)
+        return $this->createNewTeacher($request);
+    }
+
+    /**
+     * Complete teacher registration using invitation token
+     * Updates existing user record created by superadmin
+     */
+    private function completeTeacherRegistration(Request $request, string $invitationToken)
+    {
+        // Validate only password and phone for invited registration
+        try {
+            $validated = $request->validate([
+                'password' => ['required', 'string', 'min:8'],
+                'phone' => ['nullable', 'string', 'max:20'],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        try {
+            // Find user by valid invitation token
+            $user = User::findByValidToken($invitationToken);
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid or expired invitation link. Please contact admin to request a new link.',
+                ], 401);
+            }
+
+            // Verify user is a teacher
+            if (!$user->hasAnyRole(['Ordinary Teacher', 'Admin/Adviser'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This invitation link is not for a teacher account.',
+                ], 422);
+            }
+
+            // Update user's password and phone
+            $user->update([
+                'password' => bcrypt($validated['password']),
+                'phone' => $validated['phone'] ?? $user->phone,
+                'email_verified_at' => now(),
+            ]);
+
+            // Mark token as expired (can't be used again)
+            $user->markTokenAsExpired();
+
+            // NOTE: Do NOT create Supabase Auth user here!
+            // User was already created in Supabase by the admin when sending the invitation.
+            // Only update the password in local database (Supabase auth is handled separately by admin)
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Registration completed successfully',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role->name,
+                ],
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Registration failed: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Create a new teacher account (standard registration without token)
+     * If teacher was pre-created by admin, this updates the existing record
+     */
+    private function createNewTeacher(Request $request)
+    {
+        // First validate without the unique email constraint
         $validated = $request->validate([
             'firstName' => ['required', 'string', 'max:255'],
             'lastName' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', Rule::unique('users')],
+            'email' => ['required', 'email'],
             'password' => ['required', 'string', 'min:8'],
-            'employeeId' => ['required', 'string', 'max:50', Rule::unique('teacher_adviser', 'id')],
+            'employeeId' => ['required', 'string', 'max:50'],
             'institute' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'role' => ['required', 'in:teacher,professor'],
@@ -46,23 +137,9 @@ class BulkRegistrationController extends Controller
                 ], 422);
             }
 
-            // Verify that the employee ID actually exists in the system
-            $existingTeacher = Teacher::find($employeeId);
-            if (!$existingTeacher) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Teacher ID '{$employeeId}' does not exist in the system. Contact admin to create this record first.",
-                ], 422);
-            }
-
-            // Verify the email hasn't already been assigned to this teacher
-            if ($existingTeacher->user_id) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Teacher ID '{$employeeId}' already has a registered user account.",
-                ], 422);
-            }
-
+            // Check if email is already registered to ANY user
+            $existingUser = User::where('email', $email)->first();
+            
             // Get the teacher/professor role
             $role = Role::whereIn('name', ['Ordinary Teacher', 'Admin/Adviser'])->first();
 
@@ -73,33 +150,62 @@ class BulkRegistrationController extends Controller
                 ], 422);
             }
 
-            // Create user in Supabase Auth first
-            $this->createSupabaseAuthUser(
-                $validated['email'],
-                $validated['password'],
-                $validated['firstName'],
-                $validated['lastName']
+            // Check if employee ID is already registered (has user_id)
+            $existingTeacher = Teacher::find($employeeId);
+            if ($existingTeacher && $existingTeacher->user_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Teacher ID '{$employeeId}' already has a registered user account.",
+                ], 422);
+            }
+
+            // If email exists, update that user record; otherwise create new user
+            if ($existingUser) {
+                // Email exists - update the existing user record
+                $existingUser->update([
+                    'name' => $validated['firstName'] . ' ' . $validated['lastName'],
+                    'password' => bcrypt($validated['password']),
+                    'role_id' => $validated['role'] === 'teacher' ? Role::where('name', 'Ordinary Teacher')->first()->id : Role::where('name', 'Admin/Adviser')->first()->id,
+                    // 'role_id' => $role->id,
+                    'status' => 'active',
+                    'phone' => $validated['phone'] ?? $existingUser->phone,
+                    'email_verified_at' => now(),
+                ]);
+                $user = $existingUser;
+            } else {
+                // Email doesn't exist - create new user
+                // Create user in Supabase Auth first
+                $this->createSupabaseAuthUser(
+                    $validated['email'],
+                    $validated['password'],
+                    $validated['firstName'],
+                    $validated['lastName']
+                );
+
+                // Create user in local database
+                $user = User::create([
+                    'id' => Str::uuid(),
+                    'name' => $validated['firstName'] . ' ' . $validated['lastName'],
+                    'email' => $validated['email'],
+                    'password' => bcrypt($validated['password']),
+                    'role_id' => $role->id,
+                    'status' => 'active',
+                    'phone' => $validated['phone'] ?? null,
+                    'email_verified_at' => now(),
+                ]);
+            }
+
+            // Create or update teacher record with user_id and institute_id
+            // Employee ID (id field) is NOT hashed - kept as plain string/varchar
+            $teacher = Teacher::updateOrCreate(
+                ['id' => $employeeId],                              // Find by Employee ID
+                [
+                    'user_id' => $user->id,                         // Link to user
+                    'institute_id' => $validated['institute'] ?? null,  // Institute reference
+                    'is_adviser' => $role->name === 'Admin/Adviser' ? 1 : 0,  // Set adviser flag
+                    'archive' => 0,                                 // Mark as not archived
+                ]
             );
-
-            // Create user in local database
-            $user = User::create([
-                'id' => Str::uuid(),
-                'name' => $validated['firstName'] . ' ' . $validated['lastName'],
-                'email' => $validated['email'],
-                'password' => bcrypt($validated['password']),
-                'role_id' => $role->id,
-                'status' => 'active',
-                'phone' => $validated['phone'] ?? null,
-                'email_verified_at' => now(),
-            ]);
-
-            // Create teacher record
-            Teacher::create([
-                'id' => $validated['employeeId'],
-                'user_id' => $user->id,
-                'institute' => $validated['institute'] ?? null,
-                'is_adviser' => $role->name === 'Admin/Adviser' ? 1 : 0,
-            ]);
 
             return response()->json([
                 'success' => true,
@@ -109,6 +215,11 @@ class BulkRegistrationController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => $role->name,
+                ],
+                'teacher' => [
+                    'employeeId' => $teacher->id,      // Plain text, NOT hashed
+                    'instituteId' => $teacher->institute_id,
+                    'isAdviser' => $teacher->is_adviser,
                 ],
             ], 201);
 
@@ -122,6 +233,7 @@ class BulkRegistrationController extends Controller
 
     /**
      * Register a student with invitation data
+     * Students can self-register - student record is created if it doesn't exist
      */
     public function registerStudent(Request $request)
     {
@@ -130,7 +242,7 @@ class BulkRegistrationController extends Controller
             'lastName' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', Rule::unique('users')],
             'password' => ['required', 'string', 'min:8'],
-            'studentId' => ['required', 'string', 'max:50', Rule::unique('student_csg_officers', 'id')],
+            'studentId' => ['required', 'string', 'max:50'],
             'course' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'role' => ['required', 'in:student'],
@@ -151,20 +263,21 @@ class BulkRegistrationController extends Controller
                 ], 422);
             }
 
-            // Verify that the student ID actually exists in the system
+            // Check if student ID already has a registered user account
             $existingStudent = Student::find($studentId);
-            if (!$existingStudent) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Student ID '{$studentId}' does not exist in the system. Contact admin to create this record first.",
-                ], 422);
-            }
-
-            // Verify the email hasn't already been assigned to this student
-            if ($existingStudent->user_id) {
+            if ($existingStudent && $existingStudent->user_id) {
                 return response()->json([
                     'success' => false,
                     'message' => "Student ID '{$studentId}' already has a registered user account.",
+                ], 422);
+            }
+
+            // Check if email is already registered
+            $existingUser = User::where('email', $email)->first();
+            if ($existingUser) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Email '{$email}' is already registered.",
                 ], 422);
             }
 
@@ -198,12 +311,14 @@ class BulkRegistrationController extends Controller
                 'email_verified_at' => now(),
             ]);
 
-            // Create student record
-            Student::create([
-                'id' => $validated['studentId'],
-                'user_id' => $user->id,
-                'course' => $validated['course'] ?? null,
-            ]);
+            // Create or update student record
+            Student::updateOrCreate(
+                ['id' => $studentId],
+                [
+                    'user_id' => $user->id,
+                    'is_csg' => 0,
+                ]
+            );
 
             return response()->json([
                 'success' => true,
