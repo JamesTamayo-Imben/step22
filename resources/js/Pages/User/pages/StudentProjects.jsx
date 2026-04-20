@@ -13,6 +13,11 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
   const [cardsPerPage, setCardsPerPage] = useState(6);
   const [ledgerEntries, setLedgerEntries] = useState([]);
 
+  // Check if user has already rated this project
+  // const hasUserRated = currentProject?.currentUserRating !== null && currentProject?.currentUserRating !== undefined;
+
+  // const isRatingDisabled = hasUserRated;
+
   useEffect(() => {
     const updateCardsPerPage = () => {
       const width = window.innerWidth;
@@ -329,10 +334,10 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
                 <Button
                   onClick={() => onViewDetails(project.id)}
                   variant="outline"
-                  className="rounded-xl"
+                  className={`rounded-xl ${userRatingMap[project.id] ? 'border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100' : ''}`}
                   disabled={isProjectLocked(project.id)}
                 >
-                  <Star className={`w-4 h-4 ${userRatingMap[project.id] ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                  <Star className={`w-4 h-4 ${userRatingMap[project.id] ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
                 </Button>
               </div>
             </div>

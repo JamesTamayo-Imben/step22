@@ -140,13 +140,14 @@ class BulkRegistrationController extends Controller
             // Check if email is already registered to ANY user
             $existingUser = User::where('email', $email)->first();
             
-            // Get the teacher/professor role
-            $role = Role::whereIn('name', ['Ordinary Teacher', 'Admin/Adviser'])->first();
+            // Determine the role based on the requested registration type
+            $roleName = $validated['role'] === 'teacher' ? 'Ordinary Teacher' : 'Admin/Adviser';
+            $role = Role::where('name', $roleName)->first();
 
             if (!$role) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Teacher role not found',
+                    'message' => "Role '{$roleName}' not found",
                 ], 422);
             }
 
