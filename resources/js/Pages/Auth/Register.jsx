@@ -9,13 +9,18 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
   const [showOTPPage, setShowOTPPage] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
 
+  const roleOptions = [
+    { id: "059f4170-235d-11f1-9647-10683825ce81", name: "Student", slug: "student" },
+    { id: "059f4213-235d-11f1-9647-10683825ce81", name: "Professor", slug: "teacher" },
+  ];
+
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
-    role: "",
+    role: roleOptions[0].id,
     agree: false,
   });
 
@@ -29,12 +34,6 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
     console.log("🎯 Register Component Loaded");
     console.log("📋 Available Roles:", roleOptions);
   }, []);
-
-  // Role options
-  const roleOptions = [
-    { id: "059f4170-235d-11f1-9647-10683825ce81", name: "Student", slug: "student" },
-    { id: "059f4213-235d-11f1-9647-10683825ce81", name: "Professor", slug: "teacher" },
-  ];
 
   const handleChange = (field, value) => {
     setForm({ ...form, [field]: value });
@@ -378,18 +377,13 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
               </label>
               <div className="relative">
                 <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <select
-                  value={form.role}
-                  onChange={(e) => handleChange("role", e.target.value)}
-                  className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                >
-                  <option value="">Select your role</option>
-                  {roleOptions.map((roleOption) => (
-                    <option key={roleOption.id} value={roleOption.id}>
-                      {roleOption.name}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  type="text"
+                  value="Student"
+                  disabled
+                  className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-100 text-gray-700 cursor-not-allowed"
+                />
+                <input type="hidden" name="role" value={form.role} />
               </div>
             </div>
 

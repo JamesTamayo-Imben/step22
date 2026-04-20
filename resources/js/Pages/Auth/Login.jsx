@@ -219,12 +219,12 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
             </button>
           </form>
 
-          <p className="text-center text-sm text-gray-600 mt-6">
+          {/* <p className="text-center text-sm text-gray-600 mt-6">
             Don't have an account?{" "}
             <button onClick={goToRegister} className="text-blue-600 hover:underline">
               Sign up
             </button>
-          </p>
+          </p> */}
         </div>
       </div>
     </div>

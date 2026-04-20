@@ -939,56 +939,65 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
       </div>
 
       {/* STEP 1: Select Role Type Modal */}
-      <Modal
-        open={bulkRegModal.open && bulkRegModal.step === 1}
-        onClose={() => setBulkRegModal(prev => ({ ...prev, open: false }))}
-        title="Register New Users"
-        description="Choose how you want to register users"
-        maxWidthClass="max-w-md"
-      >
-        <div className="py-6 space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">Select Role:</h3>
-            <div className="grid grid-cols-1 gap-3 mb-6">
-              {roles
-                .filter(role => role.name !== 'Superadmin' && role.name !== 'Super Admin') // Filter out admin roles
-                .map((role) => (
-                  <div key={role.id}>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">{role.name}</h4>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleRoleSelect(role.id, 'single')}
-                        className="flex-1 text-white rounded-lg bg-blue-600 hover:bg-blue-700 text-sm"
-                        disabled={isLoading}
-                      >
-                        Single
-                      </Button>
+     {/* STEP 1: Select Role Type Modal */}
+<Modal
+  open={bulkRegModal.open && bulkRegModal.step === 1}
+  onClose={() => setBulkRegModal(prev => ({ ...prev, open: false }))}
+  title="Register New Users"
+  description="Choose how you want to register users"
+  maxWidthClass="max-w-md"
+>
+  <div className="py-6 space-y-4">
+    <div>
+      <h3 className="text-sm font-semibold text-gray-800 mb-4">Select Role:</h3>
+      <div className="grid grid-cols-1 gap-3 mb-6">
+        {roles
+          .filter(role => {
+            // Only allow Student and Teacher roles
+            const allowedRoles = ['Student', 'Teacher', 'Ordinary Teacher'];
+            // Also filter out any admin/superadmin roles
+            const isAdminRole = role.name === 'Superadmin' || role.name === 'Super Admin' || 
+                               role.name === 'Admin' || role.name === 'Admin/Adviser' ||
+                               role.name === 'CSG Officer' || role.name === 'CSG';
+            
+            return allowedRoles.includes(role.name) && !isAdminRole;
+          })
+          .map((role) => (
+            <div key={role.id}>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">{role.name}</h4>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handleRoleSelect(role.id, 'single')}
+                  className="flex-1 text-white rounded-lg bg-blue-600 hover:bg-blue-700 text-sm"
+                  disabled={isLoading}
+                >
+                  Single
+                </Button>
 
-                      {/* Show only if Student or Ordinary Teacher */}
-                      {(['Student', 'Ordinary Teacher'].includes(role.name)) && (
-                        <Button
-                          onClick={() => handleRoleSelect(role.id, 'multiple')}
-                          className="flex-1 text-white rounded-lg bg-green-600 hover:bg-green-700 text-sm"
-                          disabled={isLoading}
-                        >
-                        Multiple (Max 10)
-                      </Button>
-                      )}
-                    </div>
-
-                  </div>
-                ))}
+                {/* Show multiple registration for both Student and Teacher roles */}
+                {(role.name === 'Student' || role.name === 'Teacher' || role.name === 'Ordinary Teacher') && (
+                  <Button
+                    onClick={() => handleRoleSelect(role.id, 'multiple')}
+                    className="flex-1 text-white rounded-lg bg-green-600 hover:bg-green-700 text-sm"
+                    disabled={isLoading}
+                  >
+                    Multiple (Max 10)
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => setBulkRegModal(prev => ({ ...prev, open: false }))}
-            className="w-full rounded-lg"
-          >
-            Cancel
-          </Button>
-        </div>
-      </Modal>
+          ))}
+      </div>
+    </div>
+    <Button
+      variant="outline"
+      onClick={() => setBulkRegModal(prev => ({ ...prev, open: false }))}
+      className="w-full rounded-lg"
+    >
+      Cancel
+    </Button>
+  </div>
+</Modal>
 
       {/* STEP 2: Input Emails Modal */}
       <Modal

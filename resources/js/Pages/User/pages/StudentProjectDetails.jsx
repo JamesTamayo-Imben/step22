@@ -246,16 +246,12 @@ function maskUserName(fullName) {
                 <span className="text-sm text-gray-500">({currentProject.ratingsCount || 0} ratings)</span>
               </div>
 
-              {/* Rating Button - Disabled if user has already rated */}
-              <div className="flex flex-col items-end gap-2">
+              {/* Rating Button*/}
+                <div className="flex flex-col items-end gap-2">
                 <button
                   onClick={() => setShowRatingModal(true)}
-                  disabled={isRatingDisabled}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
-                    isRatingDisabled 
-                      ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  }`}
+                  // disabled={isRatingDisabled}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors bg-blue-600 hover:bg-blue-700 text-white`}
                 >
                   <Star className="w-4 h-4" />
                   {isRatingDisabled ? 'Already Rated' : 'Rate this Project'}
@@ -266,6 +262,7 @@ function maskUserName(fullName) {
                   </p>
                 )} */}
               </div>
+            
             </div>
           </div>
         </div>
