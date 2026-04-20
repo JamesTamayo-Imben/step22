@@ -19,9 +19,9 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
         
-        // Load user with role relationship if user is authenticated
+        // Load user with role, student, and teacher relationships if user is authenticated
         if ($user) {
-            $user->load('role');
+            $user->load('role', 'student', 'teacher');
         }
         
         return [

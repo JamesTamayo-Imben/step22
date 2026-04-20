@@ -74,7 +74,11 @@ class User extends Authenticatable
      */
     public function student(): HasOne
     {
-        return $this->hasOne(Student::class, 'user_id');
+        // Use the StudentCsgOfficer model which maps to the
+        // `student_csg_officers` table. Some parts of the codebase
+        // reference StudentCsgOfficer directly, so ensure the
+        // relation points to that model to avoid mismatch.
+        return $this->hasOne(\App\Models\StudentCsgOfficer::class, 'user_id');
     }
 
     /**

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Mail\SuccessMail;
+use App\Mail\OnboardingWelcomeMail;
 use App\Models\User;
 use App\Models\Course;
 use App\Models\Institute;
@@ -351,34 +351,49 @@ public function complete(Request $request)
                 }
             });
 
-            // After successful onboarding, send welcome email
+            // After successful onboarding, send welcome email with temporary password
             try {
                 $user = User::find($userId);
-                $instituteName = null;
+                
+                // Generate temporary password from email
+                // Format: {localpart of email}{KLD2026}
+                // Example: jttamayo@kld.edu.ph → jttamayoKLD2026
+                $emailParts = explode('@', $user->email);
+                $emailLocal = $emailParts[0]; // Get part before @
+                $temporaryPassword = $emailLocal . 'KLD' . date('Y');
+                
+                $studentId = null;
                 $employeeId = null;
 
-                // Get institute name if teacher
-                if ($result['type'] === 'teacher' && isset($validated['institute_id'])) {
-                    $institute = DB::table('institute')->where('id', $validated['institute_id'])->first();
-                    $instituteName = $institute ? $institute->name : null;
+                // Get student ID if student role
+                if ($result['type'] === 'student') {
+                    $studentId = $validated['student_id'] ?? null;
+                }
+
+                // Get employee ID if teacher role
+                if ($result['type'] === 'teacher') {
                     $employeeId = $validated['employee_id'] ?? null;
                 }
 
-                // Send success email
-                Mail::to($user->email)->send(new SuccessMail(
-                    $user->first_name,
+                // Send onboarding welcome email with temporary password
+                Mail::to($user->email)->send(new \App\Mail\OnboardingWelcomeMail(
+                    $user->name,
+                    $user->email,
+                    $temporaryPassword,
                     $result['type'],
-                    $instituteName,
+                    $studentId,
                     $employeeId
                 ));
 
-                Log::info('✅ Welcome email sent to user', [
+                Log::info('✅ Onboarding welcome email sent with temporary password', [
                     'user_id' => $userId,
                     'email' => $user->email,
                     'role' => $result['type'],
+                    'student_id' => $studentId,
+                    'employee_id' => $employeeId,
                 ]);
             } catch (\Exception $emailError) {
-                Log::warning('⚠️ Failed to send welcome email', [
+                Log::warning('⚠️ Failed to send onboarding welcome email', [
                     'user_id' => $userId,
                     'error' => $emailError->getMessage(),
                 ]);
@@ -402,6 +417,102 @@ public function complete(Request $request)
             return response()->json([
                 'success' => false,
                 'message' => 'Connection failed: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Skip the onboarding profile setup
+     * 
+     * Marks the user's profile as completed without linking them to a student/course or teacher/institute.
+     * Sends a welcome email with a temporary password.
+     * 
+     * Request body:
+     * {
+     *   "user_id": "uuid",
+     *   "email": "user@kld.edu.ph"
+     * }
+     */
+    public function skip(Request $request)
+    {
+        try {
+            Log::info('⏭️ Onboarding Skip - Start', $request->all());
+
+            // Validate request
+            $validated = $request->validate([
+                'user_id' => 'required|string|uuid',
+                'email' => 'required|email',
+            ]);
+
+            $userId = $validated['user_id'];
+
+            // Find user
+            $user = User::findOrFail($userId);
+
+            // Mark profile as completed without linking to course/institute
+            $user->update([
+                'profile_completed' => true,
+            ]);
+
+            Log::info('✅ Onboarding skipped', [
+                'user_id' => $userId,
+                'email' => $user->email,
+            ]);
+
+            // Send welcome email with temporary password even when skipping
+            try {
+                // Generate temporary password from email
+                // Format: {localpart of email}KLD{year}
+                // Example: jttamayo@kld.edu.ph → jttamayoKLD2026
+                $emailParts = explode('@', $user->email);
+                $emailLocal = $emailParts[0]; // Get part before @
+                $temporaryPassword = $emailLocal . 'KLD' . date('Y');
+
+                // Determine user's role (if assigned) for email
+                $userRole = $user->role?->slug ?? 'user';
+
+                // Send onboarding welcome email with temporary password
+                Mail::to($user->email)->send(new OnboardingWelcomeMail(
+                    $user->name,
+                    $user->email,
+                    $temporaryPassword,
+                    $userRole,
+                    null, // No student ID when skipping
+                    null  // No employee ID when skipping
+                ));
+
+                Log::info('✅ Skip onboarding welcome email sent with temporary password', [
+                    'user_id' => $userId,
+                    'email' => $user->email,
+                    'role' => $userRole,
+                ]);
+            } catch (\Exception $emailError) {
+                Log::warning('⚠️ Failed to send skip onboarding welcome email', [
+                    'user_id' => $userId,
+                    'error' => $emailError->getMessage(),
+                ]);
+                // Don't fail the entire request if email fails
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Onboarding skipped successfully. Check your email for login credentials.',
+                'user_onboarded' => true,
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('❌ Onboarding Skip Error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while skipping onboarding: ' . $e->getMessage(),
             ], 500);
         }
     }

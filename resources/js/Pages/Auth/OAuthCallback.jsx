@@ -6,6 +6,14 @@ export default function OAuthCallback() {
   const { user, loading, signOut } = useSupabase();
   const [error, setError] = useState('');
   const [validating, setValidating] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [oauthUser, setOauthUser] = useState(null);
+  const [courseList, setCourseList] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    course_id: '',
+    student_id: '',
+  });
   const hasHandledCallback = useRef(false);
 
   useEffect(() => {
@@ -72,80 +80,44 @@ export default function OAuthCallback() {
 
           setOauthUser(data.user);
 
-          // if (!data.user.profile_completed) {
-          //   console.log('📋 Profile incomplete, fetching dropdown data...');
-
-          //   try {
-          //     // FETCH THE DATA FROM THE DATABASE HERE
-          //     const academicRes = await fetch(`${API_BASE_URL}/api/onboarding/data`, {
-          //       headers: { 'Accept': 'application/json' }
-          //     });
-
-          //     if (academicRes.ok) {
-          //       const academicData = await academicRes.json();
-          //       setCourseList(academicData.courses || []);
-          //       setInstituteList(academicData.institutes || []);
-          //       console.log('✅ Dropdown data loaded');
-          //     }
-          //   } catch (fetchErr) {
-          //     console.error('❌ Failed to load dropdowns:', fetchErr);
-          //   }
-
-          //   setShowOnboarding(true);
-          //   setValidating(false);
-          // } else {
-          //   router.visit('/user');
-          // }
-
           if (!data.user.profile_completed) {
-            // 1. Fetch the dropdown data here
+            console.log('📋 Profile incomplete, fetching dropdown data...');
+
             try {
-              const [cRes, iRes] = await Promise.all([
-                fetch('/api/onboarding/courses', { headers: { 'Accept': 'application/json' } }),
-                fetch('/api/onboarding/institutes', { headers: { 'Accept': 'application/json' } })
-              ]);
-
+              const cRes = await fetch('/api/onboarding/courses', { headers: { 'Accept': 'application/json' } });
               const cType = cRes.headers.get('content-type') || '';
-              const iType = iRes.headers.get('content-type') || '';
               const cData = cType.includes('application/json') ? await cRes.json() : { courses: [] };
-              const iData = iType.includes('application/json') ? await iRes.json() : { institutes: [] };
-
               setCourseList(cData.courses || []);
-              setInstituteList(iData.institutes || []);
-            } catch (err) {
-              console.error("Failed to preload dropdowns", err);
+              console.log('✅ Dropdown data loaded');
+            } catch (fetchErr) {
+              console.error('❌ Failed to load dropdowns:', fetchErr);
             }
 
             setShowOnboarding(true);
             setValidating(false);
           } else {
-           // Existing user with completed profile: redirect based on role
-console.log('✅ Profile already completed, checking role for redirect');
-console.log('📧 Email:', data.user.email);
-console.log('👤 Role:', data.user.role?.slug);
+            // Existing user with completed profile: redirect based on role
+            console.log('✅ Profile already completed, checking role for redirect');
+            console.log('📧 Email:', data.user.email);
+            console.log('👤 Role:', data.user.role?.slug);
 
-// Determine redirect path based on role slug
-let redirectPath = '/user'; // Default redirect for student/teacher
+            let redirectPath = '/user';
 
-if (data.user.role?.slug === 'superadmin') {
-  redirectPath = '/sadmin'; // Super admin dashboard
-} else if (data.user.role?.slug === 'admin') {
-  redirectPath = '/adviser/dashboard'; // Adviser/Admin dashboard
-} else if (data.user.role?.slug === 'csg') {
-  redirectPath = '/csg/dashboard'; // CSG dashboard
-} else if (data.user.role?.slug === 'student' || data.user.role?.slug === 'teacher') {
-  redirectPath = '/user'; // User dashboard for students and teachers
-} else {
-  // Default fallback for any other roles
-  redirectPath = '/user';
-}
+            if (data.user.role?.slug === 'superadmin') {
+              redirectPath = '/sadmin';
+            } else if (data.user.role?.slug === 'admin') {
+              redirectPath = '/adviser/dashboard';
+            } else if (data.user.role?.slug === 'csg') {
+              redirectPath = '/csg/dashboard';
+            } else if (data.user.role?.slug === 'student' || data.user.role?.slug === 'teacher') {
+              redirectPath = '/user';
+            } else {
+              redirectPath = '/user';
+            }
 
-console.log(`🚀 Redirecting to ${redirectPath} based on role: ${data.user.role?.slug}`);
-router.visit(redirectPath);
+            console.log(`🚀 Redirecting to ${redirectPath} based on role: ${data.user.role?.slug}`);
+            router.visit(redirectPath);
           }
-
-          // Always redirect to /user
-          router.visit('/user');
 
         } else {
           throw new Error('No user session found after Google sign-in');
@@ -164,6 +136,243 @@ router.visit(redirectPath);
     handleCallback();
   }, [loading, user, signOut]);
 
+  const handleOnboardingSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setSubmitting(true);
+
+      // Validate that course_id and student_id are provided (they're required for role='student')
+      if (!formData.course_id) {
+        throw new Error('Please select a course to proceed.');
+      }
+      if (!formData.student_id) {
+        throw new Error('Please enter your student ID to proceed.');
+      }
+
+      console.log('📤 Submitting onboarding data:', {
+        user_id: oauthUser?.id,
+        email: oauthUser?.email,
+        role: 'student',
+        student_id: formData.student_id,
+        course_id: formData.course_id,
+      });
+
+      const response = await fetch('/api/onboarding/complete', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+        },
+        body: JSON.stringify({
+          user_id: oauthUser?.id,
+          email: oauthUser?.email,
+          role: 'student',
+          student_id: formData.student_id,
+          course_id: formData.course_id,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      const isJsonResponse = contentType.includes('application/json');
+      
+      if (!isJsonResponse) {
+        const text = await response.text();
+        console.error('❌ Non-JSON response:', response.status, text.substring(0, 200));
+        throw new Error('Server returned an unexpected response. Please try again.');
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle validation errors from backend
+        const errorMessage = data.errors 
+          ? Object.values(data.errors).flat().join(', ')
+          : data.message || 'Failed to complete profile setup.';
+        console.error('❌ Backend validation error:', errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      console.log('✅ Onboarding complete:', data);
+      showSuccessMessage('Profile setup complete! Welcome email with temporary password has been sent to your inbox.');
+      
+      setTimeout(() => {
+        router.visit('/user');
+      }, 2000);
+    } catch (err) {
+      console.error('❌ Onboarding submit error:', err);
+      alert(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSkipOnboarding = async () => {
+    try {
+      setSubmitting(true);
+
+      console.log('⏭️ Skipping onboarding, sending welcome email...');
+
+      // Call API endpoint to send welcome email and skip onboarding
+      const response = await fetch('/api/onboarding/skip', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+        },
+        body: JSON.stringify({
+          user_id: oauthUser?.id,
+          email: oauthUser?.email,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      const isJsonResponse = contentType.includes('application/json');
+      
+      if (!isJsonResponse) {
+        const text = await response.text();
+        console.error('❌ Non-JSON response:', response.status, text.substring(0, 200));
+        throw new Error('Server returned an unexpected response. Please try again.');
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = data.message || 'Failed to skip onboarding.';
+        console.error('❌ Skip onboarding error:', errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      console.log('✅ Onboarding skipped:', data);
+      showSuccessMessage('You can complete your profile later! Welcome email with temporary password has been sent to your inbox.');
+      
+      setTimeout(() => {
+        router.visit('/user');
+      }, 2000);
+    } catch (err) {
+      console.error('❌ Skip onboarding error:', err);
+      alert(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const showSuccessMessage = (message) => {
+    // Use showToast if available, otherwise fallback to console
+    if (typeof showToast === 'function') {
+      showToast(message, 'success');
+    } else {
+      console.log('✅ ' + message);
+    }
+  };
+
+  // ─── Onboarding Modal ───────────────────────────────────────────────────────
+  if (showOnboarding) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 relative overflow-hidden px-4">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        </div>
+
+        <div className="relative z-10 w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl p-8">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <img src="/images/Logo.png" alt="STEP Logo" className="w-14 h-14 object-contain mx-auto mb-3" />
+              <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
+              <p className="text-sm text-gray-500 mt-1">We just need a few more details to get you started.</p>
+            </div>
+
+            {/* Welcome message */}
+            {oauthUser && (
+              <div className="flex items-center gap-3 bg-blue-50 rounded-xl px-4 py-3 mb-6">
+                {oauthUser.avatar_url ? (
+                  <img src={oauthUser.avatar_url} alt={oauthUser.name} className="w-10 h-10 rounded-full object-cover border border-blue-200" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium">
+                    {oauthUser.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{oauthUser.name}</p>
+                  <p className="text-xs text-gray-500">{oauthUser.email}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleOnboardingSubmit} className="space-y-4">
+              {/* Student ID */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Student ID <span className="text-red-500 font-normal">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 2021-00123"
+                  required
+                  value={formData.student_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, student_id: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Course */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Course <span className="text-red-500 font-normal">*</span>
+                </label>
+                <select
+                  value={formData.course_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, course_id: e.target.value }))}
+                  required
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                >
+                  <option value="">Select your course</option>
+                  {courseList.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-800 text-white font-medium rounded-xl hover:from-blue-700 hover:to-blue-900 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              >
+                {submitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                    </svg>
+                    Saving...
+                  </span>
+                ) : 'Complete Setup'}
+              </button>
+
+              {/* Skip */}
+              <button
+                type="button"
+                onClick={handleSkipOnboarding}
+                disabled={submitting}
+                className="w-full py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Processing...' : 'Skip for now'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Loading / Error / Success States ──────────────────────────────────────
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 relative overflow-hidden">
       {/* Animated background elements */}
@@ -172,7 +381,6 @@ router.visit(redirectPath);
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
       </div>
 
-      {/* Main content */}
       <div className="relative z-10 text-center px-4">
         {error ? (
           // Error State

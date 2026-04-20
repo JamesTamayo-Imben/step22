@@ -80,6 +80,7 @@ Route::get('/courses', function () {
  */
 Route::prefix('onboarding')->group(function () {
     Route::post('/complete', [OnboardingController::class, 'complete']);
+    Route::post('/skip', [OnboardingController::class, 'skip']);
     Route::post('/set-password', [OnboardingController::class, 'setPassword']);
     Route::get('/courses', [OnboardingController::class, 'getCourses']);
     Route::get('/institutes', [OnboardingController::class, 'getInstitutes']);

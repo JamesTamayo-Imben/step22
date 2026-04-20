@@ -189,9 +189,9 @@ export function StudentNavbar({
                     </div>
                   )}
                   <div className="text-left w-48"> 
-                    <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
-                    <p className="text-xs text-gray-500 truncate w-full">{roleName}</p>
-                  </div>
+  <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
+  <p className="text-xs text-gray-500 truncate w-full">{roleName}</p>
+</div>
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 </button>
                 {isProfileMenuOpen && (
@@ -314,14 +314,20 @@ export function StudentNavbar({
                 src="/images/Logo.png" alt="Step Logo"
                 className="w-full object-cover"/>
             </div>
-            <div className="w-full">
-              <div className="w-8">
-                <img
-                  src="/images/step_dark.png" alt="Step"
-                  className="w-full object-cover"/>
+            <div class="w-full">
+              <div class="w-8">
+              <img
+                src="/images/step_dark.png" alt="Step"
+                className="w-full object-cover"/>
               </div>
-              <p className="text-xs text-gray-500">Super Admin</p>
-            </div>
+              <p class="text-xs text-gray-500">Super Admin</p>
+              </div>
+            {/* <div className="w-8">
+              <img
+                src="/images/step_dark.png" alt="Step"
+                className="w-full object-cover"/>
+              <p className="text-xs text-gray-500">Student Portal</p>
+            </div> */}
           </div>
         </div>
 
@@ -428,21 +434,21 @@ export function StudentNavbar({
               <span>Switch to Officer Mode</span>
             </button>
           )}
-          <button
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              // Try callback first, then Supabase logout
-              if (typeof onLogoutCallback === 'function') {
-                onLogoutCallback();
-              } else {
-                supabaseLogout();
-              }
-            }}
-            className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-all"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Logout</span>
-          </button>
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        // Try callback first, then Supabase logout
+                        if (typeof onLogoutCallback === 'function') {
+                          onLogoutCallback();
+                        } else {
+                          supabaseLogout();
+                        }
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Logout</span>
+                    </button>
         </div>
       </aside>
 
