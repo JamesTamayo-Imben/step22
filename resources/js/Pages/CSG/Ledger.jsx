@@ -472,8 +472,10 @@ const handleEditEntry = async () => {
       formData.append('ledger_proof', selectedFile);
     }
 
+    formData.append('_method', 'PUT');
+
     const response = await fetch(`/api/ledger-entries/${selectedEntry.id}`, {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
         'Accept': 'application/json',

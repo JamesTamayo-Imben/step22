@@ -825,11 +825,13 @@ function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSave }) {
       console.log('📎 No new file selected');
     }
 
+    formData.append('_method', 'PUT');
+
     const ledgerId = ledgerForm.id;
-    console.log('🎯 Making PUT request to:', `/api/ledger-entries/${ledgerId}`);
+    console.log('🎯 Making POST request to:', `/api/ledger-entries/${ledgerId}`);
 
     const res = await fetch(`/api/ledger-entries/${ledgerId}`, {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         'X-CSRF-TOKEN': token,
         'Accept': 'application/json',

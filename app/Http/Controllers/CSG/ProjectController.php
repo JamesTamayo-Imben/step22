@@ -112,7 +112,7 @@ class ProjectController extends Controller
                     'project_id' => $project->id,
                     'type' => 'Initial',
                     'amount' => (float) $project->budget,
-                    'budget_breakdown' => json_encode([]),
+                    'budget_breakdown' => null,
                     'description' => 'Initial project budget baseline',
                     'category' => 'Project Budget Baseline',
                     'approval_status' => 'Draft',
