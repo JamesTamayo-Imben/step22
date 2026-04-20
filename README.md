@@ -455,7 +455,7 @@ teacher_adviser (1) ──── (M) grades
 ### Password Policy
 
 - **Temporary Password Format**: `{email_local_part}KLD{year}`
-  - Example: `jttamayo@kld.edu.ph` → `jttamayoKLD2026`
+  - Example: `{username}@kld.edu.ph` → `{username}KLD2026`
 - **Required Change**: On first login after onboarding
 - **Minimum Length**: 8 characters (configurable)
 - **Complexity**: Enforced during password change

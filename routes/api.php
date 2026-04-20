@@ -9,6 +9,7 @@ use App\Http\Controllers\CSG\LedgerEntryController;
 use App\Http\Controllers\Auth\OTPController;
 use App\Http\Controllers\Auth\OnboardingController;
 use App\Http\Controllers\Auth\BulkRegistrationController;
+use App\Http\Controllers\Auth\PasswordResetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,6 +35,15 @@ Route::post('/chatbot', ChatbotController::class)->middleware('auth:sanctum');
 Route::post('/send-otp', [OTPController::class, 'sendOTP']);
 Route::post('/verify-otp', [OTPController::class, 'verifyOTP']);
 Route::post('/resend-otp', [OTPController::class, 'resendOTP']);
+
+/**
+ * PASSWORD RESET - OTP-based password reset (No auth required)
+ */
+Route::prefix('password-reset')->group(function () {
+    Route::post('/send-otp', [PasswordResetController::class, 'sendOTP']);
+    Route::post('/verify-otp', [PasswordResetController::class, 'verifyOTP']);
+    Route::post('/reset', [PasswordResetController::class, 'resetPassword']);
+});
 
 /**
  * BULK REGISTRATION - Role Specific Registration (No auth required)
