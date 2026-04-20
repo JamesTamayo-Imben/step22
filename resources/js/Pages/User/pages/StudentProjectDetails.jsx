@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { StudentModal } from '@/Components/ui/StudentModal';
@@ -6,6 +6,7 @@ import { Chatbot } from '@/Components/ui/Chatbot';
 import { ArrowLeft, Star, Calendar, DollarSign, FileText, CheckCircle, Wallet, Clock3, Shield, XCircle } from 'lucide-react';
 
 export default function StudentProjectDetails({ projectId, onBack, project }) {
+  const [currentProject, setCurrentProject] = useState(project);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [rating, setRating] = useState(project?.currentUserRating?.rating || 0);
   const [comment, setComment] = useState(project?.currentUserRating?.comment || '');
@@ -16,6 +17,22 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [selectedProofDocument, setSelectedProofDocument] = useState(null);
   const [showAllComments, setShowAllComments] = useState(false);
 
+  // Check if user has already rated this project
+  const hasUserRated = currentProject?.currentUserRating !== null && currentProject?.currentUserRating !== undefined;
+  
+  // Disable rating button if user has already rated
+  const isRatingDisabled = hasUserRated;
+
+  // Sync state with project prop whenever it changes
+  useEffect(() => {
+    setCurrentProject(project);
+    // Update rating state if project has existing rating
+    if (project?.currentUserRating) {
+      setRating(project.currentUserRating.rating || 0);
+      setComment(project.currentUserRating.comment || '');
+    }
+  }, [project]);
+
   const getProofUrl = (path) => {
     if (!path) return '#';
     if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/')) return path;
@@ -25,16 +42,16 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
   // Calculate project status based on approval status and dates
   const getCalculatedStatus = () => {
     // If not approved yet, show as Draft
-    if (project.approvalStatus !== 'Approved' && project.approval_status !== 'Approved') {
+    if (currentProject.approvalStatus !== 'Approved' && currentProject.approval_status !== 'Approved') {
       return 'Draft';
     }
     
     // If approved, calculate status based on dates
-    const startDate = project.startDate || project.start_date;
-    const endDate = project.endDate || project.end_date;
+    const startDate = currentProject.startDate || currentProject.start_date;
+    const endDate = currentProject.endDate || currentProject.end_date;
 
     //if the bidget becomes negative note
-    const ifBudgetNegative = project.budget < 0;
+    const ifBudgetNegative = currentProject.budget < 0;
     
     if (!startDate || !endDate) {
       return 'Draft';
@@ -111,6 +128,20 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
     }
   };
 
+  // Mask user name for privacy: "John Doe" becomes "J******* D*******"
+function maskUserName(fullName) {
+  if (!fullName) return '******* *******';
+  const names = fullName.trim().split(/\s+/).filter(Boolean);
+  if (names.length === 0) return '******* *******';
+  
+  return names
+    .map((name) => {
+      if (name.length <= 1) return name;
+      return name[0] + '*'.repeat(name.length - 1);
+    })
+    .join(' ');
+}
+
     const getTypeColor = (type) => {
   switch (type) {
     case 'Expense': return 'bg-red-100 text-red-700';
@@ -174,14 +205,14 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 space-y-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{project.title}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{currentProject.title}</h1>
               <div className="flex flex-wrap gap-2 mb-3">
                 <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200">
-                  {project.category || 'General'}
+                  {currentProject.category || 'General'}
                 </Badge>
-                {project.tamperedAlerts > 0 ? (
+                {currentProject.tamperedAlerts > 0 ? (
                   <Badge className="bg-red-100 text-red-700 rounded-lg">
-                    <XCircle className="w-3 h-3 mr-1" />{project.tamperedAlerts} Tampered
+                    <XCircle className="w-3 h-3 mr-1" />{currentProject.tamperedAlerts} Tampered
                   </Badge>
                 ) : (
                   <Badge className="bg-green-100 text-green-700 rounded-lg">
@@ -192,7 +223,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
                   {getCalculatedStatus()}
                 </Badge>
               </div>
-              <p className="text-gray-600 leading-relaxed">{project.objective || 'No objective available.'}</p>
+              <p className="text-gray-600 leading-relaxed">{currentProject.objective || 'No objective available.'}</p>
             </div>
 
       
@@ -204,24 +235,37 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
                     <Star
                       key={i}
                       className={`w-5 h-5 ${
-                        i < Math.floor(project.averageRating || 0)
+                        i < Math.floor(currentProject.averageRating || 0)
                           ? 'fill-yellow-400 text-yellow-400' 
                           : 'text-gray-300'
                       }`}
                     />
                   ))}
                 </div>
-                <span className="font-semibold text-gray-900">{project.averageRating || 0}</span>
-                <span className="text-sm text-gray-500">({project.ratingsCount || 0} ratings)</span>
+                <span className="font-semibold text-gray-900">{currentProject.averageRating || 0}</span>
+                <span className="text-sm text-gray-500">({currentProject.ratingsCount || 0} ratings)</span>
               </div>
 
-              <button
-                onClick={() => setShowRatingModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors"
-              >
-                <Star className="w-4 h-4" />
-                Rate this Project
-              </button>
+              {/* Rating Button - Disabled if user has already rated */}
+              <div className="flex flex-col items-end gap-2">
+                <button
+                  onClick={() => setShowRatingModal(true)}
+                  disabled={isRatingDisabled}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
+                    isRatingDisabled 
+                      ? 'bg-gray-400 cursor-not-allowed text-gray-200' 
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  <Star className="w-4 h-4" />
+                  {isRatingDisabled ? 'Already Rated' : 'Rate this Project'}
+                </button>
+                {/* {isRatingDisabled && (
+                  <p className="text-xs text-yellow-600">
+                    You have already rated this project. Thank you!
+                  </p>
+                )} */}
+              </div>
             </div>
           </div>
         </div>
@@ -230,20 +274,20 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
           <div className="bg-blue-50 rounded-xl p-4">
             <Calendar className="w-5 h-5 text-blue-600 mb-2" />
             <p className="text-sm text-gray-600">Start Date</p>
-            <p className="text-lg font-semibold text-gray-900">{project.startDate || 'N/A'}</p>
+            <p className="text-lg font-semibold text-gray-900">{currentProject.startDate || 'N/A'}</p>
           </div>
           <div className="bg-blue-50 rounded-xl p-4">
             <Calendar className="w-5 h-5 text-blue-600 mb-2" />
             <p className="text-sm text-gray-600">End Date</p>
-            <p className="text-lg font-semibold text-gray-900">{project.endDate || 'N/A'}</p>
+            <p className="text-lg font-semibold text-gray-900">{currentProject.endDate || 'N/A'}</p>
           </div>
          <div className="bg-blue-50 rounded-xl p-4">
   <DollarSign className="w-5 h-5 text-blue-600 mb-2" />
   <p className="text-sm text-gray-600">Budget</p>
-  <p className={`text-2xl font-bold ${Number(project.budget || 0) < 0 ? 'text-red-600' : 'text-gray-900'}`}>
-    ₱{Number(project.budget || 0).toLocaleString()}
+  <p className={`text-2xl font-bold ${Number(currentProject.budget || 0) < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+    ₱{Number(currentProject.budget || 0).toLocaleString()}
   </p>
-  {Number(project.budget || 0) < 0 && (
+  {Number(currentProject.budget || 0) < 0 && (
     <p className="text-xs text-red-600 mt-1">
       Don't worry, the Budget is Negative because of the expenses. No need to panic!
     </p>
@@ -252,7 +296,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
           <div className="bg-blue-50 rounded-xl p-4">
             <Star className="w-5 h-5 text-blue-600 mb-2" />
             <p className="text-sm text-gray-600">Approval</p>
-            <p className="text-lg font-semibold text-gray-900">{project.approvalStatus || 'Pending'}</p>
+            <p className="text-lg font-semibold text-gray-900">{currentProject.approvalStatus || 'Pending'}</p>
           </div>
         </div>
       </Card>
@@ -277,45 +321,31 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
           <div className="rounded-2xl border border-blue-100 bg-white p-4 md:p-5">
             <div className='mb-4'>
               <p className='text-sm text-gray-500 mb-1'>Project Details *</p>
-            <p className="text-gray-900">{project.description || 'No description available.'}</p>
+            <p className="text-gray-900">{currentProject.description || 'No description available.'}</p>
             </div>
             <div className='mb-4'>
               <p className='text-sm text-gray-500 mb-1'>Project Proposer *</p>
-              <p className="text-gray-900">{project.proposeBy || 'N/A'}</p>
+              <p className="text-gray-900">{currentProject.proposeBy || 'N/A'}</p>
+            </div>
+            <div className='mb-4'>
+              <p className='text-sm text-gray-500 mb-1'>Approved By</p>
+              <p className="text-gray-900">{currentProject.approvedBy || 'CSG Adviser'}</p>
             </div>
             <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
                 <p className="text-xs text-gray-500">Timeline</p>
-                <p className="text-sm font-semibold text-gray-900 mt-1">{project.startDate || 'TBD'} to {project.endDate || 'TBD'}</p>
+                <p className="text-sm font-semibold text-gray-900 mt-1">{currentProject.startDate || 'TBD'} to {currentProject.endDate || 'TBD'}</p>
               </div>
               <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
                 <p className="text-xs text-gray-500">Category</p>
-                <p className="text-sm font-semibold text-gray-900 mt-1">{project.category || 'General'}</p>
+                <p className="text-sm font-semibold text-gray-900 mt-1">{currentProject.category || 'General'}</p>
               </div>
               <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
                 <p className="text-xs text-gray-500">Venue</p>
-                <p className="text-sm font-semibold text-gray-900 mt-1">{project.venue || 'Not specified'}</p>
+                <p className="text-sm font-semibold text-gray-900 mt-1">{currentProject.venue || 'Not specified'}</p>
               </div>
             </div>
           </div>
-          {/* <div className="mt-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="rounded-xl p-4 bg-white border border-blue-100">
-              <p className="text-xs text-gray-500">Status</p>
-              <p className="font-semibold text-gray-900 mt-1">{getCalculatedStatus()}</p>
-            </div>
-            <div className="rounded-xl p-4 bg-white border border-blue-100">
-              <p className="text-xs text-gray-500">Approval</p>
-              <p className="font-semibold text-gray-900 mt-1">{project.approvalStatus || 'Pending'}</p>
-            </div>
-            <div className="rounded-xl p-4 bg-white border border-blue-100">
-              <p className="text-xs text-gray-500">Budget</p>
-              <p className="font-semibold text-gray-900 mt-1">₱{Number(project.budget || 0).toLocaleString()}</p>
-            </div>
-            <div className="rounded-xl p-4 bg-white border border-blue-100">
-              <p className="text-xs text-gray-500">Ratings</p>
-              <p className="font-semibold text-gray-900 mt-1">{project.ratingsCount || 0}</p>
-            </div>
-          </div> */}
         </Card>
       )}
 
@@ -325,21 +355,21 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
           <h2 className="text-xl font-bold text-gray-900 mb-4">Ledger</h2>
 
           {/* Tamper Alert */}
-      {project.tamperedAlerts > 0 && (
+      {currentProject.tamperedAlerts > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
             <div className="flex-1">
               <h4 className="text-sm font-medium text-red-800">Data Tampering Detected</h4>
               <p className="text-sm text-red-700 mt-1">
-                {project.tamperedAlerts} ledger entr{project.tamperedAlerts === 1 ? 'y' : 'ies'} in this project {project.tamperedAlerts === 1 ? 'has' : 'have'} been modified after approval. Contact your adviser for assistance.
+                {currentProject.tamperedAlerts} ledger entr{currentProject.tamperedAlerts === 1 ? 'y' : 'ies'} in this project {currentProject.tamperedAlerts === 1 ? 'has' : 'have'} been modified after approval. Contact your adviser for assistance.
               </p>
             </div>
           </div>
         </div>
       )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(project.ledgerEntries || []).map((entry) => (
+            {(currentProject.ledgerEntries || []).map((entry) => (
               <button
                 key={entry.id}
                 onClick={() => setSelectedLedgerEntry(entry)}
@@ -368,7 +398,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
               </button>
             ))}
           </div>
-          {!project.ledgerEntries?.length && <p className="text-gray-500 mt-3">No ledger entries yet.</p>}
+          {!currentProject.ledgerEntries?.length && <p className="text-gray-500 mt-3">No ledger entries yet.</p>}
         </Card>
       )}
 
@@ -376,7 +406,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-indigo-50">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Proof</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(project.proofDocuments || []).map((proof) => (
+            {(currentProject.proofDocuments || []).map((proof) => (
               <button
                 key={proof.id}
                 onClick={() => setSelectedProofDocument(proof)}
@@ -384,7 +414,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
               >
                <div className="flex items-center gap-2 mb-3">
   <FileText className="w-4 h-4 text-indigo-600 flex-shrink-0" />
-  <div className="min-w-0 flex-1">  {/* ← Add this */}
+  <div className="min-w-0 flex-1">
     <p className="font-medium text-gray-900 truncate">{proof.fileName}</p>
     <p className="text-xs text-gray-500 truncate">Linked: {proof.linkedTransaction}</p>
   </div>
@@ -406,7 +436,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
                 </div>
               </button>
             ))}
-            {!project.proofDocuments?.length && <p className="text-gray-500">No proof documents uploaded.</p>}
+            {!currentProject.proofDocuments?.length && <p className="text-gray-500">No proof documents uploaded.</p>}
           </div>
         </Card>
       )}
@@ -415,7 +445,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-purple-50">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Status Timeline</h2>
           <div className="space-y-0">
-            {(project.statusTimeline || []).map((item, index, arr) => (
+            {(currentProject.statusTimeline || []).map((item, index, arr) => (
               <div key={item.id} className="flex gap-4 items-start relative">
                 <div className="flex flex-col items-center">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -437,7 +467,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
                 </div>
               </div>
             ))}
-            {!project.statusTimeline?.length && <p className="text-gray-500">No status history yet.</p>}
+            {!currentProject.statusTimeline?.length && <p className="text-gray-500">No status history yet.</p>}
           </div>
         </Card>
       )}
@@ -445,8 +475,27 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
       {activeTab === 'ratings' && (
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-yellow-50">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Ratings</h2>
+          
+          {/* Show user's own rating at the top if they have rated */}
+          {hasUserRated && (
+            <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <p className="text-sm font-medium text-blue-800 mb-2">Your Rating</p>
+              <div className="flex items-center gap-3">
+                <div className="flex">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-5 h-5 ${i < rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm text-gray-600">{comment || 'No comment provided.'}</span>
+              </div>
+            </div>
+          )}
+          
           <div className="space-y-6">
-            {(showAllComments ? (project.ratings || []) : (project.ratings || []).slice(0, 5)).map((review) => (
+            {(showAllComments ? (currentProject.ratings || []) : (currentProject.ratings || []).slice(0, 5)).map((review) => (
               <div key={review.id} className="flex gap-4 pb-6 border-b border-yellow-100 last:border-0">
                 <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-bold text-blue-700">
@@ -457,7 +506,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
                   </span>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{review.user?.name || 'Unknown User'}</h3>
+                  <h3 className="font-semibold text-gray-900">{maskUserName(review.user?.name) || 'Unknown User'}</h3>
                   <div className="flex items-center gap-2">
                     {[...Array(5)].map((_, i) => (
                       <Star
@@ -476,15 +525,15 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
                 </div>
               </div>
             ))}
-            {(project.ratings || []).length > 5 && (
+            {(currentProject.ratings || []).length > 5 && (
               <button
                 onClick={() => setShowAllComments((prev) => !prev)}
                 className="px-4 py-2 text-sm font-medium rounded-lg border border-yellow-300 bg-white hover:bg-yellow-50 text-yellow-700"
               >
-                {showAllComments ? 'Show less comments' : `More comments (${(project.ratings || []).length - 5})`}
+                {showAllComments ? 'Show less comments' : `More comments (${(currentProject.ratings || []).length - 5})`}
               </button>
             )}
-            {!project.ratings?.length && <p className="text-gray-500">No ratings yet.</p>}
+            {!currentProject.ratings?.length && <p className="text-gray-500">No ratings yet.</p>}
           </div>
         </Card>
       )}
@@ -506,10 +555,9 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              {/* <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Category</p><p className="font-medium text-gray-900">{selectedLedgerEntry.category || '-'}</p></div> */}
               <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Created</p><p className="font-medium text-gray-900">{selectedLedgerEntry.createdAt || '-'}</p></div>
               <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Approved</p><p className="font-medium text-gray-900">{selectedLedgerEntry.approvedAt || '-'}</p></div>
-              {/* <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Rejected</p><p className="font-medium text-gray-900">{selectedLedgerEntry.rejectedAt || '-'}</p></div> */}
+              <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Approved By</p><p className="font-medium text-gray-900">{selectedLedgerEntry.approvedBy || '-'}</p></div>
             </div>
 
             <div className="rounded-xl border bg-white p-4">

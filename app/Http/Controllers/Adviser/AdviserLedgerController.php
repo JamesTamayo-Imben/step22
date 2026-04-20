@@ -293,7 +293,7 @@ class AdviserLedgerController extends Controller
                     $computedBudget = $computedBudget - $amount;
                 } elseif (
                     $entry->type === 'Initial' ||
-                    in_array($entry->type, ['Income', 'Donation', 'Sponsorship', 'Canvas'], true)
+                    in_array($entry->type, ['Income', 'Donation', 'Sponsorship'], true)
                 ) {
                     $computedBudget += $amount;
                 }

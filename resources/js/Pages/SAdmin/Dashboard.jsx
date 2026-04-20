@@ -14,19 +14,29 @@ import {
 } from 'lucide-react';
 
 const PieChart = ({ data, colors }) => {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
+  // Validate data
+  if (!data || data.length === 0) {
+    return <div className="text-gray-500 text-sm">No data available</div>;
+  }
+
+  const total = data.reduce((sum, item) => sum + (item.value || 0), 0);
+  
+  if (total === 0) {
+    return <div className="text-gray-500 text-sm">All values are zero</div>;
+  }
+
   let offset = 0;
   const slices = data.map((item, idx) => {
-    const percentage = (item.value / total) * 100;
+    const percentage = ((item.value || 0) / total) * 100;
     const startAngle = (offset / 100) * 360;
     const endAngle = ((offset + percentage) / 100) * 360;
     const startRad = (startAngle * Math.PI) / 180;
     const endRad = (endAngle * Math.PI) / 180;
 
-    const x1 = 50 + 45 * Math.cos(startRad);
-    const y1 = 50 + 45 * Math.sin(startRad);
-    const x2 = 50 + 45 * Math.cos(endRad);
-    const y2 = 50 + 45 * Math.sin(endRad);
+    const x1 = parseFloat((50 + 45 * Math.cos(startRad)).toFixed(2));
+    const y1 = parseFloat((50 + 45 * Math.sin(startRad)).toFixed(2));
+    const x2 = parseFloat((50 + 45 * Math.cos(endRad)).toFixed(2));
+    const y2 = parseFloat((50 + 45 * Math.sin(endRad)).toFixed(2));
 
     const largeArc = percentage > 50 ? 1 : 0;
 
@@ -38,7 +48,12 @@ const PieChart = ({ data, colors }) => {
     ].join(' ');
 
     offset += percentage;
-    return { pathData, color: colors[idx], label: item.name, value: item.value };
+    return { 
+      pathData, 
+      color: colors[idx] || '#6b7280', 
+      label: item.name, 
+      value: item.value || 0 
+    };
   });
 
   return (
@@ -113,10 +128,26 @@ export default function SAdminDashboard({ stats = {}, charts = {} }) {
     totalAdvisers: stats.totalAdvisers ?? 0,
   };
 
+  // Combine teacher and student into member role
+  const processedUsersByRole = (charts.usersByRole ?? []).reduce((acc, item) => {
+    const lowerName = item.name.toLowerCase().trim();
+    if (lowerName.includes('teacher') || lowerName.includes('student')) {
+      const existingMember = acc.find(r => r.name === 'Member (Teacher & Student)');
+      if (existingMember) {
+        existingMember.value += item.value;
+      } else {
+        acc.push({ name: 'Member (Teacher & Student)', value: item.value });
+      }
+    } else {
+      acc.push(item);
+    }
+    return acc;
+  }, []);
+
   const chartData = {
     projectStatus: charts.projectStatus ?? [],
     auditByDay: charts.auditByDay ?? [],
-    usersByRole: charts.usersByRole ?? [],
+    usersByRole: processedUsersByRole,
     ledgerStatus: charts.ledgerStatus ?? [],
   };
 
@@ -261,7 +292,7 @@ export default function SAdminDashboard({ stats = {}, charts = {} }) {
             )}
 
             {/* Users by Role Chart */}
-            {chartData.usersByRole.length > 0 && (
+            {/* {chartData.usersByRole.length > 0 && (
               <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
                 <div className="flex items-center gap-2 mb-6">
                   <BarChart3 className="w-5 h-5 text-purple-600" />
@@ -269,7 +300,7 @@ export default function SAdminDashboard({ stats = {}, charts = {} }) {
                 </div>
                 <BarChart data={chartData.usersByRole} />
               </Card>
-            )}
+            )} */}
           </div>
         </div>
       </div>

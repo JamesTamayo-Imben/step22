@@ -50,6 +50,20 @@ function AvatarFallback({ children, className = '' }) {
   );
 }
 
+// Mask user name for privacy: "John Doe" becomes "J******* D*******"
+function maskUserName(fullName) {
+  if (!fullName) return '******* *******';
+  const names = fullName.trim().split(/\s+/).filter(Boolean);
+  if (names.length === 0) return '******* *******';
+  
+  return names
+    .map((name) => {
+      if (name.length <= 1) return name;
+      return name[0] + '*'.repeat(name.length - 1);
+    })
+    .join(' ');
+}
+
 function csvEscape(val) {
   const s = String(val ?? '');
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
@@ -75,6 +89,10 @@ export function RatingsAnalyticsPage() {
   const [selectedRating, setSelectedRating] = useState('all');
   const [dateRange, setDateRange] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const filteredRatings = useMemo(() => {
     const q = searchQuery.toLowerCase();
@@ -93,6 +111,18 @@ export function RatingsAnalyticsPage() {
   const totalRatings = kpi.totalRatings ?? studentRatings.length;
   const overallAverage = totalRatings ? (kpi.overallAverage ?? 0) : 0;
   const satisfactionRate = kpi.satisfactionRate ?? 0;
+
+  // Check if the selected project has been rated by the current user
+  const ratingDisabled = useMemo(() => {
+    if (selectedProject === 'all') return true;
+    return studentRatings.some(r => r.projectName === selectedProject);
+  }, [selectedProject, studentRatings]);
+
+  // Get the selected project object
+  const currentSelectedProject = useMemo(() => {
+    if (selectedProject === 'all') return null;
+    return projectSummaries.find(p => p.projectName === selectedProject);
+  }, [selectedProject, projectSummaries]);
 
   const handleExport = () => {
     const headers = ['Student', 'Project', 'Rating', 'Comment', 'Helpful', 'Date'];
@@ -113,6 +143,54 @@ export function RatingsAnalyticsPage() {
     URL.revokeObjectURL(link.href);
   };
 
+  const handleRateClick = () => {
+    if (ratingDisabled) {
+      alert('You have already rated this project or no project selected.');
+      return;
+    }
+    setIsRatingModalOpen(true);
+  };
+
+  const handleSubmitRating = async () => {
+    if (ratingValue === 0) {
+      alert('Please select a rating');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Make API call to submit rating
+      const response = await fetch(`/api/projects/${currentSelectedProject?.id}/rate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+        },
+        body: JSON.stringify({
+          rating: ratingValue,
+          comment: ratingComment,
+        }),
+      });
+
+      if (response.ok) {
+        alert('Rating submitted successfully!');
+        setIsRatingModalOpen(false);
+        setRatingValue(0);
+        setRatingComment('');
+        // Refresh the page or update the ratings list
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to submit rating');
+      }
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      alert('An error occurred while submitting your rating');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const renderStars = (rating) =>
     [...Array(5)].map((_, i) => (
       <Star
@@ -130,6 +208,27 @@ export function RatingsAnalyticsPage() {
   const renderSmallStars = (rating) =>
     [...Array(5)].map((_, i) => (
       <Star key={i} className={`w-4 h-4 ${i < rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+    ));
+
+  const renderRatingInputStars = () =>
+    [...Array(5)].map((_, i) => (
+      <Star
+        key={i}
+        className={`w-8 h-8 cursor-pointer transition-all ${
+          i < ratingValue
+            ? 'fill-yellow-400 text-yellow-400 scale-110'
+            : 'text-gray-300 hover:text-yellow-400 hover:scale-110'
+        }`}
+        onClick={() => setRatingValue(i + 1)}
+        onMouseEnter={(e) => {
+          if (!ratingValue) {
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+      />
     ));
 
   const projectCount = kpi.projectCountWithRatings ?? projectSummaries.filter((p) => p.totalRatings > 0).length;
@@ -206,7 +305,6 @@ export function RatingsAnalyticsPage() {
       </div>
 
       <Card className="rounded-[20px] border-0 shadow-sm p-6">
-
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -257,9 +355,130 @@ export function RatingsAnalyticsPage() {
         </div>
       </Card>
 
+      {/* Rating Button Section - NEW */}
+      <Card className="rounded-[20px] border-0 shadow-sm p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900">
+              Rate Selected Project
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              {selectedProject === 'all' 
+                ? 'Please select a project from the dropdown above to rate it' 
+                : ratingDisabled 
+                  ? 'You have already rated this project. You can only rate each project once.'
+                  : `Share your feedback for "${selectedProject}"`}
+            </p>
+          </div>
+          
+          <Button
+            onClick={handleRateClick}
+            disabled={ratingDisabled || selectedProject === 'all'}
+            className={`
+              px-6 py-2 rounded-lg font-medium transition-all
+              ${ratingDisabled || selectedProject === 'all'
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'}
+            `}
+          >
+            {selectedProject === 'all' 
+              ? '📋 Select a Project First' 
+              : ratingDisabled 
+                ? '✓ Already Rated' 
+                : '⭐ Rate This Project'}
+          </Button>
+        </div>
+        
+        {!ratingDisabled && selectedProject !== 'all' && (
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm text-blue-800 flex items-center gap-2">
+              <span>💡</span>
+              Your feedback helps improve future projects. Rate "{selectedProject}" based on your experience.
+            </p>
+          </div>
+        )}
+        
+        {ratingDisabled && selectedProject !== 'all' && (
+          <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+            <p className="text-sm text-yellow-800 flex items-center gap-2">
+              <span>⚠️</span>
+              You have already submitted a rating for this project. Each student can only rate a project once.
+            </p>
+          </div>
+        )}
+      </Card>
+
+      {/* Rating Modal */}
+      {isRatingModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Rate "{currentSelectedProject?.projectName}"
+              </h3>
+              <button
+                onClick={() => setIsRatingModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Rating
+                </label>
+                <div className="flex gap-2 justify-center py-2">
+                  {renderRatingInputStars()}
+                </div>
+                {ratingValue > 0 && (
+                  <p className="text-center text-sm text-gray-600 mt-2">
+                    You selected {ratingValue} star{ratingValue !== 1 ? 's' : ''}
+                  </p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Comment (Optional)
+                </label>
+                <textarea
+                  value={ratingComment}
+                  onChange={(e) => setRatingComment(e.target.value)}
+                  rows="4"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                  placeholder="Share your thoughts about this project..."
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setIsRatingModalOpen(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmitRating}
+                  disabled={isSubmitting || ratingValue === 0}
+                  className={`
+                    flex-1 px-4 py-2 rounded-lg text-white font-medium transition-colors
+                    ${isSubmitting || ratingValue === 0
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700'}
+                  `}
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit Rating'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Card className="rounded-[20px] border-0 shadow-sm p-6">
         <div className="flex items-center gap-2 mb-6">
-          {/* <BarChart3 className="w-5 h-5 text-gray-600" /> */}
           <h2 className="text-gray-900">Project Ratings Overview</h2>
         </div>
 
@@ -368,7 +587,7 @@ export function RatingsAnalyticsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
-                      <p className="text-sm text-gray-900">{rating.studentName}</p>
+                      <p className="text-sm text-gray-900">{maskUserName(rating.studentName)}</p>
                       <p className="text-xs text-gray-500">{rating.projectName}</p>
                     </div>
                     <span className="text-xs text-gray-500">{rating.date}</span>

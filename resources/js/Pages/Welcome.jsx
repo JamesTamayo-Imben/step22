@@ -355,7 +355,7 @@ export default function Welcome() {
               <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
                 <Shield className="w-8 h-8 text-[#2563EB]" />
               </div>
-              <h3 className="text-xl text-gray-900 mb-3">Immutable Ledger</h3>
+              <h3 className="text-xl text-gray-900 mb-3">Tamper Evident Ledger</h3>
               <p className="text-gray-600 leading-relaxed">
                 Every transaction is permanently recorded with SHA256 hashing. 
                 No edits, no deletions—only verifiable truth with complete audit trails.

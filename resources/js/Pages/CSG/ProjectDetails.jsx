@@ -499,9 +499,9 @@ const formatDate = (dateString) => {
             createdAt: data.created_at || data.createdAt || '',
             proposedBy: data.proposed_by || data.proposedBy || '',
             note: data.note || '',
-            approveBy: data.approve_by || data.approveBy || '',
+            approveBy: data.approveBy || data.approve_by || '',
             projectProof: data.project_proof || data.projectProof || null,
-            createdBy: data.created_by || data.createdBy || null,
+            createdBy: data.createdBy || data.created_by || null,
             updatedBy: data.updated_by || data.updatedBy || null,
             archive: data.archive || 0,
             approvedAt: data.approved_at || data.approvedAt || null,
@@ -563,7 +563,8 @@ const computedBudgetFromLedger = ledgerEntries
     return sum + amount;
   }, 0);
   const budgetDifference = displayBudget - computedBudgetFromLedger;
-  const isBudgetTampered = displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
+  // Only show mismatch after ledger data is loaded (not during initial load)
+  const isBudgetTampered = !loading && ledgerEntries.length > 0 && displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
 
   const normalizeLedgerEntry = (item) => {
     const breakdownRaw = item.budgetBreakdown || item.budget_breakdown;
@@ -730,6 +731,20 @@ const computedBudgetFromLedger = ledgerEntries
       setVerificationStatus({ isValid: false, status: 'error', message: 'Unable to verify blockchain' });
     }
   };
+
+  // Mask user name for privacy: "John Doe" becomes "J******* D*******"
+function maskUserName(fullName) {
+  if (!fullName) return '******* *******';
+  const names = fullName.trim().split(/\s+/).filter(Boolean);
+  if (names.length === 0) return '******* *******';
+  
+  return names
+    .map((name) => {
+      if (name.length <= 1) return name;
+      return name[0] + '*'.repeat(name.length - 1);
+    })
+    .join(' ');
+}
   
   // Fetch data when component mounts or project changes
   useEffect(() => {
@@ -768,11 +783,11 @@ const computedBudgetFromLedger = ledgerEntries
     endDate: raw.end_date || raw.endDate,
     proposedBy: raw.proposed_by || raw.proposedBy,
     note: raw.note,
-    approveBy: raw.approve_by || raw.approveBy,
+    approveBy: raw.approveBy || raw.approve_by,
     projectProof: raw.project_proof || raw.projectProof,
     createdAt: raw.created_at || raw.createdAt,
     archive: raw.archive || 0,
-    createdBy: raw.created_by || raw.createdBy,
+    createdBy: raw.createdBy || raw.created_by,
     updatedBy: raw.updated_by || raw.updatedBy,
     approvedAt: raw.approved_at || raw.approvedAt,
   });
@@ -1899,13 +1914,13 @@ const computedBudgetFromLedger = ledgerEntries
                   <div key={review.id} className="flex gap-4 pb-6 border-b last:border-0">
                     <Avatar className="w-12 h-12 flex-shrink-0">
                       <AvatarFallback className="bg-blue-100 text-blue-700 text-sm">
-                        {review.user_name?.split(' ').map((n) => n[0]).join('') || 'U'}
+                        {maskUserName(review.user_name)?.split(' ').map((n) => n[0]).join('') || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                         <div>
-                          <h3 className="font-medium text-gray-900">{review.user_name}</h3>
+                          <h3 className="font-medium text-gray-900">{maskUserName(review.user_name)}</h3>
                           <div className="flex items-center gap-2">
                             <div className="flex items-center gap-1">
                               {[...Array(5)].map((_, i) => (

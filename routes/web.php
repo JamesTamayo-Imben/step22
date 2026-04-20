@@ -20,6 +20,8 @@ use App\Http\Controllers\SAdmin\UserManagementController;
 use App\Http\Controllers\User\UserProjectController;
 use App\Models\User\Notification;
 use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 // use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -32,7 +34,7 @@ Route::get('/', function () {
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
-});
+})->middleware('prevent_logged_in')->name('welcome');
 
 Route::get('/contact', function () {
     return Inertia::render('ContactUs');
@@ -54,196 +56,236 @@ Route::get('/user-guide', function () {
     return Inertia::render('UserGuide');
 })->name('user-guide');
 
-// Role-specific registration pages
 Route::get('/auth/register-teacher', function () {
     return Inertia::render('Auth/RegisterTeacher');
-})->name('register.teacher');
+})->middleware('prevent_logged_in')->name('register.teacher');
 
 Route::get('/auth/register-student', function () {
     return Inertia::render('Auth/RegisterStudent');
-})->name('register.student');
+})->middleware('prevent_logged_in')->name('register.student');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-// Role-specific dashboards (simple routes to front-end pages)
-Route::get('/sadmin', [SAdminDashboardController::class, 'index'])->name('sadmin.dashboard');
+// ========== SUPER ADMIN ROUTES (Temporarily without middleware for testing) ==========
+Route::group([], function () {
+    // Super Admin Dashboard
+    Route::get('/sadmin', [SAdminDashboardController::class, 'index'])->name('sadmin.dashboard');
+    Route::get('/sadmin/dashboard', [SAdminDashboardController::class, 'index'])->name('sadmin.dashboard.alias');
 
-Route::get('/sadmin/dashboard', [SAdminDashboardController::class, 'index'])->name('sadmin.dashboard.alias');
+    // User Management
+    Route::get('/sadmin/users', [UserManagementController::class, 'index'])->name('sadmin.users');
+    Route::get('/sadmin/users/search', [UserManagementController::class, 'search'])->name('sadmin.users.search');
+    Route::get('/sadmin/users/form-fields/{roleId}', [UserManagementController::class, 'getFormFields'])->name('sadmin.users.form-fields');
+    Route::post('/sadmin/users', [UserManagementController::class, 'create'])->name('sadmin.users.create');
+    Route::post('/sadmin/users/bulk-create', [UserManagementController::class, 'bulkCreate'])->name('sadmin.users.bulk-create');
+    Route::post('/sadmin/users/store', [UserManagementController::class, 'store'])->name('sadmin.users.store');
+    Route::patch('/sadmin/users/{user}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('sadmin.users.toggle-status');
+    Route::post('/sadmin/users/{user}/reset-password', [UserManagementController::class, 'resetPassword'])->name('sadmin.users.reset-password');
+    Route::patch('/sadmin/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('sadmin.users.update-role');
+    Route::patch('/sadmin/users/{user}/restore', [UserManagementController::class, 'restore'])->name('sadmin.users.restore');
+    Route::delete('/sadmin/users/{user}', [UserManagementController::class, 'destroy'])->name('sadmin.users.destroy');
 
-// Superadmin sub-pages
-Route::get('/sadmin/users', [UserManagementController::class, 'index'])->name('sadmin.users');
-Route::get('/sadmin/users/search', [UserManagementController::class, 'search'])->name('sadmin.users.search');
-Route::get('/sadmin/users/form-fields/{roleId}', [UserManagementController::class, 'getFormFields'])->name('sadmin.users.form-fields');
+    // Role Permissions
+    Route::get('/sadmin/roles', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'rolesPermissions'])->name('sadmin.roles');
+    Route::post('/admin/role-permissions/assign-officer', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'assignOfficer'])->name('admin.role-permissions.assign-officer');
+    Route::post('/admin/role-permissions/remove-officer', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'removeOfficer'])->name('admin.role-permissions.remove-officer');
+    Route::post('/admin/role-permissions/set-council-term', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'setCouncilTerm'])->name('admin.role-permissions.set-council-term');
+    Route::get('/admin/role-permissions/get-council-term', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'getCouncilTerm'])->name('admin.role-permissions.get-council-term');
+    Route::post('/admin/role-permissions/assign-adviser', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'assignAdviser'])->name('admin.role-permissions.assign-adviser');
+    Route::post('/admin/role-permissions/remove-adviser', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'removeAdviser'])->name('admin.role-permissions.remove-adviser');
 
-Route::post('/sadmin/users', [UserManagementController::class, 'create'])->name('sadmin.users.create');
-Route::post('/sadmin/users/bulk-create', [UserManagementController::class, 'bulkCreate'])->name('sadmin.users.bulk-create');
-Route::post('/sadmin/users/store', [UserManagementController::class, 'store'])->name('sadmin.users.store');
-Route::patch('/sadmin/users/{user}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('sadmin.users.toggle-status');
-Route::post('/sadmin/users/{user}/reset-password', [UserManagementController::class, 'resetPassword'])->name('sadmin.users.reset-password');
-Route::patch('/sadmin/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('sadmin.users.update-role');
-Route::patch('/sadmin/users/{user}/restore', [UserManagementController::class, 'restore'])->name('sadmin.users.restore');
-Route::delete('/sadmin/users/{user}', [UserManagementController::class, 'destroy'])->name('sadmin.users.destroy');
+    // Admin Pages
+    Route::get('/sadmin/data-backup', function () {
+        return Inertia::render('SAdmin/DataBackup');
+    })->name('sadmin.data-backup');
 
-Route::get('/sadmin/roles', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'rolesPermissions'])->name('sadmin.roles');
-Route::post('/admin/role-permissions/assign-officer', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'assignOfficer'])->name('admin.role-permissions.assign-officer');
-Route::post('/admin/role-permissions/set-council-term', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'setCouncilTerm'])->name('admin.role-permissions.set-council-term');
-Route::get('/admin/role-permissions/get-council-term', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'getCouncilTerm'])->name('admin.role-permissions.get-council-term');
-Route::post('/admin/role-permissions/assign-adviser', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'assignAdviser'])->name('admin.role-permissions.assign-adviser');
+    Route::get('/sadmin/organizations', function () {
+        return Inertia::render('SAdmin/Organizations');
+    })->name('sadmin.organizations');
 
-Route::get('/sadmin/data-backup', function () {
-    return Inertia::render('SAdmin/DataBackup');
-})->name('sadmin.data-backup');
+    Route::get('/sadmin/settings', function () {
+        return Inertia::render('SAdmin/SystemSettings');
+    })->name('sadmin.settings');
 
-Route::get('/sadmin/organizations', function () {
-    return Inertia::render('SAdmin/Organizations');
-})->name('sadmin.organizations');
+    Route::get('/sadmin/audit-logs', function () {
+        return Inertia::render('SAdmin/AuditLogs');
+    })->name('sadmin.audit-logs');
 
-Route::get('/sadmin/settings', function () {
-    return Inertia::render('SAdmin/SystemSettings');
-})->name('sadmin.settings');
+    Route::get('/sadmin/engagement-rules', function () {
+        return Inertia::render('SAdmin/EngagementRules');
+    })->name('sadmin.engagement-rules');
 
-Route::get('/sadmin/audit-logs', function () {
-    return Inertia::render('SAdmin/AuditLogs');
-})->name('sadmin.audit-logs');
+    Route::get('/sadmin/master-data', function () {
+        return Inertia::render('SAdmin/MasterData');
+    })->name('sadmin.master-data');
 
-Route::get('/sadmin/engagement-rules', function () {
-    return Inertia::render('SAdmin/EngagementRules');
-})->name('sadmin.engagement-rules');
+    Route::get('/sadmin/global-reports', function () {
+        return Inertia::render('SAdmin/GlobalReports');
+    })->name('sadmin.global-reports');
 
-Route::get('/sadmin/master-data', function () {
-    return Inertia::render('SAdmin/MasterData');
-})->name('sadmin.master-data');
+    Route::get('/sadmin/notifications', function () {
+        return Inertia::render('SAdmin/Notifications');
+    })->name('sadmin.notifications');
 
-Route::get('/sadmin/global-reports', function () {
-    return Inertia::render('SAdmin/GlobalReports');
-})->name('sadmin.global-reports');
+    Route::get('/sadmin/profile', function (Request $request) {
+        return Inertia::render('SAdmin/Profile', [
+            'user' => $request->user(),
+        ]);
+    })->name('sadmin.profile');
+});
 
-Route::get('/sadmin/notifications', function () {
-    return Inertia::render('SAdmin/Notifications');
-})->name('sadmin.notifications');
+// ========== ADVISER ROUTES (Only accessible by Admin/Adviser role) ==========
+Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
+    Route::get('/adviser', [AdviserDashboardController::class, 'index'])->name('adviser.dashboard');
+    Route::get('/adviser/dashboard', [AdviserDashboardController::class, 'index'])->name('adviser.dashboard.alias');
 
-Route::get('/sadmin/profile', function () {
-    return Inertia::render('SAdmin/Profile');
-})->name('sadmin.profile');
+    // Project Approvals
+    Route::get('/adviser/approvals', [AdviserApprovalController::class, 'index'])->name('adviser.approvals');
+    Route::post('/adviser/approvals/approve', [AdviserApprovalController::class, 'approve'])->name('adviser.approvals.approve');
+    Route::post('/adviser/approvals/reject', [AdviserApprovalController::class, 'reject'])->name('adviser.approvals.reject');
 
-Route::get('/adviser', [AdviserDashboardController::class, 'index'])->name('adviser.dashboard');
+    // Blockchain routes (accessible to advisers)
+    Route::get('/blockchain/project/{projectId}', [BlockchainController::class, 'show'])->name('blockchain.show');
+    Route::post('/blockchain/verify', [BlockchainController::class, 'verify'])->name('blockchain.verify');
+    Route::get('/blockchain/project/{projectId}/export', [BlockchainController::class, 'export'])->name('blockchain.export');
 
-Route::get('/adviser/dashboard', [AdviserDashboardController::class, 'index'])->name('adviser.dashboard.alias');
+    // Ledger Management
+    Route::get('/adviser/ledger', [AdviserLedgerController::class, 'index'])->name('adviser.ledger');
+    Route::post('/adviser/ledger/{id}/approve', [AdviserLedgerController::class, 'approve'])->name('adviser.ledger.approve');
+    Route::post('/adviser/ledger/{id}/reject', [AdviserLedgerController::class, 'reject'])->name('adviser.ledger.reject');
+    Route::post('/adviser/ledger/{id}/correction', [AdviserLedgerController::class, 'correction'])->name('adviser.ledger.correction');
+    Route::post('/adviser/ledger/{id}/fix-tampered', [AdviserLedgerController::class, 'fixTampered'])->name('adviser.ledger.fix-tampered');
+    Route::post('/adviser/ledger/fix-budget-mismatch', [AdviserLedgerController::class, 'fixBudgetMismatch'])->name('adviser.ledger.fix-budget-mismatch');
 
-// Same as other /adviser/* pages: no auth gate so navigation from the adviser dashboard works
-// without a Laravel session (data still loads from DB via controllers below).
-Route::get('/adviser/approvals', [AdviserApprovalController::class, 'index'])->name('adviser.approvals');
-Route::post('/adviser/approvals/approve', [AdviserApprovalController::class, 'approve'])->name('adviser.approvals.approve');
-Route::post('/adviser/approvals/reject', [AdviserApprovalController::class, 'reject'])->name('adviser.approvals.reject');
+    // Role Permissions Management
+    Route::get('/adviser/role-permissions', [AdviserPermissionController::class, 'index'])->name('adviser.role-permissions');
+    Route::post('/adviser/role-permissions/assign-officer', [AdviserPermissionController::class, 'assignOfficer'])->name('adviser.role-permissions.assign-officer');
+    Route::post('/adviser/role-permissions/remove-officer', [AdviserPermissionController::class, 'removeOfficer'])->name('adviser.role-permissions.remove-officer');
+    Route::post('/adviser/role-permissions/update', [AdviserPermissionController::class, 'updatePermissions'])->name('adviser.role-permissions.update');
+    Route::post('/adviser/role-permissions/set-council-term', [AdviserPermissionController::class, 'setCouncilTerm'])->name('adviser.role-permissions.set-council-term');
+    Route::get('/adviser/role-permissions/get-council-term', [AdviserPermissionController::class, 'getCouncilTerm'])->name('adviser.role-permissions.get-council-term');
 
-// Blockchain routes
-Route::get('/blockchain/project/{projectId}', [BlockchainController::class, 'show'])->name('blockchain.show');
-Route::post('/blockchain/verify', [BlockchainController::class, 'verify'])->name('blockchain.verify');
-Route::get('/blockchain/project/{projectId}/export', [BlockchainController::class, 'export'])->name('blockchain.export');
+    // Ratings & Notifications
+    Route::get('/adviser/ratings', [AdviserRatingsController::class, 'index'])->name('adviser.ratings');
+    Route::get('/adviser/notifications', [AdviserNotificationController::class, 'index'])->name('adviser.notifications');
+    Route::post('/adviser/notifications/read/{id}', [AdviserNotificationController::class, 'markRead'])->name('adviser.notifications.read');
+    Route::post('/adviser/notifications/mark-all-read', [AdviserNotificationController::class, 'markAllRead'])->name('adviser.notifications.mark-all-read');
 
-Route::get('/adviser/ledger', [AdviserLedgerController::class, 'index'])->name('adviser.ledger');
-Route::post('/adviser/ledger/{id}/approve', [AdviserLedgerController::class, 'approve'])->name('adviser.ledger.approve');
-Route::post('/adviser/ledger/{id}/reject', [AdviserLedgerController::class, 'reject'])->name('adviser.ledger.reject');
-Route::post('/adviser/ledger/{id}/correction', [AdviserLedgerController::class, 'correction'])->name('adviser.ledger.correction');
-Route::post('/adviser/ledger/{id}/fix-tampered', [AdviserLedgerController::class, 'fixTampered'])->name('adviser.ledger.fix-tampered');
-Route::post('/adviser/ledger/fix-budget-mismatch', [AdviserLedgerController::class, 'fixBudgetMismatch'])->name('adviser.ledger.fix-budget-mismatch');
+    // System Pages
+    Route::get('/adviser/system-logs', function () {
+        return Inertia::render('Adviser/SystemLog');
+    })->name('adviser.system-logs');
 
-Route::get('/adviser/role-permissions', [AdviserPermissionController::class, 'index'])->name('adviser.role-permissions');
-Route::post('/adviser/role-permissions/assign-officer', [AdviserPermissionController::class, 'assignOfficer'])->name('adviser.role-permissions.assign-officer');
-Route::post('/adviser/role-permissions/update', [AdviserPermissionController::class, 'updatePermissions'])->name('adviser.role-permissions.update');
-Route::post('/adviser/role-permissions/set-council-term', [AdviserPermissionController::class, 'setCouncilTerm'])->name('adviser.role-permissions.set-council-term');
-Route::get('/adviser/role-permissions/get-council-term', [AdviserPermissionController::class, 'getCouncilTerm'])->name('adviser.role-permissions.get-council-term');
+    Route::get('/adviser/profile', function (Request $request) {
+        return Inertia::render('Adviser/Profile', [
+            'user' => $request->user(),
+        ]);
+    })->name('adviser.profile');
 
+    Route::post('/adviser/change-password', function (Request $request) {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'new_password' => ['required', 'min:8', 'confirmed'],
+        ]);
 
-Route::get('/adviser/ratings', [AdviserRatingsController::class, 'index'])->name('adviser.ratings');
+        $request->user()->update([
+            'password' => Hash::make($validated['new_password']),
+        ]);
 
-Route::get('/adviser/notifications', [AdviserNotificationController::class, 'index'])->name('adviser.notifications');
-Route::post('/adviser/notifications/read/{id}', [AdviserNotificationController::class, 'markRead'])->name('adviser.notifications.read');
-Route::post('/adviser/notifications/mark-all-read', [AdviserNotificationController::class, 'markAllRead'])->name('adviser.notifications.mark-all-read');
+        return response()->json(['message' => 'Password changed successfully'], 200);
+    })->name('adviser.change-password');
+});
 
-// system-logs
-Route::get('/adviser/system-logs', function () {
-    return Inertia::render('Adviser/SystemLog');
-})->name('adviser.system-logs');
+// ========== CSG OFFICER ROUTES (Only accessible by CSG Officer role) ==========
+Route::middleware(['auth', 'verified', 'role:csg'])->group(function () {
+    Route::get('/csg', [CSGDashboardController::class, 'index'])->name('csg.dashboard');
+    Route::get('/csg/dashboard', [CSGDashboardController::class, 'index'])->name('csg.dashboard.alias');
 
-Route::get('/adviser/profile', function () {
-    return Inertia::render('Adviser/Profile');
-})->name('adviser.profile');
+    // Projects Management
+    Route::get('/csg/projects/{projectId?}', function ($projectId = null) {
+        return Inertia::render('CSG/Projects', [
+            'selectedProjectId' => $projectId
+        ]);
+    })->name('csg.projects');
+    Route::post('/csg/projects', [CSGProjectController::class, 'store'])->name('csg.projects.store');
+    Route::patch('/csg/projects/{id}', [CSGProjectController::class, 'update'])->name('csg.projects.update');
+    Route::delete('/csg/projects/{id}', [CSGProjectController::class, 'destroy'])->name('csg.projects.destroy');
+    Route::post('/csg/projects/{projectId}/ledger', [CSGProjectController::class, 'storeLedger'])->name('csg.projects.ledger.store');
+    Route::patch('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'updateLedger'])->name('csg.projects.ledger.update');
+    Route::delete('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'destroyLedger'])->name('csg.projects.ledger.destroy');
 
-// CSG routes
-Route::get('/csg', [CSGDashboardController::class, 'index'])->name('csg.dashboard');
+    // Ledger & Proof
+    Route::get('/csg/ledger', function () {
+        return Inertia::render('CSG/Ledger');
+    })->name('csg.ledger');
 
-Route::get('/csg/dashboard', [CSGDashboardController::class, 'index'])->name('csg.dashboard.alias');
+    Route::get('/csg/proof', function () {
+        return Inertia::render('CSG/Proof', [
+            'proofDocuments' => Inertia::defer(fn() => app(\App\Http\Controllers\CSG\LedgerEntryController::class)->getProofDocuments()->getData()),
+            'projects' => Inertia::defer(fn() => \App\Models\CSG\Project::where('archive', 0)->pluck('title')->toArray()),
+            'transactions' => Inertia::defer(fn() => \App\Models\CSG\LedgerEntry::where('archive', 0)->pluck('id')->toArray()),
+        ]);
+    })->name('csg.proof');
 
-// Route::get('/csg/projects', [CSGProjectController::class, 'index'])->name('csg.projects');
-Route::get('/csg/projects/{projectId?}', function ($projectId = null) {
-    return Inertia::render('CSG/Projects', [
-        'selectedProjectId' => $projectId
-    ]);
-})->name('csg.projects');
-Route::post('/csg/projects', [CSGProjectController::class, 'store'])->name('csg.projects.store');
-Route::patch('/csg/projects/{id}', [CSGProjectController::class, 'update'])->name('csg.projects.update');
-Route::delete('/csg/projects/{id}', [CSGProjectController::class, 'destroy'])->name('csg.projects.destroy');
-Route::post('/csg/projects/{projectId}/ledger', [CSGProjectController::class, 'storeLedger'])->name('csg.projects.ledger.store');
-Route::patch('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'updateLedger'])->name('csg.projects.ledger.update');
-Route::delete('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'destroyLedger'])->name('csg.projects.ledger.destroy');
+    // Meetings & Ratings
+    Route::get('/csg/meetings', function () {
+        return Inertia::render('CSG/Meetings');
+    })->name('csg.meetings');
 
-Route::get('/csg/projects/{projectId?}', function ($projectId = null) {
-    return Inertia::render('CSG/Projects', [
-        'selectedProjectId' => $projectId
-    ]);
-})->name('csg.projects');
+    Route::get('/csg/ratings', [CSGRatingsController::class, 'index'])->name('csg.ratings');
+    Route::get('/api/csg/ratings', [CSGRatingsController::class, 'getRatingsData'])->name('api.csg.ratings');
 
+    // Notifications & Profile
+    Route::get('/csg/notification', function () {
+        return Inertia::render('CSG/Notification');
+    })->name('csg.notification');
 
-Route::get('/csg/ledger', function () {
-    return Inertia::render('CSG/Ledger');
-})->name('csg.ledger');
+    Route::get('/csg/profile', function (Request $request) {
+        return Inertia::render('CSG/Profile', [
+            'user' => $request->user(),
+        ]);
+    })->name('csg.profile');
 
-Route::get('/csg/proof', function () {
-    return Inertia::render('CSG/Proof', [
-        'proofDocuments' => Inertia::defer(fn() => app(\App\Http\Controllers\CSG\LedgerEntryController::class)->getProofDocuments()->getData()),
-        'projects' => Inertia::defer(fn() => \App\Models\CSG\Project::where('archive', 0)->pluck('title')->toArray()),
-        'transactions' => Inertia::defer(fn() => \App\Models\CSG\LedgerEntry::where('archive', 0)->pluck('id')->toArray()),
-    ]);
-})->name('csg.proof');
+    Route::post('/csg/change-password', function (Request $request) {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'new_password' => ['required', 'min:8', 'confirmed'],
+        ]);
 
-Route::get('/csg/meetings', function () {
-    return Inertia::render('CSG/Meetings');
-})->name('csg.meetings');
+        $request->user()->update([
+            'password' => Hash::make($validated['new_password']),
+        ]);
 
-Route::get('/csg/ratings', [CSGRatingsController::class, 'index'])->name('csg.ratings');
-Route::get('/api/csg/ratings', [CSGRatingsController::class, 'getRatingsData'])->name('api.csg.ratings');
+        return response()->json(['message' => 'Password changed successfully'], 200);
+    })->name('csg.change-password');
+});
 
-Route::get('/csg/notification', function () {
-    return Inertia::render('CSG/Notification');
-})->name('csg.notification');
+// ========== STUDENT USER ROUTES (Only accessible by Student & Teacher roles) ==========
+Route::middleware(['auth', 'verified', 'role:student,teacher'])->group(function () {
+    Route::get('/user', [UserProjectController::class, 'dashboard'])->name('user.dashboard');
+    Route::get('/user/dashboard', [UserProjectController::class, 'dashboard'])->name('user.dashboard.alias');
 
-Route::get('/csg/profile', function () {
-    return Inertia::render('CSG/Profile');
-})->name('csg.profile');
+    // Projects
+    Route::get('/user/projects', [UserProjectController::class, 'index'])->name('user.projects');
+    Route::get('/user/projects/{id}', [UserProjectController::class, 'show'])->name('user.project-details');
+    Route::post('/user/projects/{id}/ratings', [UserProjectController::class, 'upsertRating'])->name('user.project-rate');
 
-Route::get('/user', [UserProjectController::class, 'dashboard'])->name('user.dashboard');
+    // Meetings & Events
+    Route::get('/user/meetings', [UserProjectController::class, 'meetings'])->name('user.meetings');
 
-Route::get('/user/dashboard', [UserProjectController::class, 'dashboard'])->name('user.dashboard.alias');
+    // Profile & Points
+    Route::get('/user/profile', [UserProjectController::class, 'profile'])->name('user.profile');
+    Route::get('/user/points', [UserProjectController::class, 'points'])->name('user.points');
 
-Route::get('/user/projects', [UserProjectController::class, 'index'])->name('user.projects');
+    // Gamification
+    Route::get('/user/badges', [UserProjectController::class, 'badges'])->name('user.badges');
+    Route::get('/user/leaderboard', [UserProjectController::class, 'leaderboard'])->name('user.leaderboard');
 
-Route::get('/user/projects/{id}', [UserProjectController::class, 'show'])->name('user.project-details');
-Route::post('/user/projects/{id}/ratings', [UserProjectController::class, 'upsertRating'])->name('user.project-rate');
-
-Route::get('/user/meetings', [UserProjectController::class, 'meetings'])->name('user.meetings');
-
-Route::get('/user/profile', [UserProjectController::class, 'profile'])->name('user.profile');
-
-Route::get('/user/points', [UserProjectController::class, 'points'])->name('user.points');
-
-Route::get('/user/badges', [UserProjectController::class, 'badges'])->name('user.badges');
-
-Route::get('/user/leaderboard', [UserProjectController::class, 'leaderboard'])->name('user.leaderboard');
-
-Route::get('/user/notifications', [UserProjectController::class, 'notifications'])->name('user.notifications');
+    // Notifications
+    Route::get('/user/notifications', [UserProjectController::class, 'notifications'])->name('user.notifications');
+});
 
 
 // ==================== API ROUTES ====================

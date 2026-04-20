@@ -75,6 +75,8 @@ class UserProjectController extends Controller
                 'ledgerEntries' => function ($query) {
                     $query->latest('created_at');
                 },
+                'ledgerEntries.approver:id,name',
+                'approver:id,name',
             ])
             ->withAvg(['ratings' => function ($query) {
                 $query->where('archive', 0);
@@ -101,7 +103,7 @@ class UserProjectController extends Controller
                     'ledgerProof' => $entry->ledger_proof,
                     'approvalStatus' => $entry->approval_status ?: 'Draft',
                     'note' => $entry->note,
-                    'approvedBy' => $entry->approved_by,
+                    'approvedBy' => $entry->approver?->name ?? 'Unknown',
                     'createdAt' => optional($entry->created_at)->format('Y-m-d H:i'),
                     'approvedAt' => optional($entry->approved_at)->format('Y-m-d H:i'),
                     'rejectedAt' => optional($entry->rejected_at)->format('Y-m-d H:i'),
@@ -187,6 +189,7 @@ class UserProjectController extends Controller
                 'venue' => $project->venue ?: 'No venue specified.',
                 'objective' => $project->objective ?: 'No objective available.',
                 'proposeBy' => $project->proposed_by ?: 'Not specified',
+                'approvedBy' => $project->approver?->name ?? 'CSG Adviser',
                 'ratingsCount' => (int) ($project->ratings_count ?? 0),
                 'tamperedAlerts' => $tamperedCount,
                 'ratings' => $project->ratings->map(function ($rating) {
@@ -220,42 +223,50 @@ class UserProjectController extends Controller
         ]);
     }
 
-    public function upsertRating(Request $request, string $projectId)
-    {
-        $user = $this->resolveCurrentUser();
-        if (!$user) {
-            return response()->json(['message' => 'No user found for rating'], 422);
-        }
-
-        $validated = $request->validate([
-            'rating' => ['required', 'integer', 'min:1', 'max:5'],
-            'comment' => ['nullable', 'string', 'max:1000'],
-        ]);
-
-        $project = Project::query()->where('archive', 0)->findOrFail($projectId);
-        if (($project->approval_status ?? '') !== 'Approved') {
-            return response()->json(['message' => 'Project is not approved for public ratings'], 422);
-        }
-
-        $rating = Rating::query()->firstOrNew([
-            'project_id' => $project->id,
-            'user_id' => $user->id,
-        ]);
-
-        if (!$rating->exists) {
-            $rating->id = (string) Str::uuid();
-        }
-
-        $rating->rating_score = $validated['rating'];
-        $rating->comments = $validated['comment'] ?? null;
-        $rating->archive = 0;
-        $rating->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => $rating->wasRecentlyCreated ? 'Rating submitted successfully' : 'Rating updated successfully',
-        ]);
+   public function upsertRating(Request $request, string $projectId)
+{
+    $user = $this->resolveCurrentUser();
+    if (!$user) {
+        return response()->json(['message' => 'No user found for rating'], 422);
     }
+
+    $validated = $request->validate([
+        'rating' => ['required', 'integer', 'min:1', 'max:5'],
+        'comment' => ['nullable', 'string', 'max:1000'],
+    ]);
+
+    $project = Project::query()->where('archive', 0)->findOrFail($projectId);
+    if (($project->approval_status ?? '') !== 'Approved') {
+        return response()->json(['message' => 'Project is not approved for public ratings'], 422);
+    }
+
+    // Check if user already rated this project
+    $existingRating = Rating::query()
+        ->where('project_id', $project->id)
+        ->where('user_id', $user->id)
+        ->first();
+
+    if ($existingRating) {
+        return response()->json([
+            'message' => 'You have already rated this project. You can only rate once per project.'
+        ], 422);
+    }
+
+    // Create new rating only (no updates allowed)
+    $rating = new Rating();
+    $rating->id = (string) Str::uuid();
+    $rating->project_id = $project->id;
+    $rating->user_id = $user->id;
+    $rating->rating_score = $validated['rating'];
+    $rating->comments = $validated['comment'] ?? null;
+    $rating->archive = 0;
+    $rating->save();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Rating submitted successfully'
+    ]);
+}
 
     public function badges(Request $request)
     {

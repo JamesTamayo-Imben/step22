@@ -1100,9 +1100,10 @@ const getTypeAmountColor = (type) => {
           <Button
             onClick={() => setShowAddModal(true)}
             className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+             disabled={allProjects.length === 0}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Add Entry
+            Add Ledger Entry
           </Button>
         </Card>
       )}

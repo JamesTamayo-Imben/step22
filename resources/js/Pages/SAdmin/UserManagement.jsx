@@ -817,7 +817,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                             {/* Show all buttons for active and suspended users */}
                             {u.status?.toLowerCase() !== 'archived' && (
                               <>
-                                <Button
+                                {/* <Button
                                   size="sm"
                                   variant="outline"
                                   className="rounded-lg"
@@ -826,8 +826,8 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                                 >
                                   <Key className="w-4 h-4 mr-1" />
                                   Reset
-                                </Button>
-                                <Button
+                                </Button> */}
+                                {/* <Button
                                   size="sm"
                                   variant="outline"
                                   className="rounded-lg"
@@ -845,7 +845,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                                       Activate
                                     </>
                                   )}
-                                </Button>
+                                </Button> */}
                                 <Button
                                   size="sm"
                                   variant="outline"

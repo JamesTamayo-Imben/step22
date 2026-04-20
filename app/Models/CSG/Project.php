@@ -60,4 +60,14 @@ class Project extends Model
         // If approved but start_date is in the future, keep as approved status
         return $value ?: 'Approved';
     }
+
+    public function approver()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'approve_by', 'id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by', 'id');
+    }
 }

@@ -11,6 +11,8 @@ use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
 use App\Models\User\Rating;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
 // use Illuminate\Support\Carbon;
 // use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -19,6 +21,22 @@ class AdviserDashboardController extends Controller
 {
     public function index(Request $request)
     {
+        // Role-based authorization: Only Adviser users can access this
+        $user = Auth::user();
+        if (!$user || !$user->hasRole('Admin/Adviser')) {
+            // Redirect to appropriate dashboard based on role
+            if ($user) {
+                if ($user->hasRole('CSG Officer')) {
+                    return Redirect::route('csg.dashboard');
+                } elseif ($user->hasRole('Student') || $user->hasRole('Ordinary Teacher')) {
+                    return Redirect::route('user.dashboard');
+                } elseif ($user->hasRole('Super Admin')) {
+                    return Redirect::route('sadmin.dashboard');
+                }
+            }
+            return Redirect::route('login');
+        }
+
         $pendingProjects = Project::query()
             ->where('archive', false)
             ->whereIn('approval_status', ['Pending Adviser Approval', 'Pending Approval'])

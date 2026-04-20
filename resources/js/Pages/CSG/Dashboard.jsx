@@ -230,12 +230,9 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   });
 
   //filter meeting o only show upcomming
-  const [upcomingMeetings, setUpcomingMeetings] = useState(() => {
-    return initialMeetings.filter(meeting => !meeting.is_done && !meeting.archive);
-  });
+  const [upcomingMeetings, setUpcomingMeetings] = useState([]);
 
   const [ledgerEntries, setLedgerEntries] = useState(recentLedgerEntries);
-  const [meetingList, setMeetingList] = useState(initialMeetings);
   const [ledgerFilePreview, setLedgerFilePreview] = useState(null);
   const ledgerFileInputRef = useRef(null);
 
@@ -258,9 +255,8 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
     avgNet: statistics.avgNetPerProject ?? 0,
   };
   
-  const upcommingMeetingsCount = upcomingMeetings;
   const meetingStatusCounts = {
-    upcoming: upcommingMeetingsCount.length,
+    upcoming: Array.isArray(upcomingMeetings) ? upcomingMeetings.length : 0,
   };
 
 
@@ -268,6 +264,19 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  // Update upcoming meetings when initial meetings data arrives (handles deferred data)
+  useEffect(() => {
+    if (Array.isArray(initialMeetings)) {
+      console.log('📅 Upcoming meetings data received:', {
+        total: initialMeetings.length,
+        meetings: initialMeetings,
+      });
+      setUpcomingMeetings(initialMeetings);
+    } else {
+      console.log('⚠️ No upcoming meetings data or invalid format:', initialMeetings);
+    }
+  }, [initialMeetings]);
 
   const fetchProjects = async () => {
     try {
@@ -1196,7 +1205,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {dashboardProjects && dashboardProjects.length > 0 ? (
-            dashboardProjects.slice(0, 4).map((project, index) => (
+            dashboardProjects.slice(0, 2).map((project, index) => (
               <div 
                 key={project.id || index} 
                 onClick={() => router.visit(`/csg/projects/${project.id}`)}
@@ -1297,20 +1306,19 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
         <Card id="upcoming-meetings-card" className="p-6 h-[300px]  rounded-2xl border-0 shadow-sm bg-white">
           <h2 className="text-gray-900 mb-4">Upcoming Meetings</h2>
           <div className="max-h-96 overflow-y-auto space-y-3">
-            {meetingList && meetingList.length > 0 ? (
-              meetingList.slice(0, 5).map((meeting, index) => (
-                          <div onClick={() => router.visit('/csg/meetings')} className="flex items-center justify-between py-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-
-                <div key={meeting.id || index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Calendar className="w-5 h-5 text-blue-600" />
+            {upcomingMeetings && upcomingMeetings.length > 0 ? (
+              upcomingMeetings.slice(0, 5).map((meeting, index) => (
+                <div key={meeting.id || index} onClick={() => router.visit('/csg/meetings')} className="flex items-center justify-between py-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Calendar className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900">{meeting.title}</p>
+                      <p className="text-xs text-gray-500">{meeting.date} • {meeting.time}</p>
+                      <p className="text-xs text-gray-400 mt-1">{meeting.attendees} expected attendees</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900">{meeting.title}</p>
-                    <p className="text-xs text-gray-500">{meeting.date} • {meeting.time}</p>
-                    <p className="text-xs text-gray-400 mt-1">{meeting.attendees} expected attendees</p>
-                  </div>
-                </div>
                 </div>
               ))
             ) : (

@@ -147,9 +147,9 @@ function CSGProjectsPageInner() {
     createdAt: p.created_at || p.createdAt || '',
     proposedBy: p.proposed_by || p.proposedBy || '',
     note: p.note || '',
-    approveBy: p.approve_by || p.approveBy || '',
+    approveBy: p.approveBy || p.approve_by || '',
     projectProof: p.project_proof || p.projectProof || null,
-    createdBy: p.created_by || p.createdBy || null,
+    createdBy: p.createdBy || p.created_by || null,
     updatedBy: p.updated_by || p.updatedBy || null,
     archive: p.archive || 0,
     approvedAt: p.approved_at || p.approvedAt || null,
@@ -549,7 +549,9 @@ function CSGProjectsPageInner() {
 
     // if (isProjectLocked(project.id)) {
     //   return (
-    //     <Button className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white" disabled>
+    //     <Button className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white" 
+    //     disabled
+    //     >
     //       <AlertCircle className="w-4 h-4 mr-2" />
     //       Locked (Tampered)
     //     </Button>

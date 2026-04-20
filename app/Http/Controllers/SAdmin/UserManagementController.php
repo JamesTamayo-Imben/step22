@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\Role;
+use App\Models\StudentCsgOfficer;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -400,7 +401,14 @@ class UserManagementController extends Controller
      */
     public function destroy(Request $request, User $user)
     {
-        $user->update(['status' => 'archived']);
+        // Archive the user
+        $user->update([
+            'status' => 'archived',
+            'archive' => true,
+        ]);
+
+        // Also archive related StudentCsgOfficer records
+        StudentCsgOfficer::where('user_id', $user->id)->update(['archive' => true]);
 
         return response()->json([
             'success' => true,
@@ -423,7 +431,14 @@ class UserManagementController extends Controller
      */
     public function restore(Request $request, User $user)
     {
-        $user->update(['status' => 'active']);
+        // Restore the user
+        $user->update([
+            'status' => 'active',
+            'archive' => false,
+        ]);
+
+        // Also restore related StudentCsgOfficer records
+        StudentCsgOfficer::where('user_id', $user->id)->update(['archive' => false]);
 
         return response()->json([
             'success' => true,

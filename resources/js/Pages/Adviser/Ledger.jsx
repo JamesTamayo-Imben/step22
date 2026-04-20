@@ -189,12 +189,13 @@ export default function LedgerApprovalsPage() {
       const amount = Number(e.amount) || 0;
       const type = (e.transactionType || '').toLowerCase();
       if (type === 'expense') return (sum - amount);
-      if (type === 'initial' || ['income', 'donation', 'sponsorship', 'canvas'].includes(type)) return sum + amount;
+      if (type === 'initial' || ['income', 'donation', 'sponsorship'].includes(type)) return sum + amount;
       return sum;
     }, 0);
 
     const budgetDifference = (Number(totalProjectBudget) || 0) - computedBudgetFromLedger;
-    const isBudgetTampered = Math.abs(budgetDifference) > 0.01;
+    // Only show mismatch when ledger entries are actually loaded (not during initial page load)
+    const isBudgetTampered = ledgerEntries.length > 0 && Math.abs(budgetDifference) > 0.01;
 
     const uniqueProjects = new Set(
       approvedEntries

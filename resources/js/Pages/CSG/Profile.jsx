@@ -93,7 +93,7 @@ function Textarea({ className = '', rows = 4, ...props }) {
   );
 }
 
-function CSGProfilePageInner() {
+function CSGProfilePageInner({ user }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [showChangePhotoModal, setShowChangePhotoModal] = useState(false);
@@ -101,17 +101,17 @@ function CSGProfilePageInner() {
   const fileInputRef = useRef(null);
 
   const [profile, setProfile] = useState({
-    firstName: 'John',
-    lastName: 'Reyes',
-    name: 'John Reyes',
-    email: 'john.reyes@kld.edu.ph',
-    phone: '+63 9123456789',
-    position: 'CSG President',
-    department: 'College of Engineering',
-    joinDate: '2023-08-15',
-    bio: 'Passionate about student engagement and organizational excellence.',
-    address: '123 Main Street, City, Province',
-    photo: null,
+    firstName: user?.name?.split(' ')[0] || 'John',
+    lastName: user?.name?.split(' ')[1] || 'Reyes',
+    name: user?.name || 'John Reyes',
+    email: user?.email || 'john.reyes@kld.edu.ph',
+    phone: user?.phone || '+63 9123456789',
+    position: user?.student?.position || 'CSG President',
+    department: user?.student?.department || 'College of Engineering',
+    joinDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '2023-08-15',
+    bio: user?.student?.bio || 'Passionate about student engagement and organizational excellence.',
+    address: user?.student?.address || '123 Main Street, City, Province',
+    photo: user?.avatar_url || null,
   });
 
   const [editForm, setEditForm] = useState({ ...profile });
@@ -145,7 +145,7 @@ function CSGProfilePageInner() {
     showToast('Profile updated successfully', 'success');
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       showToast('Passwords do not match', 'error');
       return;
@@ -154,9 +154,33 @@ function CSGProfilePageInner() {
       showToast('Password must be at least 8 characters', 'error');
       return;
     }
-    setShowChangePasswordModal(false);
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    showToast('Password changed successfully', 'success');
+
+    try {
+      const response = await fetch('/csg/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+        },
+        body: JSON.stringify({
+          current_password: passwordForm.currentPassword,
+          new_password: passwordForm.newPassword,
+          new_password_confirmation: passwordForm.confirmPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        showToast(error.message || 'Failed to change password', 'error');
+        return;
+      }
+
+      setShowChangePasswordModal(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      showToast('Password changed successfully', 'success');
+    } catch (error) {
+      showToast('An error occurred while changing password', 'error');
+    }
   };
 
   const setPreviewFromFile = (file) => {
@@ -248,10 +272,10 @@ function CSGProfilePageInner() {
                 </AvatarFallback>
               )}
             </Avatar>
-            <Button onClick={() => setShowChangePhotoModal(true)} variant="outline" className="rounded-xl">
+            {/* <Button onClick={() => setShowChangePhotoModal(true)} variant="outline" className="rounded-xl">
               <Camera className="w-4 h-4 mr-2" />
               Change Photo
-            </Button>
+            </Button> */}
           </div>
 
           <div className="flex-1 space-y-4">
@@ -270,22 +294,22 @@ function CSGProfilePageInner() {
                 <Mail className="w-4 h-4" />
                 <span>{profile.email}</span>
               </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
+              {/* <div className="flex items-center gap-3 text-sm text-gray-600">
                 <Phone className="w-4 h-4" />
                 <span>{profile.phone}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
+              </div> */}
+              {/* <div className="flex items-center gap-3 text-sm text-gray-600">
                 <MapPin className="w-4 h-4" />
                 <span>{profile.address}</span>
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-600">
                 <Calendar className="w-4 h-4" />
                 <span>{profile.department}</span>
-              </div>
+              </div> */}
             </div>
 
             <div className="flex gap-3">
-              <Button
+              {/* <Button
                 onClick={() => {
                   setEditForm({ ...profile });
                   setShowEditModal(true);
@@ -294,7 +318,7 @@ function CSGProfilePageInner() {
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Profile
-              </Button>
+              </Button> */}
               <Button onClick={() => setShowChangePasswordModal(true)} variant="outline" className="rounded-xl">
                 <Key className="w-4 h-4 mr-2" />
                 Change Password
@@ -304,7 +328,7 @@ function CSGProfilePageInner() {
         </div>
       </Card>
 
-      <Card className="rounded-[20px] border-0 shadow-sm p-6">
+      {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
         <h2 className="text-gray-900 text-lg font-semibold mb-6">My Activity</h2>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -340,9 +364,9 @@ function CSGProfilePageInner() {
             <p className="text-sm text-gray-600">Ledger Entries</p>
           </div>
         </div>
-      </Card>
+      </Card> */}
 
-      <Card className="rounded-[20px] border-0 shadow-sm p-6">
+      {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
         <h2 className="text-gray-900 text-lg font-semibold mb-6">Recent Activity</h2>
 
         <div className="space-y-3">
@@ -366,7 +390,7 @@ function CSGProfilePageInner() {
             </div>
           ))}
         </div>
-      </Card>
+      </Card> */}
 
       {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
         <h2 className="text-gray-900 text-lg font-semibold mb-4">Account Settings</h2>
@@ -602,13 +626,13 @@ function CSGProfilePageInner() {
   );
 }
 
-export default function CSGProfilePage(props) {
+export default function CSGProfilePage({ user }) {
   return (
     <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800">My Profile</h2>}>
       <Head title="My Profile" />
       <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <CSGProfilePageInner {...props} />
+          <CSGProfilePageInner user={user} />
         </div>
       </div>
     </AuthenticatedLayout>

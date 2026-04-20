@@ -90,7 +90,7 @@ function Textarea({ className = '', rows = 4, ...props }) {
   );
 }
 
-function AdminProfilePageInner() {
+function AdviserProfilePageInner({ user }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [showChangePhotoModal, setShowChangePhotoModal] = useState(false);
@@ -98,15 +98,15 @@ function AdminProfilePageInner() {
   const fileInputRef = useRef(null);
 
   const [profile, setProfile] = useState({
-    name: 'Admin User',
-    position: 'Admin & Adviser',
-    email: 'admin@kld.edu.ph',
-    phone: '+63 912 345 6789',
-    bio: 'Dedicated adviser committed to transparency and excellence in student governance. Overseeing approval processes and ensuring compliance with university policies.',
-    joinedDate: 'January 2026',
-    department: 'Student Affairs Office',
-    location: 'Kolehiyo ng Lungsod ng Dasmariñas',
-    photo: null,
+    name: user?.name || 'Admin User',
+    position: user?.role?.name === 'admin' ? 'Admin & Adviser' : 'Adviser',
+    email: user?.email || 'admin@kld.edu.ph',
+    phone: user?.phone || '+63 912 345 6789',
+    bio: user?.teacher?.bio || 'Dedicated adviser committed to transparency and excellence in student governance. Overseeing approval processes and ensuring compliance with university policies.',
+    joinedDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'January 2026',
+    department: user?.teacher?.department || 'Student Affairs Office',
+    location: user?.teacher?.location || 'Kolehiyo ng Lungsod ng Dasmariñas',
+    photo: user?.avatar_url || null,
   });
 
   const [editForm, setEditForm] = useState({ ...profile });
@@ -136,7 +136,7 @@ function AdminProfilePageInner() {
     showToast('Profile updated successfully', 'success');
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       showToast('Passwords do not match', 'error');
       return;
@@ -145,9 +145,33 @@ function AdminProfilePageInner() {
       showToast('Password must be at least 8 characters', 'error');
       return;
     }
-    setShowChangePasswordModal(false);
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    showToast('Password changed successfully', 'success');
+
+    try {
+      const response = await fetch('/adviser/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+        },
+        body: JSON.stringify({
+          current_password: passwordForm.currentPassword,
+          new_password: passwordForm.newPassword,
+          new_password_confirmation: passwordForm.confirmPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        showToast(error.message || 'Failed to change password', 'error');
+        return;
+      }
+
+      setShowChangePasswordModal(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      showToast('Password changed successfully', 'success');
+    } catch (error) {
+      showToast('An error occurred while changing password', 'error');
+    }
   };
 
   const setPreviewFromFile = (file) => {
@@ -238,10 +262,10 @@ function AdminProfilePageInner() {
                 <AvatarFallback className="bg-blue-600 text-white text-3xl">{initials}</AvatarFallback>
               )}
             </Avatar>
-            <Button onClick={() => setShowChangePhotoModal(true)} variant="outline" className="rounded-xl">
+            {/* <Button onClick={() => setShowChangePhotoModal(true)} variant="outline" className="rounded-xl">
               <Upload className="w-4 h-4 mr-2" />
               Change Photo
-            </Button>
+            </Button> */}
           </div>
 
           <div className="flex-1 space-y-4">
@@ -258,10 +282,10 @@ function AdminProfilePageInner() {
                 <Mail className="w-4 h-4" />
                 <span>{profile.email}</span>
               </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
+              {/* <div className="flex items-center gap-3 text-sm text-gray-600">
                 <Phone className="w-4 h-4" />
                 <span>{profile.phone}</span>
-              </div>
+              </div> */}
               <div className="flex items-center gap-3 text-sm text-gray-600">
                 <MapPin className="w-4 h-4" />
                 <span>{profile.location}</span>
@@ -273,7 +297,7 @@ function AdminProfilePageInner() {
             </div>
 
             <div className="flex gap-3">
-              <Button
+              {/* <Button
                 onClick={() => {
                   setEditForm({ ...profile });
                   setShowEditModal(true);
@@ -282,7 +306,7 @@ function AdminProfilePageInner() {
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Profile
-              </Button>
+              </Button> */}
               <Button onClick={() => setShowChangePasswordModal(true)} variant="outline" className="rounded-xl">
                 <Key className="w-4 h-4 mr-2" />
                 Change Password
@@ -292,7 +316,7 @@ function AdminProfilePageInner() {
         </div>
       </Card>
 
-      <Card className="rounded-[20px] border-0 shadow-sm p-6">
+      {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
         <h2 className="text-gray-900 text-lg font-semibold mb-6">Approval Activity</h2>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -328,9 +352,9 @@ function AdminProfilePageInner() {
             <p className="text-sm text-gray-600">Meetings Reviewed</p>
           </div>
         </div>
-      </Card>
+      </Card> */}
 
-      <Card className="rounded-[20px] border-0 shadow-sm p-6">
+      {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
         <h2 className="text-gray-900 text-lg font-semibold mb-6">Recent Approvals</h2>
 
         <div className="space-y-3">
@@ -354,7 +378,7 @@ function AdminProfilePageInner() {
             </div>
           ))}
         </div>
-      </Card>
+      </Card> */}
 
       <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Profile">
         <div className="space-y-4 pt-6">
@@ -564,13 +588,13 @@ function AdminProfilePageInner() {
   );
 }
 
-export default function AdviserProfilePage(props) {
+export default function AdviserProfilePage({ user }) {
   return (
     <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Profile</h2>}>
       <Head title="Adviser Profile" />
       <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <AdminProfilePageInner {...props} />
+          <AdviserProfilePageInner user={user} />
         </div>
       </div>
     </AuthenticatedLayout>

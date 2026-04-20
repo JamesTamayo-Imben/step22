@@ -68,7 +68,81 @@ export default function OAuthCallback() {
           }
 
           const data = await response.json();
-          console.log('✅ User synced to step2 DB:', data.user);
+          console.log('✅ User created/updated in step2 DB:', data.user);
+
+          setOauthUser(data.user);
+
+          // if (!data.user.profile_completed) {
+          //   console.log('📋 Profile incomplete, fetching dropdown data...');
+
+          //   try {
+          //     // FETCH THE DATA FROM THE DATABASE HERE
+          //     const academicRes = await fetch(`${API_BASE_URL}/api/onboarding/data`, {
+          //       headers: { 'Accept': 'application/json' }
+          //     });
+
+          //     if (academicRes.ok) {
+          //       const academicData = await academicRes.json();
+          //       setCourseList(academicData.courses || []);
+          //       setInstituteList(academicData.institutes || []);
+          //       console.log('✅ Dropdown data loaded');
+          //     }
+          //   } catch (fetchErr) {
+          //     console.error('❌ Failed to load dropdowns:', fetchErr);
+          //   }
+
+          //   setShowOnboarding(true);
+          //   setValidating(false);
+          // } else {
+          //   router.visit('/user');
+          // }
+
+          if (!data.user.profile_completed) {
+            // 1. Fetch the dropdown data here
+            try {
+              const [cRes, iRes] = await Promise.all([
+                fetch('/api/onboarding/courses', { headers: { 'Accept': 'application/json' } }),
+                fetch('/api/onboarding/institutes', { headers: { 'Accept': 'application/json' } })
+              ]);
+
+              const cType = cRes.headers.get('content-type') || '';
+              const iType = iRes.headers.get('content-type') || '';
+              const cData = cType.includes('application/json') ? await cRes.json() : { courses: [] };
+              const iData = iType.includes('application/json') ? await iRes.json() : { institutes: [] };
+
+              setCourseList(cData.courses || []);
+              setInstituteList(iData.institutes || []);
+            } catch (err) {
+              console.error("Failed to preload dropdowns", err);
+            }
+
+            setShowOnboarding(true);
+            setValidating(false);
+          } else {
+           // Existing user with completed profile: redirect based on role
+console.log('✅ Profile already completed, checking role for redirect');
+console.log('📧 Email:', data.user.email);
+console.log('👤 Role:', data.user.role?.slug);
+
+// Determine redirect path based on role slug
+let redirectPath = '/user'; // Default redirect for student/teacher
+
+if (data.user.role?.slug === 'superadmin') {
+  redirectPath = '/sadmin'; // Super admin dashboard
+} else if (data.user.role?.slug === 'admin') {
+  redirectPath = '/adviser/dashboard'; // Adviser/Admin dashboard
+} else if (data.user.role?.slug === 'csg') {
+  redirectPath = '/csg/dashboard'; // CSG dashboard
+} else if (data.user.role?.slug === 'student' || data.user.role?.slug === 'teacher') {
+  redirectPath = '/user'; // User dashboard for students and teachers
+} else {
+  // Default fallback for any other roles
+  redirectPath = '/user';
+}
+
+console.log(`🚀 Redirecting to ${redirectPath} based on role: ${data.user.role?.slug}`);
+router.visit(redirectPath);
+          }
 
           // Always redirect to /user
           router.visit('/user');

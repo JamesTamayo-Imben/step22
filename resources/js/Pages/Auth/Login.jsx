@@ -156,8 +156,11 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Email Address</label>
+              <label className="block text-sm text-gray-600 mb-1">
+                Email Address
+              </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input

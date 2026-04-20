@@ -94,7 +94,7 @@ function Textarea({ className = '', rows = 4, ...props }) {
   );
 }
 
-function SAdminProfilePageInner() {
+function SAdminProfilePageInner({ user }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [showChangePhotoModal, setShowChangePhotoModal] = useState(false);
@@ -102,15 +102,15 @@ function SAdminProfilePageInner() {
   const fileInputRef = useRef(null);
 
   const [profile, setProfile] = useState({
-    name: 'Super Admin',
-    position: 'Super Administrator',
-    email: 'superadmin@kld.edu.ph',
-    phone: '+63 912 345 6789',
-    bio: 'System administrator overseeing the entire STEP platform. Responsible for user management, system configuration, and ensuring optimal platform performance and security.',
-    joinedDate: 'January 2026',
-    department: 'System Administration',
-    location: 'Kolehiyo ng Lungsod ng Dasmariñas',
-    photo: null,
+    name: user?.name || 'Super Admin',
+    position: user?.role?.name === 'super_admin' ? 'Super Administrator' : 'Administrator',
+    email: user?.email || 'superadmin@kld.edu.ph',
+    phone: user?.phone || '+63 912 345 6789',
+    bio: user?.teacher?.bio || 'System administrator overseeing the entire STEP platform. Responsible for user management, system configuration, and ensuring optimal platform performance and security.',
+    joinedDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'January 2026',
+    department: user?.teacher?.department || 'System Administration',
+    location: user?.teacher?.location || 'Kolehiyo ng Lungsod ng Dasmariñas',
+    photo: user?.avatar_url || null,
   });
 
   const [editForm, setEditForm] = useState({ ...profile });
@@ -565,13 +565,13 @@ function SAdminProfilePageInner() {
   );
 }
 
-export default function SAdminProfilePage(props) {
+export default function SAdminProfilePage({ user }) {
   return (
     <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Profile</h2>}>
       <Head title="Super Admin Profile" />
       <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <SAdminProfilePageInner {...props} />
+          <SAdminProfilePageInner user={user} />
         </div>
       </div>
     </AuthenticatedLayout>

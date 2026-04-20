@@ -20,7 +20,6 @@ import {
   Calendar,
 } from 'lucide-react';
 
-
 function showToast(message, type = 'success') {
   const text = typeof message === 'string'
     ? message
@@ -148,6 +147,8 @@ export function RolePermissionsPage() {
   const [isSetOfficerModalOpen, setIsSetOfficerModalOpen] = useState(false);
   const [isSetAdviserModalOpen, setIsSetAdviserModalOpen] = useState(false);
   const [isCouncilTermModalOpen, setIsCouncilTermModalOpen] = useState(false);
+  const [isRemoveOfficerModalOpen, setIsRemoveOfficerModalOpen] = useState(false);
+  const [isRemoveAdviserModalOpen, setIsRemoveAdviserModalOpen] = useState(false);
   const [councilStartDate, setCouncilStartDate] = useState('');
   const [councilEndDate, setCouncilEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -157,7 +158,10 @@ export function RolePermissionsPage() {
   const [selectedAdviserUser, setSelectedAdviserUser] = useState(null);
   const [selectedOfficer, setSelectedOfficer] = useState(null);
   const [selectedAdviser, setSelectedAdviser] = useState(null);
+  const [officerToRemove, setOfficerToRemove] = useState(null);
+  const [adviserToRemove, setAdviserToRemove] = useState(null);
   const [isLoadingTerm, setIsLoadingTerm] = useState(true);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const [councilOfficers, setCouncilOfficers] = useState(initialCouncilOfficers);
   const [councilAdviser, setCouncilAdviser] = useState(initialCouncilAdviser);
@@ -365,6 +369,72 @@ export function RolePermissionsPage() {
     }
   };
 
+  const handleRemoveOfficer = (officer) => {
+    setOfficerToRemove(officer);
+    setIsRemoveOfficerModalOpen(true);
+  };
+
+  const handleRemoveAdviser = (adviser) => {
+    setAdviserToRemove(adviser);
+    setIsRemoveAdviserModalOpen(true);
+  };
+
+  const confirmRemoveOfficer = () => {
+    if (!officerToRemove) return;
+    
+    setIsRemoving(true);
+    router.post('/admin/role-permissions/remove-officer', {
+      userId: officerToRemove.userId,
+    }, {
+      onSuccess: () => {
+        setCouncilOfficers(prev =>
+          prev.map(o => {
+            if (o.userId === officerToRemove.userId) {
+              return { position: o.position, name: null, userId: null, email: null };
+            }
+            return o;
+          })
+        );
+        showToast(`${officerToRemove.name} has been removed as ${officerToRemove.position}`);
+        setIsRemoveOfficerModalOpen(false);
+        setOfficerToRemove(null);
+        setIsRemoving(false);
+      },
+      onError: (error) => {
+        showToast(error?.message || 'Failed to remove officer', 'error');
+        setIsRemoving(false);
+      }
+    });
+  };
+
+  const confirmRemoveAdviser = () => {
+    if (!adviserToRemove) return;
+    
+    setIsRemoving(true);
+    router.post('/admin/role-permissions/remove-adviser', {
+      teacherId: adviserToRemove.userId,
+    }, {
+      onSuccess: () => {
+        setCouncilAdviser(prev =>
+          prev.map(a => {
+            if (a.userId === adviserToRemove.userId) {
+              return { position: a.position, name: null, userId: null, email: null };
+            }
+            return a;
+          })
+        );
+        showToast(`${adviserToRemove.name} has been removed as ${adviserToRemove.position}`);
+        setIsRemoveAdviserModalOpen(false);
+        setAdviserToRemove(null);
+        setIsRemoving(false);
+      },
+      onError: (error) => {
+        showToast(error?.message || 'Failed to remove adviser', 'error');
+        setIsRemoving(false);
+      }
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -442,7 +512,7 @@ export function RolePermissionsPage() {
                     <p className="text-sm text-gray-900 mb-1">{adviser.name}</p>
                     <p className="text-xs text-gray-500">{adviser.email}</p>
                     <p className="text-xs text-gray-500">Teacher ID: {adviser.id}</p>
-                    <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200">
                       <Button
                         onClick={() => openAdviserModal(adviser)}
                         variant="outline"
@@ -451,6 +521,15 @@ export function RolePermissionsPage() {
                       >
                         <Repeat className="w-3 h-3 mr-1" />
                         Reassign Adviser
+                      </Button>
+                      <Button
+                        onClick={() => handleRemoveAdviser(adviser)}
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs border-red-500 bg-red-500 text-white hover:bg-red-600 hover:text-white"
+                      >
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Remove Adviser
                       </Button>
                     </div>
                   </div>
@@ -529,7 +608,7 @@ export function RolePermissionsPage() {
                     <p className="text-sm text-gray-900 mb-1">{officer.name}</p>
                     <p className="text-xs text-gray-500">{officer.email}</p>
                     <p className="text-xs text-gray-500">Student ID: {officer.id}</p>
-                    <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200">
                       <Button
                         onClick={() => openOfficerModal(officer)}
                         variant="outline"
@@ -538,6 +617,15 @@ export function RolePermissionsPage() {
                       >
                         <Repeat className="w-3 h-3 mr-1" />
                         Reassign Position
+                      </Button>
+                      <Button
+                        onClick={() => handleRemoveOfficer(officer)}
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs border-red-500 bg-red-500 text-white hover:bg-red-600 hover:text-white"
+                      >
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Remove Officer
                       </Button>
                     </div>
                   </div>
@@ -801,6 +889,126 @@ export function RolePermissionsPage() {
           >
             <Calendar className="w-4 h-4 mr-2" />
             Set Council Term
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Remove Officer Confirmation Modal */}
+      <Modal
+        open={isRemoveOfficerModalOpen}
+        onClose={() => {
+          if (!isRemoving) {
+            setIsRemoveOfficerModalOpen(false);
+            setOfficerToRemove(null);
+          }
+        }}
+        title="Remove Officer"
+        description={`Are you sure you want to remove ${officerToRemove?.name} as ${officerToRemove?.position}?`}
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-red-800 font-medium">Warning: This action cannot be undone</p>
+                <p className="text-sm text-red-700 mt-1">
+                  This will revert {officerToRemove?.name}'s role back to <strong>Student</strong> and remove all CSG officer permissions.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Position:</span> {officerToRemove?.position}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">
+              <span className="font-medium">Name:</span> {officerToRemove?.name}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">
+              <span className="font-medium">Email:</span> {officerToRemove?.email}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3">
+          <Button
+            onClick={() => {
+              setIsRemoveOfficerModalOpen(false);
+              setOfficerToRemove(null);
+            }}
+            variant="outline"
+            className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            disabled={isRemoving}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmRemoveOfficer}
+            className="bg-red-600 hover:bg-red-700 text-white"
+            disabled={isRemoving}
+          >
+            {isRemoving ? 'Removing...' : 'Yes, Remove Officer'}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Remove Adviser Confirmation Modal */}
+      <Modal
+        open={isRemoveAdviserModalOpen}
+        onClose={() => {
+          if (!isRemoving) {
+            setIsRemoveAdviserModalOpen(false);
+            setAdviserToRemove(null);
+          }
+        }}
+        title="Remove Adviser"
+        description={`Are you sure you want to remove ${adviserToRemove?.name} as ${adviserToRemove?.position}?`}
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-red-800 font-medium">Warning: This action cannot be undone</p>
+                <p className="text-sm text-red-700 mt-1">
+                  This will revert {adviserToRemove?.name}'s role back to <strong>Teacher</strong> and remove all adviser permissions.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Position:</span> {adviserToRemove?.position}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">
+              <span className="font-medium">Name:</span> {adviserToRemove?.name}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">
+              <span className="font-medium">Email:</span> {adviserToRemove?.email}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3">
+          <Button
+            onClick={() => {
+              setIsRemoveAdviserModalOpen(false);
+              setAdviserToRemove(null);
+            }}
+            variant="outline"
+            className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            disabled={isRemoving}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmRemoveAdviser}
+            className="bg-red-600 hover:bg-red-700 text-white"
+            disabled={isRemoving}
+          >
+            {isRemoving ? 'Removing...' : 'Yes, Remove Adviser'}
           </Button>
         </div>
       </Modal>

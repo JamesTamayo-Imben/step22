@@ -19,9 +19,21 @@ import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 // A reusable Admin/Adviser sidebar component. Plain JS (no TypeScript) so it's easy to reuse.
 export default function AdminAdviserSidebar({ currentView = null, onNavigate = null, onLogout = null }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const page = usePage();
+  const user = page.props.auth?.user;
 
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-  // approvals no longer expands; follow Figma: single Approvals nav item
+  
+  // Helper function to get user initials
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -86,7 +98,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
           
         </div>
         <Avatar className="w-8 h-8">
-          <AvatarFallback className="bg-[#2563EB] text-white text-xs">AA</AvatarFallback>
+          <AvatarFallback className="bg-[#2563EB] text-white text-xs">{getInitials(user?.name)}</AvatarFallback>
         </Avatar>
       </div>
 
@@ -237,11 +249,11 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
         <div className="p-4 border-t border-gray-200 space-y-2">
           <div className="flex items-center gap-3 px-4 py-2">
             <Avatar className="w-8 h-8">
-              <AvatarFallback className="bg-[#2563EB] text-white text-xs">AA</AvatarFallback>
+              <AvatarFallback className="bg-[#2563EB] text-white text-xs">{getInitials(user?.name)}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <p className="text-sm text-gray-900">Admin User</p>
-              <p className="text-xs text-gray-500">admin@kld.edu.ph</p>
+              <p className="text-sm text-gray-900">{user?.name || 'User'}</p>
+              <p className="text-xs text-gray-500">{user?.email || 'No email'}</p>
             </div>
           </div>
           <form method="POST" action="/logout" className="w-full">

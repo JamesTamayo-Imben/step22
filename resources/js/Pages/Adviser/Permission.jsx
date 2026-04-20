@@ -161,6 +161,9 @@ export function RolePermissionsPage() {
   const [selectedCSGFilter, setSelectedCSGFilter] = useState('');
   const [selectedOfficer, setSelectedOfficer] = useState(null);
   const [isLoadingTerm, setIsLoadingTerm] = useState(true);
+  const [isRemoveOfficerModalOpen, setIsRemoveOfficerModalOpen] = useState(false);
+  const [officerToRemove, setOfficerToRemove] = useState(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   useEffect(() => {
   const fetchCouncilTerm = async () => {
@@ -429,6 +432,39 @@ const formatDate = (dateString) => {
     });
   };
 
+  const handleRemoveOfficer = (officer) => {
+    setOfficerToRemove(officer);
+    setIsRemoveOfficerModalOpen(true);
+  };
+
+  const confirmRemoveOfficer = () => {
+    if (!officerToRemove) return;
+    
+    setIsRemoving(true);
+    router.post('/adviser/role-permissions/remove-officer', {
+      userId: officerToRemove.userId,
+    }, {
+      onSuccess: () => {
+        setCouncilOfficers(prev =>
+          prev.map(o => {
+            if (o.userId === officerToRemove.userId) {
+              return { position: o.position, name: null, userId: null, email: null };
+            }
+            return o;
+          })
+        );
+        showToast(`${officerToRemove.name} has been removed as ${officerToRemove.position}`);
+        setIsRemoveOfficerModalOpen(false);
+        setOfficerToRemove(null);
+        setIsRemoving(false);
+      },
+      onError: (error) => {
+        showToast(error?.message || 'Failed to remove officer', 'error');
+        setIsRemoving(false);
+      }
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -515,7 +551,7 @@ const formatDate = (dateString) => {
                     <p className="text-sm text-gray-900 mb-1">{officer.name}</p>
                     <p className="text-xs text-gray-500">{officer.email}</p>
                     <p className="text-xs text-gray-500">Student ID: {officer.id}</p>
-                    <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200">
                       <Button
                         onClick={() => openOfficerModal(officer)}
                         variant="outline"
@@ -524,6 +560,15 @@ const formatDate = (dateString) => {
                       >
                         <Repeat className="w-3 h-3 mr-1" />
                         Reassign Position
+                      </Button>
+                      <Button
+                        onClick={() => handleRemoveOfficer(officer)}
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs border-red-500 bg-red-500 text-white hover:bg-red-600 hover:text-white"
+                      >
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Remove Officer
                       </Button>
                     </div>
                   </div>
@@ -887,6 +932,60 @@ const formatDate = (dateString) => {
           >
             <Calendar className="w-4 h-4 mr-2" />
             Set Council Term
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Remove Officer Modal */}
+      <Modal
+        open={isRemoveOfficerModalOpen}
+        onClose={() => {
+          setIsRemoveOfficerModalOpen(false);
+          setOfficerToRemove(null);
+        }}
+        title="Confirm Remove Officer"
+        description="Are you sure you want to remove this officer from their position?"
+      >
+        <div className="space-y-4">
+          {officerToRemove && (
+            <>
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-900">
+                  <span className="font-medium">Officer:</span> {officerToRemove.name}
+                </p>
+                <p className="text-sm text-red-900 mt-1">
+                  <span className="font-medium">Position:</span> {officerToRemove.position}
+                </p>
+                <p className="text-sm text-red-900 mt-1">
+                  <span className="font-medium">Email:</span> {officerToRemove.email}
+                </p>
+              </div>
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-xs text-yellow-800">
+                  <span className="font-medium">Warning:</span> This action will revert the officer back to Member role and remove all officer privileges.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button
+            onClick={() => {
+              setIsRemoveOfficerModalOpen(false);
+              setOfficerToRemove(null);
+            }}
+            variant="outline"
+            className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            disabled={isRemoving}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmRemoveOfficer}
+            className="bg-red-600 hover:bg-red-700 text-white"
+            disabled={isRemoving}
+          >
+            {isRemoving ? 'Removing...' : 'Remove Officer'}
           </Button>
         </div>
       </Modal>

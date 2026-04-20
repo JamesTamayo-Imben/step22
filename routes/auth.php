@@ -16,7 +16,8 @@ use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\OnboardingController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('guest')->group(function () {
+// Auth routes - Guests only (prevent logged-in users from accessing)
+Route::middleware('prevent_logged_in')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 
@@ -27,6 +28,21 @@ Route::middleware('guest')->group(function () {
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
+    Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
+        ->name('password.request');
+
+    Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->name('password.email');
+
+    Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
+        ->name('password.reset');
+
+    Route::post('reset-password', [NewPasswordController::class, 'store'])
+        ->name('password.store');
+});
+
+// API endpoints - No middleware restriction
+Route::group([], function () {
     // ========== API LOGIN ENDPOINT FOR REACT COMPONENT ==========
     // This endpoint accepts JSON and returns JSON with user role and redirect URL
     // Used by the React Login component for step2 database authentication
@@ -43,18 +59,6 @@ Route::middleware('guest')->group(function () {
     Route::post('api/otp/verify', [OTPController::class, 'verifyOTP']);
     Route::post('api/otp/resend', [OTPController::class, 'resendOTP']);
     // ======================================================
-
-    Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
-        ->name('password.request');
-
-    Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
-        ->name('password.email');
-
-    Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
-        ->name('password.reset');
-
-    Route::post('reset-password', [NewPasswordController::class, 'store'])
-        ->name('password.store');
 });
 
 // ========== GOOGLE OAUTH ENDPOINTS ==========

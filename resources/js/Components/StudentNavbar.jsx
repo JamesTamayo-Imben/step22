@@ -188,10 +188,10 @@ export function StudentNavbar({
                       {userInitials}
                     </div>
                   )}
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-900">{displayName}</p>
-                    <p className="text-xs text-gray-500">{roleName}</p>
-                  </div>
+                  <div className="text-left w-48"> 
+  <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
+  <p className="text-xs text-gray-500 truncate w-full">{roleName}</p>
+</div>
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 </button>
                 {isProfileMenuOpen && (

@@ -31,8 +31,21 @@ import {
 export default function CSGOfficerSidebar({ currentView = null, onNavigate = null, onLogout = null, onSwitchRole = null, userData = null, isSwitchedView = null }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false);
+  const page = usePage();
+  const user = page.props.auth?.user;
 
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+  
+  // Helper function to get user initials
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   // Mock online CSG officers data
   const onlineOfficers = [
@@ -108,7 +121,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
           </div>
         </div>
         <Avatar className="w-8 h-8">
-          <AvatarFallback className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md text-xs">CO</AvatarFallback>
+          <AvatarFallback className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md text-xs">{getInitials(user?.name)}</AvatarFallback>
         </Avatar>
       </div>
 
@@ -374,11 +387,11 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
           
           <div className="flex items-center gap-3 px-4 py-2">
             <Avatar className="w-8 h-8">
-              <AvatarFallback className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md text-white text-xs">CO</AvatarFallback>
+              <AvatarFallback className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md text-xs">{getInitials(user?.name)}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <p className="text-sm text-gray-900">CSG Officer</p>
-              <p className="text-xs text-gray-500">officer@kld.edu.ph</p>
+              <p className="text-sm text-gray-900">{user?.name || 'User'}</p>
+              <p className="text-xs text-gray-500">{user?.email || 'No email'}</p>
             </div>
           </div>
           <form method="POST" action="/logout" className="w-full">

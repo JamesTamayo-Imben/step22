@@ -17,6 +17,13 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
+        // Register role-based access control middleware
+        // Register middleware that prevents logged-in users from accessing login/welcome pages
+        $middleware->alias([
+            'role' => \App\Http\Middleware\CheckRole::class,
+            'prevent_logged_in' => \App\Http\Middleware\PreventLoggedInUsers::class,
+        ]);
+
         $middleware->validateCsrfTokens(except: [
             'api/*',
         ]);

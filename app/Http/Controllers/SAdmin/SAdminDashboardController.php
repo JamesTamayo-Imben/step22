@@ -17,7 +17,7 @@ class SAdminDashboardController extends Controller
     public function index()
     {
         $totalUsers = User::query()->where('archive', false)->count();
-        $activeRoles = Role::query()->count();
+        $activeRoles = Role::query()->whereNotIn('name', ['Student'])->count();
         $approvedProjects = Project::query()->where('archive', false)->where('approval_status', 'Approved')->count();
         $pendingApprovals = Project::query()
             ->where('archive', false)
@@ -58,12 +58,27 @@ class SAdminDashboardController extends Controller
 
         // Users by role
         $usersByRole = [];
-        $roles = Role::query()->get();
+        $roles = Role::query()->whereNotIn('name', ['Student'])->get();
+        
         foreach ($roles as $role) {
-            $usersByRole[] = [
-                'name' => $role->name,
-                'value' => User::query()->where('archive', false)->where('role_id', $role->id)->count(),
-            ];
+            if ($role->name === 'Teacher') {
+                // Combine Teacher and Student counts into Member
+                $teacherCount = User::query()->where('archive', false)->where('role_id', $role->id)->count();
+                $studentRole = Role::query()->where('name', 'Student')->first();
+                $studentCount = 0;
+                if ($studentRole) {
+                    $studentCount = User::query()->where('archive', false)->where('role_id', $studentRole->id)->count();
+                }
+                $usersByRole[] = [
+                    'name' => 'Member',
+                    'value' => $teacherCount + $studentCount,
+                ];
+            } else {
+                $usersByRole[] = [
+                    'name' => $role->name,
+                    'value' => User::query()->where('archive', false)->where('role_id', $role->id)->count(),
+                ];
+            }
         }
 
         // CSG and Adviser counts
@@ -309,6 +324,18 @@ class SAdminDashboardController extends Controller
             'is_csg' => true,
         ]);
 
+        //update the user's role to CSG Officer
+        $user = User::find($userId);
+        if ($user) {
+            // Get the CSG Officer role ID (csg officer role slug)
+            $csgRole = Role::where('slug', 'csg')->first();
+            if ($csgRole) {
+                $user->update([
+                    'role_id' => $csgRole->id,
+                ]);
+            }
+        }
+
         // return response()->json(['message' => 'Officer assigned successfully']);
     }
 
@@ -388,6 +415,94 @@ class SAdminDashboardController extends Controller
             'is_adviser' => true,
         ]);
 
+        // Update the user's role_id to admin (adviser) role
+        $user = User::find($teacherId);
+        if ($user) {
+            // Get the admin/adviser role ID (admin role slug)
+            $adminRole = \App\Models\Role::where('slug', 'admin')->first();
+            if ($adminRole) {
+                $user->update([
+                    'role_id' => $adminRole->id,
+                ]);
+            }
+        }
+
         // return response()->json(['message' => 'Adviser assigned successfully']);
+    }
+
+    public function removeOfficer(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'userId' => 'required|exists:users,id',
+        ]);
+
+        $userId = $request->userId;
+
+        // Find the CSG officer record
+        $officer = StudentCsgOfficer::where('user_id', $userId)
+            ->where('archive', false)
+            ->first();
+
+        if (! $officer) {
+            return response()->json(['message' => 'Officer record not found.'], 422);
+        }
+
+        // Revert the officer back to Member role
+        $officer->update([
+            'csg_position' => 'Member',
+            'csg_is_active' => false,
+            'is_csg' => false,
+        ]);
+
+        // Revert the user's role back to student role
+        $user = User::find($userId);
+        if ($user) {
+            // Get the student role ID (student role slug)
+            $studentRole = Role::where('slug', 'student')->first();
+            if ($studentRole) {
+                $user->update([
+                    'role_id' => $studentRole->id,
+                ]);
+            }
+        }
+
+        // return response()->json(['message' => 'Officer removed successfully']);
+    }
+
+    public function removeAdviser(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'teacherId' => 'required|exists:teacher_adviser,user_id',
+        ]);
+
+        $teacherId = $request->teacherId;
+
+        // Find the adviser record by user_id
+        $adviser = TeacherAdviser::where('user_id', $teacherId)
+            ->where('archive', false)
+            ->first();
+
+        if (! $adviser) {
+            return response()->json(['message' => 'Adviser record not found.'], 422);
+        }
+
+        // Update the adviser record to set is_adviser to false
+        $adviser->update([
+            'is_adviser' => false,
+        ]);
+
+        // Revert the user's role back to teacher role
+        $user = User::find($teacherId);
+        if ($user) {
+            // Get the teacher role ID (teacher role slug)
+            $teacherRole = Role::where('slug', 'teacher')->first();
+            if ($teacherRole) {
+                $user->update([
+                    'role_id' => $teacherRole->id,
+                ]);
+            }
+        }
+
+        // return response()->json(['message' => 'Adviser removed successfully']);
     }
 }
