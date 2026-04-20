@@ -133,7 +133,12 @@ export default function ForgotPassword({ status }) {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
                 },
-                body: JSON.stringify({ email, otp, password: newPassword }),
+                body: JSON.stringify({ 
+                    email, 
+                    otp, 
+                    password: newPassword,
+                    password_confirmation: confirmPassword
+                }),
             });
 
             const data = await response.json();
