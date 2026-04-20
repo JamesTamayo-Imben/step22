@@ -3,6 +3,7 @@ import { Inertia } from '@inertiajs/inertia';
 import { usePage } from '@inertiajs/react';
 import { useLogout } from '../hooks/useLogout';
 import { useSupabase } from '../context/SupabaseContext';
+import { Chatbot } from '@/Components/ui/Chatbot';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -445,6 +446,8 @@ export function StudentNavbar({
           </button>
         </div>
       </aside>
+
+      <Chatbot title="Project Assistant" />
 
       {/* Mobile Bottom Quick Access Bar (Points & Badges) */}
       {/* <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 px-4 py-3">

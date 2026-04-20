@@ -215,7 +215,7 @@ const getStatusColor = (status) => {
         </div>
       </div> */}
 
-      <Chatbot title="Project Assistant" />
+      {/* <Chatbot title="Project Assistant" /> */}
     </div>
 
     
