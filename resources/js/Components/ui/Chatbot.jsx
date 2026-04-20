@@ -157,7 +157,7 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
         <button
           type="button"
           onClick={() => { setIsOpen(true); setShowSuggestions(true); setMessages(defaultMessages); }}
-          className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-700 to-blue-900 text-white shadow-2xl ring-2 ring-white/30 transition-all hover:scale-105 active:scale-95"
+          className="fixed bottom-6 right-6 bg-[#2563EB] hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 ease-in-out hover:scale-110 z-40"
           aria-label="Open STEPH chat"
         >
           <MessageCircleCheckIcon className="w-6 h-6 sm:w-8 sm:h-8" />

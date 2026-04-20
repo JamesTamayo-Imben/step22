@@ -1,6 +1,7 @@
 import { ArrowRight, Shield, FileCheck, Users, CheckCircle, Sparkles, Play, X, ArrowUp, HelpCircle, Mail, MapPin, User } from 'lucide-react';
 import { Link, router } from '@inertiajs/react';
 import { useRef, useState, useEffect } from 'react';
+import { Chatbot } from '@/Components/ui/Chatbot';
 
 let secretClickCount = 0;
 let secretClickTimeout = null;
@@ -712,14 +713,16 @@ export default function Welcome() {
         </button>
       )}
 
+                
+      <Chatbot title="Project Assistant" />
       {/* Fixed Help Button */}
-      <button
+      {/* <button
         onClick={handleHelpClick}
         className="fixed bottom-6 right-6 bg-[#2563EB] hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 ease-in-out hover:scale-110 z-40"
         title="Help & Support"
       >
         <HelpCircle className="w-5 h-5" />
-      </button>
+      </button> */}
     </div>
   );
 }
