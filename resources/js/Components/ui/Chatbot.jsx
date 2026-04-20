@@ -15,7 +15,7 @@ const suggestedQuestions = [
     id: 'verify',
     question: 'How do I verify a transaction?',
     icon: Search,
-    answer: 'To verify a transaction, go to the "Financial Ledger" section. Every approved expense has a unique SHA-256 hash. You can click on an entry to view the proof of purchase (receipt) and see the digital signature of the Adviser who approved it.'
+    answer: 'To verify a transaction, go to the "Financial Ledger" section of the project. Every approved expense has a information that yo need to compare if the data is corect. You can click on an entry to view the proof of purchase (receipt) and see the digital signature of the Adviser who approved it.'
   },
   {
     id: 'ledger_member',

@@ -15,6 +15,8 @@ import {
   Key,
   LogOut,
   X,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { showToast } from '@/Pages/CSG/ProjectEdit';
 
@@ -164,6 +166,11 @@ const ChangePasswordModal = ({ isOpen, onClose, onSave, errors, isSaving }) => {
     password: '',
     password_confirmation: '',
   });
+  const [showPasswords, setShowPasswords] = useState({
+    current_password: false,
+    password: false,
+    password_confirmation: false,
+  });
 
   // Reset when modal opens
   useEffect(() => {
@@ -172,6 +179,11 @@ const ChangePasswordModal = ({ isOpen, onClose, onSave, errors, isSaving }) => {
         current_password: '',
         password: '',
         password_confirmation: '',
+      });
+      setShowPasswords({
+        current_password: false,
+        password: false,
+        password_confirmation: false,
       });
     }
   }, [isOpen]);
@@ -200,13 +212,22 @@ const ChangePasswordModal = ({ isOpen, onClose, onSave, errors, isSaving }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Current Password
             </label>
-            <input
-              type="password"
-              value={passwordData.current_password}
-              onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-              autoFocus
-            />
+            <div className="relative">
+              <input
+                type={showPasswords.current_password ? "text" : "password"}
+                value={passwordData.current_password}
+                onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowPasswords({ ...showPasswords, current_password: !showPasswords.current_password })}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPasswords.current_password ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {errors.current_password && (
               <p className="text-red-600 text-sm mt-1">{errors.current_password}</p>
             )}
@@ -215,12 +236,21 @@ const ChangePasswordModal = ({ isOpen, onClose, onSave, errors, isSaving }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               New Password
             </label>
-            <input
-              type="password"
-              value={passwordData.password}
-              onChange={(e) => setPasswordData({ ...passwordData, password: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-            />
+            <div className="relative">
+              <input
+                type={showPasswords.password ? "text" : "password"}
+                value={passwordData.password}
+                onChange={(e) => setPasswordData({ ...passwordData, password: e.target.value })}
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPasswords({ ...showPasswords, password: !showPasswords.password })}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPasswords.password ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {errors.password && (
               <p className="text-red-600 text-sm mt-1">{errors.password}</p>
             )}
@@ -229,12 +259,21 @@ const ChangePasswordModal = ({ isOpen, onClose, onSave, errors, isSaving }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Confirm Password
             </label>
-            <input
-              type="password"
-              value={passwordData.password_confirmation}
-              onChange={(e) => setPasswordData({ ...passwordData, password_confirmation: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-            />
+            <div className="relative">
+              <input
+                type={showPasswords.password_confirmation ? "text" : "password"}
+                value={passwordData.password_confirmation}
+                onChange={(e) => setPasswordData({ ...passwordData, password_confirmation: e.target.value })}
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPasswords({ ...showPasswords, password_confirmation: !showPasswords.password_confirmation })}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPasswords.password_confirmation ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {errors.password_confirmation && (
               <p className="text-red-600 text-sm mt-1">{errors.password_confirmation}</p>
             )}
