@@ -1406,8 +1406,12 @@ const getTypeAmountColor = (type) => {
               value={ledgerForm.type}
               onChange={(e) => setLedgerForm({ ...ledgerForm, type: e.target.value })}
             >
-              <option value="Income">Income</option>
-              <option value="Expense">Expense</option>
+              <option value="">Select Type</option>
+            <option value="Income">Income</option>
+            <option value="Expense">Expense</option>
+            <option value="Donation">Donation</option>
+            <option value="Sponsorship">Sponsorship</option>
+            <option value="Canvas">Canvas</option>
             </Select>
           </div>
 

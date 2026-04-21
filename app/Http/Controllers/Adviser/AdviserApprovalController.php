@@ -405,38 +405,42 @@ class AdviserApprovalController extends Controller
     }
 
     private function serializeLedgerCard(LedgerEntry $e, ?string $forceStatus = null): array
-    {
-        $status = $forceStatus ?? 'Pending Approval';
-        if ($forceStatus === null && $e->approval_status === 'Rejected') {
-            $status = 'Rejected';
-        }
-
-        // Get project_proof from the initial ledger entry for this project
-        $initialEntry = $e->project?->ledgerEntries()?->oldest()->first();
-        $projectProof = $initialEntry?->project?->project_proof ?? $e->project?->project_proof ?? null;
-
-        // If this is an Initial entry, use the project_proof as the ledger_proof
-        $ledgerProof = ($e->type === 'Initial') ? $e->project?->project_proof : $e->ledger_proof;
-
-        return [
-            'id' => $e->id,
-            'title' => $e->description ?? 'Ledger entry',
-            'submittedBy' => $this->userName($e->created_by),
-            'submittedDate' => optional($e->created_at)->format('Y-m-d') ?? '',
-            'status' => $status === 'Rejected' ? 'Rejected' : 'Pending Approval',
-            'amount' => (float) $e->amount,
-            'project' => $e->project?->title ?? '',
-            'hash' => substr($e->project_id ?? $e->id, 0, 32), // Based on project ID
-            'type' => 'ledger',
-            'approvalType' => 'ledger',
-            'description' => $e->description ?? 'No description provided',
-            'created_by' => $this->userName($e->created_by),
-            'created_at' => optional($e->created_at)->format('Y-m-d H:i:s') ?? 'N/A',
-            'entry_type' => $e->type ?? 'Expense',
-            'ledger_proof' => $ledgerProof,
-            'project_proof' => $projectProof,
-        ];
+{
+    $status = $forceStatus ?? 'Pending Approval';
+    if ($forceStatus === null && $e->approval_status === 'Rejected') {
+        $status = 'Rejected';
     }
+
+    $initialEntry = $e->project?->ledgerEntries()?->oldest()->first();
+    $projectProof = $initialEntry?->project?->project_proof ?? $e->project?->project_proof ?? null;
+    $ledgerProof = ($e->type === 'Initial') ? $e->project?->project_proof : $e->ledger_proof;
+
+    // Decode budget_breakdown if it's a JSON string
+    $budgetBreakdown = $e->budget_breakdown;
+    if (is_string($budgetBreakdown)) {
+        $budgetBreakdown = json_decode($budgetBreakdown, true) ?? [];
+    }
+
+    return [
+        'id' => $e->id,
+        'title' => $e->description ?? 'Ledger entry',
+        'submittedBy' => $this->userName($e->created_by),
+        'submittedDate' => optional($e->created_at)->format('Y-m-d') ?? '',
+        'status' => $status === 'Rejected' ? 'Rejected' : 'Pending Approval',
+        'amount' => (float) $e->amount,
+        'project' => $e->project?->title ?? '',
+        'hash' => substr($e->project_id ?? $e->id, 0, 32),
+        'type' => 'ledger',
+        'approvalType' => 'ledger',
+        'description' => $e->description ?? 'No description provided',
+        'created_by' => $this->userName($e->created_by),
+        'created_at' => optional($e->created_at)->format('Y-m-d H:i:s') ?? 'N/A',
+        'entry_type' => $e->type ?? 'Expense',
+        'ledger_proof' => $ledgerProof,
+        'project_proof' => $projectProof,
+        'budget_breakdown' => $budgetBreakdown ?? [], // <-- ADD THIS
+    ];
+}
 
     private function serializeProofCard(LedgerEntry $e): array
     {

@@ -5,7 +5,7 @@ import { User, Lock, Eye, EyeOff, Shield } from "lucide-react";
 export default function SuperAdminLoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -13,7 +13,11 @@ export default function SuperAdminLoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
+   
+    if (!rememberMe) {
+      setError("Please check 'Remember me' before logging in.");
+      return;
+    }
 
     try {
       const uname = username.trim();
@@ -50,7 +54,7 @@ export default function SuperAdminLoginPage() {
 
       if (!response.ok) {
         // Check if it's a non-superadmin trying to login on secret portal
-        if (response.status === 403 && data.message?.includes('does not have superadmin')) {
+        if (response.status === 403 && (data.message?.includes('does not have') && data.message?.includes('superadmin'))) {
           // Redirect to regular login
           console.log('Non-superadmin detected, redirecting to regular login...');
           setError("Redirecting to regular login portal...");

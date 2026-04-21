@@ -48,6 +48,15 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
       const data = await response.json();
 
       if (!response.ok) {
+        // Check if it's a superadmin trying to login on regular portal
+        if (response.status === 403 && data.message?.includes('Superadmin accounts must use')) {
+          // Show message and redirect to superadmin login
+          setError("Accounts is Invalid use a separate login portal.");
+          // setTimeout(() => {
+          //   window.location.href = '/sadmin/login';
+          // }, 2000);
+          return;
+        }
         throw new Error(data.message || "Login failed. Please check your credentials.");
       }
 

@@ -69,7 +69,7 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 // ========== SUPER ADMIN ROUTES (Temporarily without middleware for testing) ==========
-Route::group([], function () {
+Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function ()  {
     // Super Admin Dashboard
     Route::get('/sadmin', [SAdminDashboardController::class, 'index'])->name('sadmin.dashboard');
     Route::get('/sadmin/dashboard', [SAdminDashboardController::class, 'index'])->name('sadmin.dashboard.alias');

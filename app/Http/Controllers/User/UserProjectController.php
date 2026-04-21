@@ -7,6 +7,8 @@ use App\Models\CSG\Meeting;
 use App\Models\User\Project;
 use App\Models\User\Rating;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -18,6 +20,22 @@ class UserProjectController extends Controller
 {
     public function dashboard(Request $request)
     {
+        // Role-based authorization: Only Student and Ordinary Teacher users can access this
+        $user = Auth::user();
+        if (!$user || (!$user->hasRole('Student') && !$user->hasRole('Ordinary Teacher'))) {
+            // Redirect to appropriate dashboard based on role
+            if ($user) {
+                if ($user->hasRole('Admin/Adviser')) {
+                    return Redirect::route('adviser.dashboard');
+                } elseif ($user->hasRole('CSG Officer')) {
+                    return Redirect::route('csg.dashboard');
+                } elseif ($user->hasRole('Super Admin')) {
+                    return Redirect::route('sadmin.dashboard');
+                }
+            }
+            return Redirect::route('login');
+        }
+
         $user = $this->resolveCurrentUser();
         $dashboardData = $this->getDashboardData($user);
         $leaderboard = $this->getLeaderboardData($user);

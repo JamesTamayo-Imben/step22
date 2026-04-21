@@ -10,12 +10,30 @@ use App\Models\TeacherAdviser;
 use App\Models\User;
 use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 
 class SAdminDashboardController extends Controller
 {
     public function index()
     {
+        // Role-based authorization: Only Super Admin users can access this
+        $user = Auth::user();
+        if (!$user || !$user->hasRole('Super Admin')) {
+            // Redirect to appropriate dashboard based on role
+            if ($user) {
+                if ($user->hasRole('Admin/Adviser')) {
+                    return Redirect::route('adviser.dashboard');
+                } elseif ($user->hasRole('CSG Officer')) {
+                    return Redirect::route('csg.dashboard');
+                } elseif ($user->hasRole('Student') || $user->hasRole('Ordinary Teacher')) {
+                    return Redirect::route('user.dashboard');
+                }
+            }
+            return Redirect::route('login');
+        }
+
         $totalUsers = User::query()->where('archive', false)->count();
         $activeRoles = Role::query()->whereNotIn('name', ['Student'])->count();
         $approvedProjects = Project::query()->where('archive', false)->where('approval_status', 'Approved')->count();

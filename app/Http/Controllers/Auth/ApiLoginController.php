@@ -85,11 +85,37 @@ class ApiLoginController extends Controller
             ], 403);
         }
 
-        // Authenticate the user for session
-        Auth::login($user);
-
         // Get user role from already loaded relation
         $role = $user->role ? $user->role->slug : 'student';
+
+        // Check if superadmin flag is present in request
+        $isSuperAdminAttempt = $request->input('isSuperAdmin', false);
+
+        // Prevent superadmin from logging in through regular login form
+        if ($role === 'superadmin' && !$isSuperAdminAttempt) {
+            Log::warning('Superadmin login attempt through regular login portal', [
+                'email' => $validated['email'],
+                'user_id' => $user->id,
+            ]);
+            return response()->json([
+                'message' => 'Superadmin accounts must use the SuperAdmin login portal. Please navigate to the administrative access page.',
+            ], 403);
+        }
+
+        // Prevent non-superadmin from logging in through superadmin portal
+        if ($role !== 'superadmin' && $isSuperAdminAttempt) {
+            Log::warning('Non-superadmin login attempt through superadmin portal', [
+                'email' => $validated['email'],
+                'user_id' => $user->id,
+                'role' => $role,
+            ]);
+            return response()->json([
+                'message' => 'Only superadmin accounts can access this portal. Your account does not have superadmin privileges.',
+            ], 403);
+        }
+
+        // Authenticate the user for session
+        Auth::login($user);
 
         // Log successful login
         Log::info('Login successful', [

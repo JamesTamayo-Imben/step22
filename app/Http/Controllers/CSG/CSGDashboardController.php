@@ -7,6 +7,8 @@ use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Meeting;
 use App\Models\CSG\Project;
 use App\Models\User\Rating;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -14,6 +16,22 @@ class CSGDashboardController extends Controller
 {
     public function index()
     {
+        // Role-based authorization: Only CSG Officer users can access this
+        $user = Auth::user();
+        if (!$user || !$user->hasRole('CSG Officer')) {
+            // Redirect to appropriate dashboard based on role
+            if ($user) {
+                if ($user->hasRole('Admin/Adviser')) {
+                    return Redirect::route('adviser.dashboard');
+                } elseif ($user->hasRole('Super Admin')) {
+                    return Redirect::route('sadmin.dashboard');
+                } elseif ($user->hasRole('Student') || $user->hasRole('Ordinary Teacher')) {
+                    return Redirect::route('user.dashboard');
+                }
+            }
+            return Redirect::route('login');
+        }
+
         $stats = $this->computeCSGDashboardStats();
         
         // Return only statistics immediately, defer sensitive data to prevent leakage

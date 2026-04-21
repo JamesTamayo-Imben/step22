@@ -92,6 +92,38 @@ export default function AdviserApprovalsPage() {
     'rejected items': rejectedItems.length,
   };
 
+  // Calculate project statistics from approved ledger entries
+  const projectStats = useMemo(() => {
+    const stats = {};
+    const allApprovedLedger = approvedItems.filter(item => item.approvalType === 'ledger' || item.entry_type);
+    
+    allApprovedLedger.forEach(entry => {
+      const projectName = entry.project || 'Unknown Project';
+      if (!stats[projectName]) {
+        stats[projectName] = { income: 0, expense: 0, net: 0, count: 0 };
+      }
+      
+      const amount = parseFloat(entry.amount) || 0;
+      const entryType = entry.entry_type || entry.type || 'Expense';
+      
+      if (entryType === 'Income' || entryType === 'Donation' || entryType === 'Sponsorship') {
+        stats[projectName].income += amount;
+      } else {
+        stats[projectName].expense += amount;
+      }
+      
+      stats[projectName].net = stats[projectName].income - stats[projectName].expense;
+      stats[projectName].count += 1;
+    });
+    
+    return stats;
+  }, [approvedItems]);
+
+  const projectCount = Object.keys(projectStats).length;
+  const averageIncome = projectCount > 0 ? Object.values(projectStats).reduce((sum, s) => sum + s.income, 0) / projectCount : 0;
+  const averageExpense = projectCount > 0 ? Object.values(projectStats).reduce((sum, s) => sum + s.expense, 0) / projectCount : 0;
+  const averageNet = projectCount > 0 ? Object.values(projectStats).reduce((sum, s) => sum + s.net, 0) / projectCount : 0;
+
   const runApprove = (item, notes = '') => {
     if (!item) return showToast('No item selected', 'error');
 
@@ -112,18 +144,22 @@ export default function AdviserApprovalsPage() {
     });
   };
 
-  const handleApproveClick = () => {
-    if (!selectedItem) return showToast('No item selected', 'error');
-    setShowReview(false);
-    setShowApprove(true);
-  };
+ const handleApproveClick = () => {
+  if (!selectedItem) {
+    showToast('No item selected', 'error');
+    return;
+  }
+  setShowReview(false);
+  setShowApprove(true);
+};
 
   const handleRejectClick = () => {
-    if (!rejectReason.trim()) {
-      return showToast('Provide a reason', 'error');
-    }
-    setShowConfirmReject(true);
-  };
+  if (!rejectReason.trim()) {
+    showToast('Please provide a rejection reason before continuing', 'error');
+    return;
+  }
+  setShowConfirmReject(true);
+};
 
   const runReject = () => {
     if (!selectedItem) return showToast('No item selected', 'error');
@@ -622,24 +658,64 @@ export default function AdviserApprovalsPage() {
             </div>
 
             {/* Ledger Entry Information */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Project Title *</p>
-                <p className="text-gray-900">{selectedItem.project || 'N/A'}</p>
+<div className="grid grid-cols-2 gap-4">
+  <div className="col-span-2">
+    <p className="text-sm text-gray-500 mb-1">Project Title *</p>
+    <p className="text-gray-900">{selectedItem.project || 'N/A'}</p>
+  </div>
+  <div className="col-span-2">
+    <p className="text-sm text-gray-500 mb-1">Description *</p>
+    <p className="text-gray-900 whitespace-pre-wrap">{selectedItem.description || 'No description provided'}</p>
+  </div>
+
+  {/* ADD THIS BLOCK */}
+  <div className="col-span-2">
+    <p className="text-sm text-gray-500 mb-1">Budget Breakdown *</p>
+    {selectedItem.budget_breakdown && selectedItem.budget_breakdown.length > 0 ? (
+      <div className="bg-gray-50 rounded-lg p-3">
+        <div className="flex justify-between items-center pb-2 mb-2 border-b border-gray-300">
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Item (Unit Price × Quantity)</span>
+          <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
+        </div>
+        <div className="space-y-1">
+          {selectedItem.budget_breakdown.map((item, index) => (
+            <div key={item.id || index} className="flex justify-between items-center py-1">
+              <div className="flex-1">
+                <span className="text-sm text-gray-900">{item.item || item.name || 'Unnamed Item'}</span>
+                {(item.qty || item.quantity) && (
+                  <span className="text-xs text-gray-500 ml-2">
+                    (₱{(parseFloat(item.unitPrice) || 0).toLocaleString()} × {item.qty || item.quantity})
+                  </span>
+                )}
               </div>
-              <div className="col-span-2">
-                <p className="text-sm text-gray-500 mb-1">Description *</p>
-                <p className="text-gray-900 whitespace-pre-wrap">{selectedItem.description || 'No description provided'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Created By *</p>
-                <p className="text-sm text-gray-900">{selectedItem.created_by || 'Unknown'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Created At *</p>
-                <p className="text-sm text-gray-900">{selectedItem.created_at || 'N/A'}</p>
-              </div>
+              <span className="text-sm font-medium text-blue-600">
+                ₱{(parseFloat(item.amount) || 0).toLocaleString()}
+              </span>
             </div>
+          ))}
+        </div>
+        <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 font-semibold">
+          <span className="text-gray-700">Total</span>
+          <span className="text-blue-600">
+            ₱{selectedItem.budget_breakdown.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}
+          </span>
+        </div>
+      </div>
+    ) : (
+      <p className="text-gray-500">No budget breakdown available.</p>
+    )}
+  </div>
+  {/* END OF ADDED BLOCK */}
+
+  <div>
+    <p className="text-sm text-gray-500 mb-1">Created By *</p>
+    <p className="text-sm text-gray-900">{selectedItem.created_by || 'Unknown'}</p>
+  </div>
+  <div>
+    <p className="text-sm text-gray-500 mb-1">Created At *</p>
+    <p className="text-sm text-gray-900">{selectedItem.created_at || 'N/A'}</p>
+  </div>
+</div>
 
               <div className="col-span-2">
                 <p className="text-sm text-gray-500 mb-1">Proof Document *</p>
@@ -694,39 +770,69 @@ export default function AdviserApprovalsPage() {
       </Modal>
 
       {/* Approve Submission Modal */}
-      <Modal open={showApprove} onClose={() => { setShowApprove(false); setApprovalNotes(''); }} title="Approve Submission">
-        <div className="space-y-4 pt-4">
-          <p className="text-sm text-gray-600">Add optional approval notes for your records.</p>
-          <textarea
-            value={approvalNotes}
-            onChange={(e) => setApprovalNotes(e.target.value)}
-            rows={4}
-            placeholder="Enter approval notes..."
-            className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-          />
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowApprove(false); setApprovalNotes(''); }}>Cancel</Button>
-            <Button className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700" onClick={() => runApprove(selectedItem, approvalNotes)}>Confirm Approval</Button>
-          </div>
-        </div>
-      </Modal>
+<Modal open={showApprove} onClose={() => { setShowApprove(false); setApprovalNotes(''); }} title="Approve Submission">
+  <div className="space-y-4 pt-4">
+    <div>
+      <p className="text-sm text-gray-600 mb-2">
+        Add approval notes <span className="text-red-500">*</span>
+      </p>
+      <textarea
+        value={approvalNotes}
+        onChange={(e) => setApprovalNotes(e.target.value)}
+        rows={4}
+        placeholder="Enter approval notes (required)..."
+        className={`w-full rounded-xl border ${!approvalNotes.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-gray-50'} focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition`}
+      />
+      {!approvalNotes.trim() && (
+        <p className="text-xs text-red-500 mt-1">Approval notes are required</p>
+      )}
+    </div>
+    <div className="flex gap-3">
+      <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowApprove(false); setApprovalNotes(''); }}>
+        Cancel
+      </Button>
+      <Button 
+        className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed" 
+        onClick={() => {
+          if (!approvalNotes.trim()) {
+            showToast('❌ Please provide approval notes before confirming', 'error');
+            return;
+          }
+          runApprove(selectedItem, approvalNotes);
+        }}
+        disabled={!approvalNotes.trim()}
+      >
+        Confirm Approval
+      </Button>
+    </div>
+  </div>
+</Modal>
 
-      {/* Reject Confirmation Modal */}
-      <Modal open={showConfirmReject} onClose={() => setShowConfirmReject(false)} title="Confirm Rejection">
-        <div className="space-y-4 pt-4">
-          <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
-            <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-red-900">Are you sure?</p>
-              <p className="text-sm text-red-700 mt-1">This submission will be rejected with the reason provided. This action cannot be undone from this screen.</p>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowConfirmReject(false)}>Cancel</Button>
-            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={runReject}>Yes, Reject It</Button>
-          </div>
-        </div>
-      </Modal>
+     {/* Reject Confirmation Modal */}
+<Modal open={showConfirmReject} onClose={() => setShowConfirmReject(false)} title="Confirm Rejection">
+  <div className="space-y-4 pt-4">
+    <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
+      <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+      <div>
+        <p className="font-semibold text-red-900">Are you sure?</p>
+        <p className="text-sm text-red-700 mt-1">
+          This submission will be rejected with the reason: 
+          <span className="font-medium block mt-1 p-2 bg-white rounded border border-red-200">
+            "{rejectReason}"
+          </span>
+        </p>
+      </div>
+    </div>
+    <div className="flex gap-3">
+      <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowConfirmReject(false)}>
+        Cancel
+      </Button>
+      <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={runReject}>
+        Yes, Reject It
+      </Button>
+    </div>
+  </div>
+</Modal>
     </AuthenticatedLayout>
   );
 }

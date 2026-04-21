@@ -100,6 +100,12 @@ public function uploadProof(Request $request, $id)
                 if ($entryData['approved_by']) {
                     $entryData['approved_by'] = $this->getUserName($entryData['approved_by']);
                 }
+                 if ($entryData['created_by']) {
+        $entryData['created_by'] = $this->getUserName($entryData['created_by']);
+    }
+    if ($entryData['updated_by']) {
+        $entryData['updated_by'] = $this->getUserName($entryData['updated_by']);
+    }
                 
                 return $entryData;
             });

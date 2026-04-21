@@ -26,13 +26,14 @@ class PreventLoggedInUsers
             $userRole = $user->role?->slug;
 
             // Allow super admin to access freely for debugging/testing
-            if ($userRole === 'superadmin') {
-                return $next($request);
-            }
+            // if ($userRole === 'superadmin') {
+            //     return $next($request);
+            // }
 
             // Redirect other authenticated users to appropriate dashboard based on role
             $dashboardRoutes = [
                 'admin' => 'adviser.dashboard',
+                'superadmin' => 'sadmin.dashboard',
                 'csg' => 'csg.dashboard',
                 'student' => 'user.dashboard',
                 'teacher' => 'user.dashboard', // Default to user dashboard for teachers

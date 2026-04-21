@@ -7,7 +7,7 @@ import {
   BookOpen,
   Bell,
   TrendingUp,
-  FileText,
+  FileText, 
   User,
   Menu,
   X,

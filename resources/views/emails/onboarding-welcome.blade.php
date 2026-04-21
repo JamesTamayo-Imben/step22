@@ -46,14 +46,14 @@
         }
         .credential-box {
             background-color: #fffbeb;
-            border: 2px solid #fbbf24;
+            border: 2px solid #3b82f6;
             border-radius: 6px;
             padding: 20px;
             margin: 20px 0;
         }
         .credential-box h3 {
             margin-top: 0;
-            color: #b45309;
+            color: #3b82f6;
             font-size: 14px;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -115,14 +115,14 @@
         }
         .instructions {
             background-color: #ecfdf5;
-            border-left: 4px solid #10b981;
+            border-left: 4px solid #3b82f6;
             padding: 15px;
             margin: 20px 0;
             border-radius: 4px;
         }
         .instructions h4 {
             margin-top: 0;
-            color: #047857;
+            color: #3b82f6;
             font-size: 14px;
         }
         .instructions ul {
@@ -173,7 +173,7 @@
     <div class="container">
         {{-- Header --}}
         <div class="header">
-            <h1>🎓 Welcome to STEP</h1>
+            <h1>Welcome to STEP</h1>
             <p style="margin: 10px 0 0 0; opacity: 0.9;">School Transparency Platform</p>
         </div>
 
@@ -186,7 +186,7 @@
 
             {{-- Credentials --}}
             <div class="credential-box">
-                <h3>⚡ Your Temporary Password</h3>
+                <h3>Your Temporary Password</h3>
                 
                 <div class="credential-item">
                     <div class="credential-label">Email Address</div>
@@ -223,7 +223,7 @@
 
             {{-- Instructions --}}
             <div class="instructions">
-                <h4>🔐 First Login Instructions:</h4>
+                <h4>First Login Instructions:</h4>
                 <ul>
                     <li>Visit the STEP login page</li>
                     <li>Enter your email: <strong>{{ $email }}</strong></li>
@@ -234,7 +234,7 @@
 
             {{-- Security Warning --}}
             <div class="warning">
-                <strong>⚠️ Important Security Notes:</strong>
+                <strong>Important Security Notes:</strong>
                 <ul style="margin: 10px 0;">
                     <li>This is a temporary password. Change it immediately upon your first login.</li>
                     <li>Do not share your password with anyone.</li>
