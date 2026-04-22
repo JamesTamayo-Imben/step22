@@ -10,6 +10,7 @@ import { Badge } from '@/Components/ui/badge';
 import {
   Plus,
   Calendar,
+  Search,
   MapPin,
   Users,
   Clock,
@@ -154,6 +155,9 @@ function CSGMeetingsPageInner() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [timeFilter, setTimeFilter] = useState('all');
+
   // Pagination for Upcoming Meetings
   const [currentPageUpcoming, setCurrentPageUpcoming] = useState(1);
   const [currentPagePast, setCurrentPagePast] = useState(1);
@@ -276,17 +280,103 @@ const renderAttendees = (attendees) => {
   const upcomingMeetings = meetings.filter(m => m.status === 'Scheduled');
   const pastMeetings = meetings.filter(m => m.status === 'Completed');
 
-  // Pagination for Upcoming Meetings
-  const totalUpcomingPages = Math.ceil(upcomingMeetings.length / itemsPerPage);
+  // Apply search filtering (title, description, attendees, date)
+  const normalizeAttendees = (m) => {
+    if (!m) return '';
+    if (Array.isArray(m)) return m.join(' ');
+    return String(m || '');
+  };
+  const getTimeRange = (filter) => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const startOfWeek = (() => {
+      const d = new Date(startOfToday);
+      const day = d.getDay();
+      const diff = (day + 6) % 7; // Monday as first day
+      d.setDate(d.getDate() - diff);
+      d.setHours(0,0,0,0);
+      return d;
+    })();
+
+    if (filter === 'this_week') {
+      const end = new Date(startOfWeek);
+      end.setDate(end.getDate() + 6);
+      end.setHours(23,59,59,999);
+      return [startOfWeek, end];
+    }
+
+    if (filter === 'next_week') {
+      const start = new Date(startOfWeek);
+      start.setDate(start.getDate() + 7);
+      start.setHours(0,0,0,0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      end.setHours(23,59,59,999);
+      return [start, end];
+    }
+
+    if (filter === 'next_month') {
+      const start = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      start.setHours(0,0,0,0);
+      const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+      end.setHours(23,59,59,999);
+      return [start, end];
+    }
+
+    return [null, null];
+  };
+
+  const inTimeRange = (m, filter) => {
+    if (!filter || filter === 'all') return true;
+    const dateStr = m.scheduled_date || m.date || '';
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return false;
+    const [start, end] = getTimeRange(filter);
+    if (!start || !end) return false;
+    return d >= start && d <= end;
+  };
+
+  const filteredUpcomingMeetings = upcomingMeetings.filter((m) => {
+    if (!inTimeRange(m, timeFilter)) return false;
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q) return true;
+    const title = (m.title || '').toString().toLowerCase();
+    const desc = (m.description || '').toString().toLowerCase();
+    const attendees = normalizeAttendees(m.attendees).toLowerCase();
+    const date = (m.date || m.scheduled_date || '').toString().toLowerCase();
+    return title.includes(q) || desc.includes(q) || attendees.includes(q) || date.includes(q);
+  });
+
+  const filteredPastMeetings = pastMeetings.filter((m) => {
+    if (!inTimeRange(m, timeFilter)) return false;
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q) return true;
+    const title = (m.title || '').toString().toLowerCase();
+    const desc = (m.description || '').toString().toLowerCase();
+    const attendees = normalizeAttendees(m.attendees).toLowerCase();
+    const date = (m.date || m.scheduled_date || '').toString().toLowerCase();
+    return title.includes(q) || desc.includes(q) || attendees.includes(q) || date.includes(q);
+  });
+
+  // Pagination for Upcoming Meetings (use filtered lists)
+  const totalUpcomingPages = Math.ceil(filteredUpcomingMeetings.length / itemsPerPage);
   const indexOfLastUpcoming = currentPageUpcoming * itemsPerPage;
   const indexOfFirstUpcoming = indexOfLastUpcoming - itemsPerPage;
-  const currentUpcomingMeetings = upcomingMeetings.slice(indexOfFirstUpcoming, indexOfLastUpcoming);
+  const currentUpcomingMeetings = filteredUpcomingMeetings.slice(indexOfFirstUpcoming, indexOfLastUpcoming);
 
-  // Pagination for Past Meetings
-  const totalPastPages = Math.ceil(pastMeetings.length / itemsPerPage);
+  // Pagination for Past Meetings (use filtered lists)
+  const totalPastPages = Math.ceil(filteredPastMeetings.length / itemsPerPage);
   const indexOfLastPast = currentPagePast * itemsPerPage;
   const indexOfFirstPast = indexOfLastPast - itemsPerPage;
-  const currentPastMeetings = pastMeetings.slice(indexOfFirstPast, indexOfLastPast);
+  const currentPastMeetings = filteredPastMeetings.slice(indexOfFirstPast, indexOfLastPast);
+
+  // Reset to first page when search query changes
+  useEffect(() => {
+    setCurrentPageUpcoming(1);
+    setCurrentPagePast(1);
+  }, [searchQuery]);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -667,13 +757,21 @@ const renderAttendees = (attendees) => {
           <h1 className="text-2xl font-semibold text-gray-900">Meetings</h1>
           <p className="text-gray-500">Schedule and manage CSG meetings</p>
         </div>
-        <Button
-          onClick={() => setShowCreateModal(true)}
-          className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Meeting
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* <Input
+            placeholder="Search meetings..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="min-w-[220px] rounded-xl border border-gray-200 bg-white"
+          /> */}
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Meeting
+          </Button>
+        </div>
       </div>
 
       {/* Loading State */}
@@ -728,6 +826,42 @@ const renderAttendees = (attendees) => {
         </Card>
       </div>
 
+      {/* Filters */}
+            <Card className="rounded-[20px] border-0 shadow-sm p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Search */}
+                    <div className="lg:col-span-1 relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        placeholder="Search by Meeting Title..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 rounded-xl border border-gray-200 bg-white focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                      />
+                    </div>
+
+                    {/* Time range filter */}
+                    <div className="lg:col-span-1">
+                      <label className="sr-only">Time filter</label>
+                      <select
+                        value={timeFilter}
+                        onChange={(e) => setTimeFilter(e.target.value)}
+                        className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                      >
+                        <option value="all">All Meetings</option>
+                        <option value="this_week">This Week</option>
+                        <option value="next_week">Next Week</option>
+                        <option value="next_month">Next Month</option>
+                      </select>
+                    </div>
+      
+               
+               
+      
+               
+              </div>
+            </Card>
+
       {/* Tabs */}
       <Tabs defaultValue="upcoming" className="space-y-6">
         <TabsList>
@@ -737,10 +871,10 @@ const renderAttendees = (attendees) => {
 
         {/* Upcoming Meetings */}
        <TabsContent value="upcoming">
-  {upcomingMeetings.length > 0 && (
+        {filteredUpcomingMeetings.length > 0 && (
     <div className="flex justify-between items-center mb-6">
       <p className="text-sm text-gray-500">
-        Showing {indexOfFirstUpcoming + 1} to {Math.min(indexOfLastUpcoming, upcomingMeetings.length)} of {upcomingMeetings.length} upcoming meetings
+        Showing {indexOfFirstUpcoming + 1} to {Math.min(indexOfLastUpcoming, filteredUpcomingMeetings.length)} of {filteredUpcomingMeetings.length} upcoming meetings
       </p>
     </div>
   )}
@@ -835,7 +969,7 @@ const renderAttendees = (attendees) => {
     ))}
 
     {/* Empty State */}
-    {upcomingMeetings.length === 0 && (
+    {filteredUpcomingMeetings.length === 0 && (
       <Card className="col-span-full rounded-xl border-0 shadow-sm p-12">
         <div className="text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -856,7 +990,7 @@ const renderAttendees = (attendees) => {
   </div>
   
   {/* Pagination */}
-  {upcomingMeetings.length > 0 && totalUpcomingPages > 1 && (
+  {filteredUpcomingMeetings.length > 0 && totalUpcomingPages > 1 && (
     <PaginationControls
       currentPage={currentPageUpcoming}
       totalPages={totalUpcomingPages}
@@ -868,13 +1002,13 @@ const renderAttendees = (attendees) => {
 
         {/* Past Meetings */}
 <TabsContent value="past">
-  {pastMeetings.length > 0 && (
+  {filteredPastMeetings.length > 0 && (
     <div className="flex justify-between items-center mb-6">
       <p className="text-sm text-gray-500">
-        Showing {indexOfFirstPast + 1} to {Math.min(indexOfLastPast, pastMeetings.length)} of {pastMeetings.length} past meetings
+        Showing {indexOfFirstPast + 1} to {Math.min(indexOfLastPast, filteredPastMeetings.length)} of {filteredPastMeetings.length} past meetings
       </p>
       <Badge className="bg-gray-100 text-gray-600 px-3 py-1">
-        {pastMeetings.length} Completed
+        {filteredPastMeetings.length} Completed
       </Badge>
     </div>
   )}
@@ -1051,7 +1185,7 @@ const renderAttendees = (attendees) => {
     ))}
 
     {/* Empty State */}
-    {pastMeetings.length === 0 && (
+    {filteredPastMeetings.length === 0 && (
       <Card className="col-span-full rounded-xl border-0 shadow-sm p-12 bg-gradient-to-b from-gray-50 to-white">
         <div className="text-center">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1074,7 +1208,7 @@ const renderAttendees = (attendees) => {
   </div>
   
   {/* Pagination */}
-  {pastMeetings.length > 0 && totalPastPages > 1 && (
+  {filteredPastMeetings.length > 0 && totalPastPages > 1 && (
     <div className="mt-8">
       <PaginationControls
         currentPage={currentPagePast}

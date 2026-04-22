@@ -202,6 +202,9 @@ function LedgerPageInner() {
       });
   };
 
+  //computation of total budget in all prjects getting it from the project table budget column
+  const totalBudget = allProjects.reduce((sum, project) => sum + (Number(project.budget) || 0), 0);
+
   useEffect(() => {
     const fetchProjects = () => {
       fetch('/api/projects', {
@@ -836,7 +839,7 @@ const getTypeAmountColor = (type) => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <Card className="rounded-[20px] border-0 shadow-sm p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -874,11 +877,25 @@ const getTypeAmountColor = (type) => {
             </div>
           </div>
         </Card>
+
+         <Card className="rounded-[20px] border-0 shadow-sm p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total Budget</p>
+              <p className={`text-2xl mt-1 ${totalBudget >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                ₱{(totalBudget || 0).toLocaleString()}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+              <DollarSign className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Filters */}
       <Card className="rounded-[20px] border-0 shadow-sm p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Search */}
           <div className="lg:col-span-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -908,11 +925,21 @@ const getTypeAmountColor = (type) => {
             <option value="Approved">Approved</option>
             <option value="Rejected">Rejected</option>
           </Select>
+
+          {/* Project Filter */}
+          <Select value={filterProject} onChange={(e) => setFilterProject(e.target.value)}>
+            <option value="all">All Projects</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.title || p.name || p.id}>
+                {p.title || p.name || p.id}
+              </option>
+            ))}
+          </Select>
         </div>
       </Card>
 
       {/* Entries Count */}
-      <div className=' p-6 rounded-xl border-0 shadow-sm'>
+      <div className=' rounded-xl border-0 shadow-sm'>
       <div className="bg-white rounded-xl p-6">
   <div className="flex items-center gap-2">
     <h2 className="text-lg font-semibold text-gray-900">Ledger Entries</h2>
@@ -963,7 +990,7 @@ const getTypeAmountColor = (type) => {
          <Card key={entry.id} className={`rounded-xl border-0 shadow-sm transition-all duration-200 overflow-x-auto ${
            entry.verificationState?.tampered ? 'ring-2 ring-red-200 bg-red-50' : ''
          } ${entryLocked ? 'opacity-70 pointer-events-none' : 'hover:shadow-md'}`}>
-            <div className="p-4 min-w-[900px]">
+             <div className="p-4 min-w-0">
               {/* Tamper Alert Banner for individual entry */}
               {/* {entryLocked && (
                 <div className="mb-3 p-2 bg-red-100 border border-red-200 rounded-lg">

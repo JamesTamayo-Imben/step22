@@ -16,7 +16,7 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  Upload,
+  Upload,Eye, EyeOff,
   Lock,
 } from 'lucide-react';
 
@@ -115,6 +115,18 @@ function AdviserProfilePageInner({ user }) {
     newPassword: '',
     confirmPassword: '',
   });
+  const [showPasswords, setShowPasswords] = useState({
+      currentPassword: false,
+      newPassword: false,
+      confirmPassword: false,
+    });
+  
+    useEffect(() => {
+    if (!showChangePasswordModal) {
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowPasswords({ currentPassword: false, newPassword: false, confirmPassword: false });
+    }
+  }, [showChangePasswordModal]);
 
   const activityStats = {
     projectsApproved: 24,
@@ -464,31 +476,46 @@ function AdviserProfilePageInner({ user }) {
         <div className="space-y-4 pt-6">
           <div>
             <FieldLabel>Current Password</FieldLabel>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="password"
-              placeholder="Minimum 8 characters"
-              value={passwordForm.currentPassword}
-              onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-              className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-            />
-            </div>
+           <div className="relative">
+  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+  <input
+    type={showPasswords.currentPassword ? "text" : "password"}
+    placeholder="••••••••"
+    value={passwordForm.currentPassword}
+    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+    className="w-full h-10 pl-9 pr-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+    autoFocus
+  />
+  <button
+    type="button"
+    onClick={() => setShowPasswords({ ...showPasswords, currentPassword: !showPasswords.currentPassword })}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+  >
+    {showPasswords.currentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+  </button>
+</div>
             
           </div>
 
           <div>
             <FieldLabel>New Password</FieldLabel>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={passwordForm.newPassword}
-              onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-              className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-            />
-            </div>
+           <div className="relative">
+  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+  <input
+    type={showPasswords.newPassword ? "text" : "password"}
+    placeholder="••••••••"
+    value={passwordForm.newPassword}
+    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+    className="w-full h-10 pl-9 pr-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+  />
+  <button
+    type="button"
+    onClick={() => setShowPasswords({ ...showPasswords, newPassword: !showPasswords.newPassword })}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+  >
+    {showPasswords.newPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+  </button>
+</div>
             
             <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters</p>
           </div>
@@ -496,15 +523,22 @@ function AdviserProfilePageInner({ user }) {
           <div>
             <FieldLabel>Confirm New Password</FieldLabel>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={passwordForm.confirmPassword}
-              onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-              className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-            />
-            </div>
+  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10" />
+  <input
+    type={showPasswords.confirmPassword ? "text" : "password"}
+    placeholder="••••••••"
+    value={passwordForm.confirmPassword}
+    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+    className="w-full h-10 pl-9 pr-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+  />
+  <button
+    type="button"
+    onClick={() => setShowPasswords({ ...showPasswords, confirmPassword: !showPasswords.confirmPassword })}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+  >
+    {showPasswords.confirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+  </button>
+</div>
             
           </div>
 
