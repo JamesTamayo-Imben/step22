@@ -76,6 +76,7 @@ class BulkRegistrationController extends Controller
                 'password' => bcrypt($validated['password']),
                 'phone' => $validated['phone'] ?? $user->phone,
                 'email_verified_at' => now(),
+                'profile_completed' => true,
             ]);
 
             // Mark token as expired (can't be used again)
@@ -128,12 +129,12 @@ class BulkRegistrationController extends Controller
 
             // Validate email domain - exact match only
             $domain = strtolower(explode('@', $email)[1] ?? '');
-            $validDomains = ['kld.edu.ph','gmail.com', 'kld.com.ph', 'step.edu.ph'];
+            $validDomains = ['kld.edu.ph'];
             
             if (!in_array($domain, $validDomains, true)) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Email must use institutional domain (kld.edu.ph, kld.com.ph, or step.edu.ph): {$email}",
+                    'message' => "Email must use institutional domain (kld.edu.ph): {$email}",
                 ], 422);
             }
 
@@ -171,6 +172,7 @@ class BulkRegistrationController extends Controller
                     'status' => 'active',
                     'phone' => $validated['phone'] ?? $existingUser->phone,
                     'email_verified_at' => now(),
+                    'profile_completed' => true,
                 ]);
                 $user = $existingUser;
             } else {
@@ -193,6 +195,7 @@ class BulkRegistrationController extends Controller
                     'status' => 'active',
                     'phone' => $validated['phone'] ?? null,
                     'email_verified_at' => now(),
+                    'profile_completed' => true,
                 ]);
             }
 
@@ -255,12 +258,12 @@ class BulkRegistrationController extends Controller
 
             // Validate email domain - exact match only
             $domain = strtolower(explode('@', $email)[1] ?? '');
-            $validDomains = ['kld.edu.ph','gmail.com', 'kld.com.ph', 'step.edu.ph'];
+            $validDomains = ['kld.edu.ph'];
             
             if (!in_array($domain, $validDomains, true)) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Email must use institutional domain (kld.edu.ph, kld.com.ph, or step.edu.ph): {$email}",
+                    'message' => "Email must use institutional domain (kld.edu.ph): {$email}",
                 ], 422);
             }
 

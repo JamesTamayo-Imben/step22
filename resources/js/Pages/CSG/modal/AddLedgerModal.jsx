@@ -360,8 +360,8 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
                   <Input
                     type="number"
                     placeholder="Unit Price"
-                    min="0"
-                    step="0.01"
+                    min="1"
+                    // step="0.01"
                     value={item.unitPrice}
                     onChange={(e) => updateBudgetItem(item.id, 'unitPrice', e.target.value)}
                     className="w-28 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"

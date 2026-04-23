@@ -96,8 +96,8 @@ export default function OAuthCallback() {
             setShowOnboarding(true);
             setValidating(false);
           } else {
-            // Existing user with completed profile: redirect based on role
-            console.log('✅ Profile already completed, checking role for redirect');
+            // Existing user with completed profile: redirect to dashboard immediately
+            console.log('✅ Profile already completed, redirecting to dashboard');
             console.log('📧 Email:', data.user.email);
             console.log('👤 Role:', data.user.role?.slug);
 
@@ -116,7 +116,9 @@ export default function OAuthCallback() {
             }
 
             console.log(`🚀 Redirecting to ${redirectPath} based on role: ${data.user.role?.slug}`);
+            // Redirect immediately without showing onboarding form
             router.visit(redirectPath);
+            return; // Exit early to prevent showing onboarding page
           }
 
         } else {

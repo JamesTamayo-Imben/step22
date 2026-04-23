@@ -3,7 +3,7 @@ import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { StudentModal } from '@/Components/ui/StudentModal';
 import { Chatbot } from '@/Components/ui/Chatbot';
-import { ArrowLeft, Star, Calendar, DollarSign, FileText, CheckCircle, Wallet, Clock3, Shield, XCircle } from 'lucide-react';
+import { ArrowLeft, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shield, XCircle } from 'lucide-react';
 
 export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [currentProject, setCurrentProject] = useState(project);
@@ -279,7 +279,7 @@ function maskUserName(fullName) {
             <p className="text-lg font-semibold text-gray-900">{currentProject.endDate || 'N/A'}</p>
           </div>
          <div className="bg-blue-50 rounded-xl p-4">
-  <DollarSign className="w-5 h-5 text-blue-600 mb-2" />
+  <Wallet className="w-5 h-5 text-blue-600 mb-2" />
   <p className="text-sm text-gray-600">Budget</p>
   <p className={`text-2xl font-bold ${Number(currentProject.budget || 0) < 0 ? 'text-red-600' : 'text-gray-900'}`}>
     ₱{Number(currentProject.budget || 0).toLocaleString()}

@@ -362,10 +362,13 @@ public function complete(Request $request)
                 $emailLocal = $emailParts[0]; // Get part before @
                 $temporaryPassword = $emailLocal . 'KLD' . date('Y');
                 
-                // 🔐 Store hashed temporary password in database
-                $user->update([
-                    'password' => Hash::make($temporaryPassword),
-                ]);
+                // 🔐 Store hashed temporary password in database ONLY if user doesn't already have a password
+                // This prevents overwriting a password that the user may have already changed
+                if ($user->password === null) {
+                    $user->update([
+                        'password' => Hash::make($temporaryPassword),
+                    ]);
+                }
                 
                 Log::info('✅ Temporary password stored in database', [
                     'user_id' => $userId,
@@ -478,10 +481,13 @@ public function complete(Request $request)
                 $emailLocal = $emailParts[0]; // Get part before @
                 $temporaryPassword = $emailLocal . 'KLD' . date('Y');
 
-                // 🔐 Store hashed temporary password in database
-                $user->update([
-                    'password' => Hash::make($temporaryPassword),
-                ]);
+                // 🔐 Store hashed temporary password in database ONLY if user doesn't already have a password
+                // This prevents overwriting a password that the user may have already changed
+                if ($user->password === null) {
+                    $user->update([
+                        'password' => Hash::make($temporaryPassword),
+                    ]);
+                }
                 
                 Log::info('✅ Temporary password stored in database (skip flow)', [
                     'user_id' => $userId,

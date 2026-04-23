@@ -26,13 +26,47 @@ class OTPController extends Controller
     public function sendOTP(Request $request)
     {
         try {
+            // First, validate basic fields
             $request->validate([
                 'email' => 'required|email|unique:users',
                 'firstName' => 'required|string',
                 'lastName' => 'required|string',
                 'password' => 'required|string|min:8',
                 'role_id' => 'required|exists:roles,id',
+                'student_id' => 'nullable|string',
+                'course_id' => 'nullable|string',
+            ], [
+                'email.unique' => 'This email address is already registered. Please use a different email or login to your existing account.',
             ]);
+
+            // Get the student role ID for validation
+            $studentRole = Role::where('slug', 'student')->first();
+            
+            // Additional validation for student role
+            if ($request->role_id == $studentRole?->id) {
+                $request->validate([
+                    'student_id' => 'required|string',
+                    'course_id' => 'required|string',
+                ], [
+                    'student_id.required' => 'Student ID is required for student registration.',
+                    'course_id.required' => 'Please select a course.',
+                ]);
+
+                // Check if student_id already exists
+                $existingStudent = StudentCsgOfficer::where('id', $request->student_id)->first();
+                if ($existingStudent) {
+                    Log::warning('❌ Student ID already registered', [
+                        'student_id' => $request->student_id,
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This Student ID is already registered. Please use a different Student ID.',
+                        'errors' => [
+                            'student_id' => ['This Student ID is already registered. Please use a different Student ID.']
+                        ]
+                    ], 422);
+                }
+            }
 
             // Generate 6-digit OTP
             $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -45,6 +79,8 @@ class OTPController extends Controller
                 'lastName' => $request->lastName,
                 'password' => $request->password,
                 'role_id' => $request->role_id,
+                'student_id' => $request->student_id,
+                'course_id' => $request->course_id,
             ], now()->addMinutes(10));
 
             // Send OTP via email
@@ -113,7 +149,7 @@ class OTPController extends Controller
                 'status' => 'active',
                 'email_verified_at' => now(),
                 'avatar_url' => $this->getGmailProfilePicture($request->email),
-                'profile_completed' => false, // Mark profile as incomplete
+                'profile_completed' => true, // Mark profile as completed since student_id and course_id are provided
             ]);
 
             // Create Supabase Auth user
@@ -128,9 +164,17 @@ class OTPController extends Controller
             $role = Role::find($otpData['role_id']);
             if ($role && $role->slug === 'student') {
                 StudentCsgOfficer::create([
-                    'id' => $user->id,
+                    'id' => $otpData['student_id'],
                     'user_id' => $user->id,
-                    // Other fields will be set later during profile completion
+                    'course_id' => $otpData['course_id'],
+                    'is_csg' => false,
+                    'csg_is_active' => true,
+                ]);
+                
+                Log::info('✅ StudentCsgOfficer record created during registration', [
+                    'student_id' => $otpData['student_id'],
+                    'user_id' => $user->id,
+                    'course_id' => $otpData['course_id'],
                 ]);
             }
 
@@ -431,6 +475,15 @@ class OTPController extends Controller
             ]);
             // Don't throw - Supabase creation is non-critical to registration flow
         }
+    }
+
+    /**
+     * Get the student role ID for validation purposes
+     */
+    private function getStudentRoleId()
+    {
+        $studentRole = Role::where('slug', 'student')->first();
+        return $studentRole ? $studentRole->id : null;
     }
 }
 

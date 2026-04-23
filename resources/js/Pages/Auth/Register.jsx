@@ -21,18 +21,37 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
     password: "",
     confirmPassword: "",
     role: roleOptions[0].id,
+    studentId: "",
+    courseId: "",
     agree: false,
   });
 
+  const [courseList, setCourseList] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Log available roles on component mount
+  // Log available roles and fetch courses on component mount
   useEffect(() => {
     console.log("🎯 Register Component Loaded");
     console.log("📋 Available Roles:", roleOptions);
+    
+    // Fetch courses for student registration
+    const fetchCourses = async () => {
+      try {
+        const response = await fetch('/api/onboarding/courses', {
+          headers: { 'Accept': 'application/json' }
+        });
+        const data = await response.json();
+        setCourseList(data.courses || []);
+        console.log('✅ Courses loaded:', data.courses);
+      } catch (err) {
+        console.error('❌ Failed to fetch courses:', err);
+      }
+    };
+    
+    fetchCourses();
   }, []);
 
   const handleChange = (field, value) => {
@@ -55,6 +74,17 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
         !form.role
       ) {
         throw new Error("Please fill in all required fields.");
+      }
+
+      // For students, validate Student ID and Course
+      const selectedRole = roleOptions.find(r => r.id === form.role);
+      if (selectedRole?.slug === 'student') {
+        if (!form.studentId) {
+          throw new Error("Please enter your Student ID.");
+        }
+        if (!form.courseId) {
+          throw new Error("Please select a course.");
+        }
       }
 
        if (!form.email.endsWith("@kld.edu.ph")) {
@@ -85,30 +115,51 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
         password: form.password,
         role_id: form.role,
       };
+
+      // Add student details if registering as student
+      if (selectedRole?.slug === 'student') {
+        payload.student_id = form.studentId;
+        payload.course_id = form.courseId;
+      }
+
       console.log("📤 Request payload:", payload);
+
+      // Get CSRF token from meta tag
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content");
+      if (!csrfToken) {
+        throw new Error("CSRF token not found. Please refresh the page and try again.");
+      }
 
       const response = await fetch("/api/send-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.getAttribute("content"),
+          "X-CSRF-TOKEN": csrfToken,
         },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        console.error("❌ OTP Send Error Response:", data);
-
-        // Show detailed validation errors if available
-        if (data.errors) {
-          const errorMessages = Object.values(data.errors)
-            .flat()
-            .join("\n");
-          throw new Error(errorMessages || data.message || "Validation failed");
+        // Try to parse as JSON, if it fails, return generic error
+        let errorData = {};
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          console.error("❌ Server error (non-JSON response):", response.status);
+          throw new Error("Server error. Please try again later.");
         }
 
-        throw new Error(data.message || "Failed to send OTP. Please try again.");
+        console.error("❌ OTP Send Error Response:", errorData);
+
+        // Show detailed validation errors if available
+        if (errorData.errors) {
+          const errorMessages = Object.values(errorData.errors)
+            .flat()
+            .join("\n");
+          throw new Error(errorMessages || errorData.message || "Validation failed");
+        }
+
+        throw new Error(errorData.message || "Failed to send OTP. Please try again.");
       }
 
       const data = await response.json();
@@ -151,7 +202,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
 
   const handleOTPVerifySuccess = (data) => {
     console.log("✅ OTP verified, user registered successfully");
-    // Redirect to user page after OTP verification
+    // Redirect to dashboard after OTP verification (profile is completed)
     window.location.href = "/user";
   };
 
@@ -271,7 +322,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">
-                  First Name
+                  First Name <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -286,7 +337,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
 
               <div>
                 <label className="block text-sm text-gray-600 mb-1">
-                  Last Name
+                  Last Name <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -304,7 +355,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
             {/* Email */}
             <div>
               <label className="block text-sm text-gray-600 mb-1">
-                Email Address
+                Email Address <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -323,7 +374,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-600 mb-1">
-                  Password
+                  Password <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -347,7 +398,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
 
               <div>
                 <label className="block text-sm text-gray-600 mb-1">
-                  Confirm Password
+                  Confirm Password <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -373,7 +424,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
             {/* Role Selection */}
             <div>
               <label className="block text-sm text-gray-600 mb-1">
-                Role <span className="text-red-500">*</span>
+                Role
               </label>
               <div className="relative">
                 <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -385,6 +436,42 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
                 />
                 <input type="hidden" name="role" value={form.role} />
               </div>
+            </div>
+
+            {/* Student ID */}
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Student ID <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="e.g., STU001"
+                  value={form.studentId}
+                  onChange={(e) => handleChange("studentId", e.target.value)}
+                  className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                />
+              </div>
+            </div>
+
+            {/* Course Selection */}
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Course <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={form.courseId}
+                onChange={(e) => handleChange("courseId", e.target.value)}
+                className="w-full h-10 pl-3 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition text-gray-700"
+              >
+                <option value="">-- Select a course --</option>
+                {courseList.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.name || course.title || 'Unknown Course'}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Terms */}
