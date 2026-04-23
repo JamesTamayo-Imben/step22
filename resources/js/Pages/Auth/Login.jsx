@@ -8,7 +8,7 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -16,21 +16,15 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
-    if (!rememberMe) {
-      setError("Please check 'Remember me' before logging in.");
-      return;
-    }
-
-     setIsLoading(true);
+    setIsLoading(true);
 
     try {
       const uname = username.trim();
       if (!uname) throw new Error("Please enter your email");
 
-      // if (!uname.endsWith("@kld.edu.ph")) {
-      //   throw new Error("Email must be a valid KLD school email (@kld.edu.ph)");
-      // }
+      if (!uname.endsWith("@kld.edu.ph")) {
+        throw new Error("Email must be a valid KLD school email (@kld.edu.ph)");
+      }
 
       if (!password) throw new Error("Please enter your password");
 
@@ -48,15 +42,6 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
       const data = await response.json();
 
       if (!response.ok) {
-        // Check if it's a superadmin trying to login on regular portal
-        if (response.status === 403 && data.message?.includes('Superadmin accounts must use')) {
-          // Show message and redirect to superadmin login
-          setError("Accounts is Invalid use a separate login portal.");
-          // setTimeout(() => {
-          //   window.location.href = '/sadmin/login';
-          // }, 2000);
-          return;
-        }
         throw new Error(data.message || "Login failed. Please check your credentials.");
       }
 
@@ -97,8 +82,6 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
     if (onNavigateToRegister) return onNavigateToRegister();
     window.location.href = '/register';
   };
-
-  
 
   return (
     <div className="min-h-screen flex">
