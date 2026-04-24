@@ -249,13 +249,20 @@ class AdviserLedgerController extends Controller
 
         $snapshot = json_decode($chainBlock->data_snapshot, true);
 
-        // Update the entry with snapshot data
-        $entry->update([
+        // Update the entry with snapshot data, including budget_breakdown if tampered
+        $updateData = [
             'description' => $snapshot['description'] ?? $entry->description,
             'amount' => $snapshot['amount'] ?? $entry->amount,
             'type' => $snapshot['entry_type'] ?? $entry->type,
             'updated_by' => auth()->id(),
-        ]);
+        ];
+
+        // Include budget_breakdown if it exists in the snapshot
+        if (isset($snapshot['budget_breakdown'])) {
+            $updateData['budget_breakdown'] = $snapshot['budget_breakdown'];
+        }
+
+        $entry->update($updateData);
 
         $this->writeAudit(
             'Ledger Entry Restored from Blockchain',

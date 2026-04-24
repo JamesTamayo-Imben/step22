@@ -50,6 +50,104 @@ function formatLimitedNumber(value, opts = {}) {
   return n.toLocaleString(undefined, { minimumFractionDigits: minFractionDigits, maximumFractionDigits: maxFractionDigits });
 }
 
+// Helper function to parse budget breakdown (handles both string and object formats)
+function parseBudgetBreakdown(budgetBreakdown) {
+  if (!budgetBreakdown) return null;
+  
+  // If it's already an array
+  if (Array.isArray(budgetBreakdown)) {
+    return budgetBreakdown;
+  }
+  
+  // If it's a string, try to parse it
+  if (typeof budgetBreakdown === 'string') {
+    try {
+      const parsed = JSON.parse(budgetBreakdown);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  // If it's an object but not array
+  if (typeof budgetBreakdown === 'object') {
+    // Check if it has items property
+    if (budgetBreakdown.items && Array.isArray(budgetBreakdown.items)) {
+      return budgetBreakdown.items;
+    }
+    // If it's a single item object
+    if (budgetBreakdown.item || budgetBreakdown.name) {
+      return [budgetBreakdown];
+    }
+  }
+  
+  return null;
+}
+
+// Budget Breakdown Display Component
+function BudgetBreakdownDisplay({ breakdown }) {
+  const parsedBreakdown = parseBudgetBreakdown(breakdown);
+  
+  if (!parsedBreakdown || parsedBreakdown.length === 0) {
+    return (
+      <div className="p-4 bg-gray-50 rounded-lg">
+        <p className="text-sm text-gray-500">No budget breakdown available for this transaction.</p>
+      </div>
+    );
+  }
+
+  const totalAmount = parsedBreakdown.reduce((sum, item) => {
+    const amount = parseFloat(item.amount) || 
+                   (parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0) ||
+                   0;
+    return sum + amount;
+  }, 0);
+
+  return (
+    <div className="bg-gray-50 rounded-lg p-4">
+      {/* Header */}
+      <div className="flex justify-between items-center pb-2 mb-3 border-b border-gray-200">
+        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Item (Unit Price × Quantity)</span>
+        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
+      </div>
+      
+      {/* Items */}
+      <div className="space-y-2">
+        {parsedBreakdown.map((item, index) => {
+          const itemName = item.item || item.name || `Item ${index + 1}`;
+          const qty = parseFloat(item.qty) || parseFloat(item.quantity) || 1;
+          const unitPrice = parseFloat(item.unitPrice) || parseFloat(item.rate) || 0;
+          const amount = parseFloat(item.amount) || (qty * unitPrice) || 0;
+          
+          return (
+            <div key={item.id || index} className="flex justify-between items-center py-1">
+              <div className="flex-1">
+                <span className="text-sm text-gray-900">{itemName}</span>
+                {(qty > 0 || unitPrice > 0) && (
+                  <span className="text-xs text-gray-500 ml-2">
+                    (₱{formatLimitedNumber(unitPrice, { maxFractionDigits: 2 })} × {qty})
+                  </span>
+                )}
+              </div>
+              <span className="text-sm font-medium text-blue-600">
+                ₱{formatLimitedNumber(amount, { maxFractionDigits: 2 })}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      
+      {/* Total */}
+      <div className="flex justify-between pt-3 mt-3 border-t border-gray-200 font-semibold">
+        <span className="text-gray-700">Total</span>
+        <span className="text-blue-600">
+          ₱{formatLimitedNumber(totalAmount, { maxFractionDigits: 2 })}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // Return a row background class for tampered entries
 function getRowClass(entry) {
   const tampered = !!(
@@ -214,7 +312,6 @@ export default function LedgerApprovalsPage() {
     }, 0);
 
     const budgetDifference = (Number(totalProjectBudget) || 0) - computedBudgetFromLedger;
-    // Only show mismatch when ledger entries are actually loaded (not during initial page load)
     const isBudgetTampered = ledgerEntries.length > 0 && Math.abs(budgetDifference) > 0.01;
 
     const uniqueProjects = new Set(
@@ -244,29 +341,39 @@ export default function LedgerApprovalsPage() {
     setIsDetailsOpen(true);
   };
 
-  const getTypeColor = (type) => {
-  switch (type) {
-    case 'Expense': return 'bg-red-100 text-red-700';
-    case 'Income': return 'bg-green-100 text-green-700';
-    case 'Initial': return 'bg-indigo-100 text-indigo-700';
-    case 'Donation': return 'bg-blue-100 text-blue-700';
-    case 'Sponsorship': return 'bg-purple-100 text-purple-700';
-    case 'Canvas': return 'bg-gray-100 text-gray-700';
-    default: return 'bg-gray-100 text-gray-700';
-  }
-};
+  const handleOpenRejectDialog = (entry) => {
+    setSelectedEntry(entry);
+    setIsRejectDialogOpen(true);
+  };
 
-const getTypeAmountColor = (type) => {
-  switch (type) {
-    case 'Expense': return 'text-red-700';
-    case 'Income': return 'text-green-700';
-    case 'Initial': return 'text-indigo-700';
-    case 'Donation': return 'text-green-700';
-    case 'Sponsorship': return 'text-green-700';
-    case 'Canvas': return ' text-gray-700';
-    default: return 'text-gray-700';
-  }
-};
+  const handleOpenCorrectionDialog = (entry) => {
+    setSelectedEntry(entry);
+    setIsCorrectionDialogOpen(true);
+  };
+
+  const getTypeColor = (type) => {
+    switch (type) {
+      case 'Expense': return 'bg-red-100 text-red-700';
+      case 'Income': return 'bg-green-100 text-green-700';
+      case 'Initial': return 'bg-indigo-100 text-indigo-700';
+      case 'Donation': return 'bg-blue-100 text-blue-700';
+      case 'Sponsorship': return 'bg-purple-100 text-purple-700';
+      case 'Canvas': return 'bg-gray-100 text-gray-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getTypeAmountColor = (type) => {
+    switch (type) {
+      case 'Expense': return 'text-red-700';
+      case 'Income': return 'text-green-700';
+      case 'Initial': return 'text-indigo-700';
+      case 'Donation': return 'text-green-700';
+      case 'Sponsorship': return 'text-green-700';
+      case 'Canvas': return 'text-gray-700';
+      default: return 'text-gray-700';
+    }
+  };
 
   const handleApprove = (entry) => {
     if (!entry) return;
@@ -369,36 +476,34 @@ const getTypeAmountColor = (type) => {
 
   const filteredEntries = useMemo(() => {
     const items = ledgerEntries.filter((entry) => {
-    if (filterProject !== 'all' && entry.projectName !== filterProject) return false;
-    if (filterStatus !== 'all') {
-      if (filterStatus === 'Pending') {
-        if (!entry.allowAdviserActions) return false;
-      } else if (entry.status !== filterStatus) {
-        return false;
+      if (filterProject !== 'all' && entry.projectName !== filterProject) return false;
+      if (filterStatus !== 'all') {
+        if (filterStatus === 'Pending') {
+          if (!entry.allowAdviserActions) return false;
+        } else if (entry.status !== filterStatus) {
+          return false;
+        }
       }
-    }
-    if (filterCategory !== 'all' && entry.transactionType !== filterCategory) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const blob = [
-        entry.id,
-        entry.projectName,
-        entry.enteredBy,
-        entry.description,
-        entry.transactionType,
-        entry.ledgerHash,
-      ].filter(Boolean).join(' ').toLowerCase();
-      if (!blob.includes(q)) return false;
-    }
-    return true;
+      if (filterCategory !== 'all' && entry.transactionType !== filterCategory) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const blob = [
+          entry.id,
+          entry.projectName,
+          entry.enteredBy,
+          entry.description,
+          entry.transactionType,
+          entry.ledgerHash,
+        ].filter(Boolean).join(' ').toLowerCase();
+        if (!blob.includes(q)) return false;
+      }
+      return true;
     });
 
-    // Sort so that tampered entries appear first for easy visibility
     items.sort((a, b) => {
       const ta = a && a.verificationState && a.verificationState.tampered ? 1 : 0;
       const tb = b && b.verificationState && b.verificationState.tampered ? 1 : 0;
-      if (ta !== tb) return tb - ta; // tampered (1) before non-tampered (0)
-      // fallback: keep original order (could sort by date desc if desired)
+      if (ta !== tb) return tb - ta;
       return 0;
     });
 
@@ -407,7 +512,6 @@ const getTypeAmountColor = (type) => {
 
   const ledgerTotalPages = Math.max(1, Math.ceil(filteredEntries.length / TABLE_PAGE_SIZE));
   const pagedLedger = filteredEntries.slice((ledgerPage - 1) * TABLE_PAGE_SIZE, ledgerPage * TABLE_PAGE_SIZE);
-
 
   const handleExport = () => {
     const headers = ['Ledger ID', 'Project', 'Entered By', 'Amount', 'Type', 'Date', 'Status', 'SHA256 Hash'];
@@ -436,23 +540,24 @@ const getTypeAmountColor = (type) => {
 
   return (
     <AuthenticatedLayout>
-       <Head title="Ledger" />
-    <div className="py-8 px-4 lg:px-0 md:px-0">
-  <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
-    <div className="flex justify-between items-center">
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Ledger Approval Center</h1>
-        <p className="text-gray-500 mt-1">Review and verify financial ledger entries</p>
-      </div>
-      <button
-        type="button"
-        onClick={handleExport}
-        className="inline-flex items-center justify-center px-4 py-2 border bg-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-      >
-        <Download className="w-4 h-4 mr-2" />
-        Export CSV
-      </button>
-    </div>
+      <Head title="Ledger" />
+      <div className="py-8 px-4 lg:px-0 md:px-0">
+        <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Ledger Approval Center</h1>
+              <p className="text-gray-500 mt-1">Review and verify financial ledger entries</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleExport}
+              className="inline-flex items-center justify-center px-4 py-2 border bg-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </button>
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
               <div className="flex items-center justify-between">
@@ -527,72 +632,71 @@ const getTypeAmountColor = (type) => {
           </div>
 
           <>
-              <div className="p-4 rounded-[20px] border-0 shadow-sm bg-white">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search ID, project, description..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                    />
-                  </div>
-
-                  <select
-                    value={filterProject}
-                    onChange={(e) => setFilterProject(e.target.value)}
-                    className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                  >
-                    <option value="all">All Projects</option>
-                    {projectFilterOptions.map((name) => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-
-                   <select
-                    value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
-                    className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="Expense">Expense</option>
-                    <option value="Income">Income</option>
-                    <option value="Canvas">Canvas</option>
-                    <option value="Donation">Donation</option>
-                    <option value="Sponsorship">Sponsorship</option>
-                  </select>
-
+            <div className="p-4 rounded-[20px] border-0 shadow-sm bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search ID, project, description..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                  />
                 </div>
-              </div>
 
-              <div className="rounded-[20px] border-0 shadow-sm bg-white overflow-hidden">
-               <div>
-                 <div className="overflow-x-auto space-y-4 p-6">
-                    <div className="flex items-center gap-2">
-                                <h2 className="text-lg font-semibold text-gray-900">Ledger Entries</h2>
-                                {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) ? (
-                                  <Badge className="bg-red-100 text-red-700 rounded-lg">
-                                    <XCircle className="w-3 h-3 mr-1" />Tampered Alert
-                                  </Badge>
-                                ) : (
-                                  <Badge className="bg-purple-100 text-purple-700 rounded-lg">
-                                    <Shield className="w-3 h-3 mr-1" />Verified
-                                  </Badge>
-                                )}
-                              </div>
+                <select
+                  value={filterProject}
+                  onChange={(e) => setFilterProject(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                >
+                  <option value="all">All Projects</option>
+                  {projectFilterOptions.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                >
+                  <option value="all">All Status</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                >
+                  <option value="all">All Types</option>
+                  <option value="Expense">Expense</option>
+                  <option value="Income">Income</option>
+                  <option value="Canvas">Canvas</option>
+                  <option value="Donation">Donation</option>
+                  <option value="Sponsorship">Sponsorship</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="rounded-[20px] border-0 shadow-sm bg-white overflow-hidden">
+              <div>
+                <div className="overflow-x-auto space-y-4 p-6">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold text-gray-900">Ledger Entries</h2>
+                    {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) ? (
+                      <Badge className="bg-red-100 text-red-700 rounded-lg">
+                        <XCircle className="w-3 h-3 mr-1" />Tampered Alert
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-purple-100 text-purple-700 rounded-lg">
+                        <Shield className="w-3 h-3 mr-1" />Verified
+                      </Badge>
+                    )}
+                  </div>
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
@@ -609,112 +713,111 @@ const getTypeAmountColor = (type) => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-  {pagedLedger.length === 0 ? (
-    <tr>
-      <td colSpan={10} className="px-6 py-4 text-center">
-        <p className="text-sm text-gray-500 py-4">No items for the selected filters.</p>
-       </td>
-     </tr>
-  ) : (
-    pagedLedger.map((entry) => (
-      <tr key={entry.id} className={`${getRowClass(entry)} hover:bg-gray-50 transition-colors`}>
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-2 max-w-[100px]">
-            <span className="text-sm text-blue-600 truncate">{entry.id}</span>
-          </div>
-         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <p className="text-sm text-gray-900">{entry.projectName}</p>
-         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <p className="text-sm text-gray-900">{entry.enteredBy}</p>
-         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <p className={`text-sm ${getTypeAmountColor(entry.transactionType)}`}>
-            ₱{formatLimitedNumber(Number(entry.amount))}
-          </p>
-         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-           getTypeColor(entry.transactionType)
-          }`}>
-            {entry.transactionType}
-          </span>
-         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <p className="text-sm text-gray-600">{entry.date ? new Date(entry.date).toLocaleDateString() : '—'}</p>
-         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          {getStatusBadge(entry.status)}
-         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="flex items-center gap-1">
-            {entry && entry.verificationState && entry.verificationState.tampered ? (
-              <>
-                <XCircle className="w-4 h-4 text-red-600" />
-                <span className="text-xs text-red-600">Tampered</span>
-              </>
-            ) : entry && entry.verificationState && entry.verificationState.blockchainValid ? (
-              <>
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
-                <span className="text-xs text-green-600">Verified</span>
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                <span className="text-xs text-yellow-600">No Chain</span>
-              </>
-            )}
-          </div>
-         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="flex items-center gap-1">
-            {entry.proofAttached ? (
-              <>
-                <FileCheck className="w-4 h-4 text-green-600" />
-                <span className="text-xs text-green-600">{entry.proofFiles?.length || 0}</span>
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="w-4 h-4 text-red-600" />
-                <span className="text-xs text-red-600">Missing</span>
-              </>
-            )}
-          </div>
-         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <button
-            type="button"
-            onClick={() => handleViewDetails(entry)}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
-          >
-            <Eye className="w-4 h-4" /> View
-          </button>
-         </td>
-       </tr>
-    ))
-  )}
-</tbody>
-                   </table>
+                      {pagedLedger.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="px-6 py-4 text-center">
+                            <p className="text-sm text-gray-500 py-4">No items for the selected filters.</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        pagedLedger.map((entry) => (
+                          <tr key={entry.id} className={`${getRowClass(entry)} hover:bg-gray-50 transition-colors`}>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2 max-w-[100px]">
+                                <span className="text-sm text-blue-600 truncate">{entry.id}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <p className="text-sm text-gray-900">{entry.projectName}</p>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <p className="text-sm text-gray-900">{entry.enteredBy}</p>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <p className={`text-sm ${getTypeAmountColor(entry.transactionType)}`}>
+                                ₱{formatLimitedNumber(Number(entry.amount))}
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getTypeColor(entry.transactionType)}`}>
+                                {entry.transactionType}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <p className="text-sm text-gray-600">{entry.date ? new Date(entry.date).toLocaleDateString() : '—'}</p>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {getStatusBadge(entry.status)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-1">
+                                {entry && entry.verificationState && entry.verificationState.tampered ? (
+                                  <>
+                                    <XCircle className="w-4 h-4 text-red-600" />
+                                    <span className="text-xs text-red-600">Tampered</span>
+                                  </>
+                                ) : entry && entry.verificationState && entry.verificationState.blockchainValid ? (
+                                  <>
+                                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                    <span className="text-xs text-green-600">Verified</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                    <span className="text-xs text-yellow-600">No Chain</span>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-1">
+                                {entry.proofAttached ? (
+                                  <>
+                                    <FileCheck className="w-4 h-4 text-green-600" />
+                                    <span className="text-xs text-green-600">{entry.proofFiles?.length || 0}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertTriangle className="w-4 h-4 text-red-600" />
+                                    <span className="text-xs text-red-600">Missing</span>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleViewDetails(entry)}
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                              >
+                                <Eye className="w-4 h-4" /> View
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-               </div>
               </div>
+            </div>
 
-              {filteredEntries.length > TABLE_PAGE_SIZE && (
-                <div className="flex items-center justify-center gap-4">
-                  <Button type="button" variant="outline" size="sm" className="rounded-xl" disabled={ledgerPage <= 1} onClick={() => setLedgerPage((p) => Math.max(1, p - 1))}>
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm text-gray-600">Page {ledgerPage} of {ledgerTotalPages}</span>
-                  <Button type="button" variant="outline" size="sm" className="rounded-xl" disabled={ledgerPage >= ledgerTotalPages} onClick={() => setLedgerPage((p) => Math.min(ledgerTotalPages, p + 1))}>
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-            </>
+            {filteredEntries.length > TABLE_PAGE_SIZE && (
+              <div className="flex items-center justify-center gap-4">
+                <Button type="button" variant="outline" size="sm" className="rounded-xl" disabled={ledgerPage <= 1} onClick={() => setLedgerPage((p) => Math.max(1, p - 1))}>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-sm text-gray-600">Page {ledgerPage} of {ledgerTotalPages}</span>
+                <Button type="button" variant="outline" size="sm" className="rounded-xl" disabled={ledgerPage >= ledgerTotalPages} onClick={() => setLedgerPage((p) => Math.min(ledgerTotalPages, p + 1))}>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </>
         </div>
       </div>
 
+      {/* Details Modal with Budget Breakdown */}
       <Modal open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Ledger Entry Details">
         {selectedEntry && (
           <div className="space-y-6 pt-4">
@@ -726,7 +829,7 @@ const getTypeAmountColor = (type) => {
                     <div className="flex-1">
                       <h4 className="text-sm font-medium text-red-800">Data Tampering Detected</h4>
                       <p className="text-sm text-red-700 mt-1">
-                        This entry has been modified after approval. You can restore it to its approved state using the blockchain snapshot.
+                        This entry has been modified after approval. You can restore it to its approved state using the blockchain snapshot. This includes restoring all fields such as amount, description, type, and budget breakdown.
                       </p>
                       <button
                         type="button"
@@ -740,18 +843,19 @@ const getTypeAmountColor = (type) => {
                 </div>
               </div>
             )}
+            
             <div>
               <h4 className="text-sm font-medium text-gray-500 mb-3">Basic Information</h4>
               <div className="space-y-3 pt-3">
                 <div className='grid grid-cols-2 gap-2'>
                   <div>
-                  <p className="text-xs text-gray-500">Ledger ID</p>
-                  <p className="text-sm text-blue-600">{selectedEntry.id}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500">Project Title</p>
-                  <p className="text-sm text-blue-600">{selectedEntry.projectName}</p>
-                </div>
+                    <p className="text-xs text-gray-500">Ledger ID</p>
+                    <p className="text-sm text-blue-600">{selectedEntry.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Project Title</p>
+                    <p className="text-sm text-blue-600">{selectedEntry.projectName}</p>
+                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Ledger Hash (SHA256)</p>
@@ -801,6 +905,14 @@ const getTypeAmountColor = (type) => {
                   <p className="text-xs text-gray-500">Description</p>
                   <p className="text-sm text-gray-700">{selectedEntry.description}</p>
                 </div>
+                
+                {/* Budget Breakdown Section - Added Here */}
+                {(selectedEntry.budgetBreakdown || selectedEntry.budget_breakdown) && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">Budget Breakdown Details</p>
+                    <BudgetBreakdownDisplay breakdown={selectedEntry.budgetBreakdown || selectedEntry.budget_breakdown} />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -897,39 +1009,11 @@ const getTypeAmountColor = (type) => {
                 )}
               </div>
             </div>
-
-          
-
-            {/* {selectedEntry.allowAdviserActions && (
-              <div className="border-t pt-6 flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleApprove(selectedEntry)}
-                  disabled={!selectedEntry.proofAttached}
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <CheckCircle2 className="w-4 h-4 mr-2 inline" /> Approve Entry
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setIsDetailsOpen(false); setIsRejectDialogOpen(true); }}
-                  className="w-full px-4 py-2 border border-red-300 text-red-600 rounded-xl hover:bg-red-50"
-                >
-                  <XCircle className="w-4 h-4 mr-2 inline" /> Reject Entry
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setIsDetailsOpen(false); setIsCorrectionDialogOpen(true); }}
-                  className="w-full px-4 py-2 border border-purple-300 text-purple-600 rounded-xl hover:bg-purple-50"
-                >
-                  <RotateCcw className="w-4 h-4 mr-2 inline" /> Request Correction
-                </button>
-              </div>
-            )} */}
           </div>
         )}
       </Modal>
 
+      {/* Reject Dialog */}
       <Modal open={isRejectDialogOpen} onClose={() => { setIsRejectDialogOpen(false); setRejectionReason(''); }} title="Reject Ledger Entry">
         <div className="space-y-4 pt-4">
           <p className="text-sm text-gray-600">Please provide a detailed reason for rejecting this entry.</p>
@@ -959,6 +1043,7 @@ const getTypeAmountColor = (type) => {
         </div>
       </Modal>
 
+      {/* Correction Dialog */}
       <Modal open={isCorrectionDialogOpen} onClose={() => { setIsCorrectionDialogOpen(false); setCorrectionReason(''); }} title="Request Correction">
         <div className="space-y-4 pt-4">
           <p className="text-sm text-gray-600">Explain what needs to be corrected. The officer will see this note on the pending entry.</p>
@@ -988,6 +1073,7 @@ const getTypeAmountColor = (type) => {
         </div>
       </Modal>
 
+      {/* Budget Mismatch Modal */}
       <Modal
         open={isBudgetMismatchModalOpen}
         onClose={() => setIsBudgetMismatchModalOpen(false)}
@@ -1021,10 +1107,6 @@ const getTypeAmountColor = (type) => {
               </p>
             </div>
           </div>
-
-        <p className='text-xs text-red-600'>
-          
-        </p>
 
           <div className="flex justify-end gap-3">
             <button

@@ -61,15 +61,22 @@ class BlockchainService
 
         $blockIndex = ($lastBlock->block_index ?? 0) + 1;
 
+        // Attempt to pull budget breakdown from the ledger record if not provided
+        $entry = LedgerEntry::where('id', $ledgerId)->first();
+        $budgetBreakdown = $ledgerData['budget_breakdown'] ?? ($entry->budget_breakdown ?? null);
+
         $dataSnapshot = [
             'type' => 'ledger',
             'ledger_id' => $ledgerId,
             'project_id' => $projectId,
-            'description' => $ledgerData['description'] ?? null,
-            'amount' => $ledgerData['amount'] ?? null,
-            'entry_type' => $ledgerData['type'] ?? null,
+            'description' => $ledgerData['description'] ?? ($entry->description ?? null),
+            'budget_breakdown' => $budgetBreakdown,
+            'amount' => $ledgerData['amount'] ?? ($entry->amount ?? null),
+            'entry_type' => $ledgerData['type'] ?? ($entry->type ?? null),
             'approval_status' => 'Approved',
             'approved_at' => now()->toIso8601String(),
+            // Add a cryptographically secure random nonce so external actors cannot predict or reproduce it
+            'snapshot_nonce' => bin2hex(random_bytes(8)),
         ];
 
         // Hash includes the previous block's hash
@@ -179,6 +186,32 @@ class BlockchainService
                     }
                     if ($currentEntry->type !== ($snapshot['entry_type'] ?? '')) {
                         $issues[] = 'Type tampered';
+                        $chainBroken = true;
+                    }
+
+                    // Normalize helper for comparing budget breakdowns stored as JSON string or arrays
+                    $normalize = function ($val) {
+                        if ($val === null) return null;
+                        if (is_string($val)) {
+                            $decoded = json_decode($val, true);
+                            if (json_last_error() === JSON_ERROR_NONE) {
+                                return json_encode($decoded);
+                            }
+                            return trim($val);
+                        }
+                        return json_encode($val);
+                    };
+
+                    $currentBudgetNorm = $normalize($currentEntry->budget_breakdown ?? null);
+                    $snapshotBudgetNorm = $normalize($snapshot['budget_breakdown'] ?? null);
+                    if ($currentBudgetNorm !== $snapshotBudgetNorm) {
+                        $issues[] = 'Budget breakdown tampered';
+                        $chainBroken = true;
+                    }
+
+                    // Verify presence and format of snapshot nonce
+                    if (empty($snapshot['snapshot_nonce']) || !is_string($snapshot['snapshot_nonce']) || !preg_match('/^[0-9a-f]{16}$/', $snapshot['snapshot_nonce'])) {
+                        $issues[] = 'Missing or invalid snapshot_nonce';
                         $chainBroken = true;
                     }
                 }

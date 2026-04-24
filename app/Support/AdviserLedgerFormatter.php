@@ -140,6 +140,7 @@ class AdviserLedgerFormatter
             'verificationState' => $verificationState,
             'correctionReason' => $correctionReason,
             'note' => $entry->note,
+            'budgetBreakdown' => $entry->budget_breakdown,
         ];
     }
 }
