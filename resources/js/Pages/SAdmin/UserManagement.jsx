@@ -6,6 +6,7 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Badge, Modal, Select, SelectItem, showToast } from './components/ui';
 import { Search, Plus, UserX, UserCheck, Key, Trash2, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
+import axios from 'axios';
 
 export default function UserManagementPage({ users: initialUsers, roles: initialRoles, statuses: initialStatuses, pagination: initialPagination, filters: initialFilters }) {
   const [users, setUsers] = useState(initialUsers || []);
@@ -40,7 +41,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
   const [searchQuery, setSearchQuery] = useState(initialFilters?.search || '');
   const [filterRole, setFilterRole] = useState(initialFilters?.role || 'all');
   const [filterStatus, setFilterStatus] = useState(initialFilters?.status || 'all');
-  
+
   // Debounce timer for search
   const searchTimeoutRef = useRef(null);
 
@@ -55,23 +56,21 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
 
   // Generate password from email: lpcalibuso@kld.edu.ph -> lpcalibusoKLD2026
   const generatePasswordFromEmail = (email) => {
-    const username = email.split('@')[0]; // Get part before @
+    const username = email.split('@')[0];
     const year = new Date().getFullYear();
     return `${username}KLD${year}`;
   };
 
   // Validate email: check format, domain, and if exists
   const validateEmail = (email) => {
-    // Basic email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return { valid: false, error: `Invalid email format: ${email}` };
     }
 
-    // Check if email domain is legitimate (must be @kld.edu.ph or known institutional domain)
     const domain = email.split('@')[1]?.toLowerCase();
-    const validDomains = ['kld.edu.ph', 'kld.com.ph', 'step.edu.ph']; // Add other valid domains as needed
-    
+    const validDomains = ['kld.edu.ph', 'kld.com.ph', 'step.edu.ph'];
+
     if (!domain || !validDomains.some(d => domain.endsWith(d))) {
       return { valid: false, error: `Email must use institutional domain (kld.edu.ph, etc.): ${email}` };
     }
@@ -100,7 +99,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
       ...prev,
       selectedRole: roleId,
       registrationType: registrationType,
-      step: 2, // Move to Step 2
+      step: 2,
     }));
   };
 
@@ -111,14 +110,12 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
       let emailsToRegister = [];
 
       if (bulkRegModal.registrationType === 'single') {
-        // Single registration
         if (!bulkRegModal.singleName || !bulkRegModal.singleEmail) {
           showToast('Please fill in name and email', 'error');
           setIsLoading(false);
           return;
         }
 
-        // Validate single email
         const emailValidation = validateEmail(bulkRegModal.singleEmail);
         if (!emailValidation.valid) {
           showToast(emailValidation.error, 'error');
@@ -131,7 +128,6 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
           name: bulkRegModal.singleName,
         }];
       } else {
-        // Multiple registration - parse emails
         const emailLines = bulkRegModal.emails
           .split('\n')
           .map(line => line.trim())
@@ -149,37 +145,28 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
           return;
         }
 
-        // Parse emails and extract names
         let validEmails = [];
         let invalidEmails = [];
 
-        emailLines.forEach((line, index) => {
-          // Support both "Name email@kld.edu.ph" and just "email@kld.edu.ph"
+        emailLines.forEach((line) => {
           let email = '';
           let name = '';
 
-          // Check if line contains email
           const emailMatch = line.match(/[\w\.-]+@[\w\.-]+\.\w+/);
           if (emailMatch) {
             email = emailMatch[0];
-            // Extract name if provided (everything before email)
             const beforeEmail = line.substring(0, line.indexOf(email)).trim();
-            name = beforeEmail || email.split('@')[0]; // Use email part if no name
+            name = beforeEmail || email.split('@')[0];
           } else {
-            // Assume it's just an email
             email = line;
             name = email.split('@')[0];
           }
 
-          // Validate email format and domain
           const emailValidation = validateEmail(email);
           if (emailValidation.valid) {
             validEmails.push({ email, name });
           } else {
-            invalidEmails.push({
-              email,
-              reason: emailValidation.error
-            });
+            invalidEmails.push({ email, reason: emailValidation.error });
           }
         });
 
@@ -189,7 +176,6 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
           return;
         }
 
-        // Show warning if some emails are invalid
         if (invalidEmails.length > 0) {
           const warnings = invalidEmails.map(e => `${e.email}: ${e.reason}`).join('\n');
           showToast(`Skipping invalid emails:\n${warnings}\nProceeding with ${validEmails.length} valid email(s)`, 'warning');
@@ -198,50 +184,32 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
         emailsToRegister = validEmails;
       }
 
-      // Send to backend
-      const response = await fetch('/sadmin/users/bulk-create', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-        },
-        body: JSON.stringify({
-          role_id: bulkRegModal.selectedRole,
-          users: emailsToRegister,
-        }),
+      // Use axios — handles CSRF automatically via XSRF-TOKEN cookie
+      const response = await axios.post('/sadmin/users/bulk-create', {
+        role_id: bulkRegModal.selectedRole,
+        users: emailsToRegister,
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (response.ok) {
-        // Show success result
-        setBulkRegModal(prev => ({
-          ...prev,
-          result: 'success',
-          successMessage: data.message || 'Users created successfully. Invitation emails sent.',
-        }));
+      setBulkRegModal(prev => ({
+        ...prev,
+        result: 'success',
+        successMessage: data.message || 'Users created successfully. Invitation emails sent.',
+      }));
 
-        setTimeout(() => {
-          setBulkRegModal(prev => ({ ...prev, open: false }));
-          setIsLoading(false);
-          showToast('Users created and emails sent!', 'success');
-          fetchFilteredUsers(searchQuery, filterRole, filterStatus, 1);
-        }, 3000);
-      } else {
-        setBulkRegModal(prev => ({ ...prev, result: 'error' }));
-        showToast(data.message || 'Failed to create users', 'error');
-        setTimeout(() => {
-          setBulkRegModal(prev => ({ ...prev, result: null }));
-          setIsLoading(false);
-        }, 2000);
-      }
+      setTimeout(() => {
+        setBulkRegModal(prev => ({ ...prev, open: false }));
+        setIsLoading(false);
+        showToast('Users created and emails sent!', 'success');
+        fetchFilteredUsers(searchQuery, filterRole, filterStatus, 1);
+      }, 3000);
+
     } catch (error) {
       console.error('Error creating users:', error);
       setBulkRegModal(prev => ({ ...prev, result: 'error' }));
-      showToast('Error: ' + error.message, 'error');
+      const message = error.response?.data?.message || error.message || 'Failed to create users';
+      showToast('Error: ' + message, 'error');
       setTimeout(() => {
         setBulkRegModal(prev => ({ ...prev, result: null }));
         setIsLoading(false);
@@ -250,7 +218,6 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
   };
 
   const roleBadge = (role) => {
-    // Handle both object and string
     const roleName = typeof role === 'object' ? role?.name : role;
     const map = {
       'Superadmin': 'bg-purple-100 text-purple-700',
@@ -280,11 +247,11 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     if (search) params.append('search', search);
     if (role !== 'all') params.append('role', role);
     if (status !== 'all') params.append('status', status);
-    
+
     router.visit(`/sadmin/users?page=1&${params.toString()}`);
   };
 
-  // AJAX call to fetch filtered users without page refresh
+  // Axios call to fetch filtered users without page refresh
   const fetchFilteredUsers = async (search = searchQuery, role = filterRole, status = filterStatus, page = 1) => {
     setIsLoading(true);
     try {
@@ -293,17 +260,11 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
       if (search) params.append('search', search);
       if (role !== 'all') params.append('role', role);
       if (status !== 'all') params.append('status', status);
-      
-      const response = await fetch(`/sadmin/users/search?${params.toString()}`, {
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch users');
-      
-      const data = await response.json();
+
+      // axios automatically sends XSRF-TOKEN cookie, no manual header needed
+      const response = await axios.get(`/sadmin/users/search?${params.toString()}`);
+
+      const data = response.data;
       setUsers(data.users || []);
       setPagination(data.pagination || {});
     } catch (error) {
@@ -317,26 +278,24 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
   // Handle search input change with debounce - AJAX version (no page refresh)
   const handleSearchChange = (e) => {
     const value = e.target.value;
-    setSearchQuery(value); // Update UI immediately
-    
-    // Clear existing timeout
+    setSearchQuery(value);
+
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    
-    // Set new timeout to trigger AJAX search after 500ms of no typing
+
     searchTimeoutRef.current = setTimeout(() => {
       fetchFilteredUsers(value, filterRole, filterStatus, 1);
     }, 500);
   };
 
-  // Handle role filter change - AJAX version (no page refresh)
+  // Handle role filter change
   const handleRoleChange = (role) => {
     setFilterRole(role);
     fetchFilteredUsers(searchQuery, role, filterStatus, 1);
   };
 
-  // Handle status filter change - AJAX version (no page refresh)
+  // Handle status filter change
   const handleStatusChange = (status) => {
     setFilterStatus(status);
     fetchFilteredUsers(searchQuery, filterRole, status, 1);
@@ -354,22 +313,12 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     });
   };
 
-  // Execute reset password via AJAX
+  // Execute reset password via axios
   const executeResetPassword = async (id) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/sadmin/users/${id}/reset-password`, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-        }
-      });
+      await axios.post(`/sadmin/users/${id}/reset-password`);
 
-      if (!response.ok) throw new Error('Failed to reset password');
-      
       setConfirmModal(prev => ({ ...prev, result: 'success' }));
       setTimeout(() => {
         setConfirmModal({ open: false, type: null, userId: null, message: '', result: null });
@@ -399,25 +348,13 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     });
   };
 
-  // Execute toggle status via AJAX
+  // Execute toggle status via axios
   const executeToggleStatus = async (id) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/sadmin/users/${id}/toggle-status`, {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-        }
-      });
+      const response = await axios.patch(`/sadmin/users/${id}/toggle-status`);
+      const data = response.data;
 
-      if (!response.ok) throw new Error('Failed to toggle status');
-      
-      const data = await response.json();
-      
-      // Update user status in state
       setUsers((prev) =>
         prev.map((u) => {
           if (u.id === id) {
@@ -427,7 +364,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
           return u;
         })
       );
-      
+
       setConfirmModal(prev => ({ ...prev, result: 'success' }));
       setTimeout(() => {
         setConfirmModal({ open: false, type: null, userId: null, message: '', result: null });
@@ -469,32 +406,16 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     });
   };
 
-  // Execute archive user via AJAX
+  // Execute archive user via axios
   const executeArchiveUser = async (id) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/sadmin/users/${id}`, {
-        method: 'DELETE',
-        credentials: 'same-origin',
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-        }
-      });
+      await axios.delete(`/sadmin/users/${id}`);
 
-      if (!response.ok) throw new Error('Failed to archive user');
-      
-      // Update user status to archived instead of removing from list
       setUsers((prev) =>
-        prev.map((u) => {
-          if (u.id === id) {
-            return { ...u, status: 'archived' };
-          }
-          return u;
-        })
+        prev.map((u) => u.id === id ? { ...u, status: 'archived' } : u)
       );
-      
+
       setConfirmModal(prev => ({ ...prev, result: 'success' }));
       setTimeout(() => {
         setConfirmModal({ open: false, type: null, userId: null, message: '', result: null });
@@ -511,32 +432,16 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     }
   };
 
-  // Execute restore user via AJAX
+  // Execute restore user via axios
   const executeRestoreUser = async (id) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/sadmin/users/${id}/restore`, {
-        method: 'PATCH',
-        credentials: 'same-origin',
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
-        }
-      });
+      await axios.patch(`/sadmin/users/${id}/restore`);
 
-      if (!response.ok) throw new Error('Failed to restore user');
-      
-      // Update user status to active
       setUsers((prev) =>
-        prev.map((u) => {
-          if (u.id === id) {
-            return { ...u, status: 'active' };
-          }
-          return u;
-        })
+        prev.map((u) => u.id === id ? { ...u, status: 'active' } : u)
       );
-      
+
       setConfirmModal(prev => ({ ...prev, result: 'success' }));
       setTimeout(() => {
         setConfirmModal({ open: false, type: null, userId: null, message: '', result: null });
@@ -550,187 +455,6 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
         setConfirmModal({ open: false, type: null, userId: null, message: '', result: null });
         setIsLoading(false);
       }, 2000);
-    }
-  };
-
-  // const handleCreate = async () => {
-  //   // Clear previous errors
-  //   setFormErrors({});
-
-  //   // Client-side validation
-  //   if (!createForm.name || !createForm.email) {
-  //     showToast('Name and email are required', 'error');
-  //     return;
-  //   }
-  //   if (!createForm.role_id) {
-  //     showToast('Please select a role', 'error');
-  //     return;
-  //   }
-  //   if (!createForm.password || createForm.password.length < 6) {
-  //     showToast('Password must be at least 6 characters', 'error');
-  //     return;
-  //   }
-  //   if (createForm.password !== createForm.password_confirmation) {
-  //     showToast('Passwords do not match', 'error');
-  //     return;
-  //   }
-
-  //   // Validate required fields based on role
-  //   // Student role UUID: 359f4170-235d-11f1-9647-10683825ce81
-  //   // Ordinary Teacher UUID: 459f4213-235d-11f1-9647-10683825ce81
-  //   // Admin/Adviser UUID: 159ef712-235d-11f1-9647-10683825ce81
-  //   const studentRoleId = '359f4170-235d-11f1-9647-10683825ce81';
-  //   const teacherRoleIds = ['459f4213-235d-11f1-9647-10683825ce81', '159ef712-235d-11f1-9647-10683825ce81'];
-
-  //   if (createForm.role_id === studentRoleId) {
-  //     if (!createForm.student_id) {
-  //       showToast('Please fill in the student ID', 'error');
-  //       return;
-  //     }
-  //   } else if (teacherRoleIds.includes(createForm.role_id)) {
-  //     if (!createForm.employee_id || !createForm.department) {
-  //       showToast('Please fill in all required teacher fields', 'error');
-  //       return;
-  //     }
-  //   }
-
-  //   setIsLoading(true);
-  //   try {
-  //     const response = await fetch('/sadmin/users', {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         'Accept': 'application/json',
-  //         'X-Requested-With': 'XMLHttpRequest',
-  //         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-  //       },
-  //       body: JSON.stringify(createForm),
-  //     });
-
-  //     const data = await response.json();
-
-  //     if (response.ok) {
-  //       // Reset form and close modal
-  //       setCreateForm({
-  //         name: '',
-  //         email: '',
-  //         role_id: '',
-  //         password: '',
-  //         password_confirmation: '',
-  //         phone: '',
-  //         institute_id: '',
-  //         student_id: '',
-  //         employee_id: '',
-  //         department: '',
-  //         specialization: '',
-  //         office_location: '',
-  //         office_phone: '',
-  //         assigned_since: '',
-  //       });
-  //       setFormFields({ baseFields: {}, roleSpecificFields: {} });
-  //       setFormErrors({});
-  //       setShowPassword(false);
-  //       setShowPasswordConfirmation(false);
-  //       setShowCreateModal(false);
-  //       showToast('User created successfully', 'success');
-
-  //       // Refresh the user list
-  //       fetchFilteredUsers(searchQuery, filterRole, filterStatus, 1);
-  //     } else {
-  //       // Handle validation errors from backend
-  //       if (data.errors) {
-  //         setFormErrors(data.errors);
-  //         const errorMessages = Object.values(data.errors).flat().join(', ');
-  //         showToast('Validation errors: ' + errorMessages, 'error');
-  //       } else {
-  //         showToast(data.message || 'Failed to create user', 'error');
-  //       }
-  //     }
-  //   } catch (error) {
-  //     console.error('Error creating user:', error);
-  //     showToast('Error creating user: ' + error.message, 'error');
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
-
-  const handleCreate = async () => {
-    // Clear previous errors
-    setFormErrors({});
-
-    // Client-side validation
-    if (!createForm.name || !createForm.email) {
-      showToast('Name and email are required', 'error');
-      return;
-    }
-    if (!createForm.role_id) {
-      showToast('Please select a role', 'error');
-      return;
-    }
-    if (!createForm.password || createForm.password.length < 6) {
-      showToast('Password must be at least 6 characters', 'error');
-      return;
-    }
-    if (createForm.password !== createForm.password_confirmation) {
-      showToast('Passwords do not match', 'error');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await fetch('/sadmin/users', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-        },
-        body: JSON.stringify(createForm),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        // Reset form and close modal
-        setCreateForm({
-          name: '',
-          email: '',
-          role_id: '',
-          password: '',
-          password_confirmation: '',
-          phone: '',
-          student_id: '',
-          employee_id: '',
-          specialization: '',
-          office_location: '',
-        });
-        setFormFields({ baseFields: {}, roleSpecificFields: {} });
-        setFormErrors({});
-        setShowPassword(false);
-        setShowPasswordConfirmation(false);
-        setShowCreateModal(false);
-        showToast('User created successfully', 'success');
-
-        // Refresh the user list
-        fetchFilteredUsers(searchQuery, filterRole, filterStatus, 1);
-      } else {
-        // Handle validation errors from backend
-        if (data.errors) {
-          setFormErrors(data.errors);
-          const errorMessages = Object.values(data.errors).flat().join(', ');
-          showToast('Validation errors: ' + errorMessages, 'error');
-        } else {
-          showToast(data.message || 'Failed to create user', 'error');
-        }
-      }
-    } catch (error) {
-      console.error('Error creating user:', error);
-      showToast('Error creating user: ' + error.message, 'error');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -767,8 +491,8 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                 </div>
                 <div>
                   <Select
-                  className="flex-1 w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                  value={filterRole} onValueChange={handleRoleChange}>
+                    className="flex-1 w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                    value={filterRole} onValueChange={handleRoleChange}>
                     <SelectItem value="all">All roles</SelectItem>
                     {roles.map((role) => (
                       <SelectItem key={role.id} value={role.name}>
@@ -779,8 +503,8 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                 </div>
                 <div>
                   <Select
-                  className="flex-1 w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                   value={filterStatus} onValueChange={handleStatusChange}>
+                    className="flex-1 w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                    value={filterStatus} onValueChange={handleStatusChange}>
                     <SelectItem value="all">All statuses</SelectItem>
                     {statuses.map((status) => (
                       <SelectItem key={status.value} value={status.value}>
@@ -820,38 +544,8 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                         <td className="py-4 pr-4 text-gray-600">{u.lastLogin || '—'}</td>
                         <td className="py-4">
                           <div className="flex items-center gap-2 flex-wrap">
-                            {/* Show all buttons for active and suspended users */}
                             {u.status?.toLowerCase() !== 'archived' && (
                               <>
-                                {/* <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="rounded-lg"
-                                  onClick={() => openResetPasswordConfirm(u.id)}
-                                  disabled={isLoading || confirmModal.open}
-                                >
-                                  <Key className="w-4 h-4 mr-1" />
-                                  Reset
-                                </Button> */}
-                                {/* <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="rounded-lg"
-                                  onClick={() => openToggleStatusConfirm(u.id)}
-                                  disabled={isLoading || confirmModal.open}
-                                >
-                                  {u.status?.toLowerCase() === 'active' ? (
-                                    <>
-                                      <UserX className="w-4 h-4 mr-1" />
-                                      Suspend
-                                    </>
-                                  ) : (
-                                    <>
-                                      <UserCheck className="w-4 h-4 mr-1" />
-                                      Activate
-                                    </>
-                                  )}
-                                </Button> */}
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -864,8 +558,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                                 </Button>
                               </>
                             )}
-                            
-                            {/* Show only Restore button for archived users */}
+
                             {u.status?.toLowerCase() === 'archived' && (
                               <Button
                                 size="sm"
@@ -910,7 +603,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                       <ChevronLeft className="w-4 h-4 mr-1" />
                       Previous
                     </Button>
-                    
+
                     <div className="flex items-center gap-2">
                       {Array.from({ length: pagination.last_page }, (_, i) => i + 1).map((page) => (
                         <Button
@@ -945,65 +638,61 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
       </div>
 
       {/* STEP 1: Select Role Type Modal */}
-     {/* STEP 1: Select Role Type Modal */}
-<Modal
-  open={bulkRegModal.open && bulkRegModal.step === 1}
-  onClose={() => setBulkRegModal(prev => ({ ...prev, open: false }))}
-  title="Register New Users"
-  description="Choose how you want to register users"
-  maxWidthClass="max-w-md"
->
-  <div className="py-6 space-y-4">
-    <div>
-      <h3 className="text-sm font-semibold text-gray-800 mb-4">Select Role:</h3>
-      <div className="grid grid-cols-1 gap-3 mb-6">
-        {roles
-          .filter(role => {
-            // Only allow Student and Teacher roles
-            const allowedRoles = ['Student', 'Teacher', 'Ordinary Teacher'];
-            // Also filter out any admin/superadmin roles
-            const isAdminRole = role.name === 'Superadmin' || role.name === 'Super Admin' || 
-                               role.name === 'Admin' || role.name === 'Admin/Adviser' ||
-                               role.name === 'CSG Officer' || role.name === 'CSG';
-            
-            return allowedRoles.includes(role.name) && !isAdminRole;
-          })
-          .map((role) => (
-            <div key={role.id}>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">{role.name}</h4>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => handleRoleSelect(role.id, 'single')}
-                  className="flex-1 text-white rounded-lg bg-blue-600 hover:bg-blue-700 text-sm"
-                  disabled={isLoading}
-                >
-                  Single
-                </Button>
+      <Modal
+        open={bulkRegModal.open && bulkRegModal.step === 1}
+        onClose={() => setBulkRegModal(prev => ({ ...prev, open: false }))}
+        title="Register New Users"
+        description="Choose how you want to register users"
+        maxWidthClass="max-w-md"
+      >
+        <div className="py-6 space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800 mb-4">Select Role:</h3>
+            <div className="grid grid-cols-1 gap-3 mb-6">
+              {roles
+                .filter(role => {
+                  const allowedRoles = ['Student', 'Teacher', 'Ordinary Teacher'];
+                  const isAdminRole = role.name === 'Superadmin' || role.name === 'Super Admin' ||
+                    role.name === 'Admin' || role.name === 'Admin/Adviser' ||
+                    role.name === 'CSG Officer' || role.name === 'CSG';
 
-                {/* Show multiple registration for both Student and Teacher roles */}
-                {(role.name === 'Student' || role.name === 'Teacher' || role.name === 'Ordinary Teacher') && (
-                  <Button
-                    onClick={() => handleRoleSelect(role.id, 'multiple')}
-                    className="flex-1 text-white rounded-lg bg-green-600 hover:bg-green-700 text-sm"
-                    disabled={isLoading}
-                  >
-                    Multiple (Max 10)
-                  </Button>
-                )}
-              </div>
+                  return allowedRoles.includes(role.name) && !isAdminRole;
+                })
+                .map((role) => (
+                  <div key={role.id}>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">{role.name}</h4>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => handleRoleSelect(role.id, 'single')}
+                        className="flex-1 text-white rounded-lg bg-blue-600 hover:bg-blue-700 text-sm"
+                        disabled={isLoading}
+                      >
+                        Single
+                      </Button>
+
+                      {(role.name === 'Student' || role.name === 'Teacher' || role.name === 'Ordinary Teacher') && (
+                        <Button
+                          onClick={() => handleRoleSelect(role.id, 'multiple')}
+                          className="flex-1 text-white rounded-lg bg-green-600 hover:bg-green-700 text-sm"
+                          disabled={isLoading}
+                        >
+                          Multiple (Max 10)
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
             </div>
-          ))}
-      </div>
-    </div>
-    <Button
-      variant="outline"
-      onClick={() => setBulkRegModal(prev => ({ ...prev, open: false }))}
-      className="w-full rounded-lg"
-    >
-      Cancel
-    </Button>
-  </div>
-</Modal>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setBulkRegModal(prev => ({ ...prev, open: false }))}
+            className="w-full rounded-lg"
+          >
+            Cancel
+          </Button>
+        </div>
+      </Modal>
 
       {/* STEP 2: Input Emails Modal */}
       <Modal
@@ -1151,4 +840,3 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     </AuthenticatedLayout>
   );
 }
-
