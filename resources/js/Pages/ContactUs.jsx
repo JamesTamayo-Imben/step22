@@ -105,8 +105,8 @@ export default function ContactUs() {
             <p className="mt-1 text-sm text-slate-600">Full Stack Developer (Backend & Frontend) – Expert in Immutable Logic & React UI Development.</p>
             <div className="mt-4 flex items-center justify-center gap-2">
               <a href="mailto:james@example.com" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Email James"><Mail className="w-4 h-4" /></a>
-              <a href="https://www.facebook.com/james" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="James Facebook"><Facebook className="w-4 h-4" /></a>
-              <a href="https://github.com/james" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="James GitHub"><Github className="w-4 h-4" /></a>
+              <a href="https://www.facebook.com/jam.es.968621" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="James Facebook"><Facebook className="w-4 h-4" /></a>
+              <a href="https://github.com/JamesTamayo-Imben" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="James GitHub"><Github className="w-4 h-4" /></a>
             </div>
           </div>
           <div className="bg-white/60 border border-white/30 rounded-xl p-6 text-center shadow-md">
@@ -115,8 +115,8 @@ export default function ContactUs() {
             <p className="mt-1 text-sm text-slate-600">Project Manager & Lead Systems Architect – System Flow Designer & Database Architecture Specialist.</p>
             <div className="mt-4 flex items-center justify-center gap-2">
               <a href="mailto:jhonny@example.com" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Email Jhonny"><Mail className="w-4 h-4" /></a>
-              <a href="https://www.facebook.com/jhonny" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Jhonny Facebook"><Facebook className="w-4 h-4" /></a>
-              <a href="https://github.com/jhonny" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Jhonny GitHub"><Github className="w-4 h-4" /></a>
+              <a href="https://www.facebook.com/janiii25" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Jhonny Facebook"><Facebook className="w-4 h-4" /></a>
+              <a href="https://github.com/repositoryNiJani" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Jhonny GitHub"><Github className="w-4 h-4" /></a>
             </div>
           </div>
           <div className="bg-white/60 border border-white/30 rounded-xl p-6 text-center shadow-md">
@@ -125,8 +125,8 @@ export default function ContactUs() {
             <p className="mt-1 text-sm text-slate-600">QA & UI/UX Designer – Figma-to-Code Translation & System Reliability Specialist.</p>
             <div className="mt-4 flex items-center justify-center gap-2">
               <a href="mailto:lawrence@example.com" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Email Lawrence"><Mail className="w-4 h-4" /></a>
-              <a href="https://www.facebook.com/lawrence" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Lawrence Facebook"><Facebook className="w-4 h-4" /></a>
-              <a href="https://github.com/lawrence" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Lawrence GitHub"><Github className="w-4 h-4" /></a>
+              <a href="https://www.facebook.com/lawrence.calibuso" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Lawrence Facebook"><Facebook className="w-4 h-4" /></a>
+              <a href="https://github.com/CaliZxc" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Lawrence GitHub"><Github className="w-4 h-4" /></a>
             </div>
           </div>
           <div className="bg-white/60 border border-white/30 rounded-xl p-6 text-center shadow-md">
@@ -135,8 +135,8 @@ export default function ContactUs() {
             <p className="mt-1 text-sm text-slate-600">Technical Writer & Documentation Lead – Research Lead & Technical Documentation Architect.</p>
             <div className="mt-4 flex items-center justify-center gap-2">
               <a href="mailto:edward@example.com" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Email Edward"><Mail className="w-4 h-4" /></a>
-              <a href="https://www.facebook.com/edward" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Edward Facebook"><Facebook className="w-4 h-4" /></a>
-              <a href="https://github.com/edward" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Edward GitHub"><Github className="w-4 h-4" /></a>
+              <a href="https://www.facebook.com/quintos.miguel" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Edward Facebook"><Facebook className="w-4 h-4" /></a>
+              <a href="" target="_blank" rel="noreferrer" className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700" aria-label="Edward GitHub"><Github className="w-4 h-4" /></a>
             </div>
           </div>
         </div>

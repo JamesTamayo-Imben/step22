@@ -619,7 +619,7 @@ export default function Welcome() {
       {showVideoDialog && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[20px] max-w-sm w-full shadow-2xl p-8 animate-in fade-in zoom-in">
-            <h3 className="text-2xl text-gray-900 mb-4 font-semibold">Tutorial Complete!</h3>
+            <h3 className="text-2xl text-gray-900 mb-4 font-semibold">Introduction Complete!</h3>
             <p className="text-gray-600 mb-6">
               Would you like to continue to the login page now?
             </p>
