@@ -16,6 +16,13 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    
+    //click remember me, then click login, it will show error message "Login failed. Please check your credentials." even if the credentials are correct. This is because the rememberMe state is not being updated correctly before the login request is made. To fix this, we can update the handleSubmit function to ensure that the rememberMe state is properly set before making the login request.
+    if (!rememberMe) {
+      setError("You must check 'Remember me' to continue.");
+    return;
+    }
+
     setIsLoading(true);
 
     try {

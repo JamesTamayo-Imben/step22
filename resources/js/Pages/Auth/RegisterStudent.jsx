@@ -11,12 +11,14 @@ export default function RegisterStudentPage() {
     course: '',
     phone: '',
   });
+  const [invitationToken, setInvitationToken] = useState('');
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [courses, setCourses] = useState([]);
+  const [phoneError, setPhoneError] = useState('');
 
   // Pre-fill form from URL query parameters and fetch courses
   useEffect(() => {
@@ -24,6 +26,8 @@ export default function RegisterStudentPage() {
     const email = searchParams.get('email') || '';
     const password = searchParams.get('password') || '';
     const name = searchParams.get('name') || '';
+    const token = searchParams.get('invitation_token') || '';
+    setInvitationToken(token);
 
     setForm(prev => {
       const newForm = {
@@ -65,6 +69,20 @@ export default function RegisterStudentPage() {
   }, []);
 
   const handleChange = (field, value) => {
+    if (field === 'phone') {
+      const cleaned = value.replace(/\D/g, '').slice(0, 11);
+      setForm({ ...form, phone: cleaned });
+      // if (cleaned && cleaned.length > 0) {
+      //   if (cleaned.length < 10) setPhoneError('Phone number must be at least 10 digits');
+      //   else if (cleaned.length > 11) setPhoneError('Phone number cannot exceed 11 digits');
+      //   else if (!cleaned.startsWith('09') && !cleaned.startsWith('9')) setPhoneError('Phone number should start with 09 or 9');
+      //   else setPhoneError('');
+      // } else {
+      //   setPhoneError('');
+      // }
+      return;
+    }
+
     setForm({ ...form, [field]: value });
   };
 
@@ -106,6 +124,14 @@ export default function RegisterStudentPage() {
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
       console.log('🔐 CSRF Token:', csrfToken ? '✅ Present' : '❌ Missing');
 
+      // Validate and format phone before sending
+      let phoneToSend = form.phone || null;
+      if (phoneToSend) {
+        if (phoneToSend.length < 10) throw new Error('Please enter a valid phone number (at least 10 digits)');
+        if (phoneToSend.length > 11) throw new Error('Phone number cannot exceed 11 digits');
+        if (phoneToSend.startsWith('9') && phoneToSend.length === 10) phoneToSend = '0' + phoneToSend;
+      }
+
       const response = await fetch('/api/auth/register-student', {
         method: 'POST',
         headers: {
@@ -120,8 +146,10 @@ export default function RegisterStudentPage() {
           password: form.password,
           studentId: form.studentId,
           course: form.course || null,
-          phone: form.phone || null,
+          // course_id: null,
+          phone: phoneToSend,
           role: 'student',
+          invitation_token: invitationToken || null,
         }),
       });
 
@@ -275,13 +303,13 @@ export default function RegisterStudentPage() {
                 <p className="text-sm font-semibold text-gray-800">{form.email}</p>
               </div>
             )}
-
+{/* 
             {form.password && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
                 <p className="text-xs text-gray-600 mb-1">Initial Password (Change after login)</p>
                 <code className="text-sm font-mono text-gray-800">{form.password}</code>
               </div>
-            )}
+            )} */}
 
             {/* First + Last Name */}
             <div className="grid grid-cols-2 gap-4">
@@ -314,12 +342,12 @@ export default function RegisterStudentPage() {
 
             {/* Student ID */}
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Student ID * <span className="text-xs text-gray-500">(Any ID allowed)</span></label>
+              <label className="block text-sm text-gray-600 mb-1">Student ID * <span className="text-xs text-gray-500">(Only KLD School ID Number)</span></label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="2024-12345"
+                  placeholder="2024-1-2345"
                   value={form.studentId}
                   onChange={(e) => handleChange('studentId', e.target.value)}
                   className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
@@ -347,6 +375,30 @@ export default function RegisterStudentPage() {
               </div>
             </div>
 
+            {/* password field is pre-filled but hidden, with a note to change it after login */}
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">
+                Password (Pre-filled, change after login)
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={(e) => handleChange('password', e.target.value)}
+                  className="w-full h-10 pl-9 pr-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+
             {/* Phone (Optional) */}
             <div>
               <label className="block text-sm text-gray-600 mb-1">Phone Number</label>
@@ -357,8 +409,18 @@ export default function RegisterStudentPage() {
                   placeholder="09991234567"
                   value={form.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
+                  onKeyPress={(e) => { if (!/[0-9]/.test(e.key)) e.preventDefault(); }}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const pasted = e.clipboardData.getData('text') || '';
+                    const digits = pasted.replace(/\D/g, '').slice(0, 11);
+                    handleChange('phone', digits);
+                  }}
                   className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                />
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                />  
+                {phoneError && <p className="text-red-600 text-sm mt-1">{phoneError}</p>}
               </div>
             </div>
 

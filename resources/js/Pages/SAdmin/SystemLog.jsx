@@ -12,9 +12,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Clock,
-  ChevronLeft,
-  ChevronRight
+  Clock
 } from 'lucide-react';
 
 // Badge component
@@ -72,18 +70,14 @@ function TableCell({ children, className = '' }) {
   return <td className={['py-3 px-4 text-sm', className].join(' ')}>{children}</td>;
 }
 
-export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [], filters = {} }) {
+export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [], filters = {}, basePath = '/sadmin/system-logs' }) {
   const [searchQuery, setSearchQuery] = useState(filters.search || '');
   const [filterModule, setFilterModule] = useState(filters.module || 'all');
   const [filterStatus, setFilterStatus] = useState(filters.status || 'all');
   const [filterActionType, setFilterActionType] = useState(filters.actionType || 'all');
   const [isLoading, setIsLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(initialLogs.current_page || 1);
 
   const logs = initialLogs.data || [];
-  const totalPages = initialLogs.last_page || 1;
-  const perPage = initialLogs.per_page || 10;
-  const total = initialLogs.total || 0;
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -117,41 +111,15 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
 
   const handleFilterChange = (filterName, value) => {
     setIsLoading(true);
-    setCurrentPage(1);
     const params = {
       search: filterName === 'search' ? value : searchQuery,
       module: filterName === 'module' ? value : filterModule,
       status: filterName === 'status' ? value : filterStatus,
       actionType: filterName === 'actionType' ? value : filterActionType,
-      page: 1
     };
 
     router.get(
-      '/adviser/system-logs',
-      params,
-      {
-        preserveState: true,
-        onFinish: () => setIsLoading(false),
-      }
-    );
-  };
-
-  const handlePageChange = (page) => {
-    if (page === currentPage || page < 1 || page > totalPages) return;
-    
-    setIsLoading(true);
-    setCurrentPage(page);
-    
-    const params = {
-      search: searchQuery,
-      module: filterModule,
-      status: filterStatus,
-      actionType: filterActionType,
-      page: page
-    };
-
-    router.get(
-      '/adviser/system-logs',
+      basePath,
       params,
       {
         preserveState: true,
@@ -168,30 +136,12 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
       actionType: filterActionType,
     };
 
-    window.location.href = `/adviser/system-logs/export?${new URLSearchParams(params).toString()}`;
+    window.location.href = `${basePath}/export?${new URLSearchParams(params).toString()}`;
   };
 
   useEffect(() => {
     setIsLoading(false);
   }, [logs]);
-
-  // Generate page numbers to display
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-    let end = Math.min(totalPages, start + maxVisible - 1);
-    
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1);
-    }
-    
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
-    }
-    
-    return pages;
-  };
 
   return (
     <div className="space-y-6">
@@ -211,6 +161,49 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
           Export CSV
         </button>
       </div>
+
+      {/* Summary Cards */}
+      {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="rounded-[20px] p-4 border-0 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Logs</p>
+              <p className="text-2xl text-gray-900">{logs.length}</p>
+            </div>
+            <Activity className="w-8 h-8 text-blue-600" />
+          </div>
+        </Card>
+
+        <Card className="rounded-[20px] p-4 border-0 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-green-700">Success</p>
+              <p className="text-2xl text-green-900">{successCount}</p>
+            </div>
+            <CheckCircle className="w-8 h-8 text-green-600" />
+          </div>
+        </Card>
+
+        <Card className="rounded-[20px] p-4 border-0 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-yellow-700">Warnings</p>
+              <p className="text-2xl text-yellow-900">{warningCount}</p>
+            </div>
+            <AlertCircle className="w-8 h-8 text-yellow-600" />
+          </div>
+        </Card>
+
+        <Card className="rounded-[20px] p-4 border-0 shadow-sm ">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-red-700">Failed</p>
+              <p className="text-2xl text-red-900">{failedCount}</p>
+            </div>
+            <XCircle className="w-8 h-8 text-red-600" />
+          </div>
+        </Card>
+      </div> */}
 
       {/* Filters */}
       <Card className="rounded-[20px] border-0 shadow-sm p-6">
@@ -281,14 +274,6 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
         </div>
       </Card>
 
-      {/* Pagination Info */}
-      {total > 0 && (
-        <div className="flex justify-between items-center text-sm text-gray-600 px-2">
-          <span>Showing {((currentPage - 1) * perPage) + 1} to {Math.min(currentPage * perPage, total)} of {total} logs</span>
-          <span>Page {currentPage} of {totalPages}</span>
-        </div>
-      )}
-
       {/* Logs Table - Desktop */}
       <Card className="rounded-[20px] border-0 shadow-sm p-6 hidden md:block">
         {logs.length > 0 ? (
@@ -310,36 +295,36 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
                     <TableCell className="font-mono text-xs text-gray-600">
                       <div className="flex items-center gap-2">
                         <Clock className="w-3 h-3" />
-                        {log.timestamp}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-gray-900">{log.user}</TableCell>
-                    <TableCell className="max-w-xs">
-                      <div>
-                        <p className="text-sm text-gray-900">{log.action}</p>
-                        {log.details && (
-                          <p className="text-xs text-gray-500 mt-1">{log.details}</p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className="bg-gray-100 text-gray-700">{log.module}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(log.status)}
-                        <Badge className={getStatusColor(log.status)}>
-                          {log.status}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-gray-600">
-                      {log.ipAddress}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      {log.timestamp}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-gray-900">{log.user}</TableCell>
+                  <TableCell className="max-w-xs">
+                    <div>
+                      <p className="text-sm text-gray-900">{log.action}</p>
+                      {log.details && (
+                        <p className="text-xs text-gray-500 mt-1">{log.details}</p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{log.module}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(log.status)}
+                      <Badge className={getStatusColor(log.status)}>
+                        {log.status}
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-gray-600">
+                    {log.ipAddress}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
           </div>
         ) : (
           <div className="py-8 text-center">
@@ -349,72 +334,30 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
         )}
       </Card>
 
-      {/* Pagination Component */}
-      {totalPages > 1 && (
+      {/* Pagination - Backend handled */}
+      {initialLogs.links && initialLogs.links.length > 3 && (
         <div className="flex items-center justify-center gap-2 p-4">
-          {/* Previous Button */}
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1 || isLoading}
-            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-gray-100 text-gray-700 hover:bg-gray-200"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          {/* First Page */}
-          {getPageNumbers()[0] > 1 && (
-            <>
+          {initialLogs.links.map((link, index) => (
+            link.url ? (
               <button
-                onClick={() => handlePageChange(1)}
-                disabled={isLoading}
-                className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"
-              >
-                1
-              </button>
-              {getPageNumbers()[0] > 2 && <span className="px-2 text-gray-400">...</span>}
-            </>
-          )}
-
-          {/* Page Numbers */}
-          {getPageNumbers().map(page => (
-            <button
-              key={page}
-              onClick={() => handlePageChange(page)}
-              disabled={isLoading}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                page === currentPage
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {page}
-            </button>
+                key={index}
+                onClick={() => {
+                  setIsLoading(true);
+                  router.visit(link.url);
+                }}
+                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                  link.active
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                dangerouslySetInnerHTML={{ __html: link.label }}
+              />
+            ) : (
+              <span key={index} className="px-3 py-1 text-sm text-gray-400">
+                {link.label === '&laquo; Previous' ? '← Prev' : 'Next →'}
+              </span>
+            )
           ))}
-
-          {/* Last Page */}
-          {getPageNumbers()[getPageNumbers().length - 1] < totalPages && (
-            <>
-              {getPageNumbers()[getPageNumbers().length - 1] < totalPages - 1 && (
-                <span className="px-2 text-gray-400">...</span>
-              )}
-              <button
-                onClick={() => handlePageChange(totalPages)}
-                disabled={isLoading}
-                className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"
-              >
-                {totalPages}
-              </button>
-            </>
-          )}
-
-          {/* Next Button */}
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages || isLoading}
-            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-gray-100 text-gray-700 hover:bg-gray-200"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
         </div>
       )}
 
@@ -430,7 +373,7 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
                     {log.status}
                   </Badge>
                 </div>
-                <Badge className="bg-gray-100 text-gray-700">{log.module}</Badge>
+                <Badge variant="outline">{log.module}</Badge>
               </div>
 
               <div>
@@ -465,7 +408,7 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
   );
 }
 
-export default function AdviserSystemLogsPage(props) {
+export default function SAdminSystemLogsPage(props) {
   return (
     <AuthenticatedLayout>
       <Head title="System Logs" />

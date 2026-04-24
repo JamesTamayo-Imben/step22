@@ -451,6 +451,8 @@ class UserProjectController extends Controller
         $activeProjects = $allProjects->take(3)->map(function ($project) {
             $calculatedStatus = $this->calculateProjectStatus($project);
             $dateProgress = $this->calculateProgressFromDates($project->start_date, $project->end_date);
+            $verification = \App\Support\BlockchainService::verifyChain($project->id);
+            $isTampered = !empty($verification['tamperedBlocks']) && is_array($verification['tamperedBlocks']) && count($verification['tamperedBlocks']) > 0;
             return [
                 'id' => $project->id,
                 'title' => $project->title,
@@ -460,6 +462,7 @@ class UserProjectController extends Controller
                 'deadline' => optional($project->end_date)->format('M d, Y') ?: 'TBD',
                 'progress' => $dateProgress !== null ? $dateProgress : $this->statusProgress($calculatedStatus),
                 'startDate' => optional($project->start_date)->format('M d, Y') ?: 'TBD',
+                'isTampered' => $isTampered,
             ];
         })->values();
 

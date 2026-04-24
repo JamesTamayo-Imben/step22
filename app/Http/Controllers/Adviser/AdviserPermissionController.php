@@ -56,6 +56,7 @@ class AdviserPermissionController extends Controller
             'Vice President for External Affairs',
             'Secretary',
             'Auditor',
+            'Treasurer',
             'Press Relations Officer',
             'Business Manager',
             'Student Liaison',
@@ -254,6 +255,43 @@ class AdviserPermissionController extends Controller
             [
                 'id' => 'Auditor',
                 'name' => 'Auditor',
+                'sections' => [
+                    [
+                        'category' => 'Projects',
+                        'permissions' => [
+                            ['id' => 'proj_view', 'label' => 'View', 'enabled' => true],
+                            ['id' => 'proj_create', 'label' => 'Create', 'enabled' => false],
+                            ['id' => 'proj_edit', 'label' => 'Edit', 'enabled' => false],
+                            ['id' => 'proj_delete', 'label' => 'Delete', 'enabled' => false],
+                            ['id' => 'proj_approve', 'label' => 'Approve', 'enabled' => false],
+                            ['id' => 'proj_rate', 'label' => 'Rate', 'enabled' => true],
+                        ],
+                    ],
+                    [
+                        'category' => 'Ledger',
+                        'permissions' => [
+                            ['id' => 'ledger_view', 'label' => 'View', 'enabled' => true],
+                            ['id' => 'ledger_create', 'label' => 'Create', 'enabled' => false],
+                            ['id' => 'ledger_edit', 'label' => 'Edit', 'enabled' => false],
+                            ['id' => 'ledger_delete', 'label' => 'Delete', 'enabled' => false],
+                            ['id' => 'ledger_approve', 'label' => 'Approve', 'enabled' => false],
+                            ['id' => 'ledger_submit', 'label' => 'Submit', 'enabled' => false],
+                        ],
+                    ],
+                    [
+                        'category' => 'Proof',
+                        'permissions' => [
+                            ['id' => 'proof_view', 'label' => 'View', 'enabled' => true],
+                            ['id' => 'proof_upload', 'label' => 'Upload', 'enabled' => false],
+                            ['id' => 'proof_delete', 'label' => 'Delete', 'enabled' => false],
+                            ['id' => 'proof_verify', 'label' => 'Verify', 'enabled' => true],
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'id' => 'Treasurer',
+                'name' => 'Treasurer',
                 'sections' => [
                     [
                         'category' => 'Projects',

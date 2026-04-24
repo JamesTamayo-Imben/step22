@@ -16,6 +16,7 @@ export default function RegisterTeacherPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
   const [institutes, setInstitutes] = useState([]);
   const [invitationToken, setInvitationToken] = useState(null);
   const [isInvitedRegistration, setIsInvitedRegistration] = useState(false);
@@ -77,8 +78,25 @@ export default function RegisterTeacherPage() {
   }, []);
 
   const handleChange = (field, value) => {
+    if (field === 'phone') {
+      // Remove non-digits and limit to 11 characters
+      const cleaned = value.replace(/\D/g, '').slice(0, 11);
+      setForm({ ...form, phone: cleaned });
+      // Inline validation similar to StudentProfile
+      // if (cleaned && cleaned.length > 0) {
+      //   if (cleaned.length < 10) setPhoneError('Phone number must be at least 10 digits');
+      //   else if (cleaned.length > 11) setPhoneError('Phone number cannot exceed 11 digits');
+      //   else if (!cleaned.startsWith('09') && !cleaned.startsWith('9')) setPhoneError('Phone number should start with 09 or 9');
+      //   else setPhoneError('');
+      // } else {
+      //   setPhoneError('');
+      // }
+      return;
+    }
+
     setForm({ ...form, [field]: value });
   };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -100,6 +118,14 @@ export default function RegisterTeacherPage() {
         console.log('📧 Email:', form.email);
         console.log('🔐 Token:', invitationToken.substring(0, 10) + '...');
 
+        // Validate and format phone before sending
+        let phoneToSend = form.phone || null;
+        if (phoneToSend) {
+          if (phoneToSend.length < 10) throw new Error('Please enter a valid phone number (at least 10 digits)');
+          if (phoneToSend.length > 11) throw new Error('Phone number cannot exceed 11 digits');
+          if (phoneToSend.startsWith('9') && phoneToSend.length === 10) phoneToSend = '0' + phoneToSend;
+        }
+
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
         const response = await fetch('/api/auth/register-teacher', {
@@ -112,7 +138,7 @@ export default function RegisterTeacherPage() {
           body: JSON.stringify({
             invitation_token: invitationToken,
             password: form.password,
-            phone: form.phone || null,
+            phone: phoneToSend,
           }),
         });
 
@@ -171,6 +197,14 @@ export default function RegisterTeacherPage() {
           role: 'teacher',
         });
 
+        // Validate and format phone before sending
+        let phoneToSend = form.phone || null;
+        if (phoneToSend) {
+          if (phoneToSend.length < 10) throw new Error('Please enter a valid phone number (at least 10 digits)');
+          if (phoneToSend.length > 11) throw new Error('Phone number cannot exceed 11 digits');
+          if (phoneToSend.startsWith('9') && phoneToSend.length === 10) phoneToSend = '0' + phoneToSend;
+        }
+
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         console.log('🔐 CSRF Token:', csrfToken ? '✅ Present' : '❌ Missing');
 
@@ -198,7 +232,7 @@ export default function RegisterTeacherPage() {
             password: form.password,
             employeeId: form.employeeId,
             institute: form.institute || null,
-            phone: form.phone || null,
+            phone: phoneToSend,
             role: 'teacher',
           }),
         });
@@ -510,8 +544,18 @@ export default function RegisterTeacherPage() {
                   placeholder="09991234567"
                   value={form.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
+                  onKeyPress={(e) => { if (!/[0-9]/.test(e.key)) e.preventDefault(); }}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const pasted = e.clipboardData.getData('text') || '';
+                    const digits = pasted.replace(/\D/g, '').slice(0, 11);
+                    handleChange('phone', digits);
+                  }}
                   className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                />
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                />  
+                {phoneError && <p className="text-red-600 text-sm mt-1">{phoneError}</p>}
               </div>
             </div>
 

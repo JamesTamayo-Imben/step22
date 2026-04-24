@@ -6,6 +6,7 @@ use App\Http\Controllers\Adviser\AdviserLedgerController;
 use App\Http\Controllers\Adviser\AdviserNotificationController;
 use App\Http\Controllers\Adviser\AdviserPermissionController;
 use App\Http\Controllers\Adviser\AdviserRatingsController;
+use App\Http\Controllers\Adviser\AdviserSystemLogsController;
 use App\Http\Controllers\BlockchainController;
 use App\Http\Controllers\CSG\CSGDashboardController;
 use App\Http\Controllers\CSG\CSGProjectController;
@@ -16,6 +17,8 @@ use App\Http\Controllers\CSG\ProjectController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\SAdmin\SAdminDashboardController;
+use App\Http\Controllers\SAdmin\SAdminArchivedItemsController;
+use App\Http\Controllers\SAdmin\SAdminSystemLogsController;
 use App\Http\Controllers\SAdmin\UserManagementController;
 use App\Http\Controllers\User\UserProjectController;
 use App\Models\User\Notification;
@@ -96,6 +99,26 @@ Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function ()  {
     Route::post('/admin/role-permissions/assign-adviser', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'assignAdviser'])->name('admin.role-permissions.assign-adviser');
     Route::post('/admin/role-permissions/remove-adviser', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'removeAdviser'])->name('admin.role-permissions.remove-adviser');
 
+    // Super Admin governance pages
+    Route::get('/sadmin/archived-projects', [SAdminArchivedItemsController::class, 'index'])->name('sadmin.archived-projects');
+
+    Route::get('/sadmin/ledger-entries', function () {
+        return Inertia::render('SAdmin/_SimplePage', [
+            'title' => 'Ledger Entries',
+            'subtitle' => 'Review ledger entry records and related status history.',
+        ]);
+    })->name('sadmin.ledger-entries');
+
+    Route::get('/sadmin/meetings', function () {
+        return Inertia::render('SAdmin/_SimplePage', [
+            'title' => 'Meetings',
+            'subtitle' => 'View meeting records managed by councils and officers.',
+        ]);
+    })->name('sadmin.meetings');
+
+    Route::get('/sadmin/system-logs', [SAdminSystemLogsController::class, 'index'])->name('sadmin.system-logs');
+    Route::get('/sadmin/system-logs/export', [SAdminSystemLogsController::class, 'export'])->name('sadmin.system-logs.export');
+
     // Admin Pages
     Route::get('/sadmin/data-backup', function () {
         return Inertia::render('SAdmin/DataBackup');
@@ -174,9 +197,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::post('/adviser/notifications/mark-all-read', [AdviserNotificationController::class, 'markAllRead'])->name('adviser.notifications.mark-all-read');
 
     // System Pages
-    Route::get('/adviser/system-logs', function () {
-        return Inertia::render('Adviser/SystemLog');
-    })->name('adviser.system-logs');
+    Route::get('/adviser/system-logs', [AdviserSystemLogsController::class, 'index'])->name('adviser.system-logs');
+    Route::get('/adviser/system-logs/export', [AdviserSystemLogsController::class, 'export'])->name('adviser.system-logs.export');
 
     Route::get('/adviser/profile', function (Request $request) {
         return Inertia::render('Adviser/Profile', [

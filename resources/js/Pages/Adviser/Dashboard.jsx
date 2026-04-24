@@ -117,6 +117,20 @@ export function AdminAdviserDashboard({
         <p className="text-gray-500">Approvals, verification, and oversight</p>
       </div>
 
+      {s.tamperedAlerts > 0 && (
+        <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold">ALERT: Ledger tampering detected</p>
+              <p className="text-sm">One or more ledger entries appear to be tampered. Immediate review required.</p>
+            </div>
+            <div>
+              <a href="/adviser/ledger" className="text-sm underline">View Ledger</a>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard 
           title="Total Pending" 

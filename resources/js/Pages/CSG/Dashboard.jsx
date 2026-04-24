@@ -242,6 +242,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
       .map((entry) => String(entry?.project_id || entry?.projectId || ''))
       .filter(Boolean)
   );
+  const tamperedEntriesCount = (ledgerEntries || []).filter(e => e && (e.tampered || e.verificationState?.tampered || (e.verification_state && e.verification_state.tampered))).length;
   const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
   const unlockedDashboardProjects = dashboardProjects.filter((project) => !isProjectLocked(project.id));
 
@@ -747,6 +748,20 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
           </Button>
         </div>
       </div>
+
+      {(tamperedEntriesCount > 0 || statistics.isBudgetTampered) && (
+        <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-semibold">ALERT: Ledger tampering or budget mismatch detected</p>
+              <p className="text-sm">One or more ledger entries or budgets appear inconsistent. Please review the ledger immediately.</p>
+            </div>
+            <div>
+              <button onClick={() => router.visit('/csg/ledger')} className="text-sm underline">View Ledger</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* STEP 6: Add Ledger Modal - Proof Document is now OPTIONAL */}
       <Modal

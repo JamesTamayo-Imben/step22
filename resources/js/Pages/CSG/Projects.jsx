@@ -547,16 +547,17 @@ function CSGProjectsPageInner() {
       );
     }
 
-    // if (isProjectLocked(project.id)) {
-    //   return (
-    //     <Button className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white" 
-    //     disabled
-    //     >
-    //       <AlertCircle className="w-4 h-4 mr-2" />
-    //       Locked (Tampered)
-    //     </Button>
-    //   );
-    // }
+    if (isProjectLocked(project.id)) {
+      return (
+        <Button
+          onClick={() => setSelectedProjectId(project.id)}
+          className="w-full rounded-xl bg-red-600 hover:bg-red-700 text-white"
+        >
+          <AlertCircle className="w-4 h-4 mr-2" />
+          Tamper (Under Investigation)
+        </Button>
+      );
+    }
 
     switch (project.approvalStatus) {
       case 'Approved':

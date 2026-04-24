@@ -21,7 +21,7 @@ import {
   FileCheck,
   ChevronLeft,
   ChevronRight,
-  DollarSign,
+  Wallet,
   Shield,
   Verified,
 } from 'lucide-react';
@@ -38,6 +38,26 @@ function showToast(message, type = 'success') {
     const e = document.getElementById(id);
     if (e) e.remove();
   }, 2200);
+}
+
+function formatLimitedNumber(value, opts = {}) {
+  const { minFractionDigits = 0, maxFractionDigits = 2 } = opts;
+  const n = Number(value) || 0;
+  const abs = Math.abs(n);
+  if (abs >= 1000000) {
+    return (n / 1000000).toLocaleString(undefined, { minimumFractionDigits: minFractionDigits, maximumFractionDigits: maxFractionDigits }) + 'M';
+  }
+  return n.toLocaleString(undefined, { minimumFractionDigits: minFractionDigits, maximumFractionDigits: maxFractionDigits });
+}
+
+// Return a row background class for tampered entries
+function getRowClass(entry) {
+  const tampered = !!(
+    entry?.tampered ||
+    entry?.verificationState?.tampered ||
+    (entry && entry.verification_state && entry.verification_state.tampered)
+  );
+  return tampered ? 'bg-red-100 hover:bg-red-200' : 'bg-white';
 }
 
 function Modal({ open, onClose, title, children }) {
@@ -112,7 +132,7 @@ function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry }) {
                   <span className="font-medium">Project:</span> {entry.projectName}
                 </p>
                 <p className="text-sm text-gray-600 mt-1">
-                  <span className="font-medium">Amount:</span> ₱{Number(entry.amount).toLocaleString()}
+                  <span className="font-medium">Amount:</span> ₱{formatLimitedNumber(Number(entry.amount))}
                 </p>
               </div>
             )}
@@ -347,7 +367,8 @@ const getTypeAmountColor = (type) => {
     }
   };
 
-  const filteredEntries = useMemo(() => ledgerEntries.filter((entry) => {
+  const filteredEntries = useMemo(() => {
+    const items = ledgerEntries.filter((entry) => {
     if (filterProject !== 'all' && entry.projectName !== filterProject) return false;
     if (filterStatus !== 'all') {
       if (filterStatus === 'Pending') {
@@ -370,7 +391,19 @@ const getTypeAmountColor = (type) => {
       if (!blob.includes(q)) return false;
     }
     return true;
-  }), [ledgerEntries, filterProject, filterStatus, searchQuery, filterCategory]);
+    });
+
+    // Sort so that tampered entries appear first for easy visibility
+    items.sort((a, b) => {
+      const ta = a && a.verificationState && a.verificationState.tampered ? 1 : 0;
+      const tb = b && b.verificationState && b.verificationState.tampered ? 1 : 0;
+      if (ta !== tb) return tb - ta; // tampered (1) before non-tampered (0)
+      // fallback: keep original order (could sort by date desc if desired)
+      return 0;
+    });
+
+    return items;
+  }, [ledgerEntries, filterProject, filterStatus, searchQuery, filterCategory]);
 
   const ledgerTotalPages = Math.max(1, Math.ceil(filteredEntries.length / TABLE_PAGE_SIZE));
   const pagedLedger = filteredEntries.slice((ledgerPage - 1) * TABLE_PAGE_SIZE, ledgerPage * TABLE_PAGE_SIZE);
@@ -425,7 +458,7 @@ const getTypeAmountColor = (type) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Average Income</p>
-                  <p className="text-2xl text-green-600 mt-1">₱{stats.averageIncome.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                  <p className="text-2xl text-green-600 mt-1">₱{formatLimitedNumber(stats.averageIncome, { maxFractionDigits: 2 })}</p>
                   <div className="flex items-center gap-1 mt-1">
                     <TrendingUp className="w-3 h-3 text-green-600" />
                     <p className="text-xs text-green-600">Verified</p>
@@ -440,7 +473,7 @@ const getTypeAmountColor = (type) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Average Expenses</p>
-                  <p className="text-2xl text-red-600 mt-1">₱{stats.averageExpenses.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                  <p className="text-2xl text-red-600 mt-1">₱{formatLimitedNumber(stats.averageExpenses, { maxFractionDigits: 2 })}</p>
                   <div className="flex items-center gap-1 mt-1">
                     <TrendingDown className="w-3 h-3 text-red-600" />
                     <p className="text-xs text-red-600">Tracked</p>
@@ -456,21 +489,21 @@ const getTypeAmountColor = (type) => {
                 <div>
                   <p className="text-sm text-gray-500">Average Net Per Project</p>
                   <p className={`text-2xl mt-1 ${stats.averageNet >= 0 ? 'text-gray-600' : 'text-red-600'}`}>
-                    ₱{stats.averageNet.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    ₱{formatLimitedNumber(stats.averageNet, { maxFractionDigits: 2 })}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">Across all projects</p>
                 </div>
                 <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-gray-600" />
+                  <Wallet className="w-6 h-6 text-gray-600" />
                 </div>
               </div>
             </div>
             <div className={`p-6 rounded-[20px] border-0 shadow-sm ${stats.isBudgetTampered ? 'bg-red-50 border border-red-200' : 'bg-white'}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">CSG Total Project Budget</p>
+                  <p className="text-sm text-gray-500">Total Project Budget</p>
                   <p className={`text-2xl mt-1 ${stats.isBudgetTampered ? 'text-red-700' : 'text-blue-600'}`}>
-                    ₱{stats.totalProjectBudget.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    ₱{formatLimitedNumber(stats.totalProjectBudget, { maxFractionDigits: 2 })}
                   </p>
                   {stats.isBudgetTampered ? (
                     <>
@@ -487,7 +520,7 @@ const getTypeAmountColor = (type) => {
                   )}
                 </div>
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stats.isBudgetTampered ? 'bg-red-100' : 'bg-blue-100'}`}>
-                  <DollarSign className={`w-6 h-6 ${stats.isBudgetTampered ? 'text-red-600' : 'text-blue-600'}`} />
+                  <Wallet className={`w-6 h-6 ${stats.isBudgetTampered ? 'text-red-600' : 'text-blue-600'}`} />
                 </div>
               </div>
             </div>
@@ -584,7 +617,7 @@ const getTypeAmountColor = (type) => {
      </tr>
   ) : (
     pagedLedger.map((entry) => (
-      <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
+      <tr key={entry.id} className={`${getRowClass(entry)} hover:bg-gray-50 transition-colors`}>
         <td className="px-6 py-4">
           <div className="flex items-center gap-2 max-w-[100px]">
             <span className="text-sm text-blue-600 truncate">{entry.id}</span>
@@ -598,7 +631,7 @@ const getTypeAmountColor = (type) => {
          </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <p className={`text-sm ${getTypeAmountColor(entry.transactionType)}`}>
-            ₱{Number(entry.amount).toLocaleString()}
+            ₱{formatLimitedNumber(Number(entry.amount))}
           </p>
          </td>
         <td className="px-6 py-4 whitespace-nowrap">
@@ -748,7 +781,7 @@ const getTypeAmountColor = (type) => {
                   <div>
                     <p className="text-xs text-gray-500">Amount</p>
                     <p className={`text-xl ${selectedEntry.transactionType === 'Income' ? 'text-green-600' : 'text-red-600'}`}>
-                      ₱{Number(selectedEntry.amount).toLocaleString()}
+                      ₱{formatLimitedNumber(Number(selectedEntry.amount))}
                     </p>
                   </div>
                   <div>
@@ -972,19 +1005,19 @@ const getTypeAmountColor = (type) => {
             <div className="p-3 rounded-lg bg-gray-50 border">
               <p className="text-xs text-gray-500">Projects Table Total</p>
               <p className="text-sm font-semibold text-gray-900">
-                ₱{stats.totalProjectBudget.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                ₱{formatLimitedNumber(stats.totalProjectBudget, { maxFractionDigits: 2 })}
               </p>
             </div>
             <div className="p-3 rounded-lg bg-gray-50 border">
               <p className="text-xs text-gray-500">Ledger Computed Total</p>
               <p className="text-sm font-semibold text-gray-900">
-                ₱{stats.computedBudgetFromLedger.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                ₱{formatLimitedNumber(stats.computedBudgetFromLedger, { maxFractionDigits: 2 })}
               </p>
             </div>
             <div className="p-3 rounded-lg bg-red-50 border border-red-200">
               <p className="text-xs text-red-600">Difference</p>
               <p className="text-sm font-semibold text-red-700">
-                ₱{Math.abs(stats.budgetDifference).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                ₱{formatLimitedNumber(Math.abs(stats.budgetDifference), { maxFractionDigits: 2 })}
               </p>
             </div>
           </div>

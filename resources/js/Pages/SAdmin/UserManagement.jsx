@@ -201,6 +201,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
       // Send to backend
       const response = await fetch('/sadmin/users/bulk-create', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -359,6 +360,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     try {
       const response = await fetch(`/sadmin/users/${id}/reset-password`, {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
           'Accept': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
@@ -403,6 +405,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     try {
       const response = await fetch(`/sadmin/users/${id}/toggle-status`, {
         method: 'PATCH',
+        credentials: 'same-origin',
         headers: {
           'Accept': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
@@ -472,6 +475,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     try {
       const response = await fetch(`/sadmin/users/${id}`, {
         method: 'DELETE',
+        credentials: 'same-origin',
         headers: {
           'Accept': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
@@ -513,6 +517,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     try {
       const response = await fetch(`/sadmin/users/${id}/restore`, {
         method: 'PATCH',
+        credentials: 'same-origin',
         headers: {
           'Accept': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
@@ -676,6 +681,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
     try {
       const response = await fetch('/sadmin/users', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

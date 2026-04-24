@@ -18,7 +18,7 @@ import {
   Upload,
   Hash,
   Shield,
-  DollarSign,
+  Wallet,
   TrendingUp,
   TrendingDown,
   X,
@@ -45,6 +45,16 @@ function showToast(message, type = 'success') {
     const e = document.getElementById(id);
     if (e) e.remove();
   }, 2200);
+}
+
+function formatLimitedNumber(value, opts = {}) {
+  const { minFractionDigits = 0, maxFractionDigits = 2 } = opts;
+  const n = Number(value) || 0;
+  const abs = Math.abs(n);
+  if (abs >= 1000000) {
+    return (n / 1000000).toLocaleString(undefined, { minimumFractionDigits: minFractionDigits, maximumFractionDigits: maxFractionDigits }) + 'M';
+  }
+  return n.toLocaleString(undefined, { minimumFractionDigits: minFractionDigits, maximumFractionDigits: maxFractionDigits });
 }
 
 function Modal({ open, onClose, title, description, children }) {
@@ -205,6 +215,20 @@ function LedgerPageInner() {
   //computation of total budget in all prjects getting it from the project table budget column
   const totalBudget = allProjects.reduce((sum, project) => sum + (Number(project.budget) || 0), 0);
 
+  // Compute ledger-derived budget (sum of approved entries)
+  const computedBudgetFromLedger = ledgerEntries
+    .filter((e) => e && (e.approval_status === 'Approved' || e.status === 'Approved'))
+    .reduce((sum, e) => {
+      const amount = Number(e.amount) || 0;
+      const type = (e.type || '').toLowerCase();
+      if (type === 'expense') return sum - amount;
+      if (type === 'initial' || ['income', 'donation', 'sponsorship'].includes(type)) return sum + amount;
+      return sum;
+    }, 0);
+
+  const budgetDifference = (Number(totalBudget) || 0) - computedBudgetFromLedger;
+  const isBudgetTampered = ledgerEntries.length > 0 && Math.abs(budgetDifference) > 0.01;
+
   useEffect(() => {
     const fetchProjects = () => {
       fetch('/api/projects', {
@@ -269,14 +293,26 @@ function LedgerPageInner() {
     { id: '1', title: 'Create a Project First' },
   ];
 
-  const filteredEntries = ledgerEntries.filter(entry => {
-    const matchesSearch = entry.projectName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         entry.id?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = filterType === 'all' || entry.type === filterType;
-    const matchesStatus = filterStatus === 'all' || entry.status === filterStatus;
-    const matchesProject = filterProject === 'all' || entry.project === filterProject;
-    return matchesSearch && matchesType && matchesStatus && matchesProject;
-  });
+  const filteredEntries = (() => {
+    const items = ledgerEntries.filter(entry => {
+      const matchesSearch = entry.projectName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           entry.id?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesType = filterType === 'all' || entry.type === filterType;
+      const matchesStatus = filterStatus === 'all' || entry.status === filterStatus;
+      const matchesProject = filterProject === 'all' || entry.project === filterProject;
+      return matchesSearch && matchesType && matchesStatus && matchesProject;
+    });
+
+    // Put tampered entries first for easier visibility
+    items.sort((a, b) => {
+      const ta = a?.verificationState?.tampered ? 1 : 0;
+      const tb = b?.verificationState?.tampered ? 1 : 0;
+      if (ta !== tb) return tb - ta; // tampered (1) before non-tampered (0)
+      return 0;
+    });
+
+    return items;
+  })();
 
   const tamperedProjectIds = new Set(
     ledgerEntries
@@ -844,7 +880,7 @@ const getTypeAmountColor = (type) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Average Income</p>
-              <p className="text-2xl text-green-600 mt-1">₱{(averageIncome || 0).toLocaleString()}</p>
+              <p className="text-2xl text-green-600 mt-1">₱{formatLimitedNumber(averageIncome || 0)}</p>
             </div>
             <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
               <TrendingUp className="w-6 h-6 text-green-600" />
@@ -856,7 +892,7 @@ const getTypeAmountColor = (type) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Average Expenses</p>
-              <p className="text-2xl text-red-600 mt-1">₱{(averageExpense || 0).toLocaleString()}</p>
+              <p className="text-2xl text-red-600 mt-1">₱{formatLimitedNumber(averageExpense || 0)}</p>
             </div>
             <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
               <TrendingDown className="w-6 h-6 text-red-600" />
@@ -869,25 +905,29 @@ const getTypeAmountColor = (type) => {
             <div>
               <p className="text-sm text-gray-500">Average Net Per Project</p>
               <p className={`text-2xl mt-1 ${averageNet >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                ₱{(averageNet || 0).toLocaleString()}
+                ₱{formatLimitedNumber(averageNet || 0)}
               </p>
             </div>
             <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-blue-600" />
+              <Wallet className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </Card>
 
-         <Card className="rounded-[20px] border-0 shadow-sm p-6">
+         <Card className={`rounded-[20px] border-0 shadow-sm p-6 ${isBudgetTampered ? 'bg-red-50' : 'bg-blue-50'}`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Total Budget</p>
-              <p className={`text-2xl mt-1 ${totalBudget >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                ₱{(totalBudget || 0).toLocaleString()}
+              <p className={`text-2xl mt-1 ${isBudgetTampered ? 'text-red-700' : 'text-blue-600'}`}>
+                ₱{formatLimitedNumber(totalBudget || 0)}
               </p>
+              <p className="text-xs text-gray-500 mt-1">
+<span style={{ color: isBudgetTampered ? 'red' : 'inherit' }}>
+  {isBudgetTampered ? 'Mismatch detected' : 'Sum of budgets for projects'}
+</span>              </p>
             </div>
             <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-blue-600" />
+              <Wallet className={`w-6 h-6 ${isBudgetTampered ? 'text-red-600' : 'text-blue-600'}`} />
             </div>
           </div>
         </Card>
@@ -1016,7 +1056,7 @@ const getTypeAmountColor = (type) => {
                 {/* Amount Section */}
                <div>
   <p className={`text-xl font-sm text-gray-900 whitespace-nowrap ${getTypeAmountColor(entry.type)}`}>
-    ₱{(entry.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+    ₱{formatLimitedNumber(entry.amount || 0, { minFractionDigits: 2, maxFractionDigits: 2 })}
   </p>
 </div>
 
@@ -1123,7 +1163,7 @@ const getTypeAmountColor = (type) => {
       {/* Empty State */}
       {filteredEntries.length === 0 && (
         <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
-          <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No ledger entries found</h3>
           <p className="text-gray-500 mb-6">Get started by adding your first transaction</p>
           <Button
@@ -1313,7 +1353,7 @@ const getTypeAmountColor = (type) => {
                       className="w-28 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
                     />
                     <div className="w-28 h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium">
-                      ₱{(item.amount || 0).toLocaleString()}
+                      ₱{formatLimitedNumber(item.amount || 0)}
                     </div>
                     {budgetItems.length > 1 && (
                       <Button
@@ -1345,7 +1385,7 @@ const getTypeAmountColor = (type) => {
               <FieldLabel>Total Amount (₱)</FieldLabel>
               <div className="bg-blue-50 rounded-xl p-4 mt-1">
                 <p className="text-3xl font-semibold text-blue-900">
-                  ₱{calculateTotalBudget().toLocaleString()}
+                  ₱{formatLimitedNumber(calculateTotalBudget())}
                 </p>
                 <p className="text-xs text-blue-700 mt-1">
                   Auto-calculated from breakdown items
@@ -1494,7 +1534,7 @@ const getTypeAmountColor = (type) => {
                                   className="w-28 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
                                 />
                                 <div className="w-28 h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium">
-                                  ₱{(item.amount || 0).toLocaleString()}
+                                  ₱{formatLimitedNumber(item.amount || 0)}
                                 </div>
                                 {editBudgetItems.length > 1 && (
                                   <Button 
@@ -1526,7 +1566,7 @@ const getTypeAmountColor = (type) => {
                             <FieldLabel>Total Budget (₱)</FieldLabel>
                             <div className="bg-blue-50 rounded-xl p-4">
                               <p className="text-3xl font-semibold text-blue-900">
-                                ₱{calculateGrandTotal().toLocaleString()}
+                                ₱{formatLimitedNumber(calculateGrandTotal())}
                               </p>
                               <p className="text-xs text-blue-700 mt-1">
                                 Auto-calculated from (Quantity × Unit Price)
@@ -1629,7 +1669,7 @@ const getTypeAmountColor = (type) => {
         </div>
         <div>
           <p className="text-sm text-gray-500 mb-1">Total Amount *</p>
-          <p className="text-xl font-semibold text-blue-600">₱{selectedEntry.amount?.toLocaleString() || 0}</p>
+          <p className="text-xl font-semibold text-blue-600">₱{formatLimitedNumber(selectedEntry?.amount || 0)}</p>
         </div>
         <div>
           <p className="text-sm text-gray-500 mb-1">Status *</p>
@@ -1675,12 +1715,12 @@ const getTypeAmountColor = (type) => {
               <span className="text-sm text-gray-900">{item.item || item.name || 'Unnamed Item'}</span>
               {(item.quantity || item.qty) && (
                 <span className="text-xs text-gray-500 ml-2">
-                  (₱{(parseFloat(item.unitPrice) || 0).toLocaleString()} x {item.quantity || item.qty})
+                  (₱{formatLimitedNumber(parseFloat(item.unitPrice) || 0)} x {item.quantity || item.qty})
                 </span>
               )}
             </div>
             <span className="text-sm font-medium text-blue-600">
-              ₱{(parseFloat(item.amount) || 0).toLocaleString()}
+              ₱{formatLimitedNumber(parseFloat(item.amount) || 0)}
             </span>
           </div>
         ))}
@@ -1690,7 +1730,7 @@ const getTypeAmountColor = (type) => {
       <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 font-semibold">
         <span className="text-gray-700">Total</span>
         <span className="text-blue-600">
-          ₱{selectedEntry.budgetBreakdown.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}
+          ₱{formatLimitedNumber(selectedEntry.budgetBreakdown.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0))}
         </span>
       </div>
     </div>

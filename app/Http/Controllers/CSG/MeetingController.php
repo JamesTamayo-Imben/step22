@@ -4,7 +4,9 @@ namespace App\Http\Controllers\CSG;
 
 use App\Http\Controllers\Controller;
 use App\Models\CSG\Meeting;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class MeetingController extends Controller
@@ -112,6 +114,21 @@ class MeetingController extends Controller
                 'archive' => false,
             ]);
 
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => Auth::id(),
+                'actionable_id' => $meeting->id,
+                'actionable_type' => 'meeting',
+                'action' => 'Meeting Created',
+                'module' => 'meetings',
+                'action_type' => 'create',
+                'status' => 'Success',
+                'details' => 'Created meeting "' . ($meeting->title ?? $meeting->id) . '"',
+                'ip_address' => request()->ip(),
+                'browser_info' => substr((string) request()->userAgent(), 0, 500),
+                'archive' => 0,
+            ]);
+
             return response()->json([
                 'message' => 'Meeting created successfully',
                 'id' => $meeting->id,
@@ -181,6 +198,21 @@ public function update(Request $request, $id)
 
         $meeting->update($updateData);
 
+        AuditLog::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => Auth::id(),
+            'actionable_id' => $meeting->id,
+            'actionable_type' => 'meeting',
+            'action' => 'Meeting Updated',
+            'module' => 'meetings',
+            'action_type' => 'update',
+            'status' => 'Success',
+            'details' => 'Updated meeting "' . ($meeting->title ?? $meeting->id) . '"',
+            'ip_address' => request()->ip(),
+            'browser_info' => substr((string) request()->userAgent(), 0, 500),
+            'archive' => 0,
+        ]);
+
         return response()->json(['message' => 'Meeting updated successfully']);
     } catch (\Exception $e) {
         return response()->json([
@@ -201,6 +233,21 @@ public function update(Request $request, $id)
             $meeting->updated_at = now();
             $meeting->save();
 
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => Auth::id(),
+                'actionable_id' => $meeting->id,
+                'actionable_type' => 'meeting',
+                'action' => 'Meeting Archived',
+                'module' => 'meetings',
+                'action_type' => 'archive',
+                'status' => 'Success',
+                'details' => 'Archived meeting "' . ($meeting->title ?? $meeting->id) . '"',
+                'ip_address' => request()->ip(),
+                'browser_info' => substr((string) request()->userAgent(), 0, 500),
+                'archive' => 0,
+            ]);
+
             return response()->json(['message' => 'Meeting archived successfully']);
         } catch (\Exception $e) {
             return response()->json([
@@ -219,6 +266,24 @@ public function update(Request $request, $id)
             $meeting = Meeting::findOrFail($id);
             $meeting->archive = !$meeting->archive;
             $meeting->save();
+
+            $action = $meeting->archive ? 'Meeting Archived' : 'Meeting Unarchived';
+            $actionType = $meeting->archive ? 'archive' : 'restore';
+
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => Auth::id(),
+                'actionable_id' => $meeting->id,
+                'actionable_type' => 'meeting',
+                'action' => $action,
+                'module' => 'meetings',
+                'action_type' => $actionType,
+                'status' => 'Success',
+                'details' => $action . ' for "' . ($meeting->title ?? $meeting->id) . '"',
+                'ip_address' => request()->ip(),
+                'browser_info' => substr((string) request()->userAgent(), 0, 500),
+                'archive' => 0,
+            ]);
 
             return response()->json(['message' => 'Meeting archive status updated']);
         } catch (\Exception $e) {
@@ -256,6 +321,21 @@ public function update(Request $request, $id)
             }
 
             $meeting->update($updateData);
+
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => Auth::id(),
+                'actionable_id' => $meeting->id,
+                'actionable_type' => 'meeting',
+                'action' => 'Meeting Marked Completed',
+                'module' => 'meetings',
+                'action_type' => 'update',
+                'status' => 'Success',
+                'details' => 'Marked meeting as completed "' . ($meeting->title ?? $meeting->id) . '"',
+                'ip_address' => request()->ip(),
+                'browser_info' => substr((string) request()->userAgent(), 0, 500),
+                'archive' => 0,
+            ]);
 
             return response()->json(['message' => 'Meeting marked as completed']);
         } catch (\Exception $e) {

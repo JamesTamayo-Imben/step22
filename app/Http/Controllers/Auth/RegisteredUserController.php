@@ -35,8 +35,10 @@ class RegisteredUserController extends Controller
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role_id' => 'required|exists:roles,id',
+            'student_id' => 'nullable|string|max:255|unique:'.User::class,
         ], [
             'email.unique' => 'This email address is already registered. Please use a different email or login to your existing account.',
+            'student_id.unique' => 'This student ID is already registered. Please use a different student ID or login to your existing account.',
         ]);
 
         $user = User::create([
@@ -45,6 +47,7 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role_id' => $request->role_id,
+            'student_id' => $request->student_id,
             'status' => 'active',
         ]);
 

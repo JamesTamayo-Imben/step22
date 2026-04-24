@@ -63,6 +63,20 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
   const initialSelected = currentView || getViewFromPath();
   const [selectedView, setSelectedView] = useState(initialSelected);
 
+  // Compute a tampered count from several possible props locations so the badge
+  // appears when pages provide ledger data or when the backend sets a stats prop.
+  const tamperedCount = (() => {
+    try {
+      const statsCount = page.props?.stats?.tamperedAlerts ?? page.props?.tamperedAlerts;
+      if (typeof statsCount === 'number') return statsCount;
+      const list = page.props?.ledgerEntries || page.props?.recentLedgerEntries || [];
+      if (Array.isArray(list)) return list.filter(e => e && (e.tampered || e.verificationState?.tampered || (e.verification_state && e.verification_state.tampered))).length;
+    } catch (err) {
+      return 0;
+    }
+    return 0;
+  })();
+
   // Keep selectedView in sync when Inertia's page URL changes or browser history changes
   const { url } = usePage();
   useEffect(() => {
@@ -165,7 +179,14 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                     }`}
                   >
                     <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
+                    <span className="flex items-center gap-2">
+                      <span>{item.label}</span>
+                      {item.id === 'ledger-view' && tamperedCount > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                          {tamperedCount}
+                        </span>
+                      )}
+                    </span>
                   </button>
                 </li>
               );

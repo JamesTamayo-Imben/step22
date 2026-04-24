@@ -1,31 +1,24 @@
 <?php
 
-namespace App\Http\Controllers\Adviser;
+namespace App\Http\Controllers\SAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-class AdviserSystemLogsController extends Controller
+class SAdminSystemLogsController extends Controller
 {
-    private function csgLogsQuery()
+    private function logsQuery()
     {
         return AuditLog::with('user:id,name,role_id')
-            ->where('archive', false)
-            ->whereHas('user.role', function ($query) {
-                $query->where('slug', 'csg');
-            });
+            ->where('archive', false);
     }
 
-    /**
-     * Display system logs with filtering and pagination
-     */
     public function index(Request $request)
     {
-        $query = $this->csgLogsQuery()->orderByDesc('created_at');
+        $query = $this->logsQuery()->orderByDesc('created_at');
 
-        // Search filter
         if ($request->filled('search')) {
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
@@ -37,22 +30,18 @@ class AdviserSystemLogsController extends Controller
             });
         }
 
-        // Module filter
         if ($request->filled('module') && $request->input('module') !== 'all') {
             $query->where('module', $request->input('module'));
         }
 
-        // Status filter
         if ($request->filled('status') && $request->input('status') !== 'all') {
             $query->where('status', $request->input('status'));
         }
 
-        // Action type filter
         if ($request->filled('actionType') && $request->input('actionType') !== 'all') {
             $query->where('action_type', $request->input('actionType'));
         }
 
-        // Get paginated results
         $logs = $query->paginate(10)->through(function (AuditLog $log) {
             return [
                 'id' => $log->id,
@@ -67,14 +56,13 @@ class AdviserSystemLogsController extends Controller
             ];
         });
 
-        // Get unique modules for filter dropdown
-        $modules = $this->csgLogsQuery()
+        $modules = $this->logsQuery()
             ->distinct()
             ->pluck('module')
             ->sort()
             ->values();
 
-        return Inertia::render('Adviser/SystemLog', [
+        return Inertia::render('SAdmin/SystemLog', [
             'logs' => $logs,
             'modules' => $modules,
             'filters' => [
@@ -83,17 +71,14 @@ class AdviserSystemLogsController extends Controller
                 'status' => $request->input('status', 'all'),
                 'actionType' => $request->input('actionType', 'all'),
             ],
+            'basePath' => '/sadmin/system-logs',
         ]);
     }
 
-    /**
-     * Export system logs as CSV
-     */
     public function export(Request $request)
     {
-        $query = $this->csgLogsQuery()->orderByDesc('created_at');
+        $query = $this->logsQuery()->orderByDesc('created_at');
 
-        // Apply same filters as index
         if ($request->filled('search')) {
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
@@ -113,11 +98,13 @@ class AdviserSystemLogsController extends Controller
             $query->where('status', $request->input('status'));
         }
 
+        if ($request->filled('actionType') && $request->input('actionType') !== 'all') {
+            $query->where('action_type', $request->input('actionType'));
+        }
+
         $logs = $query->get();
 
-        // Generate CSV
         $csvContent = "Timestamp,User,Action,Module,Status,IP Address,Details\n";
-        
         foreach ($logs as $log) {
             $csvContent .= sprintf(
                 '"%s","%s","%s","%s","%s","%s","%s"' . "\n",
@@ -133,6 +120,6 @@ class AdviserSystemLogsController extends Controller
 
         return response($csvContent)
             ->header('Content-Type', 'text/csv')
-            ->header('Content-Disposition', 'attachment; filename="system-logs-' . now()->format('Y-m-d-H-i-s') . '.csv"');
+            ->header('Content-Disposition', 'attachment; filename="sadmin-system-logs-' . now()->format('Y-m-d-H-i-s') . '.csv"');
     }
 }

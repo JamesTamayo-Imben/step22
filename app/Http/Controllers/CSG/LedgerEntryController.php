@@ -4,6 +4,7 @@
 namespace App\Http\Controllers\CSG;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Project;
 use App\Models\CSG\Approval;
@@ -257,6 +258,21 @@ public function uploadProof(Request $request, $id)
             $entry->save();
             
             Log::info('Ledger entry created with ID: ' . $entry->id);
+
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => Auth::id(),
+                'actionable_id' => $entry->id,
+                'actionable_type' => 'ledger_entry',
+                'action' => 'Ledger Entry Created',
+                'module' => 'ledger',
+                'action_type' => 'create',
+                'status' => 'Success',
+                'details' => 'Created ' . $entry->type . ' ledger entry for project ID ' . $entry->project_id,
+                'ip_address' => $request->ip(),
+                'browser_info' => substr((string) $request->userAgent(), 0, 500),
+                'archive' => 0,
+            ]);
             
             // Return simple response - extremely minimal to avoid issues
             return response()->json([
@@ -406,6 +422,21 @@ public function uploadProof(Request $request, $id)
             $entry->archive = 1;
             $entry->updated_at = now();
             $entry->save();
+
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => Auth::id(),
+                'actionable_id' => $entry->id,
+                'actionable_type' => 'ledger_entry',
+                'action' => 'Ledger Entry Archived',
+                'module' => 'ledger',
+                'action_type' => 'delete',
+                'status' => 'Success',
+                'details' => 'Archived ledger entry "' . ($entry->description ?? 'N/A') . '" for project ID ' . $entry->project_id,
+                'ip_address' => request()->ip(),
+                'browser_info' => substr((string) request()->userAgent(), 0, 500),
+                'archive' => 0,
+            ]);
             
             return response()->json(['message' => 'Ledger entry archived successfully']);
             

@@ -5,13 +5,10 @@ import {
   LayoutDashboard,
   Users,
   Shield,
-  Building2,
-  Settings,
+  Archive,
+  BookOpenText,
+  CalendarDays,
   FileText,
-  Database,
-  TrendingUp,
-  Bell,
-  User,
   Menu,
   X,
   LogOut,
@@ -26,6 +23,10 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'user-management', label: 'User Management', icon: Users },
     { id: 'roles-permissions', label: 'Roles & Permissions', icon: Shield },
+    { id: 'archived-projects', label: 'Archived Items', icon: Archive },
+    // { id: 'ledger-entries', label: 'Ledger Entries', icon: BookOpenText },
+    // { id: 'meetings', label: 'Meetings', icon: CalendarDays },
+    { id: 'system-logs', label: 'System Logs', icon: FileText },
     // { id: 'system-settings', label: 'System Settings', icon: Settings },
     // { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
     // { id: 'data-backup', label: 'Data & Backup', icon: Database },
@@ -42,6 +43,10 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     if (p === '/sadmin') return 'dashboard';
     if (p.startsWith('/sadmin/users')) return 'user-management';
     if (p.startsWith('/sadmin/roles')) return 'roles-permissions';
+    if (p.startsWith('/sadmin/archived-projects')) return 'archived-projects';
+    if (p.startsWith('/sadmin/ledger-entries')) return 'ledger-entries';
+    if (p.startsWith('/sadmin/meetings')) return 'meetings';
+    if (p.startsWith('/sadmin/system-logs')) return 'system-logs';
     if (p.startsWith('/sadmin/settings')) return 'system-settings';
     if (p.startsWith('/sadmin/audit-logs')) return 'audit-logs';
     if (p.startsWith('/sadmin/data-backup')) return 'data-backup';
@@ -68,6 +73,10 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
       dashboard: '/sadmin',
       'user-management': '/sadmin/users',
       'roles-permissions': '/sadmin/roles',
+      'archived-projects': '/sadmin/archived-projects',
+      'ledger-entries': '/sadmin/ledger-entries',
+      meetings: '/sadmin/meetings',
+      'system-logs': '/sadmin/system-logs',
       'system-settings': '/sadmin/settings',
       'audit-logs': '/sadmin/audit-logs',
       'data-backup': '/sadmin/data-backup',

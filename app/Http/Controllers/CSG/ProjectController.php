@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\CSG;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\CSG\Project;
 use App\Models\CSG\Approval;
 use App\Models\CSG\LedgerEntry;
@@ -118,6 +119,21 @@ class ProjectController extends Controller
             // Save project to database
             $project->save();
             Log::info('✅ Project saved to database', ['project_id' => $project->id]);
+
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => Auth::id(),
+                'actionable_id' => $project->id,
+                'actionable_type' => 'project',
+                'action' => 'Project Created',
+                'module' => 'projects',
+                'action_type' => 'create',
+                'status' => 'Success',
+                'details' => 'Created project "' . $project->title . '"',
+                'ip_address' => $request->ip(),
+                'browser_info' => substr((string) $request->userAgent(), 0, 500),
+                'archive' => 0,
+            ]);
 
             // Create an initial baseline ledger entry when project starts with budget.
             $initialLedger = null;
@@ -315,6 +331,21 @@ class ProjectController extends Controller
             
             // Hard delete the project
             $project->delete();
+
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => Auth::id(),
+                'actionable_id' => $id,
+                'actionable_type' => 'project',
+                'action' => 'Project Deleted',
+                'module' => 'projects',
+                'action_type' => 'delete',
+                'status' => 'Success',
+                'details' => 'Deleted project "' . ($project->title ?? 'N/A') . '" and archived related ledger entries',
+                'ip_address' => request()->ip(),
+                'browser_info' => substr((string) request()->userAgent(), 0, 500),
+                'archive' => 0,
+            ]);
             
             return response()->json(['message' => 'Project and associated records deleted successfully'], 200);
         } catch (\Exception $e) {
@@ -338,8 +369,23 @@ class ProjectController extends Controller
             $project->save();
 
             // Archive all ledger entries (initial + others) for this project
-            LedgerEntry::where('project_id', $id)
+            $archivedLedgers = LedgerEntry::where('project_id', $id)
                 ->update(['archive' => 1, 'updated_at' => now()]);
+
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => Auth::id(),
+                'actionable_id' => $project->id,
+                'actionable_type' => 'project',
+                'action' => 'Project Archived',
+                'module' => 'projects',
+                'action_type' => 'delete',
+                'status' => 'Success',
+                'details' => 'Archived project "' . ($project->title ?? 'N/A') . '" and ' . $archivedLedgers . ' related ledger entr' . ($archivedLedgers === 1 ? 'y' : 'ies'),
+                'ip_address' => request()->ip(),
+                'browser_info' => substr((string) request()->userAgent(), 0, 500),
+                'archive' => 0,
+            ]);
             
             return response()->json(['message' => 'Project archived successfully'], 200);
         } catch (\Exception $e) {

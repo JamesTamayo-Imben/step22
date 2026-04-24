@@ -39,7 +39,7 @@
         }
         .credentials-box {
             background-color: #f0f4ff;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #1e3a8a;
             padding: 20px;
             margin: 20px 0;
             border-radius: 4px;
@@ -107,7 +107,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Welcome to KLD School Platform</h1>
+            <h1>Welcome to STEP</h1>
         </div>
 
         <div class="content">
@@ -136,7 +136,7 @@
             </div>
 
             <div style="text-align: center;">
-                <a href="{{ $signupLink }}" class="cta-button">Complete Your Registration</a>
+                <a href="{{ $signupLink }}" class="cta-button" style="color: #ffffff; font-weight: bold;">Complete Your Registration</a>
             </div>
 
             <p style="color: #666; font-size: 14px;">If the button doesn't work, copy and paste this link in your browser:</p>
