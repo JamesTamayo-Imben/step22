@@ -605,7 +605,7 @@ function CSGProjectsPageInner() {
           <Plus className="w-4 h-4 mr-2" />
           Create New Project
         </Button>
-      </div>
+      </div> 
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

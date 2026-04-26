@@ -833,10 +833,10 @@ class AdviserPermissionController extends Controller
                     'csg_term_end' => $request->endDate,
                 ]);
 
-            return response()->json([
-                'message' => "Council term updated for {$updated} officers",
-                'updated' => $updated,
-            ]);
+            // return response()->json([
+            //     // 'message' => "Council term updated for {$updated} officers",
+            //     // 'updated' => $updated,
+            // ]);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to update council term: ' . $e->getMessage(),

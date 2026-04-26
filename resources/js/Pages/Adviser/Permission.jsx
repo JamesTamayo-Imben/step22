@@ -339,7 +339,7 @@ const isUserInCSG = (userId) => {
     setIsSetOfficerModalOpen(true);
   };
 
- const handleSetCouncilTerm = async () => {
+const handleSetCouncilTerm = async () => {
   if (!councilStartDate || !councilEndDate) {
     showToast('Please select both start and end dates', 'error');
     return;
@@ -350,51 +350,24 @@ const isUserInCSG = (userId) => {
     return;
   }
 
-  // Store the dates for immediate update
-  const newStartDate = councilStartDate;
-  const newEndDate = councilEndDate;
-
-  try {
-    const response = await fetch('/adviser/role-permissions/set-council-term', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-      },
-      body: JSON.stringify({
-        startDate: councilStartDate,
-        endDate: councilEndDate,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      // Immediately update the state with the new dates
-      setCouncilStartDate(newStartDate);
-      setCouncilEndDate(newEndDate);
-      
-      showToast(data.message || 'Council term updated successfully');
+  router.post('/adviser/role-permissions/set-council-term', {
+    startDate: councilStartDate,
+    endDate: councilEndDate,
+  }, {
+    onSuccess: () => {
+      showToast('Council term updated successfully');
       setIsCouncilTermModalOpen(false);
-      
-      // Optional: Refresh the council officers list to show updated term dates
-      // This ensures all officers have the new term dates
-      setTimeout(() => {
-        router.reload({ only: ['councilOfficers'] });
-      }, 500);
-    } else {
-      showToast(data.message || 'Failed to set council term', 'error');
+    },
+    onError: (error) => {
+      showToast(error?.message || 'Failed to set council term', 'error');
     }
-  } catch (error) {
-    showToast(error.message || 'Failed to set council term', 'error');
-  }
+  });
 };
 
   
 
   const openCouncilTermModal = () => {
-    setCouncilStartDate('');
-    setCouncilEndDate('');
+   
     setIsCouncilTermModalOpen(true);
   };
 

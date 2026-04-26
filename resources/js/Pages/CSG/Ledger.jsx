@@ -849,7 +849,7 @@ const getTypeAmountColor = (type) => {
           <h1 className="text-2xl font-semibold text-gray-900">Ledger Management</h1>
           <p className="text-gray-500">Track all financial transactions across projects</p>
         </div>
-        <div className="flex gap-2">
+        {/* <div className="flex gap-2"> */}
           {/* <Button
             onClick={() => {
               setIsRefreshing(true);
@@ -871,11 +871,11 @@ const getTypeAmountColor = (type) => {
             <Plus className="w-4 h-4 mr-2" />
             Add Ledger Entry
           </Button>
-        </div>
+        {/* </div> */}
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="rounded-[20px] border-0 shadow-sm p-6">
           <div className="flex items-center justify-between">
             <div>

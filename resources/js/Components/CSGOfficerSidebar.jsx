@@ -172,17 +172,17 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
             </div>
             
             {/* Online Officers Indicator Button */}
-            <button
+            {/* <button
               onClick={() => setIsOnlineModalOpen(true)}
               className="flex items-center gap-2 px-2 py-1.5 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-200 group"
             >
-              {/* Pulsing Indicator */}
+              Pulsing Indicator
               <div className="relative flex items-center justify-center w-3 h-3">
                 <div className="absolute w-2 h-2 bg-green-500 rounded-full"></div>
                 <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-ping opacity-75"></div>
               </div>
               
-              {/* Stacked Avatars */}
+              Stacked Avatars
               <div className="flex items-center -space-x-1.5">
                 {onlineOfficers.filter(o => o.status === 'online').slice(0, 1).map((officer) => (
                   <Avatar key={officer.id} className="w-6 h-6 border-2 border-white ring-1 ring-green-200">
@@ -198,9 +198,9 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                 )}
               </div>
               
-              {/* Chevron Icon */}
+              Chevron Icon
               <ChevronRight className="w-3.5 h-3.5 text-green-600 group-hover:translate-x-0.5 transition-transform" />
-            </button>
+            </button> */}
           </div>
         </div>
         
