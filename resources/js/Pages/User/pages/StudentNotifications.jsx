@@ -181,15 +181,15 @@ export default function StudentNotificationsPage({ onNavigate, notificationsData
             {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
           </p>
         </div>
-        {unreadCount > 0 && (
-          <button
+        {/* {unreadCount > 0 && ( */}
+          {/* <button
             onClick={markAllAsRead}
             className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 whitespace-nowrap"
           >
             <Check className="w-4 h-4" />
             Mark all as read
-          </button>
-        )}
+          </button> */}
+        {/* )} */}
       </div>
 
       {/* Filter Chips */}
@@ -249,14 +249,14 @@ export default function StudentNotificationsPage({ onNavigate, notificationsData
                   <p className="text-sm text-gray-600 mb-2">{notification.message}</p>
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-gray-500">{notification.timestamp}</p>
-                    {!notification.isRead && (
-                      <button
+                    {/* {!notification.isRead && ( */}
+                      {/* <button
                         onClick={() => markAsRead(notification.id)}
                         className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
                       >
                         Mark as read
-                      </button>
-                    )}
+                      </button> */}
+                    {/* )} */}
                   </div>
                 </div>
               </div>

@@ -120,6 +120,18 @@ class GoogleAuthController extends Controller
             // Load the role relationship
             $user->load('role');
 
+            // Prevent superadmin from logging in through Google OAuth
+            if ($user->role?->slug === 'superadmin') {
+                Log::warning('🚫 Superadmin login attempt via Google OAuth blocked', [
+                    'email' => $user->email,
+                    'user_id' => $user->id,
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Access denied. Try to use another account.',
+                ], 403);
+            }
+
             // ✅ Authenticate the user in Laravel session
             Auth::login($user);
             Log::info('✅ User authenticated in Laravel session', [

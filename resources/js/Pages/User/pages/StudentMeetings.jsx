@@ -180,6 +180,10 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
       {/* Upcoming Meetings */}
       {activeTab === 'upcoming' && (
         <div className="space-y-4">
+          {meetingsUpcomingFiltered.length === 0 ? (
+            <Card className="p-8 rounded-[20px] border-0 shadow-sm text-center text-gray-600">No meetings recorded as of now</Card>
+          ) : (
+          <>
           {meetingsUpcomingFiltered.map((meeting) => (
             <Card key={meeting.id} className="p-6 rounded-[20px] border-0 shadow-sm hover:shadow-md transition-all">
               <div className="flex flex-col md:flex-row gap-4">
@@ -231,6 +235,8 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
               </div>
             </Card>
           ))}
+          </>
+          )}
         </div>
       )}
 
@@ -238,7 +244,7 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
       {activeTab === 'past' && (
         <div className="space-y-4">
           {meetingsPastFiltered.length === 0 && (
-            <Card className="p-8 rounded-[20px] border-0 shadow-sm text-center text-gray-600">No past meetings to show. Completed meetings with minutes appear after adviser approval.</Card>
+            <Card className="p-8 rounded-[20px] border-0 shadow-sm text-center text-gray-600">No past meetings to show.</Card>
           )}
           {meetingsPastFiltered.map((meeting) => (
             <Card key={meeting.id} className="p-6 rounded-[20px] border-0 shadow-sm hover:shadow-md transition-all">

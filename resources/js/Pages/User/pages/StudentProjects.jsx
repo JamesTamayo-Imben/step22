@@ -254,6 +254,12 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
       </div>
 
       {/* Projects Grid */}
+      {paginatedProjects.length === 0 ? (
+        <Card className="p-12 rounded-[20px] border-0 shadow-sm text-center">
+          
+          <p className="text-gray-600 text-lg">No projects recorded as of now</p>
+        </Card>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {paginatedProjects.map((project) => (
           <Card key={project.id} className="overflow-hidden rounded-[20px] border-0 shadow-sm hover:shadow-md transition-all">
@@ -344,6 +350,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
           </Card>
         ))}
       </div>
+      )}
 
       {filteredProjects.length > cardsPerPage && (
         <div className="flex items-center justify-between">

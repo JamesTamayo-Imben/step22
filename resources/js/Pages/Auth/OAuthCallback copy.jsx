@@ -122,6 +122,17 @@ export default function OAuthCallback() {
 
           setOauthUser(data.user);
 
+          // Prevent superadmin from logging in through regular Google OAuth
+          if (data.user.role?.slug === 'superadmin') {
+            console.log('🚫 Superadmin detected in Google OAuth, signing out and redirecting...');
+            await signOut();
+            setError('Superadmin accounts must use the SuperAdmin login portal. Please navigate to the administrative access page.');
+            setTimeout(() => {
+              router.visit('/login');
+            }, 2000);
+            return;
+          }
+
           // if (!data.user.profile_completed) {
           //   console.log('📋 Profile incomplete, fetching dropdown data...');
 

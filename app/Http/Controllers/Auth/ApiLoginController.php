@@ -98,7 +98,7 @@ class ApiLoginController extends Controller
                 'user_id' => $user->id,
             ]);
             return response()->json([
-                'message' => 'Superadmin accounts must use the SuperAdmin login portal. Please navigate to the administrative access page.',
+                'message' => 'Access denied.',
             ], 403);
         }
 

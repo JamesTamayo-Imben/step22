@@ -168,6 +168,28 @@ INSERT INTO `chain` (`id`, `project_id`, `block_index`, `prev_hash`, `hash`, `da
 ('057933f9-8ebc-471d-80be-e21ea7530ccc', '82107b3c-1767-48c8-a690-ead71aa87748', 0, NULL, 'ddf0df642baf47f8da9ae55d542d68e4099e733ae0fdf740efc6f94de8ee9db7', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"82107b3c-1767-48c8-a690-ead71aa87748\\\",\\\"title\\\":\\\"wowasd123\\\",\\\"description\\\":\\\"wow\\\",\\\"amount\\\":\\\"0.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-04-15T04:49:06+00:00\\\"}\"', '2026-04-15 04:49:06');
 
 -- --------------------------------------------------------
+--
+-- Triggers to make chain table immutable (append-only)
+--
+
+DELIMITER $$
+CREATE TRIGGER prevent_chain_updates
+BEFORE UPDATE ON chain
+FOR EACH ROW
+BEGIN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Chain records cannot be updated';
+END$$
+
+CREATE TRIGGER prevent_chain_deletes
+BEFORE DELETE ON chain
+FOR EACH ROW
+BEGIN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Chain records cannot be deleted';
+END$$
+
+DELIMITER ;
+
+-- --------------------------------------------------------
 
 --
 -- Table structure for table `course`
@@ -265,7 +287,7 @@ CREATE TABLE `ledger_entries` (
   `amount` decimal(15,2) NOT NULL,
   `description` text NOT NULL,
   `category` varchar(100) DEFAULT NULL,
-  `budget_breakdown` int(11) DEFAULT NULL,
+  `budget_breakdown` text NOT NULL,
   `ledger_proof` varchar(500) DEFAULT NULL COMMENT 'Path to uploaded proof file',
   `file_content_hash` varchar(64) DEFAULT NULL COMMENT 'SHA-256 hash of uploaded file for integrity verification',
   `approval_status` enum('Draft','Pending Adviser Approval','Approved','Rejected') DEFAULT 'Draft',

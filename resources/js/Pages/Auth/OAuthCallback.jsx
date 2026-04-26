@@ -103,9 +103,7 @@ export default function OAuthCallback() {
 
             let redirectPath = '/user';
 
-            if (data.user.role?.slug === 'superadmin') {
-              redirectPath = '/sadmin';
-            } else if (data.user.role?.slug === 'admin') {
+            if (data.user.role?.slug === 'admin') {
               redirectPath = '/adviser/dashboard';
             } else if (data.user.role?.slug === 'csg') {
               redirectPath = '/csg/dashboard';
