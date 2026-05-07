@@ -37,6 +37,8 @@ export function AdminAdviserDashboard({
     avgRating: typeof stats.avgRating === 'number' ? stats.avgRating : 0,
     tamperedAlerts: stats.tamperedAlerts ?? 0,
     activeCsgCount: stats.activeCsgCount ?? 0,
+    isBudgetTampered: stats.isBudgetTampered ?? false,
+    budgetMismatchCount: stats.budgetMismatchCount ?? 0,
   };
   
   // Simple subcomponents to mirror the STEP AdminAdviser layout
@@ -117,12 +119,18 @@ export function AdminAdviserDashboard({
         <p className="text-gray-500">Approvals, verification, and oversight</p>
       </div>
 
-      {s.tamperedAlerts > 0 && (
+      {(s.tamperedAlerts > 0 || s.isBudgetTampered) && (
         <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold">ALERT: Ledger tampering detected</p>
-              <p className="text-sm">One or more ledger entries appear to be tampered. Immediate review required.</p>
+              <p className="font-semibold">ALERT: Ledger tampering or budget mismatch detected</p>
+              <p className="text-sm">
+                {s.tamperedAlerts > 0 && s.isBudgetTampered
+                  ? 'One or more ledger entries or project budgets appear inconsistent. Immediate review required.'
+                  : s.tamperedAlerts > 0
+                  ? 'One or more ledger entries appear to be tampered. Immediate review required.'
+                  : 'One or more projects have a budget mismatch. Immediate review required.'}
+              </p>
             </div>
             <div>
               <a href="/adviser/ledger" className="text-sm underline">View Ledger</a>
@@ -131,7 +139,7 @@ export function AdminAdviserDashboard({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <StatsCard 
           title="Total Pending" 
           value={String(s.pendingApprovals)} 
@@ -155,6 +163,14 @@ export function AdminAdviserDashboard({
           icon={<TrendingUp />} 
           iconBg="bg-blue-50" 
           iconColor="text-blue-600" 
+        />
+        <StatsCard 
+          title="Budget Mismatches" 
+          value={String(s.budgetMismatchCount)} 
+          hint="Projects with budget inconsistencies" 
+          icon={<DollarSign />} 
+          iconBg="bg-red-50" 
+          iconColor="text-red-600" 
         />
         <StatsCard 
           title="Tampered Alerts" 

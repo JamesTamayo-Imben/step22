@@ -575,6 +575,7 @@ const computedBudgetFromLedger = ledgerEntries
   const budgetDifference = displayBudget - computedBudgetFromLedger;
   // Only show mismatch after ledger data is loaded (not during initial load)
   const isBudgetTampered = !loading && ledgerEntries.length > 0 && displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
+  const isLedgerDisabled = isTampered || isBudgetTampered;
 
   const normalizeLedgerEntry = (item) => {
     const breakdownRaw = item.budgetBreakdown || item.budget_breakdown;
@@ -1505,11 +1506,11 @@ function maskUserName(fullName) {
              <Button 
   onClick={() => setShowAddLedgerModal(true)} 
   className={`rounded-xl transition-all ${
-    isTampered 
+    isLedgerDisabled 
       ? 'bg-gray-400 cursor-not-allowed opacity-50' 
       : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
   }`}
-  disabled={isTampered}
+  disabled={isLedgerDisabled}
 >
   <Plus className="w-4 h-4 mr-2" />
   Add Ledger Entry
@@ -1544,14 +1545,18 @@ function maskUserName(fullName) {
                      {/* Desktop Table */}
 <div className="hidden md:block overflow-x-auto">
   {/* Tampering Warning - Moved OUTSIDE the table */}
-  {isTampered && (
+  {(isTampered || isBudgetTampered) && (
     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
        <div className="flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-red-800">Security Alert. 
+                <p className="text-sm font-medium text-red-800">
+                  {isTampered ? 'Security Alert.' : 'Budget Mismatch Alert.'}
                   <span className="text-xs text-red-600 ml-2">
-                     A Ledger Entry has been Tampered. Please review the affected entries and contact system administrators immediately.
+                    {isTampered
+                      ? ' A Ledger Entry has been Tampered. Please review the affected entries and contact system administrators immediately.'
+                      : ' Ledger totals do not match the project budget. Ledger operations are disabled until the budget is reconciled.'
+                    }
                   </span>
                 </p>
         
@@ -1561,7 +1566,7 @@ function maskUserName(fullName) {
     </div>
   )}
   
-  <table className={`w-full ${isTampered ? 'opacity-60 pointer-events-none' : ''}`}>
+  <table className={`w-full ${isLedgerDisabled ? 'opacity-60 pointer-events-none' : ''}`}>
     <thead>
       <tr className="border-b border-gray-200 bg-blue-50">
         {['ID', 'Type', 'Amount', 'Description', 'Status', 'Actions'].map((h) => (
@@ -1608,7 +1613,7 @@ function maskUserName(fullName) {
                 <Button variant="ghost" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg">
                   <Eye className="w-4 h-4" />
                 </Button>
-                {entry.approval_status === 'Draft' && !isTampered && !isInitialEntry && (
+                {entry.approval_status === 'Draft' && !isLedgerDisabled && !isInitialEntry && (
                   <>
                     <Button variant="ghost" size="sm" onClick={() => { console.log('🖱️ Desktop edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
                       <Edit className="w-4 h-4" />
@@ -1633,10 +1638,13 @@ function maskUserName(fullName) {
                       {/* Mobile Cards */}
                       <div className="md:hidden space-y-4">
   {/* Add tampering warning for mobile */}
-  {isTampered && (
+  {(isTampered || isBudgetTampered) && (
     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
       <p className="text-red-600 text-sm">
-        This Project Ledger has been Tampered. All transactions will be stopped.
+        {isTampered
+          ? 'This Project Ledger has been Tampered. All transactions will be stopped.'
+          : 'Budget mismatch detected. Ledger operations are disabled until the budget is corrected.'
+        }
       </p>
     </div>
   )}
@@ -1676,8 +1684,8 @@ function maskUserName(fullName) {
             <Button variant="outline" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg flex-1">
               <Eye className="w-4 h-4 mr-1" />View
             </Button>
-            {/* Only show action buttons if entry is Draft AND NOT tampered */}
-            {entry.approval_status === 'Draft' && !isTampered && !isInitialEntry && (
+            {/* Only show action buttons if entry is Draft AND NOT disabled */}
+            {entry.approval_status === 'Draft' && !isLedgerDisabled && !isInitialEntry && (
               <>
                 <Button variant="outline" size="sm" onClick={() => { console.log('🖱️ Mobile edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
                   <Edit className="w-4 h-4" />

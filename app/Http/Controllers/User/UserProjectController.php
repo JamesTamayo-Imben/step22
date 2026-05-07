@@ -445,6 +445,7 @@ class UserProjectController extends Controller
             ->where('approval_status', 'Approved')
             ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'rating_score')
             ->withCount(['ratings' => fn ($q) => $q->where('archive', 0)])
+            ->with(['ledgerEntries' => fn ($query) => $query->where('approval_status', 'Approved')])
             ->orderByDesc('updated_at')
             ->get();
 
@@ -453,6 +454,22 @@ class UserProjectController extends Controller
             $dateProgress = $this->calculateProgressFromDates($project->start_date, $project->end_date);
             $verification = \App\Support\BlockchainService::verifyChain($project->id);
             $isTampered = !empty($verification['tamperedBlocks']) && is_array($verification['tamperedBlocks']) && count($verification['tamperedBlocks']) > 0;
+
+            $approvedLedgerEntries = $project->ledgerEntries ?? collect();
+            $displayBudget = (float) ($project->budget ?? 0);
+            $computedBudget = $approvedLedgerEntries->reduce(function ($sum, $entry) {
+                $amount = (float) ($entry->amount ?? 0);
+                $type = strtolower((string) ($entry->type ?? ''));
+                if (in_array($type, ['income', 'donation', 'sponsorship', 'initial'], true)) {
+                    return $sum + $amount;
+                }
+                if ($type === 'expense') {
+                    return $sum - $amount;
+                }
+                return $sum;
+            }, 0.0);
+            $isBudgetMismatch = $approvedLedgerEntries->count() > 0 && $displayBudget > 0 && abs($displayBudget - $computedBudget) > 0.01;
+
             return [
                 'id' => $project->id,
                 'title' => $project->title,
@@ -463,6 +480,7 @@ class UserProjectController extends Controller
                 'progress' => $dateProgress !== null ? $dateProgress : $this->statusProgress($calculatedStatus),
                 'startDate' => optional($project->start_date)->format('M d, Y') ?: 'TBD',
                 'isTampered' => $isTampered,
+                'isBudgetMismatch' => $isBudgetMismatch,
             ];
         })->values();
 

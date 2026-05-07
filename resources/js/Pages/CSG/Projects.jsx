@@ -178,12 +178,52 @@ function CSGProjectsPageInner() {
     });
   };
 
-  const tamperedProjectIds = new Set( 
-    (ledgerEntries || [])
+  // Check if project has budget mismatch
+  const getProjectBudgetStatus = (projectId) => {
+    const projectLedgers = (ledgerEntries || [])
+      .filter((entry) => String(entry?.project_id || entry?.projectId || '') === String(projectId || '') && entry?.approval_status === 'Approved');
+
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return { isMismatched: false };
+
+    // Don't mark as mismatched if there are no ledger entries yet - wait for data to load
+    if (ledgerEntries.length > 0 && projectLedgers.length === 0) {
+      return { isMismatched: false };
+    }
+
+    const displayBudget = parseFloat(project.budget) || 0;
+
+    // Compute the ledger entries sum for the project
+    // - Add amounts for Income, Donation, Sponsorship, Initial types
+    // - Subtract amounts for Expense type
+    const computedBudgetFromLedger = projectLedgers.reduce((sum, entry) => {
+      const amount = parseFloat(entry.amount) || 0;
+      const entryType = (entry.type || '').toLowerCase();
+
+      if (['income', 'donation', 'sponsorship', 'initial'].includes(entryType)) {
+        return sum + amount;
+      } else if (entryType === 'expense') {
+        return sum - amount;
+      }
+      return sum;
+    }, 0);
+
+    const budgetDifference = displayBudget - computedBudgetFromLedger;
+    const isMismatched = ledgerEntries.length > 0 && displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
+
+    return { isMismatched };
+  };
+
+  const tamperedProjectIds = new Set([
+    ...(ledgerEntries || [])
       .filter((entry) => entry?.verificationState?.tampered)
       .map((entry) => String(entry?.project_id || entry?.projectId || ''))
+      .filter(Boolean),
+    ...projects
+      .filter(p => getProjectBudgetStatus(p.id).isMismatched)
+      .map(p => String(p.id || ''))
       .filter(Boolean)
-  );
+  ]);
   const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
 
   // Fetch projects from backend

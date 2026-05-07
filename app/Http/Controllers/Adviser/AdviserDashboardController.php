@@ -81,6 +81,41 @@ class AdviserDashboardController extends Controller
             }
         }
 
+        $budgetMismatchCount = 0;
+        $approvedLedgerEntries = LedgerEntry::query()
+            ->where('archive', false)
+            ->where('approval_status', 'Approved')
+            ->get()
+            ->groupBy('project_id');
+
+        foreach ($approvedLedgerEntries as $projectId => $entries) {
+            $project = Project::query()->find($projectId);
+            if (!$project) {
+                continue;
+            }
+
+            $displayBudget = (float) ($project->budget ?? 0);
+            if ($displayBudget <= 0) {
+                continue;
+            }
+
+            $computedBudget = $entries->reduce(function ($sum, $entry) {
+                $amount = (float) ($entry->amount ?? 0);
+                $type = strtolower((string) ($entry->type ?? ''));
+                if (in_array($type, ['income', 'donation', 'sponsorship', 'initial'], true)) {
+                    return $sum + $amount;
+                }
+                if ($type === 'expense') {
+                    return $sum - $amount;
+                }
+                return $sum;
+            }, 0.0);
+
+            if (abs($displayBudget - $computedBudget) > 0.01) {
+                $budgetMismatchCount++;
+            }
+        }
+
         $ratingAvg = Rating::query()->where('archive', false)->avg('rating_score');
         $avgRating = $ratingAvg !== null ? round((float) $ratingAvg, 2) : 0.0;
 
@@ -135,6 +170,8 @@ class AdviserDashboardController extends Controller
                 'avgRating' => $avgRating,
                 'tamperedAlerts' => $tamperedCount,
                 'activeCsgCount' => $activeCsgCount,
+                'isBudgetTampered' => $budgetMismatchCount > 0,
+                'budgetMismatchCount' => $budgetMismatchCount,
             ],
             'approvalQueue' => $queue->take(3)->values(),
             'recentActivity' => $recentActivity,

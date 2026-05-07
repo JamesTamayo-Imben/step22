@@ -236,12 +236,52 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   const [ledgerFilePreview, setLedgerFilePreview] = useState(null);
   const ledgerFileInputRef = useRef(null);
 
-  const tamperedProjectIds = new Set(
-    (ledgerEntries || [])
+  // Check if project has budget mismatch
+  const getProjectBudgetStatus = (projectId) => {
+    const projectLedgers = (ledgerEntries || [])
+      .filter((entry) => String(entry?.project_id || entry?.projectId || '') === String(projectId || '') && entry?.approval_status === 'Approved');
+
+    const project = dashboardProjects.find(p => p.id === projectId);
+    if (!project) return { isMismatched: false };
+
+    // Don't mark as mismatched if there are no ledger entries yet - wait for data to load
+    if (ledgerEntries.length > 0 && projectLedgers.length === 0) {
+      return { isMismatched: false };
+    }
+
+    const displayBudget = parseFloat(project.budget) || 0;
+
+    // Compute the ledger entries sum for the project
+    // - Add amounts for Income, Donation, Sponsorship, Initial types
+    // - Subtract amounts for Expense type
+    const computedBudgetFromLedger = projectLedgers.reduce((sum, entry) => {
+      const amount = parseFloat(entry.amount) || 0;
+      const entryType = (entry.type || '').toLowerCase();
+
+      if (['income', 'donation', 'sponsorship', 'initial'].includes(entryType)) {
+        return sum + amount;
+      } else if (entryType === 'expense') {
+        return sum - amount;
+      }
+      return sum;
+    }, 0);
+
+    const budgetDifference = displayBudget - computedBudgetFromLedger;
+    const isMismatched = ledgerEntries.length > 0 && displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
+
+    return { isMismatched };
+  };
+
+  const tamperedProjectIds = new Set([
+    ...(ledgerEntries || [])
       .filter((entry) => entry?.verificationState?.tampered)
       .map((entry) => String(entry?.project_id || entry?.projectId || ''))
+      .filter(Boolean),
+    ...dashboardProjects
+      .filter(p => getProjectBudgetStatus(p.id).isMismatched)
+      .map(p => String(p.id || ''))
       .filter(Boolean)
-  );
+  ]);
   const tamperedEntriesCount = (ledgerEntries || []).filter(e => e && (e.tampered || e.verificationState?.tampered || (e.verification_state && e.verification_state.tampered))).length;
   const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
   const unlockedDashboardProjects = dashboardProjects.filter((project) => !isProjectLocked(project.id));
@@ -741,7 +781,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
             onClick={() => setShowLedgerModal(true)}
             className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={unlockedDashboardProjects.length === 0}
-            title={unlockedDashboardProjects.length === 0 ? 'All approved projects are locked due to tampering.' : undefined}
+            title={unlockedDashboardProjects.length === 0 ? 'All approved projects are locked due to tampering or budget mismatches.' : undefined}
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Ledger Entry
@@ -1089,8 +1129,8 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
                     highlightedStatCard === 'upcomingMeetings' ? 'calc(65%)' :
                     'calc(70%)',
               top: highlightedStatCard === 'activeProjects' ? 'calc(41% + 150px)' :
-                   highlightedStatCard === 'avgNetPerProject' ? 'calc(26% + 150px)' :
-                   highlightedStatCard === 'upcomingMeetings' ? 'calc(26% + 150px)' :
+                   highlightedStatCard === 'avgNetPerProject' ? 'calc(20% + 150px)' :
+                   highlightedStatCard === 'upcomingMeetings' ? 'calc(20% + 150px)' :
                    'calc(29%)'
             }}
           >

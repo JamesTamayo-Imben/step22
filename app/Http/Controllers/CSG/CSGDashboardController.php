@@ -171,6 +171,40 @@ class CSGDashboardController extends Controller
             ? round($projectNetValues->avg(), 2)
             : 0;
 
+        $budgetMismatchCount = 0;
+        $ledgerByProject = LedgerEntry::where('approval_status', 'Approved')
+            ->where('archive', false)
+            ->get()
+            ->groupBy('project_id');
+
+        foreach ($ledgerByProject as $projectId => $entries) {
+            $project = Project::query()->find($projectId);
+            if (!$project) {
+                continue;
+            }
+
+            $displayBudget = (float) ($project->budget ?? 0);
+            if ($displayBudget <= 0) {
+                continue;
+            }
+
+            $computedBudget = $entries->reduce(function ($sum, $entry) {
+                $amount = (float) ($entry->amount ?? 0);
+                $type = strtolower((string) ($entry->type ?? ''));
+                if (in_array($type, ['income', 'donation', 'sponsorship', 'initial'], true)) {
+                    return $sum + $amount;
+                }
+                if ($type === 'expense') {
+                    return $sum - $amount;
+                }
+                return $sum;
+            }, 0.0);
+
+            if (abs($displayBudget - $computedBudget) > 0.01) {
+                $budgetMismatchCount++;
+            }
+        }
+
         return [
             'statistics' => [
                 'activeProjects' => $activeProjectsCount,
@@ -179,6 +213,8 @@ class CSGDashboardController extends Controller
                 'averageRating' => $averageRating,
                 'csatRate' => $csatRate,
                 'totalRatings' => $totalRatings,
+                'isBudgetTampered' => $budgetMismatchCount > 0,
+                'budgetMismatchCount' => $budgetMismatchCount,
             ],
         ];
     }

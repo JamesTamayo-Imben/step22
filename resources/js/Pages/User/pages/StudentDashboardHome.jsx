@@ -99,36 +99,49 @@ const getStatusColor = (status) => {
         </div>
 
         <div className="space-y-3">
-          {(activeProjects || []).map((project, index) => (
-            <button
-              key={index}
-              onClick={() => {
-                if (project?.isTampered) return;
-                onViewProject?.(project.id);
-              }}
-              disabled={!!project?.isTampered}
-              title={project?.isTampered ? 'This project is locked due to tampered ledger records.' : undefined}
-              className={`w-full text-left p-4 rounded-xl transition-colors ${
-                project?.isTampered
-                  ? 'bg-red-50 cursor-not-allowed opacity-70'
-                  : 'bg-gray-50 hover:bg-gray-100 cursor-pointer'
-              }`}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <p className="text-sm text-gray-900 mb-1">{project.title}</p>
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span>Timeline: {project.startDate} - {project.deadline}</span>
+          {(activeProjects || []).map((project, index) => {
+            const isLocked = !!project?.isTampered || !!project?.isBudgetMismatch;
+            const lockTitle = project?.isTampered
+              ? 'This project is locked due to tampered ledger records.'
+              : project?.isBudgetMismatch
+              ? 'This project is locked due to a budget mismatch.'
+              : undefined;
+            const lockMessage = project?.isTampered
+              ? 'Locked: Project ledger tampering detected.'
+              : project?.isBudgetMismatch
+              ? 'Locked: Budget mismatch detected.'
+              : null;
+
+            return (
+              <button
+                key={index}
+                onClick={() => {
+                  if (isLocked) return;
+                  onViewProject?.(project.id);
+                }}
+                disabled={isLocked}
+                title={lockTitle}
+                className={`w-full text-left p-4 rounded-xl transition-colors ${
+                  isLocked
+                    ? 'bg-red-50 cursor-not-allowed opacity-70'
+                    : 'bg-gray-50 hover:bg-gray-100 cursor-pointer'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-900 mb-1">{project.title}</p>
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <span>Timeline: {project.startDate} - {project.deadline}</span>
+                    </div>
+                    {lockMessage && (
+                      <p className="text-xs text-red-600 mt-1">{lockMessage}</p>
+                    )}
                   </div>
-                  {project?.isTampered && (
-                    <p className="text-xs text-red-600 mt-1">Locked: Project ledger tampering detected.</p>
-                  )}
-                </div>
-                {/* Badge replacement */}
-               <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(project.status)}`}>
+                  {/* Badge replacement */}
+                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(project.status)}`}>
   {project.status}
 </span>
-              </div>
+                </div>
               <div className="flex items-center gap-2 mb-2">
                 <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
@@ -152,7 +165,7 @@ const getStatusColor = (status) => {
                 <span className="text-xs text-gray-600">{project.progress}%</span>
               </div>
             </button>
-          ))}
+          )          })}
           {!activeProjects?.length && <p className="text-sm text-gray-500">No active projects yet.</p>}
         </div>
       </div>

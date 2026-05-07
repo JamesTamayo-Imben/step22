@@ -617,7 +617,7 @@ export default function AdviserApprovalsPage() {
                    <XCircle className="w-4 h-4 text-red-600" />
                   Reject
                 </Button>
-                <Button className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700" onClick={handleApproveClick}>
+                <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
                   <CheckCircle className="w-4 h-4 text-white-600" />
                   Approve
                 </Button>
@@ -749,7 +749,7 @@ export default function AdviserApprovalsPage() {
                 <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
                   Reject
                 </Button>
-                <Button className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700" onClick={handleApproveClick}>
+                <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
                   Approve
                 </Button>
               </div>
@@ -792,7 +792,7 @@ export default function AdviserApprovalsPage() {
         Cancel
       </Button>
       <Button 
-        className="text-white flex-1 rounded-xl bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed" 
+        className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" 
         onClick={() => {
           if (!approvalNotes.trim()) {
             showToast('❌ Please provide approval notes before confirming', 'error');
