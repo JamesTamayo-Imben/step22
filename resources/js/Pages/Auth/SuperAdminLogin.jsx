@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, router } from '@inertiajs/react';
-import { User, Lock, Eye, EyeOff, Shield } from "lucide-react";
+import { User, Lock, Eye, EyeOff, Shield, ArrowLeftIcon } from "lucide-react";
+
 
 export default function SuperAdminLoginPage() {
   const [username, setUsername] = useState("");
@@ -142,9 +143,16 @@ export default function SuperAdminLoginPage() {
       </div>
 
       {/* RIGHT PANEL */}
-      <div className="flex-1 flex items-center justify-center bg-[#F5F6F8] p-6">
+      <div className="flex-1 flex items-center justify-center bg-[#F5F6F8] p-6 relative">
 
-        <div className="w-full max-w-md bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-10">
+<div className="absolute top-6 left-6">
+  <Link href="/" className="text-blue-600 hover:underline flex items-center gap-1">
+    <ArrowLeftIcon className="w-4 h-4" />
+    <span>Go back to Home</span>
+  </Link>
+</div>
+
+        <div className="w-full max-w-md bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-10  mt-6 md:mt-4">
 
           {/* STEP Icon */}
           <div className="flex justify-center mb-2">
