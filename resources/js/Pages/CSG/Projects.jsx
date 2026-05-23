@@ -19,6 +19,7 @@ import {
   Upload,
   ChevronLeft,
   ChevronRight,
+  FolderKanban,
 } from 'lucide-react';
 import { CSGProjectDetailsPage } from './ProjectDetails';
 import { CreateProjectModal } from './modal';
@@ -666,7 +667,7 @@ function CSGProjectsPageInner() {
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Ongoing</p>
+              <p className="text-sm text-gray-500">Ongoing Projects</p>
               <div className="flex items-center gap-3 mt-2">
                 <p className="text-3xl text-orange-600">{stats.ongoing}</p>
               </div>
@@ -680,7 +681,7 @@ function CSGProjectsPageInner() {
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Completed</p>
+              <p className="text-sm text-gray-500">Completed Projects</p>
               <div className="flex items-center gap-3 mt-2">
                 <p className="text-3xl text-green-600">{stats.completed}</p>
               </div>
@@ -694,7 +695,7 @@ function CSGProjectsPageInner() {
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Drafts</p>
+              <p className="text-sm text-gray-500">Draft Projects</p>
               <div className="flex items-center gap-3 mt-2">
                 <p className="text-3xl text-gray-600">{stats.draft}</p>
               </div>
@@ -809,12 +810,12 @@ function CSGProjectsPageInner() {
       {filteredProjects.length === 0 && (
         <Card className="col-span-full rounded-[20px] border-0 shadow-sm p-12">
           <div className="text-center">
-            <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No projects found</h3>
-            <p className="text-gray-500 mb-6">
+            <FolderKanban className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">No active projects found</p>
+            <p className="text-xs text-gray-400 mt-1 mb-4">
               {searchQuery || filterStatus !== 'all'
                 ? 'Try adjusting your search or filter criteria'
-                : 'Create your first project to get started'}
+                : 'Add your first project to get started'}
             </p>
             {!searchQuery && filterStatus === 'all' && (
               <Button

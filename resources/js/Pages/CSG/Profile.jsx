@@ -127,13 +127,45 @@ function CSGProfilePageInner({ user }) {
     newPassword: false,
     confirmPassword: false,
   });
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
 
   useEffect(() => {
-  if (!showChangePasswordModal) {
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    setShowPasswords({ currentPassword: false, newPassword: false, confirmPassword: false });
-  }
-}, [showChangePasswordModal]);
+    if (!showChangePasswordModal) {
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowPasswords({ currentPassword: false, newPassword: false, confirmPassword: false });
+    }
+  }, [showChangePasswordModal]);
+
+  useEffect(() => {
+    const fetchRecentActivity = async () => {
+      try {
+        setActivityLoading(true);
+        const response = await fetch('/csg/recent-activity', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setRecentActivity(data.activities || []);
+        } else {
+          console.error('Failed to fetch recent activity');
+          setRecentActivity([]);
+        }
+      } catch (error) {
+        console.error('Error fetching recent activity:', error);
+        setRecentActivity([]);
+      } finally {
+        setActivityLoading(false);
+      }
+    };
+
+    fetchRecentActivity();
+  }, []);
 
   const activityStats = {
     projectsCreated: 12,
@@ -141,14 +173,6 @@ function CSGProfilePageInner({ user }) {
     proofsSubmitted: 36,
     ledgerEntries: 18,
   };
-
-  const recentActivity = [
-    { id: 1, type: 'Project', title: 'Community Outreach Program', status: 'Ongoing', date: '2024-11-20' },
-    { id: 2, type: 'Meeting', title: 'General Assembly', status: 'Completed', date: '2024-11-18' },
-    { id: 3, type: 'Proof', title: 'Tech Summit Documentation', status: 'Approved', date: '2024-11-15' },
-    { id: 4, type: 'Ledger', title: 'Event Revenue - ₱12,500', status: 'Approved', date: '2024-11-12' },
-    { id: 5, type: 'Project', title: 'Campus Sustainability Initiative', status: 'Approved', date: '2024-11-10' },
-  ];
 
   const handleEditProfile = () => {
     setProfile({ 
@@ -342,87 +366,41 @@ function CSGProfilePageInner({ user }) {
         </div>
       </Card>
 
-      {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
-        <h2 className="text-gray-900 text-lg font-semibold mb-6">My Activity</h2>
+     <Card className="rounded-[20px] border-0 shadow-sm p-6">
+  <h2 className="text-gray-900 text-lg font-semibold mb-6">Recent Activity</h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 rounded-xl p-4">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mb-3">
-              <CheckCircle className="w-5 h-5 text-white" />
+  {recentActivity.length > 0 ? (
+    <div className="space-y-3">
+      {recentActivity.map((activity) => (
+        <div
+          key={activity.id}
+          className="p-4 bg-gray-50 rounded-xl flex items-center justify-between hover:bg-gray-100 transition-all"
+        >
+          <div className="flex items-center gap-3 flex-1">
+            {getStatusIcon(activity.status)}
+            <div>
+              <p className="text-sm text-gray-900">{activity.title}</p>
+              <p className="text-xs text-gray-500">
+                {activity.type} • {new Date(activity.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
             </div>
-            <p className="text-2xl text-gray-900 mb-1">{activityStats.projectsCreated}</p>
-            <p className="text-sm text-gray-600">Projects Created</p>
           </div>
-
-          <div className="bg-green-50 rounded-xl p-4">
-            <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center mb-3">
-              <CheckCircle className="w-5 h-5 text-white" />
-            </div>
-            <p className="text-2xl text-gray-900 mb-1">{activityStats.meetingsAttended}</p>
-            <p className="text-sm text-gray-600">Meetings Attended</p>
-          </div>
-
-          <div className="bg-purple-50 rounded-xl p-4">
-            <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center mb-3">
-              <CheckCircle className="w-5 h-5 text-white" />
-            </div>
-            <p className="text-2xl text-gray-900 mb-1">{activityStats.proofsSubmitted}</p>
-            <p className="text-sm text-gray-600">Proofs Submitted</p>
-          </div>
-
-          <div className="bg-orange-50 rounded-xl p-4">
-            <div className="w-10 h-10 bg-orange-600 rounded-lg flex items-center justify-center mb-3">
-              <CheckCircle className="w-5 h-5 text-white" />
-            </div>
-            <p className="text-2xl text-gray-900 mb-1">{activityStats.ledgerEntries}</p>
-            <p className="text-sm text-gray-600">Ledger Entries</p>
+          <div className={`px-3 py-1 rounded-lg text-xs ${getStatusColor(activity.status)}`}>
+            {activity.status}
           </div>
         </div>
-      </Card> */}
-
-      {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
-        <h2 className="text-gray-900 text-lg font-semibold mb-6">Recent Activity</h2>
-
-        <div className="space-y-3">
-          {recentActivity.map((activity) => (
-            <div
-              key={activity.id}
-              className="p-4 bg-gray-50 rounded-xl flex items-center justify-between hover:bg-gray-100 transition-all"
-            >
-              <div className="flex items-center gap-3 flex-1">
-                {getStatusIcon(activity.status)}
-                <div>
-                  <p className="text-sm text-gray-900">{activity.title}</p>
-                  <p className="text-xs text-gray-500">
-                    {activity.type} • {activity.date}
-                  </p>
-                </div>
-              </div>
-              <div className={`px-3 py-1 rounded-lg text-xs ${getStatusColor(activity.status)}`}>
-                {activity.status}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card> */}
-
-      {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
-        <h2 className="text-gray-900 text-lg font-semibold mb-4">Account Settings</h2>
-        <div className="space-y-3">
-          <Button variant="outline" className="w-full rounded-xl justify-start">
-            Notification Preferences
-          </Button>
-          <Button variant="outline" className="w-full rounded-xl justify-start">
-            Privacy Settings
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full rounded-xl justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-          >
-            Sign Out
-          </Button>
-        </div>
-      </Card> */}
+      ))}
+    </div>
+  ) : (
+     <div className="text-center">
+          <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+             <p className="text-sm text-gray-500">No recent activity found</p>
+             <p className="text-xs text-gray-400 mt-1 mb-4">
+                Your recent actions and updates will appear here for quick reference.
+             </p>
+         </div>
+  )}
+</Card>
 
       <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Profile">
         <div className="space-y-4 pt-6">

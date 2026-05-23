@@ -353,6 +353,12 @@ function CSGProofPageInner() {
         </div>
       </Card>
 
+      <div>
+        <p className="text-sm text-gray-500">
+          Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredDocuments.length)} of {filteredDocuments.length} proofs
+        </p>
+      </div>
+
       {/* Proof Documents Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {currentItems.map((proof) => (
@@ -440,22 +446,13 @@ function CSGProofPageInner() {
         {filteredDocuments.length === 0 && (
           <Card className="col-span-full rounded-[20px] border-0 shadow-sm p-12">
             <div className="text-center">
-              <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No proof documents found</h3>
-              <p className="text-gray-500 mb-6">
+              <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">No proof documents found</p>
+              <p className="text-xs text-gray-400 mt-1 mb-4">
                 {searchQuery || filterStatus !== 'all' || filterProject !== 'all'
                   ? 'Try adjusting your filters'
                   : 'Upload your first proof document'}
               </p>
-              {/* {!searchQuery && filterStatus === 'all' && filterProject === 'all' && (
-                <Button
-                  onClick={() => setShowUploadModal(true)}
-                  className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Proof
-                </Button>
-              )} */}
             </div>
           </Card>
         )}

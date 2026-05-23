@@ -16,6 +16,7 @@ import {
   Clock,
   Search,
   Download,
+  StarHalf,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -415,9 +416,15 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
 
         {filteredProjects.length === 0 && (
           <Card className="rounded-[20px] border-0 shadow-sm p-12 bg-white text-center">
-            <Star className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No ratings found</h3>
-            <p className="text-gray-500">Try adjusting your filters to see more results</p>
+            <Card className="col-span-full rounded-xl border-0 shadow-sm p-12">
+         <div className="text-center">
+          <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+             <p className="text-sm text-gray-500">No upcoming meetings found</p>
+             <p className="text-xs text-gray-400 mt-1 mb-4">
+             Student didnt rate project yet
+             </p>
+         </div>
+      </Card>
           </Card>
         )}
       </div>

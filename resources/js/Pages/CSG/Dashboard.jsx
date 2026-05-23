@@ -24,7 +24,7 @@ import {
   Upload,
   Hash,
   Shield,
-  DollarSign,
+  Wallet,
   TrendingUp,
   TrendingDown,
   X,
@@ -1086,7 +1086,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
           title="Avg. Net Per Project"
           value={`₱${Number(projectStatusCounts.avgNet).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           hint="Positive trend"
-          icon={<DollarSign />}
+          icon={<Wallet />}
           iconBg="bg-green-50"
           iconColor="text-green-600"
           cardName="avgNetPerProject"
@@ -1258,7 +1258,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
           <h2 className="text-gray-900">Active Projects</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {dashboardProjects && dashboardProjects.length > 0 ? (
             dashboardProjects.slice(0, 2).map((project, index) => (
               <div 
@@ -1287,7 +1287,11 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
               </div>
             ))
           ) : (
-            <div className="p-4 text-center text-gray-500">No approved projects found</div>
+             <div className="text-center">
+        <FolderKanban className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+        <p className="text-sm text-gray-500">No active projects found</p>
+        <p className="text-xs text-gray-400 mt-1">Add your first project to get started</p>
+      </div>
           )}
         </div>
       </Card>
@@ -1311,7 +1315,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
           <div key={entry.id || index} onClick={() => router.visit('/csg/ledger')} className="flex items-center justify-between py-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
             <div className="flex items-center gap-3 flex-1">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isIncome ? 'bg-green-100' : isExpense ? 'bg-red-100' : 'bg-gray-100'}`}>
-                <DollarSign className={`w-4 h-4 ${isIncome ? 'text-green-600' : isExpense ? 'text-red-600' : 'text-gray-600'}`} />
+                <Wallet className={`w-4 h-4 ${isIncome ? 'text-green-600' : isExpense ? 'text-red-600' : 'text-gray-600'}`} />
               </div>
              <div className="flex-1">
   <p className="text-sm text-gray-900 font-medium">
@@ -1350,7 +1354,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
       })
     ) : (
       <div className="text-center py-8">
-        <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+        <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-3" />
         <p className="text-sm text-gray-500">No ledger entries found</p>
         <p className="text-xs text-gray-400 mt-1">Add your first transaction to get started</p>
       </div>
@@ -1377,7 +1381,11 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
                 </div>
               ))
             ) : (
-              <div className="text-sm text-gray-500">No upcoming meetings scheduled</div>
+               <div className="text-center py-8">
+        <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+        <p className="text-sm text-gray-500">No upcoming meetings scheduled</p>
+        <p className="text-xs text-gray-400 mt-1">Add your first meeting to get started</p>
+      </div>
             )}
           </div>
         </Card>

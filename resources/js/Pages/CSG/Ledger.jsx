@@ -885,23 +885,43 @@ const getTypeAmountColor = (type) => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
+         <div>
+        <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold text-gray-900">Ledger Management</h1>
+         
+    {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) ? (
+      <Badge className="bg-red-100 text-red-700 rounded-lg">
+        <AlertCircle className="w-3 h-3 mr-1" />
+        Tampered Alert
+      </Badge>
+    ) : (
+      <Badge className="bg-green-100 text-green-700 rounded-lg">
+        <Shield className="w-3 h-3 mr-1" />
+        Verified
+      </Badge>
+    )}
+  </div>
+
+  {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) && (
+    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+      <div className="flex items-start gap-2">
+        <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-red-800">
+            Security Alert.
+            <span className="text-xs text-red-600 ml-2">
+              A Ledger Entry has been Tampered. Please review the affected entries and contact system administrators immediately.
+            </span>
+          </p>
+        </div>
+      </div>
+    </div>
+  )}
+
+         
           <p className="text-gray-500">Track all financial transactions across projects</p>
         </div>
-        {/* <div className="flex gap-2"> */}
-          {/* <Button
-            onClick={() => {
-              setIsRefreshing(true);
-              fetchLedgerEntries();
-              setTimeout(() => setIsRefreshing(false), 500);
-            }}
-            disabled={isRefreshing}
-            className="text-gray-700 rounded-xl bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
-            title="Refresh ledger data"
-          >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button> */}
+      
           <Button
             onClick={() => setShowAddModal(true)}
             className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -921,6 +941,7 @@ const getTypeAmountColor = (type) => {
             <div>
               <p className="text-sm text-gray-500">Average Income</p>
               <p className="text-2xl text-green-600 mt-1">₱{formatLimitedNumber(averageIncome || 0)}</p>
+                             <p className="text-xs text-gray-500 mt-1">Income earned per project</p>
             </div>
             <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
               <TrendingUp className="w-6 h-6 text-green-600" />
@@ -933,6 +954,7 @@ const getTypeAmountColor = (type) => {
             <div>
               <p className="text-sm text-gray-500">Average Expenses</p>
               <p className="text-2xl text-red-600 mt-1">₱{formatLimitedNumber(averageExpense || 0)}</p>
+               <p className="text-xs text-gray-500 mt-1">Cost spent per project</p>
             </div>
             <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
               <TrendingDown className="w-6 h-6 text-red-600" />
@@ -947,6 +969,7 @@ const getTypeAmountColor = (type) => {
               <p className={`text-2xl mt-1 ${averageNet >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                 ₱{formatLimitedNumber(averageNet || 0)}
               </p>
+               <p className="text-xs text-gray-500 mt-1">Profit per project</p>
             </div>
             <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
               <Wallet className="w-6 h-6 text-blue-600" />
@@ -954,7 +977,7 @@ const getTypeAmountColor = (type) => {
           </div>
         </Card>
 
-         <Card className={`rounded-[20px] border-0 shadow-sm p-6 ${isBudgetTampered ? 'bg-red-50' : 'bg-blue-50'}`}>
+         <Card className={`rounded-[20px] border-0 shadow-sm p-6 ${isBudgetTampered ? 'bg-red-50' : 'bg-white'}`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Total Budget</p>
@@ -962,7 +985,7 @@ const getTypeAmountColor = (type) => {
                 ₱{formatLimitedNumber(totalBudget || 0)}
               </p>
               <p className="text-xs text-gray-500 mt-1">
-<span style={{ color: isBudgetTampered ? 'red' : 'inherit' }}>
+<span style={{ color: isBudgetTampered ? 'red' : '#2563eb'}}>
   {isBudgetTampered ? 'Mismatch detected' : 'Sum of budgets for projects'}
 </span>              </p>
             </div>
@@ -1019,201 +1042,35 @@ const getTypeAmountColor = (type) => {
       </Card>
 
       {/* Entries Count */}
-      <div className=' rounded-xl border-0 shadow-sm'>
-      <div className="bg-white rounded-xl p-6">
-  <div className="flex items-center gap-2">
-    <h2 className="text-lg font-semibold text-gray-900">Ledger Entries</h2>
-    {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) ? (
-      <Badge className="bg-red-100 text-red-700 rounded-lg">
-        <AlertCircle className="w-3 h-3 mr-1" />
-        Tampered Alert
-      </Badge>
-    ) : (
-      <Badge className="bg-purple-100 text-purple-700 rounded-lg">
-        <Shield className="w-3 h-3 mr-1" />
-        Verified
-      </Badge>
-    )}
-  </div>
-
-  {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) && (
-    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-      <div className="flex items-start gap-2">
-        <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-        <div>
-          <p className="text-sm font-medium text-red-800">
-            Security Alert.
-            <span className="text-xs text-red-600 ml-2">
-              A Ledger Entry has been Tampered. Please review the affected entries and contact system administrators immediately.
-            </span>
-          </p>
-        </div>
+     <div>
+        <p className="text-sm text-gray-500">
+          Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredEntries.length)} of {filteredEntries.length} entries
+        </p>
       </div>
-    </div>
-  )}
-</div>
-       
-        {filteredEntries.length > 0 && (
-          <div>
-            <p className="text-sm text-gray-500 mt-2">
-              Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredEntries.length)} of {filteredEntries.length} entries
-            </p>
-          </div>
-        )}
+      
 
-      {/* Ledger Cards Grid - Fixed Layout */}
-      <div className="space-y-3">
-        {currentItems.map((entry) => {
-          const entryLocked = isProjectLocked(entry.project_id);
-          const isInitialEntry = (entry.type || '').toLowerCase() === 'initial';
-          return (
-         <Card key={entry.id} className={`rounded-xl border-0 shadow-sm transition-all duration-200 overflow-x-auto ${
-           entry.verificationState?.tampered ? 'ring-2 ring-red-200 bg-red-50' : ''
-         } ${entryLocked ? 'opacity-70 pointer-events-none' : 'hover:shadow-md'}`}>
-             <div className="p-4 min-w-0">
-              {/* Tamper Alert Banner for individual entry */}
-              {/* {entryLocked && (
-                <div className="mb-3 p-2 bg-red-100 border border-red-200 rounded-lg">
-                  <p className="text-xs font-medium text-red-700">
-                    Locked: this entry belongs to a project with tampered ledger data.
-                  </p>
-                </div>
-              )} */}
-
-
-              {/* Fixed grid layout with consistent column widths */}
-              <div className="grid grid-cols-[180px_120px_200px_140px_120px_auto] gap-4 items-center">
-                {/* ID and Type Section */}
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="truncate text-[11px] font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded whitespace-nowrap">
-                    {entry.id}
-                  </span>
-                  <Badge className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap shrink-0 ${getTypeColor(entry.type)}`}>
-                    {entry.type}
-                  </Badge>
-                </div>
-
-                {/* Amount Section */}
-               <div>
-  <p className={`text-xl font-sm text-gray-900 whitespace-nowrap ${getTypeAmountColor(entry.type)}`}>
-    ₱{formatLimitedNumber(entry.amount || 0, { minFractionDigits: 2, maxFractionDigits: 2 })}
-  </p>
-</div>
-
-                {/* Category Section */}
-                <div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Project Title</p>
-                  <p className="text-xs text-gray-700 font-medium truncate">{entry.projectName || '—'}</p>
-                </div>
-
-                {/* Date Section */}
-                <div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Created At</p>
-                  <p className="text-xs text-gray-700 whitespace-nowrap">{entry.createdAt}</p>
-                </div>
-
-                {/* Status Section */}
-                <div className="flex items-center gap-1 min-w-0">
-                  {getStatusIcon(entry.status)}
-                  <Badge className={`text-[11px] px-2 py-0.5 rounded-md shrink-0 ${getStatusColor(entry.status)}`}>
-                    {entry.status}
-                  </Badge>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-wrap gap-1 justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedEntry(entry);
-                      setShowDetailsModal(true);
-                    }}
-                    className="h-7 text-xs rounded-md hover:bg-gray-100 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={entryLocked}
-                  >
-                    <Eye className="w-3.5 h-3.5 mr-1" /> 
-                  </Button>
-                  
-                  {(entry.status === 'Draft' || entry.status === 'Rejected') && !isInitialEntry && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedEntry(entry);
-                          setLedgerForm({
-                            id: entry.id,
-                            type: entry.type,
-                            amount: entry.amount?.toString() || '',
-                            description: entry.description || '',
-                            category: entry.category || '',
-                            project_id: entry.project_id || entry.project_id || '',
-                            project: entry.project || entry.projectName || '',
-                            referenceNumber: entry.referenceNumber || '',
-                            requiresProof: entry.requiresProof ?? true,
-                            existingProof: entry.ledger_proof || (entry.documents && entry.documents.length > 0),
-                          });
-                          setEditBudgetItems(entry.budgetBreakdown && entry.budgetBreakdown.length ? entry.budgetBreakdown.map((item, idx) => ({
-                            id: item.id ?? idx + 1,
-                            item: item.item || item.name || '',
-                            qty: parseFloat(item.qty || item.quantity || 1),
-                            unitPrice: parseFloat(item.unitPrice || item.rate || 0),
-                            amount: parseFloat(item.amount || 0),
-                          })) : [{ id: 1, item: '', qty: 1, unitPrice: 0, amount: 0 }]);
-                          setShowEditModal(true);
-                        }}
-                        className="h-7 text-xs rounded-md hover:bg-gray-100 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={entryLocked}
-                      >
-                        <Edit className="w-3.5 h-3.5 mr-1" /> 
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedEntry(entry);
-                          setShowDeleteModal(true);
-                        }}
-                        className="h-7 text-xs rounded-md text-red-600 hover:bg-red-50 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={entryLocked}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mr-1" /> 
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSubmitForApproval(entry.id)}
-                        className="h-7 text-xs rounded-md hover:bg-gray-100 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={entryLocked}
-                      >
-                        <Send className="w-3.5 h-3.5 mr-1" /> 
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Card>
-          );
-        })}
-      </div>
-      </div>
-
-      {/* Empty State */}
       {filteredEntries.length === 0 && (
         <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
-          <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No ledger entries found</h3>
-          <p className="text-gray-500 mb-6">Get started by adding your first transaction</p>
-          <Button
-            onClick={() => setShowAddModal(true)}
-            className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
-             disabled={allProjects.length === 0}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Ledger Entry
-          </Button>
+          <div className="text-center">
+            <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+             <p className="text-sm text-gray-500">No ledger entries found</p>
+             <p className="text-xs text-gray-400 mt-1 mb-4">
+              {searchQuery || filterStatus !== 'all'
+                ? 'Try adjusting your search or filter criteria'
+                : 'Add your first transaction to get started'}
+            </p>
+             {!searchQuery && filterStatus === 'all' && (
+                          <Button
+                            onClick={() => setShowAddModal(true)}
+                             className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={allProjects.length === 0}
+            title={allProjects.length === 0 ? 'No projects available. Create a project first.' : undefined}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Ledger Entry
+                          </Button>
+                        )}
+          </div>
         </Card>
       )}
 

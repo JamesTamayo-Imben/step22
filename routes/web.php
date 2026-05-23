@@ -282,6 +282,70 @@ Route::middleware(['auth', 'verified', 'role:csg'])->group(function () {
 
         return response()->json(['message' => 'Password changed successfully'], 200);
     })->name('csg.change-password');
+
+    Route::get('/csg/recent-activity', function (Request $request) {
+        $user = $request->user();
+        $activities = [];
+
+        // Fetch recent projects
+        $projects = \App\Models\CSG\Project::where('created_by', $user->id)
+            ->latest('updated_at')
+            ->take(10)
+            ->get();
+
+        foreach ($projects as $project) {
+            $activities[] = [
+                'id' => 'project-' . $project->id,
+                'type' => 'Project',
+                'title' => $project->title,
+                'status' => $project->approval_status ?: 'Draft',
+                'date' => $project->updated_at->toDateString(),
+            ];
+        }
+
+        // Fetch recent ledger entries (as creator)
+        $ledgerEntries = \App\Models\CSG\LedgerEntry::where('created_by', $user->id)
+            ->with('project')
+            ->latest('updated_at')
+            ->take(10)
+            ->get();
+
+        foreach ($ledgerEntries as $entry) {
+            $activities[] = [
+                'id' => 'ledger-' . $entry->id,
+                'type' => 'Ledger',
+                'title' => $entry->project?->title ? 'Event Revenue/Expense - ' . $entry->description : $entry->description,
+                'status' => $entry->approval_status ?: 'Pending',
+                'date' => $entry->updated_at->toDateString(),
+            ];
+        }
+
+        // Fetch recent meetings (where user is involved)
+        $meetings = \App\Models\CSG\Meeting::where('created_by', $user->id)
+            ->latest('updated_at')
+            ->take(10)
+            ->get();
+
+        foreach ($meetings as $meeting) {
+            $activities[] = [
+                'id' => 'meeting-' . $meeting->id,
+                'type' => 'Meeting',
+                'title' => $meeting->title,
+                'status' => $meeting->is_done ? 'Completed' : 'Scheduled',
+                'date' => $meeting->updated_at->toDateString(),
+            ];
+        }
+
+        // Sort by date descending
+        usort($activities, function ($a, $b) {
+            return strtotime($b['date']) - strtotime($a['date']);
+        });
+
+        // Return top 5 most recent activities
+        $recentActivities = array_slice($activities, 0, 5);
+
+        return response()->json(['activities' => $recentActivities], 200);
+    })->name('csg.recent-activity');
 });
 
 // ========== STUDENT USER ROUTES (Only accessible by Student & Teacher roles) ==========

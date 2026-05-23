@@ -969,22 +969,22 @@ const renderAttendees = (attendees) => {
     ))}
 
     {/* Empty State */}
-    {filteredUpcomingMeetings.length === 0 && (
+     {filteredUpcomingMeetings.length === 0 && (
       <Card className="col-span-full rounded-xl border-0 shadow-sm p-12">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Calendar className="w-8 h-8 text-gray-400" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No upcoming meetings</h3>
-          <p className="text-gray-500 mb-6">Create a new meeting to get started</p>
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            className="text-white rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Meeting
-          </Button>
-        </div>
+         <div className="text-center">
+          <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+             <p className="text-sm text-gray-500">No upcoming meetings found</p>
+             <p className="text-xs text-gray-400 mt-1 mb-4">
+              Create a new meeting to get started
+             </p>
+               <Button
+                                         onClick={() => setShowCreateModal(true)}
+                                         className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+                                       >
+                                         <Plus className="w-4 h-4 mr-2" />
+                                         Create Meeting
+                                       </Button>
+         </div>
       </Card>
     )}
   </div>
@@ -1186,23 +1186,21 @@ const renderAttendees = (attendees) => {
 
     {/* Empty State */}
     {filteredPastMeetings.length === 0 && (
-      <Card className="col-span-full rounded-xl border-0 shadow-sm p-12 bg-gradient-to-b from-gray-50 to-white">
-        <div className="text-center">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-10 h-10 text-gray-400" />
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No past meetings</h3>
-          <p className="text-gray-500 mb-6">
-            Completed meetings will appear here once you mark them as done.
-          </p>
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            className="text-white rounded-lg bg-blue-600 hover:bg-blue-700 shadow-sm transition-all duration-200"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create a Meeting
-          </Button>
-        </div>
+        <Card className="col-span-full rounded-xl border-0 shadow-sm p-12">
+         <div className="text-center">
+          <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+             <p className="text-sm text-gray-500">No past meetings found</p>
+             <p className="text-xs text-gray-400 mt-1 mb-4">
+              Create a new meeting to get started
+             </p>
+               <Button
+                                         onClick={() => setShowCreateModal(true)}
+                                         className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+                                       >
+                                         <Plus className="w-4 h-4 mr-2" />
+                                         Create Meeting
+                                       </Button>
+         </div>
       </Card>
     )}
   </div>
