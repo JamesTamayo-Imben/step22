@@ -48,16 +48,21 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
       .slice(0, 2);
   };
 
-  // Mock online CSG officers data
-  const onlineOfficers = [
-    { id: 1, name: 'John Reyes', position: 'President', avatar: 'JR', status: 'online', lastSeen: 'Active now' },
-    { id: 2, name: 'Maria Santos', position: 'Vice President', avatar: 'MS', status: 'online', lastSeen: 'Active now' },
-    { id: 3, name: 'Carlos De Leon', position: 'Treasurer', avatar: 'CD', status: 'online', lastSeen: 'Active now' },
-    { id: 4, name: 'Ana Martinez', position: 'Secretary', avatar: 'AM', status: 'idle', lastSeen: '5 mins ago' },
-    { id: 5, name: 'Rafael Cruz', position: 'Auditor', avatar: 'RC', status: 'offline', lastSeen: '2 hours ago' },
-  ];
+  // Get online CSG officers from props (sessions.archive: 1 = online, 0 = offline)
+  const onlineOfficers = page.props.onlineOfficers || [];
 
-  const onlineCount = onlineOfficers.filter(o => o.status === 'online').length;
+  const isOfficerOnline = (officer) => officer.archive === 1 || officer.archive === true;
+
+  const onlineCount = onlineOfficers.filter(isOfficerOnline).length;
+
+  // Refresh officer status periodically while on CSG pages
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.reload({ only: ['onlineOfficers'], preserveScroll: true, preserveState: true });
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -172,19 +177,17 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
             </div>
             
             {/* Online Officers Indicator Button */}
-            {/* <button
+            <button
               onClick={() => setIsOnlineModalOpen(true)}
               className="flex items-center gap-2 px-2 py-1.5 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-200 group"
             >
-              Pulsing Indicator
               <div className="relative flex items-center justify-center w-3 h-3">
                 <div className="absolute w-2 h-2 bg-green-500 rounded-full"></div>
                 <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-ping opacity-75"></div>
               </div>
               
-              Stacked Avatars
               <div className="flex items-center -space-x-1.5">
-                {onlineOfficers.filter(o => o.status === 'online').slice(0, 1).map((officer) => (
+                {onlineOfficers.filter(isOfficerOnline).slice(0, 1).map((officer) => (
                   <Avatar key={officer.id} className="w-6 h-6 border-2 border-white ring-1 ring-green-200">
                     <AvatarFallback className="bg-green-600 text-white text-[9px]">
                       {officer.avatar}
@@ -198,9 +201,8 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                 )}
               </div>
               
-              Chevron Icon
               <ChevronRight className="w-3.5 h-3.5 text-green-600 group-hover:translate-x-0.5 transition-transform" />
-            </button> */}
+            </button>
           </div>
         </div>
         
@@ -299,14 +301,14 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
               className="flex items-center gap-1.5 px-2 py-1.5 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-200 group"
             >
               {/* Pulsing Indicator */}
-              <div className="relative flex items-center justify-center w-3 h-3">
+              {/* <div className="relative flex items-center justify-center w-3 h-3">
                 <div className="absolute w-2 h-2 bg-green-500 rounded-full"></div>
                 <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-ping opacity-75"></div>
-              </div>
+              </div> */}
               
               {/* Stacked Avatars */}
               <div className="flex items-center -space-x-1.5">
-                {onlineOfficers.filter(o => o.status === 'online').slice(0, 1).map((officer) => (
+                {onlineOfficers.filter(isOfficerOnline).slice(0, 1).map((officer) => (
                   <Avatar key={officer.id} className="w-6 h-6 border-2 border-white ring-1 ring-green-200">
                     <AvatarFallback className="bg-green-600 text-white text-[9px]">
                       {officer.avatar}
@@ -427,8 +429,8 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
           <div className="space-y-1">
             {/* Online Officers Section */}
             <div className="mb-4">
-              <p className="text-xs text-gray-500 mb-2 px-2">● Online ({onlineOfficers.filter(o => o.status === 'online').length})</p>
-              {onlineOfficers.filter(o => o.status === 'online').map((officer) => (
+              <p className="text-xs text-gray-500 mb-2 px-2">● Online ({onlineCount})</p>
+              {onlineOfficers.filter(isOfficerOnline).map((officer) => (
                 <div 
                   key={officer.id} 
                   className="flex items-center gap-3 p-3 hover:bg-blue-50 rounded-xl transition-colors"
@@ -445,43 +447,16 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                     <p className="text-sm text-gray-900">{officer.name}</p>
                     <p className="text-xs text-gray-500">{officer.position}</p>
                   </div>
-                  <span className="text-xs text-green-600 font-medium">{officer.lastSeen}</span>
+                  <span className="text-xs text-green-600 font-medium">Active now</span>
                 </div>
               ))}
             </div>
 
-            {/* Idle Officers Section */}
-            {onlineOfficers.filter(o => o.status === 'idle').length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs text-gray-500 mb-2 px-2">⏸ Idle ({onlineOfficers.filter(o => o.status === 'idle').length})</p>
-                {onlineOfficers.filter(o => o.status === 'idle').map((officer) => (
-                  <div 
-                    key={officer.id} 
-                    className="flex items-center gap-3 p-3 hover:bg-yellow-50 rounded-xl transition-colors"
-                  >
-                    <div className="relative">
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-yellow-500 text-white text-xs">
-                          {officer.avatar}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-yellow-500 border-2 border-white rounded-full"></div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900">{officer.name}</p>
-                      <p className="text-xs text-gray-500">{officer.position}</p>
-                    </div>
-                    <span className="text-xs text-gray-400">{officer.lastSeen}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* Offline Officers Section */}
-            {onlineOfficers.filter(o => o.status === 'offline').length > 0 && (
+            {onlineOfficers.filter(o => !isOfficerOnline(o)).length > 0 && (
               <div>
-                <p className="text-xs text-gray-500 mb-2 px-2">○ Offline ({onlineOfficers.filter(o => o.status === 'offline').length})</p>
-                {onlineOfficers.filter(o => o.status === 'offline').map((officer) => (
+                <p className="text-xs text-gray-500 mb-2 px-2">○ Offline ({onlineOfficers.filter(o => !isOfficerOnline(o)).length})</p>
+                {onlineOfficers.filter(o => !isOfficerOnline(o)).map((officer) => (
                   <div 
                     key={officer.id} 
                     className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors"
@@ -498,7 +473,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                       <p className="text-sm text-gray-500">{officer.name}</p>
                       <p className="text-xs text-gray-400">{officer.position}</p>
                     </div>
-                    <span className="text-xs text-gray-400">{officer.lastSeen}</span>
+                    <span className="text-xs text-gray-400">Logged out</span>
                   </div>
                 ))}
               </div>
@@ -510,6 +485,10 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
             <div className="flex items-center justify-between text-xs">
               <span className="text-gray-600">Total CSG Officers:</span>
               <span className="font-medium text-gray-900">{onlineOfficers.length}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs mt-2">
+              <span className="text-gray-600">Currently Online:</span>
+              <span className="font-medium text-green-600">{onlineCount}</span>
             </div>
           </div>
         </DialogContent>

@@ -26,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
             'prevent_logged_in' => \App\Http\Middleware\PreventLoggedInUsers::class,
+            'csg.online' => \App\Http\Middleware\TrackCsgOnlineStatus::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
+use App\Services\CsgOnlineStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -139,6 +140,10 @@ class GoogleAuthController extends Controller
                 'email' => $user->email,
                 'role_slug' => $user->role?->slug,
             ]);
+
+            if ($user->hasRole('CSG Officer')) {
+                app(CsgOnlineStatusService::class)->markOnline(session()->getId());
+            }
 
             return response()->json([
                 'success' => true,

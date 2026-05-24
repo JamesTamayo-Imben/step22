@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use App\Models\User\Notification;
+use App\Services\CsgOnlineStatusService;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -34,6 +35,9 @@ class HandleInertiaRequests extends Middleware
                         ->get()
                     : [],
             ],
+            'onlineOfficers' => fn () => $user && $user->hasRole('CSG Officer')
+                ? app(CsgOnlineStatusService::class)->getOfficersStatus()
+                : [],
         ];
     }
 }

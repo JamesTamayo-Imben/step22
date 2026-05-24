@@ -221,7 +221,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
 });
 
 // ========== CSG OFFICER ROUTES (Only accessible by CSG Officer role) ==========
-Route::middleware(['auth', 'verified', 'role:csg'])->group(function () {
+Route::middleware(['auth', 'verified', 'role:csg', 'csg.online'])->group(function () {
     Route::get('/csg', [CSGDashboardController::class, 'index'])->name('csg.dashboard');
     Route::get('/csg/dashboard', [CSGDashboardController::class, 'index'])->name('csg.dashboard.alias');
 
