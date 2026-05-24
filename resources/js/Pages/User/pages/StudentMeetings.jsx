@@ -181,7 +181,13 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
       {activeTab === 'upcoming' && (
         <div className="space-y-4">
           {meetingsUpcomingFiltered.length === 0 ? (
-            <Card className="p-8 rounded-[20px] border-0 shadow-sm text-center text-gray-600">No meetings recorded as of now</Card>
+            <Card className="p-8 rounded-[20px] border-0 shadow-sm text-center text-gray-600">
+              <div className="text-center py-4">
+                                 <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                 <p className="text-sm text-gray-500">No upcoming meetings found</p>
+                                 <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
+                               </div>
+              </Card>
           ) : (
           <>
           {meetingsUpcomingFiltered.map((meeting) => (
@@ -244,7 +250,13 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
       {activeTab === 'past' && (
         <div className="space-y-4">
           {meetingsPastFiltered.length === 0 && (
-            <Card className="p-8 rounded-[20px] border-0 shadow-sm text-center text-gray-600">No past meetings to show.</Card>
+            <Card className="p-8 rounded-[20px] border-0 shadow-sm text-center text-gray-600">
+              <div className="text-center py-4">
+                <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">No past meetings to show.</p>
+                <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
+              </div>
+            </Card>
           )}
           {meetingsPastFiltered.map((meeting) => (
             <Card key={meeting.id} className="p-6 rounded-[20px] border-0 shadow-sm hover:shadow-md transition-all">

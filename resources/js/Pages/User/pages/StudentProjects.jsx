@@ -256,8 +256,11 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
       {/* Projects Grid */}
       {paginatedProjects.length === 0 ? (
         <Card className="p-12 rounded-[20px] border-0 shadow-sm text-center">
-          
-          <p className="text-gray-600 text-lg">No projects recorded as of now</p>
+          <div className="text-center py-4">
+                                 <FolderKanban className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                 <p className="text-sm text-gray-500">No projects found</p>
+                                 <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
+                               </div>
         </Card>
       ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
