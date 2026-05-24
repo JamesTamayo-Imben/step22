@@ -139,19 +139,19 @@ export function AdminAdviserDashboard({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatsCard 
           title="Total Pending" 
           value={String(s.pendingApprovals)} 
-          hint="Pending Approval Items" 
+          hint="Pending Approval" 
           icon={<Clock />} 
           iconBg="bg-orange-50" 
           iconColor="text-orange-600" 
         />
         <StatsCard 
-          title="Active CSG Members" 
+          title="CSG Members" 
           value={String(s.activeCsgCount)} 
-          hint="Current active officers" 
+          hint="Active officers" 
           icon={<CheckCircle2 />} 
           iconBg="bg-green-50" 
           iconColor="text-green-600" 
@@ -165,9 +165,9 @@ export function AdminAdviserDashboard({
           iconColor="text-blue-600" 
         />
         <StatsCard 
-          title="Budget Mismatches" 
+          title="Budget Mismatch" 
           value={String(s.budgetMismatchCount)} 
-          hint="Projects with budget inconsistencies" 
+          hint="Budget issues" 
           icon={<DollarSign />} 
           iconBg="bg-red-50" 
           iconColor="text-red-600" 
@@ -175,7 +175,7 @@ export function AdminAdviserDashboard({
         <StatsCard 
           title="Tampered Alerts" 
           value={String(s.tamperedAlerts)} 
-          hint="Blockchain integrity issues" 
+          hint="Blockchain issues" 
           icon={<AlertCircle />} 
           iconBg="bg-red-50" 
           iconColor="text-red-600" 
@@ -190,7 +190,11 @@ export function AdminAdviserDashboard({
 
           <div className="space-y-3">
             {pendingApprovalItems.length === 0 && (
-              <p className="text-sm text-gray-500 py-4 text-center">No pending items in queue.</p>
+              <div className="text-center py-4">
+                <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">No pending approvals found</p>
+                <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
+              </div>
             )}
             {pendingApprovalItems.map((item) => (
               <div key={`${item.type}-${item.title}`} className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 hover:shadow-sm transition-all">
@@ -218,7 +222,11 @@ export function AdminAdviserDashboard({
           <h2 className="text-gray-900 mb-4">Recent Activity</h2>
           <div className="space-y-3">
             {recentActivity.length === 0 && (
-              <p className="text-sm text-gray-500">No recent audit activity.</p>
+              <div className="text-center py-4">
+                <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">No recent activity found</p>
+                <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
+              </div>
             )}
             {recentActivity.map((activity, index) => (
               <div key={index} className="flex items-center gap-3">

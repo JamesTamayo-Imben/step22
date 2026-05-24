@@ -16,7 +16,9 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  Upload,Eye, EyeOff,
+  Upload,
+  Eye,
+  EyeOff,
   Lock,
 } from 'lucide-react';
 
@@ -96,6 +98,8 @@ function AdviserProfilePageInner({ user }) {
   const [showChangePhotoModal, setShowChangePhotoModal] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const fileInputRef = useRef(null);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
 
   const [profile, setProfile] = useState({
     name: user?.name || 'Admin User',
@@ -128,19 +132,42 @@ function AdviserProfilePageInner({ user }) {
     }
   }, [showChangePasswordModal]);
 
+  useEffect(() => {
+    const fetchRecentActivity = async () => {
+      try {
+        setActivityLoading(true);
+        const response = await fetch('/adviser/recent-activity', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setRecentActivity(data.activities || []);
+        } else {
+          console.error('Failed to fetch recent activity');
+          setRecentActivity([]);
+        }
+      } catch (error) {
+        console.error('Error fetching recent activity:', error);
+        setRecentActivity([]);
+      } finally {
+        setActivityLoading(false);
+      }
+    };
+
+    fetchRecentActivity();
+  }, []);
+
   const activityStats = {
     projectsApproved: 24,
     ledgerApproved: 58,
     proofsValidated: 42,
     meetingsReviewed: 15,
   };
-
-  const recentApprovals = [
-    { id: 1, type: 'Project', title: 'Mental Health Awareness Week', status: 'Approved', date: '2024-11-20' },
-    { id: 2, type: 'Ledger', title: 'Transportation Expenses - TXN-2024-003', status: 'Approved', date: '2024-11-20' },
-    { id: 3, type: 'Proof', title: 'Transport Invoice - PROOF-002', status: 'Approved', date: '2024-11-20' },
-    { id: 4, type: 'Project', title: 'Gaming Tournament', status: 'Rejected', date: '2024-11-18' },
-  ];
 
   const handleEditProfile = () => {
     setProfile(editForm);
@@ -230,7 +257,10 @@ function AdviserProfilePageInner({ user }) {
       case 'Rejected':
         return <XCircle className="w-4 h-4 text-red-600" />;
       case 'Pending':
+      case 'Ongoing':
         return <Clock className="w-4 h-4 text-yellow-600" />;
+      case 'Completed':
+        return <CheckCircle className="w-4 h-4 text-blue-600" />;
       default:
         return null;
     }
@@ -239,10 +269,12 @@ function AdviserProfilePageInner({ user }) {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Approved':
+      case 'Completed':
         return 'bg-green-100 text-green-700';
       case 'Rejected':
         return 'bg-red-100 text-red-700';
       case 'Pending':
+      case 'Ongoing':
         return 'bg-yellow-100 text-yellow-700';
       default:
         return 'bg-gray-100 text-gray-700';
@@ -366,31 +398,41 @@ function AdviserProfilePageInner({ user }) {
         </div>
       </Card> */}
 
-      {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
-        <h2 className="text-gray-900 text-lg font-semibold mb-6">Recent Approvals</h2>
+      <Card className="rounded-[20px] border-0 shadow-sm p-6">
+        <h2 className="text-gray-900 text-lg font-semibold mb-6">Recent Activity</h2>
 
-        <div className="space-y-3">
-          {recentApprovals.map((approval) => (
-            <div
-              key={approval.id}
-              className="p-4 bg-gray-50 rounded-xl flex items-center justify-between hover:bg-gray-100 transition-all"
-            >
-              <div className="flex items-center gap-3 flex-1">
-                {getStatusIcon(approval.status)}
-                <div>
-                  <p className="text-sm text-gray-900">{approval.title}</p>
-                  <p className="text-xs text-gray-500">
-                    {approval.type} • {approval.date}
-                  </p>
+        {recentActivity.length > 0 ? (
+          <div className="space-y-3">
+            {recentActivity.map((activity) => (
+              <div
+                key={activity.id}
+                className="p-4 bg-gray-50 rounded-xl flex items-center justify-between hover:bg-gray-100 transition-all"
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  {getStatusIcon(activity.status)}
+                  <div>
+                    <p className="text-sm text-gray-900">{activity.title}</p>
+                    <p className="text-xs text-gray-500">
+                      {activity.type} • {new Date(activity.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+                <div className={`px-3 py-1 rounded-lg text-xs ${getStatusColor(activity.status)}`}>
+                  {activity.status}
                 </div>
               </div>
-              <div className={`px-3 py-1 rounded-lg text-xs ${getStatusColor(approval.status)}`}>
-                {approval.status}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card> */}
+            ))}
+          </div>
+        ) : (
+          <div className="text-center">
+            <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500">No recent activity found</p>
+            <p className="text-xs text-gray-400 mt-1 mb-4">
+              Your approvals and actions will appear here for quick reference.
+            </p>
+          </div>
+        )}
+      </Card>
 
       <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Profile">
         <div className="space-y-4 pt-6">

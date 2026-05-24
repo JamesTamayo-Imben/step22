@@ -8,6 +8,7 @@ import {
   FileText,
   Download,
   Eye,
+  Inbox,
   CheckCircle2,
   XCircle,
   AlertTriangle,
@@ -545,7 +546,18 @@ export default function LedgerApprovalsPage() {
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Ledger Approval Center</h1>
+             <div className="flex items-center gap-2">
+               <h1 className="text-2xl font-semibold text-gray-900">Ledger Entries Center</h1>
+               {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) ? (
+                      <Badge className="bg-red-100 text-red-700 rounded-lg">
+                        <XCircle className="w-3 h-3 mr-1" />Tampered Alert
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-green-100 text-green-700 rounded-lg">
+                        <Shield className="w-3 h-3 mr-1" />Verified
+                      </Badge>
+                    )}
+             </div>
               <p className="text-gray-500 mt-1">Review and verify financial ledger entries</p>
             </div>
             <button
@@ -563,7 +575,7 @@ export default function LedgerApprovalsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Average Income</p>
-                  <p className="text-2xl text-green-600 mt-1">₱{formatLimitedNumber(stats.averageIncome, { maxFractionDigits: 2 })}</p>
+                  <p className="text-2xl text-gray-800 mt-1">₱{formatLimitedNumber(stats.averageIncome, { maxFractionDigits: 2 })}</p>
                   <div className="flex items-center gap-1 mt-1">
                     <TrendingUp className="w-3 h-3 text-green-600" />
                     <p className="text-xs text-green-600">Verified</p>
@@ -578,7 +590,7 @@ export default function LedgerApprovalsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Average Expenses</p>
-                  <p className="text-2xl text-red-600 mt-1">₱{formatLimitedNumber(stats.averageExpenses, { maxFractionDigits: 2 })}</p>
+                  <p className="text-2xl text-gray-800 mt-1">₱{formatLimitedNumber(stats.averageExpenses, { maxFractionDigits: 2 })}</p>
                   <div className="flex items-center gap-1 mt-1">
                     <TrendingDown className="w-3 h-3 text-red-600" />
                     <p className="text-xs text-red-600">Tracked</p>
@@ -593,7 +605,7 @@ export default function LedgerApprovalsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Average Net Per Project</p>
-                  <p className={`text-2xl mt-1 ${stats.averageNet >= 0 ? 'text-gray-600' : 'text-red-600'}`}>
+                  <p className={`text-2xl mt-1 ${stats.averageNet >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
                     ₱{formatLimitedNumber(stats.averageNet, { maxFractionDigits: 2 })}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">Across all projects</p>
@@ -638,7 +650,7 @@ export default function LedgerApprovalsPage() {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search ID, project, description..."
+                    placeholder="Search..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
@@ -685,7 +697,7 @@ export default function LedgerApprovalsPage() {
             <div className="rounded-[20px] border-0 shadow-sm bg-white overflow-hidden">
               <div>
                 <div className="overflow-x-auto space-y-4 p-6">
-                  <div className="flex items-center gap-2">
+                  {/* <div className="flex items-center gap-2">
                     <h2 className="text-lg font-semibold text-gray-900">Ledger Entries</h2>
                     {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) ? (
                       <Badge className="bg-red-100 text-red-700 rounded-lg">
@@ -696,27 +708,31 @@ export default function LedgerApprovalsPage() {
                         <Shield className="w-3 h-3 mr-1" />Verified
                       </Badge>
                     )}
-                  </div>
+                  </div> */}
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ledger ID</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entered By</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verification</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proof</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Ledger ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Project</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Entered By</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Type</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Verification</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Proof</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {pagedLedger.length === 0 ? (
                         <tr>
                           <td colSpan={10} className="px-6 py-4 text-center">
-                            <p className="text-sm text-gray-500 py-4">No items for the selected filters.</p>
+                             <div className="text-center py-4">
+                                                             <Inbox className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                                             <p className="text-sm text-gray-500">No recent activity found</p>
+                                                             <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
+                                                           </div>
                           </td>
                         </tr>
                       ) : (

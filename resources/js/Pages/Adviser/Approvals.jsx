@@ -316,20 +316,20 @@ export default function AdviserApprovalsPage() {
               <p className="text-gray-500">Review and approve pending submissions</p>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* <div className="flex items-center gap-3">
               <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-full shadow">
                 <Clock className="w-4 h-4" />
                 <span className="text-sm font-medium">{totalPending} Pending</span>
               </div>
-            </div>
+            </div> */}
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="rounded-[20px] p-4 border-0 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-blue-700">Project Proposals</p>
-                  <p className="text-2xl text-blue-900">{pendingProjects.length}</p>
+                  <p className="text-sm text-gray-700">Project Proposals</p>
+                  <p className="text-2xl text-gray-900">{pendingProjects.length}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
                   <FolderKanban className="w-8 h-8 text-blue-600" />
@@ -339,8 +339,8 @@ export default function AdviserApprovalsPage() {
             <Card className="rounded-[20px] p-4 border-0 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-yellow-700">Ledger Entries</p>
-                  <p className="text-2xl text-yellow-900">{pendingLedger.length}</p>
+                  <p className="text-sm text-gray-700">Ledger Entries</p>
+                  <p className="text-2xl text-gray-900">{pendingLedger.length}</p>
                 </div>
                 <div className="w-12 h-12 bg-yellow-50 rounded-xl flex items-center justify-center">
                   <DollarSign className="w-8 h-8 text-yellow-600" />
@@ -350,8 +350,8 @@ export default function AdviserApprovalsPage() {
             <Card className="rounded-[20px] p-4 border-0 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-green-700">Approved Count</p>
-                  <p className="text-2xl text-green-900">{approvedItems.length}</p>
+                  <p className="text-sm text-gray-700">Approved Count</p>
+                  <p className="text-2xl text-gray-900">{approvedItems.length}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
                   <CheckCircle className="w-8 h-8 text-green-600" />
@@ -361,8 +361,8 @@ export default function AdviserApprovalsPage() {
             <Card className="rounded-[20px] p-4 border-0 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-red-700">Rejected Count</p>
-                  <p className="text-2xl text-red-900">{rejectedItems.length}</p>
+                  <p className="text-sm text-gray-700">Rejected Count</p>
+                  <p className="text-2xl text-gray-900">{rejectedItems.length}</p>
                 </div>
                 <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
                   <XCircle className="w-8 h-8 text-red-600" />
@@ -396,13 +396,13 @@ export default function AdviserApprovalsPage() {
           </Card>
 
           <div className="space-y-6">
-            <div className="bg-white rounded-xl p-2 shadow-sm flex flex-wrap gap-2">
+            <div className="bg-white w-full rounded-xl p-2 shadow-sm grid grid-cols-4 gap-4">
               {['project proposals', 'ledger entries', 'approved items', 'rejected items'].map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setTab(t)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  className={`justify-center gap-2 flex items-center text-sm md:text-base gap-2 px-3 py-2 rounded-lg transition-colors ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
                 >
                   <span className="capitalize">{t}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${tab === t ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>{counts[t]}</span>
@@ -413,11 +413,11 @@ export default function AdviserApprovalsPage() {
             <div className="space-y-4">
               {currentItems.length === 0 ? (
                 <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
-                  <div className="flex items-center justify-center mb-4">
-                    <Shield className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <p className="text-gray-900">Nothing to review right now</p>
-                  <p className="text-sm text-gray-500">You&apos;re all caught up — no pending items in this tab.</p>
+                 <div className="text-center py-4">
+                                 <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                 <p className="text-sm text-gray-500">No recent activity found</p>
+                                 <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
+                               </div>
                 </Card>
               ) : (
                 currentItems.map((item) => renderItem(item))

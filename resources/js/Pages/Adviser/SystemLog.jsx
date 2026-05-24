@@ -342,10 +342,13 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
             </Table>
           </div>
         ) : (
-          <div className="py-8 text-center">
-            <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No system logs found</p>
-          </div>
+         <div className="text-center">
+          <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+             <p className="text-sm text-gray-500">No system logs found</p>
+             <p className="text-xs text-gray-400 mt-1 mb-4">
+              Try adjusting your search or filters
+             </p>
+         </div>
         )}
       </Card>
 
@@ -454,13 +457,13 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
       </div>
 
       {/* Empty State */}
-      {logs.length === 0 && (
+      {/* {logs.length === 0 && (
         <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
           <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-gray-900 mb-2">No logs found</h3>
           <p className="text-gray-600">Try adjusting your filters</p>
         </Card>
-      )}
+      )} */}
     </div>
   );
 }
