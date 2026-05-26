@@ -23,6 +23,8 @@ import {
   Eye,
   EyeOff,
   Save,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -129,6 +131,8 @@ function CSGProfilePageInner({ user }) {
   });
   const [recentActivity, setRecentActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityTotalPages, setActivityTotalPages] = useState(1);
 
   useEffect(() => {
     if (!showChangePasswordModal) {
@@ -141,7 +145,7 @@ function CSGProfilePageInner({ user }) {
     const fetchRecentActivity = async () => {
       try {
         setActivityLoading(true);
-        const response = await fetch('/csg/recent-activity', {
+        const response = await fetch(`/csg/recent-activity?page=${activityPage}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -152,20 +156,23 @@ function CSGProfilePageInner({ user }) {
         if (response.ok) {
           const data = await response.json();
           setRecentActivity(data.activities || []);
+          setActivityTotalPages(data.pagination?.last_page ?? 1);
         } else {
           console.error('Failed to fetch recent activity');
           setRecentActivity([]);
+          setActivityTotalPages(1);
         }
       } catch (error) {
         console.error('Error fetching recent activity:', error);
         setRecentActivity([]);
+        setActivityTotalPages(1);
       } finally {
         setActivityLoading(false);
       }
     };
 
     fetchRecentActivity();
-  }, []);
+  }, [activityPage]);
 
   const activityStats = {
     projectsCreated: 12,
@@ -258,35 +265,57 @@ function CSGProfilePageInner({ user }) {
     setPreviewFromFile(file);
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'Approved':
+   const getStatusIcon = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'success':
+      case 'approved':
+      case 'completed':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'Rejected':
+      case 'failed':
+      case 'rejected':
         return <XCircle className="w-4 h-4 text-red-600" />;
-      case 'Pending':
-      case 'Ongoing':
+      case 'pending':
+      case 'scheduled':
+      case 'draft':
+      case 'ongoing':
+      case 'warning':
         return <Clock className="w-4 h-4 text-yellow-600" />;
-      case 'Completed':
-        return <CheckCircle className="w-4 h-4 text-blue-600" />;
       default:
         return null;
     }
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'Approved':
-      case 'Completed':
+    switch (status?.toLowerCase()) {
+      case 'success':
+      case 'approved':
+      case 'completed':
         return 'bg-green-100 text-green-700';
-      case 'Rejected':
+      case 'failed':
+      case 'rejected':
         return 'bg-red-100 text-red-700';
-      case 'Pending':
-      case 'Ongoing':
+      case 'pending':
+      case 'scheduled':
+      case 'draft':
+      case 'ongoing':
+      case 'warning':
         return 'bg-yellow-100 text-yellow-700';
       default:
         return 'bg-gray-100 text-gray-700';
     }
+  };
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   const initials = `${profile.firstName[0]}${profile.lastName[0]}`.toUpperCase();
@@ -367,40 +396,134 @@ function CSGProfilePageInner({ user }) {
       </Card>
 
      <Card className="rounded-[20px] border-0 shadow-sm p-6">
-  <h2 className="text-gray-900 text-lg font-semibold mb-6">Recent Activity</h2>
+        <h2 className="text-gray-900 text-lg font-semibold mb-6">Recent Activity</h2>
 
-  {recentActivity.length > 0 ? (
-    <div className="space-y-3">
-      {recentActivity.map((activity) => (
-        <div
-          key={activity.id}
-          className="p-4 bg-gray-50 rounded-xl flex items-center justify-between hover:bg-gray-100 transition-all"
-        >
-          <div className="flex items-center gap-3 flex-1">
-            {getStatusIcon(activity.status)}
-            <div>
-              <p className="text-sm text-gray-900">{activity.title}</p>
-              <p className="text-xs text-gray-500">
-                {activity.type} • {new Date(activity.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-              </p>
+        {activityLoading ? (
+          <div className="text-center py-8">
+            <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3 animate-pulse" />
+            <p className="text-sm text-gray-500">Loading recent activity...</p>
+          </div>
+        ) : recentActivity.length > 0 ? (
+          <>
+            <div className="space-y-3">
+              {recentActivity.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="p-4 bg-gray-50 rounded-xl flex items-center justify-between hover:bg-gray-100 transition-all"
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    {getStatusIcon(activity.status)}
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900 font-medium">{activity.title}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {activity.type} • {formatTime(activity.date)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`px-3 py-1 rounded-lg text-xs font-medium ${getStatusColor(activity.status)}`}>
+                    {activity.status}
+                  </div>
+                </div>
+              ))}
             </div>
+
+            {activityTotalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-gray-200 mt-4 pt-4">
+                <div className="flex flex-1 justify-between sm:hidden">
+                  <Button
+                    onClick={() => setActivityPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={activityPage === 1}
+                    variant="outline"
+                    className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    onClick={() => setActivityPage((prev) => Math.min(prev + 1, activityTotalPages))}
+                    disabled={activityPage === activityTotalPages}
+                    variant="outline"
+                    className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </Button>
+                </div>
+                <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                  <p className="text-sm text-gray-700">
+                    Page <span className="font-medium">{activityPage}</span> of{' '}
+                    <span className="font-medium">{activityTotalPages}</span>
+                  </p>
+                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Activity pagination">
+                    <Button
+                      onClick={() => setActivityPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={activityPage === 1}
+                      variant="outline"
+                      className="relative inline-flex items-center rounded-l-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Previous</span>
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    {[...Array(activityTotalPages)].map((_, i) => {
+                      const page = i + 1;
+                      const isCurrentPage = page === activityPage;
+
+                      if (
+                        page === 1 ||
+                        page === activityTotalPages ||
+                        (page >= activityPage - 1 && page <= activityPage + 1)
+                      ) {
+                        return (
+                          <Button
+                            key={page}
+                            onClick={() => setActivityPage(page)}
+                            variant="outline"
+                            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
+                              isCurrentPage
+                                ? 'z-10 bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                                : 'bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {page}
+                          </Button>
+                        );
+                      }
+
+                      if (page === activityPage - 2 || page === activityPage + 2) {
+                        return (
+                          <span
+                            key={page}
+                            className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+                          >
+                            ...
+                          </span>
+                        );
+                      }
+
+                      return null;
+                    })}
+                    <Button
+                      onClick={() => setActivityPage((prev) => Math.min(prev + 1, activityTotalPages))}
+                      disabled={activityPage === activityTotalPages}
+                      variant="outline"
+                      className="relative inline-flex items-center rounded-r-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Next</span>
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
+                  </nav>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center">
+            <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500">No recent activity found</p>
+            <p className="text-xs text-gray-400 mt-1 mb-4">
+              Your recent actions and updates will appear here for quick reference.
+            </p>
           </div>
-          <div className={`px-3 py-1 rounded-lg text-xs ${getStatusColor(activity.status)}`}>
-            {activity.status}
-          </div>
-        </div>
-      ))}
-    </div>
-  ) : (
-     <div className="text-center">
-          <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-             <p className="text-sm text-gray-500">No recent activity found</p>
-             <p className="text-xs text-gray-400 mt-1 mb-4">
-                Your recent actions and updates will appear here for quick reference.
-             </p>
-         </div>
-  )}
-</Card>
+        )}
+      </Card>
 
       <Modal open={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Profile">
         <div className="space-y-4 pt-6">

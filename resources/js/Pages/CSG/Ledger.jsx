@@ -1047,6 +1047,145 @@ const getTypeAmountColor = (type) => {
           Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredEntries.length)} of {filteredEntries.length} entries
         </p>
       </div>
+
+      {/* Ledger Cards Grid - Fixed Layout  */}
+       <div className="space-y-3">
+        {currentItems.map((entry) => {
+          const entryLocked = isProjectLocked(entry.project_id);
+          const isInitialEntry = (entry.type || '').toLowerCase() === 'initial';
+          return (
+         <Card key={entry.id} className={`rounded-xl border-0 shadow-sm transition-all duration-200 overflow-x-auto ${
+           entry.verificationState?.tampered ? 'ring-2 ring-red-200 bg-red-50' : ''
+         } ${entryLocked ? 'opacity-70 pointer-events-none' : 'hover:shadow-md'}`}>
+             <div className="p-4 min-w-0">
+              {/* Tamper Alert Banner for individual entry */}
+              {/* {entryLocked && (
+                <div className="mb-3 p-2 bg-red-100 border border-red-200 rounded-lg">
+                  <p className="text-xs font-medium text-red-700">
+                    Locked: this entry belongs to a project with tampered ledger data.
+                  </p>
+                </div>
+              )} */}
+
+
+              {/* Fixed grid layout with consistent column widths */}
+              <div className="grid grid-cols-[180px_120px_200px_140px_120px_auto] gap-4 items-center">
+                {/* ID and Type Section */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="truncate text-[11px] font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded whitespace-nowrap">
+                    {entry.id}
+                  </span>
+                  <Badge className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap shrink-0 ${getTypeColor(entry.type)}`}>
+                    {entry.type}
+                  </Badge>
+                </div>
+
+                {/* Amount Section */}
+               <div>
+  <p className={`text-xl font-sm text-gray-900 whitespace-nowrap ${getTypeAmountColor(entry.type)}`}>
+    ₱{formatLimitedNumber(entry.amount || 0, { minFractionDigits: 2, maxFractionDigits: 2 })}
+  </p>
+</div>
+
+                {/* Category Section */}
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Project Title</p>
+                  <p className="text-xs text-gray-700 font-medium truncate">{entry.projectName || '—'}</p>
+                </div>
+
+                {/* Date Section */}
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Created At</p>
+                  <p className="text-xs text-gray-700 whitespace-nowrap">{entry.createdAt}</p>
+                </div>
+
+                {/* Status Section */}
+                <div className="flex items-center gap-1 min-w-0">
+                  {getStatusIcon(entry.status)}
+                  <Badge className={`text-[11px] px-2 py-0.5 rounded-md shrink-0 ${getStatusColor(entry.status)}`}>
+                    {entry.status}
+                  </Badge>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-wrap gap-1 justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedEntry(entry);
+                      setShowDetailsModal(true);
+                    }}
+                    className="h-7 text-xs rounded-md hover:bg-gray-100 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={entryLocked}
+                  >
+                    <Eye className="w-3.5 h-3.5 mr-1" /> 
+                  </Button>
+                  
+                  {(entry.status === 'Draft' || entry.status === 'Rejected') && !isInitialEntry && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedEntry(entry);
+                          setLedgerForm({
+                            id: entry.id,
+                            type: entry.type,
+                            amount: entry.amount?.toString() || '',
+                            description: entry.description || '',
+                            category: entry.category || '',
+                            project_id: entry.project_id || entry.project_id || '',
+                            project: entry.project || entry.projectName || '',
+                            referenceNumber: entry.referenceNumber || '',
+                            requiresProof: entry.requiresProof ?? true,
+                            existingProof: entry.ledger_proof || (entry.documents && entry.documents.length > 0),
+                          });
+                          setEditBudgetItems(entry.budgetBreakdown && entry.budgetBreakdown.length ? entry.budgetBreakdown.map((item, idx) => ({
+                            id: item.id ?? idx + 1,
+                            item: item.item || item.name || '',
+                            qty: parseFloat(item.qty || item.quantity || 1),
+                            unitPrice: parseFloat(item.unitPrice || item.rate || 0),
+                            amount: parseFloat(item.amount || 0),
+                          })) : [{ id: 1, item: '', qty: 1, unitPrice: 0, amount: 0 }]);
+                          setShowEditModal(true);
+                        }}
+                        className="h-7 text-xs rounded-md hover:bg-gray-100 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={entryLocked}
+                      >
+                        <Edit className="w-3.5 h-3.5 mr-1" /> 
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedEntry(entry);
+                          setShowDeleteModal(true);
+                        }}
+                        className="h-7 text-xs rounded-md text-red-600 hover:bg-red-50 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={entryLocked}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-1" /> 
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSubmitForApproval(entry.id)}
+                        className="h-7 text-xs rounded-md hover:bg-gray-100 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={entryLocked}
+                      >
+                        <Send className="w-3.5 h-3.5 mr-1" /> 
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Card>
+          );
+        })}
+      </div>
+
       
 
       {filteredEntries.length === 0 && (

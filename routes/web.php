@@ -21,6 +21,7 @@ use App\Http\Controllers\SAdmin\SAdminArchivedItemsController;
 use App\Http\Controllers\SAdmin\SAdminSystemLogsController;
 use App\Http\Controllers\SAdmin\UserManagementController;
 use App\Http\Controllers\User\UserProjectController;
+use App\Models\AuditLog;
 use App\Models\User\Notification;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -200,6 +201,38 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::get('/adviser/system-logs', [AdviserSystemLogsController::class, 'index'])->name('adviser.system-logs');
     Route::get('/adviser/system-logs/export', [AdviserSystemLogsController::class, 'export'])->name('adviser.system-logs.export');
 
+    // Recent Activity
+    Route::get('/adviser/recent-activity', function (Request $request) {
+        $user = $request->user();
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = 10;
+
+        $paginator = AuditLog::where('user_id', $user->id)
+            ->where('archive', false)
+            ->orderByDesc('created_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        $activities = $paginator->map(function (AuditLog $log) {
+            return [
+                'id' => $log->id,
+                'type' => $log->module ?? 'Activity',
+                'title' => $log->action ?? 'Activity Recorded',
+                'status' => $log->status ?? 'Success',
+                'date' => $log->created_at->toIso8601String(),
+            ];
+        })->values()->all();
+
+        return response()->json([
+            'activities' => $activities,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ], 200);
+    })->name('adviser.recent-activity');
+
     Route::get('/adviser/profile', function (Request $request) {
         return Inertia::render('Adviser/Profile', [
             'user' => $request->user(),
@@ -270,6 +303,38 @@ Route::middleware(['auth', 'verified', 'role:csg', 'csg.online'])->group(functio
         ]);
     })->name('csg.profile');
 
+    // Recent Activity (audit logs for current CSG officer — same as adviser profile)
+    Route::get('/csg/recent-activity', function (Request $request) {
+        $user = $request->user();
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = 10;
+
+        $paginator = AuditLog::where('user_id', $user->id)
+            ->where('archive', false)
+            ->orderByDesc('created_at')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        $activities = $paginator->map(function (AuditLog $log) {
+            return [
+                'id' => $log->id,
+                'type' => $log->module ?? 'Activity',
+                'title' => $log->action ?? 'Activity Recorded',
+                'status' => $log->status ?? 'Success',
+                'date' => $log->created_at->toIso8601String(),
+            ];
+        })->values()->all();
+
+        return response()->json([
+            'activities' => $activities,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ], 200);
+    })->name('csg.recent-activity');
+
     Route::post('/csg/change-password', function (Request $request) {
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'],
@@ -282,70 +347,6 @@ Route::middleware(['auth', 'verified', 'role:csg', 'csg.online'])->group(functio
 
         return response()->json(['message' => 'Password changed successfully'], 200);
     })->name('csg.change-password');
-
-    Route::get('/csg/recent-activity', function (Request $request) {
-        $user = $request->user();
-        $activities = [];
-
-        // Fetch recent projects
-        $projects = \App\Models\CSG\Project::where('created_by', $user->id)
-            ->latest('updated_at')
-            ->take(10)
-            ->get();
-
-        foreach ($projects as $project) {
-            $activities[] = [
-                'id' => 'project-' . $project->id,
-                'type' => 'Project',
-                'title' => $project->title,
-                'status' => $project->approval_status ?: 'Draft',
-                'date' => $project->updated_at->toDateString(),
-            ];
-        }
-
-        // Fetch recent ledger entries (as creator)
-        $ledgerEntries = \App\Models\CSG\LedgerEntry::where('created_by', $user->id)
-            ->with('project')
-            ->latest('updated_at')
-            ->take(10)
-            ->get();
-
-        foreach ($ledgerEntries as $entry) {
-            $activities[] = [
-                'id' => 'ledger-' . $entry->id,
-                'type' => 'Ledger',
-                'title' => $entry->project?->title ? 'Event Revenue/Expense - ' . $entry->description : $entry->description,
-                'status' => $entry->approval_status ?: 'Pending',
-                'date' => $entry->updated_at->toDateString(),
-            ];
-        }
-
-        // Fetch recent meetings (where user is involved)
-        $meetings = \App\Models\CSG\Meeting::where('created_by', $user->id)
-            ->latest('updated_at')
-            ->take(10)
-            ->get();
-
-        foreach ($meetings as $meeting) {
-            $activities[] = [
-                'id' => 'meeting-' . $meeting->id,
-                'type' => 'Meeting',
-                'title' => $meeting->title,
-                'status' => $meeting->is_done ? 'Completed' : 'Scheduled',
-                'date' => $meeting->updated_at->toDateString(),
-            ];
-        }
-
-        // Sort by date descending
-        usort($activities, function ($a, $b) {
-            return strtotime($b['date']) - strtotime($a['date']);
-        });
-
-        // Return top 5 most recent activities
-        $recentActivities = array_slice($activities, 0, 5);
-
-        return response()->json(['activities' => $recentActivities], 200);
-    })->name('csg.recent-activity');
 });
 
 // ========== STUDENT USER ROUTES (Only accessible by Student & Teacher roles) ==========

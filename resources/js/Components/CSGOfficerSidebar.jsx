@@ -391,7 +391,9 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
               <AvatarFallback className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md text-xs">{getInitials(user?.name)}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <p className="text-sm text-gray-900">{user?.name || 'User'}</p>
+              <p className="text-sm text-gray-900">
+  {user?.name?.length > 20 ? `${user.name.substring(0, 16)}...` : user?.name || 'User'}
+</p>
               <p className="text-xs text-gray-500">{user?.email || 'No email'}</p>
             </div>
           </div>
