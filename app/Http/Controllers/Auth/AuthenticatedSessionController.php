@@ -38,6 +38,9 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
         $user->load('role');
 
+        // Update last login timestamp
+        $user->update(['last_login_at' => now()]);
+
         if ($user->hasRole('CSG Officer')) {
             app(CsgOnlineStatusService::class)->markOnline($request->session()->getId());
         }

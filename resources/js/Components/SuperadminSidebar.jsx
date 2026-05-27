@@ -10,6 +10,7 @@ import {
   CalendarDays,
   FileText,
   Menu,
+  Settings,
   X,
   LogOut,
 } from 'lucide-react';

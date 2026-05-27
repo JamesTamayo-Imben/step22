@@ -1012,7 +1012,7 @@ const getTypeAmountColor = (type) => {
 
           {/* Type Filter */}
           <Select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-            <option value="">Select Type</option>
+            <option value="all">Select Type</option>
             <option value="Income">Income</option>
             <option value="Expense">Expense</option>
             <option value="Donation">Donation</option>

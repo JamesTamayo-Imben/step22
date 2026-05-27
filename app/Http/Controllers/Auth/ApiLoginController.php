@@ -117,6 +117,9 @@ class ApiLoginController extends Controller
         // Authenticate the user for session
         Auth::login($user);
 
+        // Update last login timestamp
+        $user->update(['last_login_at' => now()]);
+
         // Log successful login
         Log::info('Login successful', [
             'email' => $validated['email'],

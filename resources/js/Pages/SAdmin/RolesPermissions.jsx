@@ -448,25 +448,27 @@ const isUserInCSG = (userId) => {
           <h1 className="text-2xl font-semibold text-gray-900">Roles & Permissions</h1>
           <p className="text-gray-500">Configure role-based access control</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
+        {/* <div className="flex flex-col sm:flex-row gap-3">
           <Button onClick={openCouncilTermModal} className="bg-[#2563EB] hover:bg-blue-700 text-white">
             <Calendar className="w-4 h-4 mr-2" />
             Set Council Term
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {/* Advisers Card */}
       <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-gray-900 flex items-center">Advisers</h2>
+            <h2 className="text-gray-900 flex items-center">STEP Administrators</h2>
             <p className="text-sm text-gray-500 mt-1">Manage and assign adviser roles</p>
           </div>
         </div>
 
+       
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {councilAdviser.map((adviser) => {
+         {/* CSG Adviser */}
+         {councilAdviser.map((adviser) => {
             const isVacant = !adviser.name;
 
             return (
@@ -543,21 +545,120 @@ const isUserInCSG = (userId) => {
               </div>
             );
           })}
+
+          {/* SADU adviser */}
+           {councilAdviser.map((adviser) => {
+            const isVacant = !adviser.name;
+
+            return (
+              <div
+                key={adviser.position}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  isVacant ? 'border-dashed border-gray-300 bg-gray-50' : 'border-blue-200 bg-blue-50'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    {isVacant ? (
+                      <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
+                        <UserPlus className="w-5 h-5 text-gray-400" />
+                      </div>
+                    ) : (
+                      <Avatar className="w-10 h-10">
+                        <AvatarFallback className="bg-[#0065FF] text-white text-xs" name={adviser.name} />
+                      </Avatar>
+                    )}
+                    <div>
+                      <h3 className={`text-sm ${isVacant ? 'text-gray-400' : 'text-gray-900'}`}>{adviser.position}</h3>
+                      <Badge className={`text-xs ${isVacant ? 'bg-gray-200 text-gray-600' : 'bg-green-100 text-green-700'}`}>
+                        {isVacant ? 'Vacant' : 'Assigned'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                {isVacant ? (
+                  <div className="py-2">
+                    <p className="text-xs text-gray-400">No SADU adviser assigned</p>
+                    <p className="text-xs text-gray-400">No email available</p>
+                    <p className="text-xs text-gray-400">No Teacher ID available</p>
+                    <div className="mt-3 border-t border-gray-200">
+                      <Button
+                        onClick={() => openAdviserModal(adviser)}
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
+                      >
+                        <UserPlus className="w-3 h-3 mr-1" />
+                        Assign Adviser
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm text-gray-900 mb-1">{adviser.name}</p>
+                    <p className="text-xs text-gray-500">{adviser.email}</p>
+                    <p className="text-xs text-gray-500">Teacher ID: {adviser.id}</p>
+                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200">
+                      <Button
+                        onClick={() => openAdviserModal(adviser)}
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
+                      >
+                        <Repeat className="w-3 h-3 mr-1" />
+                        Reassign Adviser
+                      </Button>
+                      <Button
+                        onClick={() => handleRemoveAdviser(adviser)}
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs border-red-500 bg-red-500 text-white hover:bg-red-600 hover:text-white"
+                      >
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Remove Adviser
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+
+        
       </Card>
 
       {/* CSG Council Officers Card */}
       <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-start justify-between mb-4">
           <div>
+          <div className="flex  items-start justify-between gap-2">
             <h2 className="text-gray-900 flex items-center">
               CSG Council Officers 
               <span className='text-sm text-blue-600 font-medium ml-2'>
                 {formatDate(councilStartDate)} to {formatDate(councilEndDate)}
               </span>
             </h2>
+           {/* <div className="flex flex-col sm:flex-row gap-3">
+          <Button onClick={openCouncilTermModal} className="bg-[#2563EB] hover:bg-blue-700 text-white">
+            <Calendar className="w-4 h-4 mr-2" />
+            Council Position
+          </Button>
+        </div> */}
+          </div>
             <p className="text-sm text-gray-500 mt-1">Manage and assign council officer positions</p>
           </div>
+           <div className="flex flex-col sm:flex-row gap-3">
+          <Button onClick={openCouncilTermModal} className="bg-[#2563EB] hover:bg-blue-700 text-white">
+            <Users className="w-4 h-4 mr-2" />
+            Council Position
+          </Button>
+          <Button className="bg-[#2563EB] hover:bg-blue-700 text-white">
+            <Calendar className="w-4 h-4 mr-2" />
+            Council Position
+          </Button>
+        </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

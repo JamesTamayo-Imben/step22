@@ -10,6 +10,7 @@ import {
   FileText, 
   User,
   Menu,
+  Layers,
   X,
   LogOut,
   ShieldCheck,
@@ -38,6 +39,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'approvals', label: 'Approvals', icon: CheckSquare },
+    { id: 'change-requests', label: 'Change Requests', icon: Layers },
     { id: 'ledger-view', label: 'Ledger Oversight', icon: BookOpen },
     { id: 'feedback-review', label: 'Role & Permissions', icon: ShieldCheck },
     { id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp },
@@ -50,6 +52,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
     if (typeof window === 'undefined') return 'dashboard';
     const p = window.location.pathname;
     if (p.startsWith('/adviser/approvals')) return 'approvals';
+    if (p.startsWith('/adviser/change-requests')) return 'change-requests';
     if (p.startsWith('/adviser/ledger')) return 'ledger-view';
     if (p.startsWith('/adviser/notifications')) return 'notifications';
     if (p.startsWith('/adviser/role-permissions')) return 'feedback-review';

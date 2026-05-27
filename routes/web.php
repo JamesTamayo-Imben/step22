@@ -170,6 +170,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::post('/adviser/approvals/approve', [AdviserApprovalController::class, 'approve'])->name('adviser.approvals.approve');
     Route::post('/adviser/approvals/reject', [AdviserApprovalController::class, 'reject'])->name('adviser.approvals.reject');
 
+    //Change Request Management
+    Route::post('/adviser/approvals/request-change', [AdviserApprovalController::class, 'requestChange'])->name('adviser.approvals.request-change');
+    
     // Blockchain routes (accessible to advisers)
     Route::get('/blockchain/project/{projectId}', [BlockchainController::class, 'show'])->name('blockchain.show');
     Route::post('/blockchain/verify', [BlockchainController::class, 'verify'])->name('blockchain.verify');
