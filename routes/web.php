@@ -99,6 +99,12 @@ Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function ()  {
     Route::get('/admin/role-permissions/get-council-term', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'getCouncilTerm'])->name('admin.role-permissions.get-council-term');
     Route::post('/admin/role-permissions/assign-adviser', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'assignAdviser'])->name('admin.role-permissions.assign-adviser');
     Route::post('/admin/role-permissions/remove-adviser', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'removeAdviser'])->name('admin.role-permissions.remove-adviser');
+    Route::post('/admin/role-permissions/assign-sadu-adviser', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'assignSaduAdviser'])->name('admin.role-permissions.assign-sadu-adviser');
+    Route::post('/admin/role-permissions/remove-sadu-adviser', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'removeSaduAdviser'])->name('admin.role-permissions.remove-sadu-adviser');
+    Route::get('/admin/role-permissions/positions', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'getPositions'])->name('admin.role-permissions.positions');
+    Route::post('/admin/role-permissions/add-council-position', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'addCouncilPosition'])->name('admin.role-permissions.add-council-position');
+    Route::put('/admin/role-permissions/edit-council-position/{id}', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'editCouncilPosition'])->name('admin.role-permissions.edit-council-position');
+    Route::delete('/admin/role-permissions/delete-council-position/{id}', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'deleteCouncilPosition'])->name('admin.role-permissions.delete-council-position');
 
     // Super Admin governance pages
     Route::get('/sadmin/archived-projects', [SAdminArchivedItemsController::class, 'index'])->name('sadmin.archived-projects');

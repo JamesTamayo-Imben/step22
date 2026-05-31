@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\CsgPosition;
 use App\Models\Role;
 use App\Models\StudentCsgOfficer;
 use App\Models\TeacherAdviser;
@@ -12,16 +13,15 @@ use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class SAdminDashboardController extends Controller
 {
     public function index()
     {
-        // Role-based authorization: Only Super Admin users can access this
         $user = Auth::user();
         if (!$user || !$user->hasRole('Super Admin')) {
-            // Redirect to appropriate dashboard based on role
             if ($user) {
                 if ($user->hasRole('Admin/Adviser')) {
                     return Redirect::route('adviser.dashboard');
@@ -35,7 +35,7 @@ class SAdminDashboardController extends Controller
         }
 
         $totalUsers = User::query()->where('archive', false)->count();
-        $activeRoles = Role::query()->whereNotIn('name', ['Student'])->count();
+        $activeRoles = Role::query()->whereNotIn('name', ['Student', 'Admin/SADU'])->count();
         $approvedProjects = Project::query()->where('archive', false)->where('approval_status', 'Approved')->count();
         $pendingApprovals = Project::query()
             ->where('archive', false)
@@ -45,7 +45,6 @@ class SAdminDashboardController extends Controller
 
         $recentAuditCount = AuditLog::query()->where('archive', false)->where('created_at', '>=', now()->subDays(7))->count();
 
-        // Project status breakdown for pie chart
         $projectStatuses = Project::query()
             ->where('archive', false)
             ->selectRaw('approval_status, COUNT(*) as count')
@@ -60,7 +59,6 @@ class SAdminDashboardController extends Controller
             ['name' => 'Rejected', 'value' => $projectStatuses['Rejected'] ?? 0],
         ];
 
-        // Audit activity by day (last 7 days)
         $auditByDay = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = now()->subDays($i)->format('Y-m-d');
@@ -74,13 +72,11 @@ class SAdminDashboardController extends Controller
             ];
         }
 
-        // Users by role
         $usersByRole = [];
         $roles = Role::query()->whereNotIn('name', ['Student'])->get();
         
         foreach ($roles as $role) {
             if ($role->name === 'Teacher') {
-                // Combine Teacher and Student counts into Member
                 $teacherCount = User::query()->where('archive', false)->where('role_id', $role->id)->count();
                 $studentRole = Role::query()->where('name', 'Student')->first();
                 $studentCount = 0;
@@ -99,7 +95,6 @@ class SAdminDashboardController extends Controller
             }
         }
 
-        // CSG and Adviser counts
         $totalCsgOfficers = StudentCsgOfficer::query()
             ->where('archive', false)
             ->where('is_csg', true)
@@ -112,7 +107,6 @@ class SAdminDashboardController extends Controller
             ->distinct('user_id')
             ->count('user_id');
 
-        // Ledger entries status
         $ledgerStatuses = LedgerEntry::query()
             ->selectRaw('approval_status, COUNT(*) as count')
             ->groupBy('approval_status')
@@ -146,7 +140,6 @@ class SAdminDashboardController extends Controller
 
     public function rolesPermissions()
     {
-        // Get all users for the search modal
         $users = User::where('archive', false)
             ->where('status', 'active')
             ->select('id', 'name', 'email', 'phone')
@@ -162,7 +155,6 @@ class SAdminDashboardController extends Controller
                 ];
             });
 
-        // Get current CSG officers
         $csgOfficers = StudentCsgOfficer::with('user')
             ->where('archive', false)
             ->where('csg_is_active', true)
@@ -181,30 +173,18 @@ class SAdminDashboardController extends Controller
             ->values()
             ->toArray();
 
-        // Ensure all positions are present
-        $positions = [
-            'President',
-            'Vice President for Internal Affairs',
-            'Vice President for External Affairs',
-            'Secretary',
-            'Auditor',
-            'Press Relations Officer',
-            'Business Manager',
-            'Student Liaison',
-            'ICDI IS Representative',
-            'ICDI CS Representative',
-            'IGDS SW Representative',
-            'ION Representative',
-            'IOM Representative'
-        ];
+        $councilPositions = CsgPosition::orderBy('position_name')->get();
         $councilOfficers = [];
-        foreach ($positions as $pos) {
-            $existing = collect($csgOfficers)->firstWhere('position', $pos);
+        foreach ($councilPositions as $pos) {
+            $existing = collect($csgOfficers)->firstWhere('position', $pos->position_name);
             if ($existing) {
-                $councilOfficers[] = $existing;
+                $councilOfficers[] = array_merge($existing, [
+                    'positionId' => $pos->id,
+                ]);
             } else {
                 $councilOfficers[] = [
-                    'position' => $pos,
+                    'positionId' => $pos->id,
+                    'position' => $pos->position_name,
                     'name' => '',
                     'userId' => '',
                     'email' => '',
@@ -232,18 +212,14 @@ class SAdminDashboardController extends Controller
             ->values()
             ->toArray();
 
-        // Predefined CSG positions
-        $csgPositions = collect($positions)->map(function ($position) {
-            return [
-                'id' => $position,
-                'name' => $position,
-            ];
-        })->toArray();
-
-        // Get current advisers from teacher_adviser table
-        $adviserRecords = TeacherAdviser::with('user')
+        $csgAdviserRecords = TeacherAdviser::with('user')
             ->where('archive', false)
             ->where('is_adviser', true)
+            ->whereHas('user', function ($q) {
+                $q->whereHas('role', function ($r) {
+                    $r->whereIn('slug', ['admin']);
+                });
+            })
             ->get()
             ->map(function ($adviser) {
                 return [
@@ -256,27 +232,52 @@ class SAdminDashboardController extends Controller
             })
             ->toArray();
 
-        // Ensure adviser positions are present (you can have multiple advisers)
-        $adviserPositions = [
-            'Council Adviser'
-        ];
-
         $councilAdviser = [];
-        foreach ($adviserPositions as $pos) {
-            $existing = collect($adviserRecords)->firstWhere('position', $pos);
-            if ($existing) {
-                $councilAdviser[] = $existing;
-            } else {
-                $councilAdviser[] = [
-                    'position' => $pos,
-                    'name' => '',
-                    'userId' => '',
-                    'email' => '',
-                ];
-            }
+        $existing = collect($csgAdviserRecords)->firstWhere('position', 'Council Adviser');
+        if ($existing) {
+            $councilAdviser[] = $existing;
+        } else {
+            $councilAdviser[] = [
+                'position' => 'Council Adviser',
+                'name' => '',
+                'userId' => '',
+                'email' => '',
+            ];
         }
 
-        // Get adviser candidates from teacher_adviser table
+        $saduAdviserRecords = TeacherAdviser::with('user')
+            ->where('archive', false)
+            ->where('is_adviser', true)
+            ->whereHas('user', function ($q) {
+                $q->whereHas('role', function ($r) {
+                    $r->where('slug', 'admin-sadu');
+                });
+            })
+            ->get()
+            ->map(function ($adviser) {
+                return [
+                    'id' => $adviser->id ?? '',
+                    'userId' => $adviser->user_id ?? '',
+                    'position' => 'SADU Admin',
+                    'name' => $adviser->user?->name ?? '',
+                    'email' => $adviser->user?->email ?? '',
+                ];
+            })
+            ->toArray();
+
+        $councilSaduAdviser = [];
+        $existingSadu = collect($saduAdviserRecords)->firstWhere('position', 'SADU Admin');
+        if ($existingSadu) {
+            $councilSaduAdviser[] = $existingSadu;
+        } else {
+            $councilSaduAdviser[] = [
+                'position' => 'SADU Admin',
+                'name' => '',
+                'userId' => '',
+                'email' => '',
+            ];
+        }
+
         $adviserCandidates = TeacherAdviser::with('user')
             ->where('archive', false)
             ->get()
@@ -299,9 +300,9 @@ class SAdminDashboardController extends Controller
             'users' => $users,
             'csgOfficerCandidates' => $csgOfficerCandidates,
             'councilOfficers' => $councilOfficers,
-            'csgPositions' => $csgPositions,
             'adviserCandidates' => $adviserCandidates,
             'councilAdviser' => $councilAdviser,
+            'councilSaduAdviser' => $councilSaduAdviser,
         ]);
     }
 
@@ -315,7 +316,6 @@ class SAdminDashboardController extends Controller
         $position = $request->position;
         $userId = $request->userId;
 
-        // Revert any existing officer in this position back to Member
         $existingOfficer = StudentCsgOfficer::where('csg_position', $position)
             ->where('archive', false)
             ->first();
@@ -342,19 +342,15 @@ class SAdminDashboardController extends Controller
             'is_csg' => true,
         ]);
 
-        //update the user's role to CSG Officer
         $user = User::find($userId);
         if ($user) {
-            // Get the CSG Officer role ID (csg officer role slug)
             $csgRole = Role::where('slug', 'csg')->first();
             if ($csgRole) {
-                $user->update([
-                    'role_id' => $csgRole->id,
-                ]);
+                $user->update(['role_id' => $csgRole->id]);
             }
         }
 
-        // return response()->json(['message' => 'Officer assigned successfully']);
+        return response()->json(['message' => 'Officer assigned successfully']);
     }
 
     public function setCouncilTerm(\Illuminate\Http\Request $request)
@@ -365,7 +361,6 @@ class SAdminDashboardController extends Controller
         ]);
 
         try {
-            // Update all CSG members with the new council term dates
             $updated = StudentCsgOfficer::where('archive', false)
                 ->where('csg_is_active', true)
                 ->where('csg_position', '!=', 'Member')
@@ -387,8 +382,6 @@ class SAdminDashboardController extends Controller
 
     public function getCouncilTerm()
     {
-        // Get any active CSG officer to get the term dates
-        // (assuming all officers have the same term dates)
         $officer = StudentCsgOfficer::where('archive', false)
             ->where('csg_is_active', true)
             ->where('csg_position', '!=', 'Member')
@@ -416,10 +409,8 @@ class SAdminDashboardController extends Controller
             'teacherId' => 'required|exists:teacher_adviser,user_id',
         ]);
 
-        $position = $request->position;
         $teacherId = $request->teacherId;
 
-        // Find the adviser record by user_id
         $adviser = TeacherAdviser::where('user_id', $teacherId)
             ->where('archive', false)
             ->first();
@@ -428,20 +419,13 @@ class SAdminDashboardController extends Controller
             return response()->json(['message' => 'Adviser record not found.'], 422);
         }
 
-        // Update the adviser record to set is_adviser to true
-        $adviser->update([
-            'is_adviser' => true,
-        ]);
+        $adviser->update(['is_adviser' => true]);
 
-        // Update the user's role_id to admin (adviser) role
         $user = User::find($teacherId);
         if ($user) {
-            // Get the admin/adviser role ID (admin role slug)
             $adminRole = \App\Models\Role::where('slug', 'admin')->first();
             if ($adminRole) {
-                $user->update([
-                    'role_id' => $adminRole->id,
-                ]);
+                $user->update(['role_id' => $adminRole->id]);
             }
         }
 
@@ -456,7 +440,6 @@ class SAdminDashboardController extends Controller
 
         $userId = $request->userId;
 
-        // Find the CSG officer record
         $officer = StudentCsgOfficer::where('user_id', $userId)
             ->where('archive', false)
             ->first();
@@ -465,26 +448,21 @@ class SAdminDashboardController extends Controller
             return response()->json(['message' => 'Officer record not found.'], 422);
         }
 
-        // Revert the officer back to Member role
         $officer->update([
             'csg_position' => 'Member',
             'csg_is_active' => false,
             'is_csg' => false,
         ]);
 
-        // Revert the user's role back to student role
         $user = User::find($userId);
         if ($user) {
-            // Get the student role ID (student role slug)
             $studentRole = Role::where('slug', 'student')->first();
             if ($studentRole) {
-                $user->update([
-                    'role_id' => $studentRole->id,
-                ]);
+                $user->update(['role_id' => $studentRole->id]);
             }
         }
 
-        // return response()->json(['message' => 'Officer removed successfully']);
+        return response()->json(['message' => 'Officer removed successfully']);
     }
 
     public function removeAdviser(\Illuminate\Http\Request $request)
@@ -495,7 +473,6 @@ class SAdminDashboardController extends Controller
 
         $teacherId = $request->teacherId;
 
-        // Find the adviser record by user_id
         $adviser = TeacherAdviser::where('user_id', $teacherId)
             ->where('archive', false)
             ->first();
@@ -504,23 +481,165 @@ class SAdminDashboardController extends Controller
             return response()->json(['message' => 'Adviser record not found.'], 422);
         }
 
-        // Update the adviser record to set is_adviser to false
-        $adviser->update([
-            'is_adviser' => false,
-        ]);
+        $adviser->update(['is_adviser' => false]);
 
-        // Revert the user's role back to teacher role
         $user = User::find($teacherId);
         if ($user) {
-            // Get the teacher role ID (teacher role slug)
             $teacherRole = Role::where('slug', 'teacher')->first();
             if ($teacherRole) {
-                $user->update([
-                    'role_id' => $teacherRole->id,
-                ]);
+                $user->update(['role_id' => $teacherRole->id]);
             }
         }
 
-        // return response()->json(['message' => 'Adviser removed successfully']);
+        return response()->json(['message' => 'Adviser removed successfully']);
+    }
+
+    public function assignSaduAdviser(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'position' => 'required|string',
+            'teacherId' => 'required|exists:teacher_adviser,user_id',
+        ]);
+
+        $teacherId = $request->teacherId;
+
+        $adviser = TeacherAdviser::where('user_id', $teacherId)
+            ->where('archive', false)
+            ->first();
+
+        if (! $adviser) {
+            return response()->json(['message' => 'Adviser record not found.'], 422);
+        }
+
+        $adviser->update(['is_adviser' => true]);
+
+        $user = User::find($teacherId);
+        if ($user) {
+            $saduAdminRole = \App\Models\Role::where('slug', 'admin-sadu')->first();
+            if ($saduAdminRole) {
+                $user->update(['role_id' => $saduAdminRole->id]);
+            }
+        }
+
+        // return response()->json(['message' => 'SADU Admin assigned successfully']);
+    }
+
+    public function removeSaduAdviser(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'teacherId' => 'required|exists:teacher_adviser,user_id',
+        ]);
+
+        $teacherId = $request->teacherId;
+
+        $adviser = TeacherAdviser::where('user_id', $teacherId)
+            ->where('archive', false)
+            ->first();
+
+        if (! $adviser) {
+            return response()->json(['message' => 'Adviser record not found.'], 422);
+        }
+
+        $adviser->update(['is_adviser' => false]);
+
+        $user = User::find($teacherId);
+        if ($user) {
+            $teacherRole = Role::where('slug', 'teacher')->first();
+            if ($teacherRole) {
+                $user->update(['role_id' => $teacherRole->id]);
+            }
+        }
+
+        return response()->json(['message' => 'SADU Admin removed successfully']);
+    }
+
+    public function getPositions()
+    {
+        $positions = CsgPosition::orderBy('position_name')
+            ->get()
+            ->map(function ($position) {
+                return [
+                    'id' => $position->id,
+                    'name' => $position->position_name,
+                ];
+            });
+
+        return response()->json(['positions' => $positions]);
+    }
+
+    public function addCouncilPosition(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'positionName' => 'required|string|max:255|unique:position,position_name',
+        ]);
+
+        try {
+            $position = CsgPosition::create([
+                'id' => str_replace('-', '', (string) Str::uuid()),
+                'position_name' => trim($request->positionName),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Failed to add position. Please try again.',
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Position added successfully',
+            'position' => [
+                'id' => $position->id,
+                'name' => $position->position_name,
+            ],
+        ]);
+    }
+
+    public function editCouncilPosition(\Illuminate\Http\Request $request, $id)
+    {
+        $request->validate([
+            'positionName' => 'required|string|max:255|unique:position,position_name,' . $id . ',id',
+        ]);
+
+        try {
+            $position = CsgPosition::findOrFail($id);
+            $position->update(['position_name' => trim($request->positionName)]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Failed to update position. Please try again.',
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Position updated successfully',
+            'position' => [
+                'id' => $position->id,
+                'name' => $position->position_name,
+            ],
+        ]);
+    }
+
+    public function deleteCouncilPosition($id)
+    {
+        try {
+            $position = CsgPosition::findOrFail($id);
+            
+            $inUse = StudentCsgOfficer::where('csg_position', $position->position_name)
+                ->where('archive', false)
+                ->where('csg_is_active', true)
+                ->exists();
+
+            if ($inUse) {
+                return response()->json([
+                    'message' => 'Cannot delete position that is currently assigned to an officer.',
+                ], 422);
+            }
+
+            $position->delete();
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Failed to delete position. Please try again.',
+            ], 500);
+        }
+
+        return response()->json(['message' => 'Position deleted successfully']);
     }
 }

@@ -207,6 +207,24 @@ const formatDate = (dateString) => {
   });
 };
 
+ //search position
+const searchPosition = useMemo(() => {
+  const q = (searchQuery || '').toLowerCase();
+  if (!q) return csgPositions;
+  return csgPositions.filter(pos =>
+    pos.name.toLowerCase().includes(q)
+  );
+}, [csgPositions, searchQuery]);
+
+// Add this new memo
+const filteredCouncilOfficers = useMemo(() => {
+  const q = (searchQuery || '').toLowerCase();
+  if (!q) return councilOfficers;
+  return councilOfficers.filter(officer =>
+    officer.position.toLowerCase().includes(q)
+  );
+}, [councilOfficers, searchQuery]);
+
 // Check if a user is already assigned to a CSG officer position
 const isUserInCSG = (userId) => {
   return councilOfficers.some(officer => officer.userId === userId);
@@ -474,88 +492,105 @@ const handleSetCouncilTerm = async () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {councilOfficers.map((officer) => {
-            const position = csgPositions.find(p => p.id === officer.position);
-            const isVacant = !officer.name;
+         <div className="md:col-span-2 relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input
+                            placeholder="Search position..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-blue-200"
+                          />
+                        </div>
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {filteredCouncilOfficers.length === 0 ? (
+    <div className="col-span-full text-center py-8">
+      <Search className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+      <p className="text-sm text-gray-500">No positions found matching "{searchQuery}"</p>
+      <p className="text-xs text-gray-400 mt-1">Try a different search term</p>
+    </div>
+  ) : (
+    filteredCouncilOfficers.map((officer) => {
+      const position = csgPositions.find(p => p.id === officer.position);
+      const isVacant = !officer.name;
 
-            return (
-              <div
-                key={officer.position}
-                className={`p-4 rounded-xl border-2 transition-all ${
-                  isVacant ? 'border-dashed border-gray-300 bg-gray-50' : 'border-blue-200 bg-blue-50'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    {isVacant ? (
-                      <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
-                        <UserPlus className="w-5 h-5 text-gray-400" />
-                      </div>
-                    ) : (
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-[#0065FF] text-white text-xs">
-                          {users.find(u => u.id === officer.userId)?.avatar || '--'}
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                    <div>
-                      <h3 className={`text-sm ${isVacant ? 'text-gray-400' : 'text-gray-900'}`}>{position?.name}</h3>
-                      <Badge className={`text-xs ${isVacant ? 'bg-gray-200 text-gray-600' : 'bg-green-100 text-green-700'}`}>
-                        {isVacant ? 'Vacant' : 'Assigned'}
-                      </Badge>
-                    </div>
-                  </div>
+      return (
+        <div
+          key={officer.position}
+          className={`p-4 rounded-xl border-2 transition-all ${
+            isVacant ? 'border-dashed border-gray-300 bg-gray-50' : 'border-blue-200 bg-blue-50'
+          }`}
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-2">
+              {isVacant ? (
+                <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
+                  <UserPlus className="w-5 h-5 text-gray-400" />
                 </div>
-
-                {isVacant ? (
-                  <div className="py-2">
-                    <p className="text-xs text-gray-400">No officer assigned</p>
-                    <p className="text-xs text-gray-400 ">No email available</p>
-                    <p className="text-xs text-gray-400">No student ID available</p>
-                     <div className="mt-3 border-t border-gray-200">
-                    <Button
-                      onClick={() => openOfficerModal(officer)}
-                      variant="outline"
-                      size="sm"
-                      className="mt-3 w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
-                    >
-                      <UserPlus className="w-3 h-3 mr-1" />
-                      Assign Officer
-                    </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-sm text-gray-900 mb-1">{officer.name}</p>
-                    <p className="text-xs text-gray-500">{officer.email}</p>
-                    <p className="text-xs text-gray-500">Student ID: {officer.id}</p>
-                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200">
-                      <Button
-                        onClick={() => openOfficerModal(officer)}
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
-                      >
-                        <Repeat className="w-3 h-3 mr-1" />
-                        Reassign Position
-                      </Button>
-                      <Button
-                        onClick={() => handleRemoveOfficer(officer)}
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs border-red-500 bg-red-500 text-white hover:bg-red-600 hover:text-white"
-                      >
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Remove Officer
-                      </Button>
-                    </div>
-                  </div>
-                )}
+              ) : (
+                <Avatar className="w-10 h-10">
+                  <AvatarFallback className="bg-[#0065FF] text-white text-xs">
+                    {users.find(u => u.id === officer.userId)?.avatar || '--'}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              <div>
+                <h3 className={`text-sm ${isVacant ? 'text-gray-400' : 'text-gray-900'}`}>{position?.name}</h3>
+                <Badge className={`text-xs ${isVacant ? 'bg-gray-200 text-gray-600' : 'bg-green-100 text-green-700'}`}>
+                  {isVacant ? 'Vacant' : 'Assigned'}
+                </Badge>
               </div>
-            );
-          })}
+            </div>
+          </div>
+
+          {isVacant ? (
+            <div className="py-2">
+              <p className="text-xs text-gray-400">No officer assigned</p>
+              <p className="text-xs text-gray-400 ">No email available</p>
+              <p className="text-xs text-gray-400">No student ID available</p>
+              <div className="mt-3 border-t border-gray-200">
+                <Button
+                  onClick={() => openOfficerModal(officer)}
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
+                >
+                  <UserPlus className="w-3 h-3 mr-1" />
+                  Assign Officer
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm text-gray-900 mb-1">{officer.name}</p>
+              <p className="text-xs text-gray-500">{officer.email}</p>
+              <p className="text-xs text-gray-500">Student ID: {officer.id}</p>
+              <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200">
+                <Button
+                  onClick={() => openOfficerModal(officer)}
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
+                >
+                  <Repeat className="w-3 h-3 mr-1" />
+                  Reassign Position
+                </Button>
+                <Button
+                  onClick={() => handleRemoveOfficer(officer)}
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs border-red-500 bg-red-500 text-white hover:bg-red-600 hover:text-white"
+                >
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  Remove Officer
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
+      );
+    })
+  )}
+</div>
       </Card>
 
       {/* <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -224,6 +224,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
       'Super Admin': 'bg-purple-100 text-purple-700',
       'Admin': 'bg-blue-100 text-blue-700',
       'Admin/Adviser': 'bg-blue-100 text-blue-700',
+      'Admin/SADU': 'bg-blue-100 text-blue-700',
       'Adviser': 'bg-blue-100 text-blue-700',
       'CSG Officer': 'bg-green-100 text-green-700',
       'CSG': 'bg-green-100 text-green-700',
