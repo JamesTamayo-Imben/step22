@@ -54,7 +54,7 @@ class UserController extends Controller
         $role = $user->role?->name;
 
         // Redirect to appropriate dashboard based on role
-        if ($role === 'Admin/Adviser') {
+        if ($role === 'Admin/Adviser' || $role === 'Admin/SADU') {
             return redirect('/adviser/dashboard');
         } elseif ($role === 'Ordinary Teacher') {
             return redirect('/teacher/dashboard');

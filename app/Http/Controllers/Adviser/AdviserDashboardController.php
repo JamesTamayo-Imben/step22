@@ -21,17 +21,17 @@ class AdviserDashboardController extends Controller
 {
     public function index(Request $request)
     {
-        // Role-based authorization: Only Adviser users can access this
+        // Role-based authorization: Only Admin/Adviser and Admin/SADU users can access this
         $user = Auth::user();
-        if (!$user || !$user->hasRole('Admin/Adviser')) {
+        if (!$user || (!$user->hasRole('Admin/Adviser') && !$user->hasRole('Admin/SADU'))) {
             // Redirect to appropriate dashboard based on role
             if ($user) {
-                if ($user->hasRole('CSG Officer')) {
-                    return Redirect::route('csg.dashboard');
-                } elseif ($user->hasRole('Student') || $user->hasRole('Ordinary Teacher')) {
-                    return Redirect::route('user.dashboard');
+               if ($user->hasRole('Admin/Adviser') || $user->hasRole('Admin/SADU')) {
+                    return Redirect::route('adviser.dashboard');
                 } elseif ($user->hasRole('Super Admin')) {
                     return Redirect::route('sadmin.dashboard');
+                } elseif ($user->hasRole('Student') || $user->hasRole('Ordinary Teacher')) {
+                    return Redirect::route('user.dashboard');
                 }
             }
             return Redirect::route('login');

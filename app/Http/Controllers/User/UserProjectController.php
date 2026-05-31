@@ -25,12 +25,12 @@ class UserProjectController extends Controller
         if (!$user || (!$user->hasRole('Student') && !$user->hasRole('Ordinary Teacher'))) {
             // Redirect to appropriate dashboard based on role
             if ($user) {
-                if ($user->hasRole('Admin/Adviser')) {
+              if ($user->hasRole('Admin/Adviser') || $user->hasRole('Admin/SADU')) {
                     return Redirect::route('adviser.dashboard');
-                } elseif ($user->hasRole('CSG Officer')) {
-                    return Redirect::route('csg.dashboard');
                 } elseif ($user->hasRole('Super Admin')) {
                     return Redirect::route('sadmin.dashboard');
+                } elseif ($user->hasRole('Student') || $user->hasRole('Ordinary Teacher')) {
+                    return Redirect::route('user.dashboard');
                 }
             }
             return Redirect::route('login');

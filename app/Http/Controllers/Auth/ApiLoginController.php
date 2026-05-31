@@ -152,6 +152,7 @@ class ApiLoginController extends Controller
         return match($role) {
             'superadmin' => '/sadmin/dashboard',
             'admin' => '/adviser/dashboard',
+            'admin-sadu' => '/adviser/dashboard',
             'csg' => '/csg/dashboard',
             'student' => '/user/dashboard',
             'teacher' => '/user/dashboard',

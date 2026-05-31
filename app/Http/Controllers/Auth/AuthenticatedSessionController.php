@@ -54,6 +54,7 @@ class AuthenticatedSessionController extends Controller
                     $redirectPath = route('sadmin.dashboard', absolute: false);
                     break;
                 case 'admin':
+                case 'admin-sadu':
                     $redirectPath = route('adviser.dashboard', absolute: false);
                     break;
                 case 'csg':

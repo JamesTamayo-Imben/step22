@@ -23,10 +23,10 @@ class SAdminDashboardController extends Controller
         $user = Auth::user();
         if (!$user || !$user->hasRole('Super Admin')) {
             if ($user) {
-                if ($user->hasRole('Admin/Adviser')) {
+               if ($user->hasRole('Admin/Adviser') || $user->hasRole('Admin/SADU')) {
                     return Redirect::route('adviser.dashboard');
-                } elseif ($user->hasRole('CSG Officer')) {
-                    return Redirect::route('csg.dashboard');
+                } elseif ($user->hasRole('Super Admin')) {
+                    return Redirect::route('sadmin.dashboard');
                 } elseif ($user->hasRole('Student') || $user->hasRole('Ordinary Teacher')) {
                     return Redirect::route('user.dashboard');
                 }
@@ -350,7 +350,7 @@ class SAdminDashboardController extends Controller
             }
         }
 
-        return response()->json(['message' => 'Officer assigned successfully']);
+        // return response()->json(['message' => 'Officer assigned successfully']);
     }
 
     public function setCouncilTerm(\Illuminate\Http\Request $request)
@@ -462,7 +462,7 @@ class SAdminDashboardController extends Controller
             }
         }
 
-        return response()->json(['message' => 'Officer removed successfully']);
+        // return response()->json(['message' => 'Officer removed successfully']);
     }
 
     public function removeAdviser(\Illuminate\Http\Request $request)
@@ -491,7 +491,7 @@ class SAdminDashboardController extends Controller
             }
         }
 
-        return response()->json(['message' => 'Adviser removed successfully']);
+        // return response()->json(['message' => 'Adviser removed successfully']);
     }
 
     public function assignSaduAdviser(\Illuminate\Http\Request $request)
@@ -550,7 +550,7 @@ class SAdminDashboardController extends Controller
             }
         }
 
-        return response()->json(['message' => 'SADU Admin removed successfully']);
+        // return response()->json(['message' => 'SADU Admin removed successfully']);
     }
 
     public function getPositions()

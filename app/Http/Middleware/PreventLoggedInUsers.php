@@ -33,6 +33,7 @@ class PreventLoggedInUsers
             // Redirect other authenticated users to appropriate dashboard based on role
             $dashboardRoutes = [
                 'admin' => 'adviser.dashboard',
+                'admin-sadu' => 'adviser.dashboard',
                 'superadmin' => 'sadmin.dashboard',
                 'csg' => 'csg.dashboard',
                 'student' => 'user.dashboard',

@@ -110,7 +110,8 @@ function CSGProfilePageInner({ user }) {
     name: user?.name || 'John Reyes',
     email: user?.email || 'john.reyes@kld.edu.ph',
     phone: user?.phone || '+63 9123456789',
-    position: user?.student?.position || 'CSG President',
+    //get the position 
+    position: `CSG ${user?.student?.csg_position || 'President'}`,
     department: user?.student?.department || 'College of Engineering',
     joinDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '2023-08-15',
     bio: user?.student?.bio || 'Passionate about student engagement and organizational excellence.',

@@ -105,17 +105,23 @@ function AdviserProfilePageInner({ user }) {
   const [activityPage, setActivityPage] = useState(1);
   const [activityTotalPages, setActivityTotalPages] = useState(1);
 
-  const [profile, setProfile] = useState({
-    name: user?.name || 'Admin User',
-    position: user?.role?.name === 'admin' ? 'Admin & Adviser' : 'Adviser',
-    email: user?.email || 'admin@kld.edu.ph',
-    phone: user?.phone || '+63 912 345 6789',
-    bio: user?.teacher?.bio || 'Dedicated adviser committed to transparency and excellence in student governance. Overseeing approval processes and ensuring compliance with university policies.',
-    joinedDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'January 2026',
-    department: user?.teacher?.department || 'Student Affairs Office',
-    location: user?.teacher?.location || 'Kolehiyo ng Lungsod ng Dasmariñas',
-    photo: user?.avatar_url || null,
-  });
+  const getDisplayRole = (roleName) => {
+  if (roleName === 'Admin/Adviser') return 'CSG Adviser';
+  if (roleName === 'Admin/SADU') return 'SADU Head';
+  return roleName || 'Admin/Adviser';
+};
+
+const [profile, setProfile] = useState({
+  name: user?.name || 'Admin User',
+  role: getDisplayRole(user?.role?.name),
+  email: user?.email || 'admin@kld.edu.ph',
+  phone: user?.phone || '+63 912 345 6789',
+  bio: user?.teacher?.bio || 'Dedicated adviser committed to transparency and excellence in student governance. Overseeing approval processes and ensuring compliance with university policies.',
+  joinedDate: user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'January 2026',
+  department: user?.teacher?.department || 'Student Affairs Office',
+  location: user?.teacher?.location || 'Kolehiyo ng Lungsod ng Dasmariñas',
+  photo: user?.avatar_url || null,
+});
 
   const [editForm, setEditForm] = useState({ ...profile });
   const [passwordForm, setPasswordForm] = useState({
@@ -340,7 +346,7 @@ function AdviserProfilePageInner({ user }) {
           <div className="flex-1 space-y-4">
             <div>
               <h2 className="text-gray-900 text-xl font-semibold mb-1">{profile.name}</h2>
-              <p className="text-blue-600">{profile.position}</p>
+              <p className="text-blue-600">{profile.role}</p>
               <p className="text-sm text-gray-500 mt-1">Member since {profile.joinedDate}</p>
             </div>
 

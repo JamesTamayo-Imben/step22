@@ -21,7 +21,7 @@ class CSGDashboardController extends Controller
         if (!$user || !$user->hasRole('CSG Officer')) {
             // Redirect to appropriate dashboard based on role
             if ($user) {
-                if ($user->hasRole('Admin/Adviser')) {
+                if ($user->hasRole('Admin/Adviser') || $user->hasRole('Admin/SADU')) {
                     return Redirect::route('adviser.dashboard');
                 } elseif ($user->hasRole('Super Admin')) {
                     return Redirect::route('sadmin.dashboard');

@@ -68,7 +68,23 @@ Route::get('/auth/register-student', function () {
     return Inertia::render('Auth/RegisterStudent');
 })->middleware('prevent_logged_in')->name('register.student');
 
-Route::get('/dashboard', function () {
+Route::get('/dashboard', function (Request $request) {
+    $user = $request->user();
+    $user?->load('role');
+    $slug = $user?->role?->slug;
+
+    $redirect = match ($slug) {
+        'superadmin' => route('sadmin.dashboard', absolute: false),
+        'admin', 'admin-sadu' => route('adviser.dashboard', absolute: false),
+        'csg' => route('csg.dashboard', absolute: false),
+        'student', 'teacher' => route('user.dashboard', absolute: false),
+        default => null,
+    };
+
+    if ($redirect) {
+        return redirect($redirect);
+    }
+
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
@@ -166,8 +182,8 @@ Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function ()  {
     })->name('sadmin.profile');
 });
 
-// ========== ADVISER ROUTES (Only accessible by Admin/Adviser role) ==========
-Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
+// ========== ADVISER ROUTES (Only accessible by Admin/Adviser and Admin/SADU role) ==========
+Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function () {
     Route::get('/adviser', [AdviserDashboardController::class, 'index'])->name('adviser.dashboard');
     Route::get('/adviser/dashboard', [AdviserDashboardController::class, 'index'])->name('adviser.dashboard.alias');
 

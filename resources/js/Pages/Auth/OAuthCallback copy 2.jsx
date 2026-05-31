@@ -129,7 +129,7 @@ let redirectPath = '/user'; // Default redirect for student/teacher
 
 if (data.user.role?.slug === 'superadmin') {
   redirectPath = '/sadmin'; // Super admin dashboard
-} else if (data.user.role?.slug === 'admin') {
+} else if (data.user.role?.slug === 'admin' || data.user.role?.slug === 'admin-sadu') {
   redirectPath = '/adviser/dashboard'; // Adviser/Admin dashboard
 } else if (data.user.role?.slug === 'csg') {
   redirectPath = '/csg/dashboard'; // CSG dashboard
