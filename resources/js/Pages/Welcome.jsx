@@ -1,4 +1,4 @@
-import { ArrowRight, Shield, FileCheck, Users, CheckCircle, Sparkles, Play, X, ArrowUp, HelpCircle, Mail, MapPin, User } from 'lucide-react';
+import { ArrowRight, Shield, FileCheck, School, Users, Wallet, CheckCircle, Sparkles, GraduationCap, Play, X, ArrowUp, HelpCircle, Mail, MapPin, User } from 'lucide-react';
 import { Link, router } from '@inertiajs/react';
 import { useRef, useState, useEffect } from 'react';
 import { Chatbot } from '@/Components/ui/Chatbot';
@@ -90,6 +90,11 @@ let secretClickTimeout = null;
 // }
 
 const animationStyles = `
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px;
+  }
+
   @keyframes moveGradient {
     0% {
       background-position: 0% 50%;
@@ -132,6 +137,42 @@ const animationStyles = `
 
   .fade-in {
     animation: fadeIn 0.5s ease-in forwards;
+  }
+
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  section {
+    animation: slideInUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+
+  section:nth-child(2) { animation-delay: 0.1s; }
+  section:nth-child(3) { animation-delay: 0.2s; }
+  section:nth-child(4) { animation-delay: 0.3s; }
+  section:nth-child(5) { animation-delay: 0.4s; }
+
+  /* Smooth transitions for interactive elements */
+  button, a {
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Smooth scroll on anchor links */
+  *:target {
+    scroll-margin-top: 100px;
+  }
+
+  /* Scroll transition acceleration */
+  body {
+    overflow-y: auto;
+    scroll-behavior: smooth;
   }
 `;
 
@@ -292,7 +333,7 @@ export default function Welcome() {
         style={{ backgroundImage: "url('/images/kldbg.png')" }}>
         <div className="max-w-4xl mx-auto">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-[#2563EB] rounded-full text-sm mb-6">
-            <Sparkles className="w-4 h-4" />
+            <School className="w-4 h-4" />
             <span>Kolehiyo ng Lungsod ng Dasmariñas</span>
           </div>
 
@@ -352,19 +393,19 @@ export default function Welcome() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Feature 1 */}
-            <div className="p-8 rounded-[20px] shadow-lg hover:shadow-xl transition-shadow bg-white">
+            <div className="p-8 rounded-[20px] shadow-lg hover:shadow-xl transition-shadow bg-white flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
                 <Shield className="w-8 h-8 text-[#2563EB]" />
               </div>
               <h3 className="text-xl text-gray-900 mb-3">Tamper Evident Ledger</h3>
               <p className="text-gray-600 leading-relaxed">
                 Every transaction is permanently recorded with SHA256 hashing. 
-                No edits, no deletions—only verifiable truth with complete audit trails.
+                No edits, no deletions only verifiable truth with complete audit trails.
               </p>
             </div>
 
             {/* Feature 2 */}
-            <div className="p-8 rounded-[20px] shadow-lg hover:shadow-xl transition-shadow bg-white">
+            <div className="p-8 rounded-[20px] shadow-lg hover:shadow-xl transition-shadow bg-white flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center mb-6">
                 <FileCheck className="w-8 h-8 text-green-600" />
               </div>
@@ -376,7 +417,7 @@ export default function Welcome() {
             </div>
 
             {/* Feature 3 */}
-            <div className="p-8 rounded-[20px] shadow-lg hover:shadow-xl transition-shadow bg-white">
+            <div className="p-8 rounded-[20px] shadow-lg hover:shadow-xl transition-shadow bg-white flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
                 <Users className="w-8 h-8 text-purple-600" />
               </div>
@@ -492,9 +533,12 @@ export default function Welcome() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
               <div className="p-6 bg-white/10 backdrop-blur-sm rounded-[20px] border border-white/20">
                 <div className="text-3xl mb-3 w-10 flex justify-center mx-auto">
-                  <img
+                  {/* <img
               src="/images/Academic.png" alt="Academic"
-              className="w-full object-cover"/>
+              className="w-full object-cover"/> */}
+                <div className="flex items-center justify-center">
+                <GraduationCap className="w-8 h-8 text-white" />
+              </div>
                 </div>
                 <h3 className="text-lg mb-2">Academic Excellence</h3>
                 <p className="text-sm text-blue-100">
@@ -503,10 +547,13 @@ export default function Welcome() {
               </div>
               <div className="p-6 bg-white/10 backdrop-blur-sm rounded-[20px] border border-white/20">
                 <div className="text-3xl mb-3 w-10 flex justify-center mx-auto">
-                  <img
+                  {/* <img
               src="/images/Financial.png" alt="Financial"
-              className="w-full object-cover"/>
+              className="w-full object-cover"/> */}
+                <div className="flex items-center justify-center">
+                <Wallet className="w-8 h-8 text-white" />
               </div>
+                </div>
                 <h3 className="text-lg mb-2">Financial Integrity</h3>
                 <p className="text-sm text-blue-100">
                   Every peso tracked, verified, and publicly accessible
@@ -514,9 +561,12 @@ export default function Welcome() {
               </div>
               <div className="p-6 bg-white/10 backdrop-blur-sm rounded-[20px] border border-white/20">
                 <div className="text-3xl mb-3 w-10 mx-auto">
-                  <img
+                  {/* <img
               src="/images/Engagement.png" alt="Engagement"
-              className="w-full object-cover"/>
+              className="w-full object-cover"/> */}
+              <div className="flex items-center justify-center">
+                <Users className="w-8 h-8 text-white" />
+              </div>
                 </div>
                 <h3 className="text-lg mb-2">Student Engagement</h3>
                 <p className="text-sm text-blue-100">

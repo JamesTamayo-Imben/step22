@@ -132,7 +132,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
       </div>
 
       {/* Mobile Quick Actions Bottom Bar */}
-      {/* <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 px-4 py-3">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 px-4 py-3">
         <div className="flex gap-3">
           {quickActions.map((action, index) => {
             const Icon = action.icon;
@@ -147,7 +147,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
             );
           })}
         </div>
-      </div> */}
+      </div>
 
       {/* Mobile Drawer Overlay */}
       {isMobileMenuOpen && (

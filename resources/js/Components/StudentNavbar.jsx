@@ -232,7 +232,7 @@ export function StudentNavbar({
                       <Award className="w-4 h-4" />
                       Notifications
                     </button>
-                   {/* {onSwitchRole && userData?.canSwitch && (
+                   {onSwitchRole && userData?.canSwitch && (
                       <>
                         <div className="border-t my-1"></div>
                         <button
@@ -243,7 +243,7 @@ export function StudentNavbar({
                           Switch to Officer Mode
                         </button>
                       </>
-                    )}  */}
+                    )} 
                     <div className="border-t my-1"></div>
                     <button
                       onClick={() => { 
@@ -417,7 +417,7 @@ export function StudentNavbar({
               <p className="text-xs text-gray-500">{userEmail}</p>
             </div>
           </div>
-          {/* {onSwitchRole && userData?.canSwitch && (
+          {onSwitchRole && userData?.canSwitch && (
             <button
               onClick={() => {
                 onSwitchRole();
@@ -428,7 +428,7 @@ export function StudentNavbar({
               <Repeat className="w-5 h-5" />
               <span>Switch to Officer Mode</span>
             </button>
-          )} */}
+          )}
           <button
             onClick={() => {
               setIsMobileMenuOpen(false);

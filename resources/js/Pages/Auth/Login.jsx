@@ -6,6 +6,35 @@ import {
 ArrowLeftIcon,
 } from 'lucide-react';
 
+const animationStyles = `
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @keyframes fadeInSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .fade-in-container {
+    animation: fadeInSlideUp 0.6s ease-out;
+  }
+
+  button, a {
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  input {
+    transition: all 0.3s ease;
+  }
+`;
+
 export default function LoginPage({ onLogin, onNavigateToRegister }) {
   const { signIn, signInWithGoogle } = useSupabase(); // ✅ re-enabled
 
@@ -95,6 +124,7 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
 
   return (
     <div className="min-h-screen flex">
+      <style>{animationStyles}</style>
 
       {/* LEFT PANEL */}
       <div className="hidden md:flex w-2/5 bg-gradient-to-br from-[#155DFC] to-[#193CB8] text-white p-12 flex-col justify-between relative overflow-hidden">
@@ -134,7 +164,7 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
   </Link>
 </div>
 
-        <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-sm p-10">
+        <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-sm p-10 fade-in-container">
 
 
           <div className="flex justify-center mb-2">
