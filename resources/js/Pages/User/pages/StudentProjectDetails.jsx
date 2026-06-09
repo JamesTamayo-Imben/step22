@@ -8,9 +8,13 @@ import { ArrowLeft, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shiel
 export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [currentProject, setCurrentProject] = useState(project);
   const [showRatingModal, setShowRatingModal] = useState(false);
-  const [rating, setRating] = useState(project?.currentUserRating?.rating || 0);
+  const [satisfactionRating, setSatisfactionRating] = useState(project?.currentUserRating?.rating || 0);
+  const [completenessRating, setCompletenessRating] = useState(project?.currentUserRating?.completeness || 0);
+  const [engagementRating, setEngagementRating] = useState(project?.currentUserRating?.engagement || 0);
   const [comment, setComment] = useState(project?.currentUserRating?.comment || '');
-  const [hoveredRating, setHoveredRating] = useState(0);
+  const [hoveredSatisfactionRating, setHoveredSatisfactionRating] = useState(0);
+  const [hoveredCompletenessRating, setHoveredCompletenessRating] = useState(0);
+  const [hoveredEngagementRating, setHoveredEngagementRating] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedLedgerEntry, setSelectedLedgerEntry] = useState(null);
@@ -28,10 +32,11 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
     setCurrentProject(project);
     // Update rating state if project has existing rating
     if (project?.currentUserRating) {
-      setRating(project.currentUserRating.rating || 0);
+      setSatisfactionRating(project.currentUserRating.rating || 0);
+      setCompletenessRating(project.currentUserRating.completeness || 0);
+      setEngagementRating(project.currentUserRating.engagement || 0);
       setComment(project.currentUserRating.comment || '');
-    }
-  }, [project]);
+    }  }, [project]);
 
   const getProofUrl = (path) => {
     if (!path) return '#';
@@ -629,7 +634,9 @@ function maskUserName(fullName) {
         isOpen={showRatingModal}
         onClose={() => {
           setShowRatingModal(false);
-          setRating(0);
+          setSatisfactionRating(0);
+          setCompletenessRating(0);
+          setEngagementRating(0);
           setComment('');
         }}
         title="Rate this Project"
@@ -638,34 +645,87 @@ function maskUserName(fullName) {
           {/* Star Rating */}
           <div className="text-center">
             <p className="text-sm text-gray-600 mb-4">How would you rate this project?</p>
-            <div className="flex justify-center gap-2 mb-2">
-              {[1, 2, 3, 4, 5].map((star) => (
+            <div className="grid grid-cols-3 gap-2 mb-2">
+
+              {/* Satisfaction Rating */}
+              <div className="items-center justify-center">
+                <p className="text-sm text-gray-600">Satisfaction Rating</p>
+                <p className="text-xs text-gray-500 mb-1">Are you satisfied with this project?</p>
+                 {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
-                  onClick={() => setRating(star)}
-                  onMouseEnter={() => setHoveredRating(star)}
-                  onMouseLeave={() => setHoveredRating(0)}
+                  onClick={() => setSatisfactionRating(star)}
+                  onMouseEnter={() => setHoveredSatisfactionRating(star)}
+                  onMouseLeave={() => setHoveredSatisfactionRating(0)}
                   className="transition-transform hover:scale-110"
                 >
                   <Star
                     className={`w-10 h-10 ${
-                      star <= (hoveredRating || rating)
+                      star <= (hoveredSatisfactionRating || satisfactionRating)
                         ? 'fill-yellow-400 text-yellow-400'
                         : 'text-gray-300'
                     }`}
                   />
                 </button>
               ))}
+              </div>
+
+              {/* Completeness Rating */}
+               <div className="items-center justify-center">
+                <p className="text-sm text-gray-600">Completeness Rating</p>
+                <p className="text-xs text-gray-500 mb-1">Rate how complete this project is.</p>
+                 {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setCompletenessRating(star)}
+                  onMouseEnter={() => setHoveredCompletenessRating(star)}
+                  onMouseLeave={() => setHoveredCompletenessRating(0)}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={`w-10 h-10 ${
+                      star <= (hoveredCompletenessRating || completenessRating)
+                        ? 'fill-green-400 text-green-400'
+                        : 'text-gray-300'
+                    }`}
+                  />
+                </button>
+              ))}
+              </div>
+
+              {/* Engagement Rating */}
+               <div className="items-center justify-center">
+                <p className="text-sm text-gray-600">Engagement Rating</p>
+                <p className="text-xs text-gray-500 mb-1">How engaged were you with this project?</p>
+                 {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setEngagementRating(star)}
+                  onMouseEnter={() => setHoveredEngagementRating(star)}
+                  onMouseLeave={() => setHoveredEngagementRating(0)}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={`w-10 h-10 ${
+                      star <= (hoveredEngagementRating || engagementRating)
+                        ? 'fill-red-400 text-red-400'
+                        : 'text-gray-300'
+                    }`}
+                  />
+                </button>
+              ))}
+              </div>
+
             </div>
-            {rating > 0 && (
+            {/* {satisfactionRating > 0 && (
               <p className="text-sm text-gray-600">
-                {rating === 1 && 'Poor'}
-                {rating === 2 && 'Fair'}
-                {rating === 3 && 'Good'}
-                {rating === 4 && 'Very Good'}
-                {rating === 5 && 'Excellent'}
+                {satisfactionRating === 1 && 'Poor'}
+                {satisfactionRating === 2 && 'Fair'}
+                {satisfactionRating === 3 && 'Good'}
+                {satisfactionRating === 4 && 'Very Good'}
+                {satisfactionRating === 5 && 'Excellent'}
               </p>
-            )}
+            )} */}
           </div>
 
           {/* Comment */}
@@ -686,7 +746,7 @@ function maskUserName(fullName) {
           <div className="flex gap-3">
             <button
               onClick={handleSubmitRating}
-              disabled={rating === 0 || isSubmitting}
+              disabled={satisfactionRating === 0 || isSubmitting}
               className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl transition-colors font-medium"
             >
               {isSubmitting ? 'Submitting...' : 'Submit Rating'}
@@ -694,7 +754,9 @@ function maskUserName(fullName) {
             <button
               onClick={() => {
                 setShowRatingModal(false);
-                setRating(0);
+                setSatisfactionRating(0);
+                setCompletenessRating(0);
+                setEngagementRating(0);
                 setComment('');
               }}
               className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
