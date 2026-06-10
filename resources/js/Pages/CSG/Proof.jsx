@@ -23,6 +23,7 @@ import {
   XCircle,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -674,14 +675,59 @@ function CSGProofPageInner() {
         {selectedProof && (
           <div className="space-y-6 pt-6">
             {/* File Preview */}
-            <div className="h-48 bg-gray-100 rounded-xl flex items-center justify-center">
-              <div className="text-center">
-                {getFileIcon(selectedProof.fileType)}
-                <p className="text-gray-600 mt-2 font-medium">{selectedProof.fileName}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {selectedProof.fileType} • {selectedProof.fileSize}
-                </p>
-              </div>
+            <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
+              {(() => {
+                const filePath = selectedProof.filePath || selectedProof.file_path || selectedProof.path;
+                
+                // If no file path, show placeholder
+                if (!filePath) {
+                  return (
+                    <div className="text-center">
+                      {getFileIcon(selectedProof.fileType)}
+                      <p className="text-gray-600 mt-4 font-medium">{selectedProof.fileName}</p>
+                      <p className="text-xs text-gray-500 mt-2">{selectedProof.fileType} • {selectedProof.fileSize}</p>
+                      <p className="text-xs text-gray-400 mt-4">No preview available</p>
+                    </div>
+                  );
+                }
+
+                const proofUrl = filePath.startsWith('/') ? filePath : `/${filePath}`;
+                const fileExtension = selectedProof.fileName.split('.').pop().toLowerCase();
+                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+                
+                if (imageExtensions.includes(fileExtension)) {
+                  return (
+                    <img 
+                      src={proofUrl} 
+                      alt="Proof Document" 
+                      className="max-w-full max-h-96 object-contain rounded-lg"
+                      onError={(e) => {
+                        console.error('Failed to load image:', proofUrl);
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  );
+                } else if (fileExtension === 'pdf') {
+                  return (
+                    <iframe 
+                      src={proofUrl} 
+                      className="w-full h-96 rounded-lg border-0"
+                      title="PDF Preview"
+                      onError={() => {
+                        console.error('Failed to load PDF:', proofUrl);
+                      }}
+                    />
+                  );
+                } else {
+                  return (
+                    <div className="text-center">
+                      {getFileIcon(selectedProof.fileType)}
+                      <p className="text-gray-600 mt-4 font-medium">{selectedProof.fileName}</p>
+                      <p className="text-xs text-gray-500 mt-2">{selectedProof.fileType} • {selectedProof.fileSize}</p>
+                    </div>
+                  );
+                }
+              })()}
             </div>
 
             {/* Document Info */}
@@ -724,17 +770,21 @@ function CSGProofPageInner() {
             </div>
 
             <div className="flex gap-3 pt-4">
-              <a
-                href={`/${selectedProof.filePath}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1"
+              <Button
+                onClick={() => {
+                  const filePath = selectedProof.filePath || selectedProof.file_path || selectedProof.path;
+                  if (filePath) {
+                    const proofUrl = filePath.startsWith('/') ? filePath : `/${filePath}`;
+                    window.open(proofUrl, '_blank');
+                  } else {
+                    showToast('No file available for download', 'error');
+                  }
+                }}
+                className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
               >
-                <Button className="w-full text-white rounded-xl bg-blue-600 hover:bg-blue-700">
-                  {/* <Download className="w-4 h-4 mr-2" /> */}
-                  View
-                </Button>
-              </a>
+                <Download className="w-4 h-4 mr-2" />
+                Download
+              </Button>
               <Button
                 onClick={() => setShowViewModal(false)}
                 variant="outline"

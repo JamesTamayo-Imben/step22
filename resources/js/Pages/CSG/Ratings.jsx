@@ -87,10 +87,17 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
   const [dateRange, setDateRange] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('highest');
+  const [activeTab, setActiveTab] = useState('satisfaction');
   const [projectSummaries, setProjectSummaries] = useState(initialProjects || []);
   const [recentComments, setRecentComments] = useState(initialComments || []);
   const [kpi, setKpi] = useState(initialKpi || {});
   const [loading, setLoading] = useState(false);
+
+  const tabs = [
+    { id: 'satisfaction', label: 'Satisfaction Rating' },
+    { id: 'completeness', label: 'Completeness Rating' },
+    { id: 'engagement', label: 'Engagement Rating' },
+  ];
 
   // Fetch data if not provided via Inertia props
   useEffect(() => {
@@ -219,12 +226,33 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
         </Button> */}
       </div>
 
+      {/* Tabs Navigation */}
+      {/* <Card className="rounded-[20px] border-0 shadow-sm bg-white">
+        <div className="flex border-b border-gray-200">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 px-6 py-4 text-center font-medium transition-all ${
+                activeTab === tab.id
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </Card> */}
+
       {/* Overview Cards - KPI Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Overall Average</p>
+              <p className="text-sm text-gray-500">
+                Average {activeTab === 'satisfaction' ? 'Satisfaction' : activeTab === 'completeness' ? 'Completeness' : 'Engagement'}
+              </p>
               <div className="flex items-center gap-3 mt-2">
                 <p className="text-3xl font-semibold text-gray-900">
                   {(kpi.overallAverage || 0).toFixed(1)}
@@ -314,6 +342,25 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
             <option value="lowest">Lowest Rated</option>
             <option value="most-rated">Most Rated</option>
           </Select>
+        </div>
+      </Card>
+
+       {/* Tabs Navigation */}
+      <Card className="rounded-[20px] border-0 shadow-sm bg-white">
+        <div className="flex border-gray-200 p-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 text-center ${
+                activeTab === tab.id
+                  ? 'text-white border-b-2 bg-blue-600 p-2 rounded-xl'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </Card>
 

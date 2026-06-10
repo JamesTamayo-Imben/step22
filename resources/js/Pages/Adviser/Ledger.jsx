@@ -287,6 +287,7 @@ export default function LedgerApprovalsPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [ledgerPage, setLedgerPage] = useState(1);
+  const [showLedgerProofViewer, setShowLedgerProofViewer] = useState(false);
 
   useEffect(() => {
     setLedgerPage(1);
@@ -946,26 +947,26 @@ export default function LedgerApprovalsPage() {
                             <p className="text-xs text-gray-500 mt-1">SHA-256: <code className="text-xs break-all">{file.hash}</code></p>
                           </div>
                         </div>
-                        <a
-                          href={file.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-1 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 flex-shrink-0"
-                        >
-                          Download
-                        </a>
+                        <Button 
+                                             variant="outline" 
+                                             size="sm" 
+                                             onClick={() => {
+                                               setSelectedEntry(selectedEntry);
+                                               setShowLedgerProofViewer(true);
+                                             }}
+                                             className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                                           >
+                                             <Eye className="w-4 h-4 mr-1" /> View
+                                           </Button>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                  <div>
-                    <p className="text-sm text-red-900">No proof documents attached</p>
-                    <p className="text-xs text-red-600 mt-1">This entry cannot be approved without proof</p>
-                  </div>
-                </div>
+                 <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                                    <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                                    <p className="text-yellow-700 text-sm flex-1">No proof document provided</p>
+                                  </div>
               )}
             </div>
 
@@ -1142,6 +1143,85 @@ export default function LedgerApprovalsPage() {
           </div>
         </div>
       </Modal>
+
+       {/* Modal for Ledger Proof Document Viewer */}
+                  <Modal open={showLedgerProofViewer} onClose={() => { setShowLedgerProofViewer(false); }} title="Proof Document">
+                    {selectedEntry?.proofAttached && selectedEntry?.proofFiles && selectedEntry?.proofFiles[0] && (
+                      <div className="space-y-4 pt-6">
+                        <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
+                          {(() => {
+                            const file = selectedEntry.proofFiles[0];
+                            const proofUrl = file.url || (file.path ? (file.path.startsWith('/') ? file.path : `/${file.path}`) : '#');
+                            const fileName = file.name || file.filename || '';
+                            const fileExtension = fileName.split('.').pop().toLowerCase();
+                            const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+                            
+                            if (imageExtensions.includes(fileExtension)) {
+                              return (
+                                <img 
+                                  src={proofUrl} 
+                                  alt="Proof Document" 
+                                  className="max-w-full max-h-96 object-contain rounded-lg"
+                                  onError={() => {
+                                    console.error('Failed to load image:', proofUrl);
+                                  }}
+                                />
+                              );
+                            } else if (fileExtension === 'pdf') {
+                              return (
+                                <iframe 
+                                  src={proofUrl} 
+                                  className="w-full h-96 rounded-lg border-0"
+                                  title="PDF Preview"
+                                />
+                              );
+                            } else {
+                              return (
+                                <div className="text-center">
+                                  <FileText className="w-16 h-16 text-blue-600 mb-4 mx-auto" />
+                                  <p className="text-gray-600 mb-2 font-medium">
+                                    {fileName}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    {fileExtension.toUpperCase()} file
+                                  </p>
+                                </div>
+                              );
+                            }
+                          })()}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Transaction ID</p>
+                            <p className="font-mono text-sm text-gray-900 break-all">{selectedEntry.id}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500 mb-1">Amount</p>
+                            <p className="text-gray-900">₱{formatLimitedNumber(parseFloat(selectedEntry.amount) || 0)}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 pt-4">
+                          <Button 
+                            className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => {
+                              const file = selectedEntry.proofFiles[0];
+                              const proofUrl = file.url || (file.path ? (file.path.startsWith('/') ? file.path : `/${file.path}`) : '#');
+                              window.open(proofUrl, '_blank');
+                            }}
+                          >
+                            <Download className="w-4 h-4 mr-2" />Download
+                          </Button>
+                          <Button onClick={() => setShowLedgerProofViewer(false)} variant="outline" className="flex-1 rounded-xl">Close</Button>
+                        </div>
+                      </div>
+                    )}
+                    {(!selectedEntry?.proofAttached || !selectedEntry?.proofFiles || !selectedEntry?.proofFiles[0]) && (
+                      <div className="pt-6 text-center">
+                        <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-600">No proof document available for this entry.</p>
+                      </div>
+                    )}
+                  </Modal>
 
       {/* Restore Confirmation Modal */}
       <ConfirmRestoreModal

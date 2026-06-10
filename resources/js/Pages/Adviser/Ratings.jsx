@@ -103,6 +103,7 @@ export function RatingsAnalyticsPage() {
   const [selectedRating, setSelectedRating] = useState('all');
   const [dateRange, setDateRange] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('satisfaction');
   const [sortBy, setSortBy] = useState('highest');
 
   // Filter ratings based on all filters
@@ -119,6 +120,12 @@ export function RatingsAnalyticsPage() {
       return matchesProject && matchesRating && matchesSearch && matchesDate;
     });
   }, [dateRange, searchQuery, selectedProject, selectedRating, studentRatings]);
+
+   const tabs = [
+    { id: 'satisfaction', label: 'Satisfaction Rating' },
+    { id: 'completeness', label: 'Completeness Rating' },
+    { id: 'engagement', label: 'Engagement Rating' },
+  ];
 
   // Filter and sort projects
   const filteredProjects = useMemo(() => {
@@ -211,7 +218,10 @@ export function RatingsAnalyticsPage() {
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Overall Average</p>
+                <p className="text-sm text-gray-500">
+                Average {activeTab === 'satisfaction' ? 'Satisfaction' : activeTab === 'completeness' ? 'Completeness' : 'Engagement'}
+              </p>
+              {/* <p className="text-sm text-gray-500">Overall Average</p> */}
               <div className="flex items-center gap-3 mt-2">
                 <p className="text-3xl font-semibold text-gray-900">
                   {(overallAverage || 0).toFixed(1)}
@@ -303,6 +313,25 @@ export function RatingsAnalyticsPage() {
           </Select>
         </div>
       </Card>
+
+       {/* Tabs Navigation */}
+            <Card className="rounded-[20px] border-0 shadow-sm bg-white">
+              <div className="flex border-gray-200 p-2">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 text-center ${
+                      activeTab === tab.id
+                        ? 'text-white border-b-2 bg-blue-600 p-2 rounded-xl'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </Card>
 
       {/* Project Ratings */}
       <div className="space-y-6">

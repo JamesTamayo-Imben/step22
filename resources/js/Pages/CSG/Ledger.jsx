@@ -162,6 +162,7 @@ function LedgerPageInner() {
   const [filePreview, setFilePreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
+  const [showLedgerProofViewer, setShowLedgerProofViewer] = useState(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -1778,17 +1779,35 @@ const getTypeAmountColor = (type) => {
         <div className="col-span-2">
           <p className="text-sm text-gray-500 mb-1">Proof *</p>
           {selectedEntry.ledger_proof ? (
-            <a
-              href={`/${selectedEntry.ledger_proof}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline"
-            >
-              <FileText className="w-4 h-4" />
-              View Proof Document
-            </a>
+           <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                     <FileText className="w-8 h-8 text-blue-600" />
+                     <div>
+                       <p className="text-sm font-medium text-gray-900">
+                         {selectedEntry.ledger_proof.split('/').pop()}
+                       </p>
+                       <p className="text-xs text-gray-500">
+                         {selectedEntry.ledger_proof.split('.').pop().toUpperCase()} file
+                       </p>
+                     </div>
+                   </div>
+                   <Button 
+                     variant="outline" 
+                     size="sm" 
+                     onClick={() => {
+                       setSelectedEntry(selectedEntry);
+                       setShowLedgerProofViewer(true);
+                     }}
+                     className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                   >
+                     <Eye className="w-4 h-4 mr-1" /> View
+                   </Button>
+                 </div>
           ) : (
-            <p className="text-gray-900">No proof provided</p>
+            <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                               <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                               <p className="text-yellow-700 text-sm flex-1">No proof document provided</p>
+                             </div>
           )}
         </div>
 
@@ -1931,6 +1950,80 @@ const getTypeAmountColor = (type) => {
           </div>
         </div>
       </Modal>
+
+       {/* Modal for Ledger Proof Document Viewer */}
+            <Modal open={showLedgerProofViewer} onClose={() => { setShowLedgerProofViewer(false); }} title="Proof Document">
+              {selectedEntry?.ledger_proof && (
+                <div className="space-y-4 pt-6">
+                  <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
+                    {(() => {
+                      const proofUrl = selectedEntry.ledger_proof.startsWith('/') 
+                        ? selectedEntry.ledger_proof 
+                        : `/${selectedEntry.ledger_proof}`;
+                      const fileExtension = selectedEntry.ledger_proof.split('.').pop().toLowerCase();
+                      const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+                      
+                      if (imageExtensions.includes(fileExtension)) {
+                        return (
+                          <img 
+                            src={proofUrl} 
+                            alt="Proof Document" 
+                            className="max-w-full max-h-96 object-contain rounded-lg"
+                            onError={() => {
+                              console.error('Failed to load image:', proofUrl);
+                            }}
+                          />
+                        );
+                      } else if (fileExtension === 'pdf') {
+                        return (
+                          <iframe 
+                            src={proofUrl} 
+                            className="w-full h-96 rounded-lg border-0"
+                            title="PDF Preview"
+                          />
+                        );
+                      } else {
+                        return (
+                          <div className="text-center">
+                            <FileText className="w-16 h-16 text-blue-600 mb-4 mx-auto" />
+                            <p className="text-gray-600 mb-2 font-medium">
+                              {selectedEntry.ledger_proof.split('/').pop()}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {fileExtension.toUpperCase()} file
+                            </p>
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Transaction ID</p>
+                      <p className="font-mono text-sm text-gray-900 break-all">{selectedEntry.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">Amount</p>
+                      <p className="text-gray-900">₱{formatLimitedNumber(parseFloat(selectedEntry.amount) || 0)}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <Button 
+                      className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={() => {
+                        const proofUrl = selectedEntry.ledger_proof.startsWith('/') 
+                          ? selectedEntry.ledger_proof 
+                          : `/${selectedEntry.ledger_proof}`;
+                        window.open(proofUrl, '_blank');
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-2" />Download
+                    </Button>
+                    <Button onClick={() => setShowLedgerProofViewer(false)} variant="outline" className="flex-1 rounded-xl">Close</Button>
+                  </div>
+                </div>
+              )}
+            </Modal>
 
       {/* Upload Document Modal */}
       <Modal

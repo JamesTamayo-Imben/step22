@@ -24,6 +24,7 @@ import {
   Upload,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
 } from 'lucide-react';
 
 import {
@@ -366,6 +367,7 @@ export function CSGProjectDetailsPage({
   const [showEditLedgerModal, setShowEditLedgerModal] = useState(false);
   const [showUploadProofModal, setShowUploadProofModal] = useState(false);
   const [showProofViewer, setShowProofViewer] = useState(false);
+  const [showLedgerProofViewer, setShowLedgerProofViewer] = useState(false);
   const [showLedgerDetails, setShowLedgerDetails] = useState(false);
   
   // Pagination state for ledger
@@ -1334,7 +1336,13 @@ function maskUserName(fullName) {
               )} */}
             </div>
             <div className="bg-blue-50 rounded-xl p-4">
-              <Calendar className="w-5 h-5 text-blue-600 mb-2" />
+             <div className="flex items-center mb-2">
+                <Calendar className="w-5 h-5 text-blue-600 mr-2" />
+                <Button variant="outline" size="sm" className="bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Change Dates
+                </Button>
+             </div>
               <p className="text-sm text-gray-500">Timeline</p>
               <p className="text-sm text-gray-900">{formatDate(project.startDate)} to {formatDate(project.endDate)}</p>
             </div>
@@ -1853,7 +1861,7 @@ function maskUserName(fullName) {
                       </Badge>
                       <p className="text-xs text-gray-400">Uploaded: {proof.uploadDate}</p>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => { setSelectedProof(proof); setShowProofViewer(true); }} className="flex-1 rounded-lg">
+                        <Button variant="outline" size="sm" onClick={() => { setSelectedProof(proof); setShowProofViewer(true); }} className="flex-1 rounded-lg bg-blue-500 text-white hover:bg-blue-600">
                           <Eye className="w-4 h-4 mr-1" />View
                         </Button>
                       </div>
@@ -2071,26 +2079,18 @@ function maskUserName(fullName) {
         <Button 
           variant="outline" 
           size="sm" 
-          onClick={() => {
-            // Open proof in new tab
-            const proofUrl = selectedLedger.ledger_proof.startsWith('/') 
-              ? selectedLedger.ledger_proof 
-              : `/${selectedLedger.ledger_proof}`;
-            window.open(proofUrl, '_blank');
-          }}
-          className="rounded-lg"
+          onClick={() => setShowLedgerProofViewer(true)}
+          className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
         >
           <Eye className="w-4 h-4 mr-1" /> View
         </Button>
       </div>
     </div>
   ) : (
-    <div className="bg-gray-50 rounded-lg p-3 mt-1">
-      <div className="flex items-center gap-2">
-        <FileText className="w-5 h-5 text-gray-400" />
-        <p className="text-sm text-gray-500">No proof document uploaded for this transaction</p>
-      </div>
-    </div>
+    <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                       <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                       <p className="text-yellow-700 text-sm flex-1">No proof document provided</p>
+                     </div>
   )}
 </div>
 
@@ -2130,26 +2130,158 @@ function maskUserName(fullName) {
     </div>
   )}
 </Modal>
-      
+
       <Modal open={showProofViewer} onClose={() => { setShowProofViewer(false); setSelectedProof(null); }} title="Proof Document">
         {selectedProof && (
           <div className="space-y-4 pt-6">
-            <div className="h-48 bg-gray-100 rounded-xl flex items-center justify-center">
-              <div className="text-center">
-                <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 mb-2 font-medium">{selectedProof.fileName}</p>
-                <p className="text-sm text-gray-500">{selectedProof.fileType} • {selectedProof.fileSize}</p>
-              </div>
+            <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
+              {(() => {
+                const filePath = selectedProof.filePath || selectedProof.file_path || selectedProof.path;
+                
+                // If no file path, show placeholder
+                if (!filePath) {
+                  return (
+                    <div className="text-center">
+                      <FileText className="w-16 h-16 text-gray-400 mb-4 mx-auto" />
+                      <p className="text-gray-600 mb-2 font-medium">{selectedProof.fileName}</p>
+                      <p className="text-sm text-gray-500">{selectedProof.fileType} • {selectedProof.fileSize}</p>
+                      <p className="text-xs text-gray-400 mt-4">No preview available</p>
+                    </div>
+                  );
+                }
+
+                const proofUrl = filePath.startsWith('/') ? filePath : `/${filePath}`;
+                const fileExtension = selectedProof.fileName.split('.').pop().toLowerCase();
+                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+                
+                if (imageExtensions.includes(fileExtension)) {
+                  return (
+                    <img 
+                      src={proofUrl} 
+                      alt="Proof Document" 
+                      className="max-w-full max-h-96 object-contain rounded-lg"
+                      onError={(e) => {
+                        console.error('Failed to load image:', proofUrl);
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  );
+                } else if (fileExtension === 'pdf') {
+                  return (
+                    <iframe 
+                      src={proofUrl} 
+                      className="w-full h-96 rounded-lg border-0"
+                      title="PDF Preview"
+                      onError={() => {
+                        console.error('Failed to load PDF:', proofUrl);
+                      }}
+                    />
+                  );
+                } else {
+                  return (
+                    <div className="text-center">
+                      <FileText className="w-16 h-16 text-gray-400 mb-4 mx-auto" />
+                      <p className="text-gray-600 mb-2 font-medium">{selectedProof.fileName}</p>
+                      <p className="text-sm text-gray-500">{selectedProof.fileType} • {selectedProof.fileSize}</p>
+                    </div>
+                  );
+                }
+              })()}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><p className="text-sm text-gray-500 mb-1">Linked Transaction</p><p className="font-mono text-sm text-gray-900 break-all">{selectedProof.linkedTransaction}</p></div>
               <div><p className="text-sm text-gray-500 mb-1">Upload Date</p><p className="text-gray-900">{selectedProof.uploadDate}</p></div>
             </div>
             <div className="flex gap-3 pt-4">
-              <Button className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+              <Button 
+                onClick={() => {
+                  const filePath = selectedProof.filePath || selectedProof.file_path || selectedProof.path;
+                  if (filePath) {
+                    const proofUrl = filePath.startsWith('/') ? filePath : `/${filePath}`;
+                    window.open(proofUrl, '_blank');
+                  } else {
+                    showToastMessage('No file available for download', 'error');
+                  }
+                }}
+                className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+              >
                 <Download className="w-4 h-4 mr-2" />Download
               </Button>
               <Button onClick={() => setShowProofViewer(false)} variant="outline" className="flex-1 rounded-xl">Close</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal for Ledger Proof Document Viewer */}
+      <Modal open={showLedgerProofViewer} onClose={() => { setShowLedgerProofViewer(false); }} title="Proof Document">
+        {selectedLedger?.ledger_proof && (
+          <div className="space-y-4 pt-6">
+            <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
+              {(() => {
+                const proofUrl = selectedLedger.ledger_proof.startsWith('/') 
+                  ? selectedLedger.ledger_proof 
+                  : `/${selectedLedger.ledger_proof}`;
+                const fileExtension = selectedLedger.ledger_proof.split('.').pop().toLowerCase();
+                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+                
+                if (imageExtensions.includes(fileExtension)) {
+                  return (
+                    <img 
+                      src={proofUrl} 
+                      alt="Proof Document" 
+                      className="max-w-full max-h-96 object-contain rounded-lg"
+                      onError={() => {
+                        console.error('Failed to load image:', proofUrl);
+                      }}
+                    />
+                  );
+                } else if (fileExtension === 'pdf') {
+                  return (
+                    <iframe 
+                      src={proofUrl} 
+                      className="w-full h-96 rounded-lg border-0"
+                      title="PDF Preview"
+                    />
+                  );
+                } else {
+                  return (
+                    <div className="text-center">
+                      <FileText className="w-16 h-16 text-blue-600 mb-4 mx-auto" />
+                      <p className="text-gray-600 mb-2 font-medium">
+                        {selectedLedger.ledger_proof.split('/').pop()}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {fileExtension.toUpperCase()} file
+                      </p>
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Transaction ID</p>
+                <p className="font-mono text-sm text-gray-900 break-all">{selectedLedger.id}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Amount</p>
+                <p className="text-gray-900">₱{formatLimitedNumber(parseFloat(selectedLedger.amount) || 0)}</p>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-4">
+              <Button 
+                className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => {
+                  const proofUrl = selectedLedger.ledger_proof.startsWith('/') 
+                    ? selectedLedger.ledger_proof 
+                    : `/${selectedLedger.ledger_proof}`;
+                  window.open(proofUrl, '_blank');
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />Download
+              </Button>
+              <Button onClick={() => setShowLedgerProofViewer(false)} variant="outline" className="flex-1 rounded-xl">Close</Button>
             </div>
           </div>
         )}
