@@ -407,8 +407,9 @@ export default function AdviserApprovalsPage() {
           </Card>
 
           <div className="space-y-6">
-            <div className="bg-white w-full rounded-xl p-2 shadow-sm grid grid-cols-4 gap-4">
-              {['project proposals', 'ledger entries', 'approved items', 'rejected items'].map((t) => (
+            <div className="bg-white w-full rounded-xl p-2 shadow-sm grid grid-cols-3 gap-4">
+              {/* {['project proposals', 'ledger entries', 'approved items', 'rejected items'].map((t) => ( */}
+               {['project proposals', 'ledger entries', 'Change Requests'].map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -809,18 +810,18 @@ export default function AdviserApprovalsPage() {
   <div className="space-y-4 pt-4">
     <div>
       <p className="text-sm text-gray-600 mb-2">
-        Add approval notes <span className="text-red-500">*</span>
+        Please provide approval notes <span className="text-red-500">*</span>
       </p>
       <textarea
         value={approvalNotes}
         onChange={(e) => setApprovalNotes(e.target.value)}
         rows={4}
         placeholder="Enter approval notes (required)..."
-        className={`w-full rounded-xl border ${!approvalNotes.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-gray-50'} focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition`}
+        className={`w-full rounded-xl border ${!approvalNotes.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-gray-50'} focus:bg-white focus:border-green-300 focus:ring-2 focus:ring-green-200 outline-none transition`}
       />
-      {!approvalNotes.trim() && (
+      {/* {!approvalNotes.trim() && (
         <p className="text-xs text-red-500 mt-1">Approval notes are required</p>
-      )}
+      )} */}
     </div>
     <div className="flex gap-3">
       <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowApprove(false); setApprovalNotes(''); }}>
@@ -830,7 +831,7 @@ export default function AdviserApprovalsPage() {
         className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" 
         onClick={() => {
           if (!approvalNotes.trim()) {
-            showToast('❌ Please provide approval notes before confirming', 'error');
+            showToast('Please provide approval notes before confirming', 'error');
             return;
           }
           runApprove(selectedItem, approvalNotes);

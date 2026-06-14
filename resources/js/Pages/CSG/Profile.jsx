@@ -21,6 +21,7 @@ import {
   Lock,
   Camera,
   Eye,
+  Repeat,
   EyeOff,
   Save,
   ChevronLeft,
@@ -340,6 +341,7 @@ function CSGProfilePageInner({ user }) {
                 </AvatarFallback>
               )}
             </Avatar>
+             <p className="text-blue-600">{profile.position}</p>
             {/* <Button onClick={() => setShowChangePhotoModal(true)} variant="outline" className="rounded-xl">
               <Camera className="w-4 h-4 mr-2" />
               Change Photo
@@ -347,36 +349,20 @@ function CSGProfilePageInner({ user }) {
           </div>
 
           <div className="flex-1 space-y-4">
-            <div>
-              <h2 className="text-gray-900 text-xl font-semibold mb-1">
+            <div className="gap-2 text-center md:text-left">
+              <h2 className="text-gray-900 text-xl font-semibold">
                 {profile.firstName} {profile.lastName}
               </h2>
-              <p className="text-blue-600">{profile.position}</p>
+               <p className="text-sm text-gray-500">{profile.email}</p>
+              {/* <p className="text-blue-600">{profile.position}</p> */}
               <p className="text-sm text-gray-500 mt-1">Member since {profile.joinDate}</p>
+                <p className="text-gray-600 italic mt-2">"{profile.bio}"</p>
             </div>
 
-            <p className="text-gray-600 italic">"{profile.bio}"</p>
+          
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <Mail className="w-4 h-4" />
-                <span>{profile.email}</span>
-              </div>
-              {/* <div className="flex items-center gap-3 text-sm text-gray-600">
-                <Phone className="w-4 h-4" />
-                <span>{profile.phone}</span>
-              </div> */}
-              {/* <div className="flex items-center gap-3 text-sm text-gray-600">
-                <MapPin className="w-4 h-4" />
-                <span>{profile.address}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <Calendar className="w-4 h-4" />
-                <span>{profile.department}</span>
-              </div> */}
-            </div>
-
-            <div className="flex gap-3">
+          
+            <div className="flex gap-3 justify-center md:justify-start">
               {/* <Button
                 onClick={() => {
                   setEditForm({ ...profile });
@@ -387,9 +373,14 @@ function CSGProfilePageInner({ user }) {
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Profile
               </Button> */}
-              <Button onClick={() => setShowChangePasswordModal(true)} variant="outline" className="rounded-xl">
+              <Button onClick={() => setShowChangePasswordModal(true)} variant="outline" 
+              className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
                 <Key className="w-4 h-4 mr-2" />
                 Change Password
+              </Button>
+               <Button onClick={() => setShowChangePasswordModal(true)} variant="outline" className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+                 <Repeat className="w-5 h-5" />
+                Switch Role
               </Button>
             </div>
           </div>

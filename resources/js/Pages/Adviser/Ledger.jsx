@@ -888,8 +888,8 @@ export default function LedgerApprovalsPage() {
                     <p className="text-sm">{selectedEntry.enteredBy}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Role</p>
-                    <p className="text-sm">{selectedEntry.role}</p>
+                    <p className="text-xs text-gray-500">CSG Position</p>
+                    <p className="text-sm">{selectedEntry.csg_position}</p>
                   </div>
                 </div>
               </div>
@@ -914,10 +914,10 @@ export default function LedgerApprovalsPage() {
                     </span>
                   </div>
                 </div>
-                <div>
+                {/* <div>
                   <p className="text-xs text-gray-500">Category</p>
                   <p className="text-sm">{selectedEntry.category}</p>
-                </div>
+                </div> */}
                 <div>
                   <p className="text-xs text-gray-500">Description</p>
                   <p className="text-sm text-gray-700">{selectedEntry.description}</p>

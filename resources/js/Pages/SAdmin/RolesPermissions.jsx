@@ -263,6 +263,18 @@ export function RolePermissionsPage() {
     });
   };
 
+  // Define position hierarchy to maintain consistent order
+const positionHierarchy = {
+  'President': 1,
+  'Vice President for External Affairs': 2,
+  'Vice President for Internal Affairs': 3,
+  'Secretary': 4,
+  'Treasurer': 5,
+  'Auditor': 6,
+  'PRO': 7,
+  'Business Manager': 8,
+};
+
   const isUserInCSG = (userId) => {
     return councilOfficers.some(officer => officer.userId === userId);
   };
@@ -316,10 +328,20 @@ const searchPosition = useMemo(() => {
 // Add this new memo
 const filteredCouncilOfficers = useMemo(() => {
   const q = (searchQuery || '').toLowerCase();
-  if (!q) return councilOfficers;
-  return councilOfficers.filter(officer =>
-    officer.position.toLowerCase().includes(q)
-  );
+  let filtered = councilOfficers;
+  
+  if (q) {
+    filtered = councilOfficers.filter(officer =>
+      officer.position.toLowerCase().includes(q)
+    );
+  }
+  
+  // Sort by position hierarchy
+  return [...filtered].sort((a, b) => {
+    const posA = positionHierarchy[a.position] ?? 999;
+    const posB = positionHierarchy[b.position] ?? 999;
+    return posA - posB;
+  });
 }, [councilOfficers, searchQuery]);
   
 

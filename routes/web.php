@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Adviser\AdviserApprovalController;
 use App\Http\Controllers\Adviser\AdviserDashboardController;
+use App\Http\Controllers\Adviser\AdviserHistoryController;
 use App\Http\Controllers\Adviser\AdviserLedgerController;
 use App\Http\Controllers\Adviser\AdviserNotificationController;
 use App\Http\Controllers\Adviser\AdviserPermissionController;
@@ -191,6 +192,9 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
     Route::get('/adviser/approvals', [AdviserApprovalController::class, 'index'])->name('adviser.approvals');
     Route::post('/adviser/approvals/approve', [AdviserApprovalController::class, 'approve'])->name('adviser.approvals.approve');
     Route::post('/adviser/approvals/reject', [AdviserApprovalController::class, 'reject'])->name('adviser.approvals.reject');
+
+    // History test 
+    Route::get('/adviser/history', [AdviserApprovalController::class, 'index'])->name('adviser.history');
 
     //Change Request Management
     Route::post('/adviser/approvals/request-change', [AdviserApprovalController::class, 'requestChange'])->name('adviser.approvals.request-change');

@@ -114,43 +114,43 @@ const mockStatusHistory = [
   },
 ];
 
-const mockRatings = [
-  { 
-    id: 1, 
-    user_name: 'Emma Johnson', 
-    rating: 5, 
-    comment: 'Amazing initiative! The workshops were very helpful.', 
-    created_at: '2024-11-20' 
-  },
-  { 
-    id: 2, 
-    user_name: 'James Smith', 
-    rating: 5, 
-    comment: 'This project has made a real impact in our community.', 
-    created_at: '2024-11-19' 
-  },
-  { 
-    id: 3, 
-    user_name: 'Sofia Martinez', 
-    rating: 4, 
-    comment: 'Very good project with clear objectives. Would love to see more events like this.', 
-    created_at: '2024-11-18' 
-  },
-  { 
-    id: 4, 
-    user_name: 'Michael Chen', 
-    rating: 5, 
-    comment: 'Well organized and executed. Great job to the team!', 
-    created_at: '2024-11-17' 
-  },
-  { 
-    id: 5, 
-    user_name: 'Lisa Rodriguez', 
-    rating: 4, 
-    comment: 'Good project overall. The materials provided were very useful.', 
-    created_at: '2024-11-16' 
-  },
-];
+// const mockRatings = [
+//   { 
+//     id: 1, 
+//     user_name: 'Emma Johnson', 
+//     rating: 5, 
+//     comment: 'Amazing initiative! The workshops were very helpful.', 
+//     created_at: '2024-11-20' 
+//   },
+//   { 
+//     id: 2, 
+//     user_name: 'James Smith', 
+//     rating: 5, 
+//     comment: 'This project has made a real impact in our community.', 
+//     created_at: '2024-11-19' 
+//   },
+//   { 
+//     id: 3, 
+//     user_name: 'Sofia Martinez', 
+//     rating: 4, 
+//     comment: 'Very good project with clear objectives. Would love to see more events like this.', 
+//     created_at: '2024-11-18' 
+//   },
+//   { 
+//     id: 4, 
+//     user_name: 'Michael Chen', 
+//     rating: 5, 
+//     comment: 'Well organized and executed. Great job to the team!', 
+//     created_at: '2024-11-17' 
+//   },
+//   { 
+//     id: 5, 
+//     user_name: 'Lisa Rodriguez', 
+//     rating: 4, 
+//     comment: 'Good project overall. The materials provided were very useful.', 
+//     created_at: '2024-11-16' 
+//   },
+// ];
 
 // ─── Status / color helpers ──────────────────────────────────────────────────
 
@@ -242,6 +242,13 @@ const getTypeAmountColor = (type) => {
   }
 };
 
+//show change date button when the date is start date is not yet reached
+const canChangeDatesRequest = (project) => {
+  if (!project.startDate) return false;
+  const now = new Date();
+  const startDate = new Date(project.startDate);
+  return now < startDate;
+};
 
 const getStatusIcon = (status) => {
   switch (status) {
@@ -366,6 +373,7 @@ export function CSGProjectDetailsPage({
   const [showAddLedgerModal, setShowAddLedgerModal] = useState(false);
   const [showEditLedgerModal, setShowEditLedgerModal] = useState(false);
   const [showUploadProofModal, setShowUploadProofModal] = useState(false);
+  const [showChangeDatesModal, setShowChangeDatesModal] = useState(false);
   const [showProofViewer, setShowProofViewer] = useState(false);
   const [showLedgerProofViewer, setShowLedgerProofViewer] = useState(false);
   const [showLedgerDetails, setShowLedgerDetails] = useState(false);
@@ -1336,13 +1344,17 @@ function maskUserName(fullName) {
               )} */}
             </div>
             <div className="bg-blue-50 rounded-xl p-4">
+           
              <div className="flex items-center mb-2">
                 <Calendar className="w-5 h-5 text-blue-600 mr-2" />
-                <Button variant="outline" size="sm" className="bg-blue-600 text-white hover:bg-blue-700"
+                 {canChangeDatesRequest(project) && (
+                <Button onClick={() => setShowChangeDatesModal(true)} variant="outline" size="sm" className="bg-blue-600 text-white hover:bg-blue-700"
                 >
                   Change Dates
                 </Button>
-             </div>
+                 )}
+             </div> 
+           
               <p className="text-sm text-gray-500">Timeline</p>
               <p className="text-sm text-gray-900">{formatDate(project.startDate)} to {formatDate(project.endDate)}</p>
             </div>
@@ -2286,7 +2298,15 @@ function maskUserName(fullName) {
           </div>
         )}
       </Modal>
-      
+
+      {/* Modal for change date request */}
+      <Modal open={showChangeDatesModal} onClose={() => setShowChangeDateModal(false)} title="Request Change of Project Dates">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">Select new proposed start and end dates for the project:</p>
+
+        </div>
+      </Modal>
+
       {/* Edit Modals */}
       <EditProjectModal
         open={showEditModal}

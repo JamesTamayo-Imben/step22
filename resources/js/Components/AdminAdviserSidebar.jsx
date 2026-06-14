@@ -12,6 +12,7 @@ import {
   Menu,
   Layers,
   X,
+  Clock,
   LogOut,
   ShieldCheck,
 } from 'lucide-react';
@@ -39,7 +40,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'approvals', label: 'Approvals', icon: CheckSquare },
-    { id: 'change-requests', label: 'Change Requests', icon: Layers },
+    { id: 'history', label: 'History', icon: Layers },
     { id: 'ledger-view', label: 'Ledger Oversight', icon: BookOpen },
     { id: 'feedback-review', label: 'Role & Permissions', icon: ShieldCheck },
     { id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp },
@@ -52,7 +53,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
     if (typeof window === 'undefined') return 'dashboard';
     const p = window.location.pathname;
     if (p.startsWith('/adviser/approvals')) return 'approvals';
-    if (p.startsWith('/adviser/change-requests')) return 'change-requests';
+    if (p.startsWith('/adviser/history')) return 'history';
     if (p.startsWith('/adviser/ledger')) return 'ledger-view';
     if (p.startsWith('/adviser/notifications')) return 'notifications';
     if (p.startsWith('/adviser/role-permissions')) return 'feedback-review';
@@ -167,6 +168,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                             dashboard: '/adviser',
                             approvals: '/adviser/approvals',
                             'ledger-view': '/adviser/ledger',
+                            history: '/adviser/history',
                             notifications: '/adviser/notifications',
                             'feedback-review': '/adviser/role-permissions',
                             'ratings-analytics': '/adviser/ratings',
@@ -245,6 +247,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                         dashboard: '/adviser',
                         approvals: '/adviser/approvals',
                         'ledger-view': '/adviser/ledger',
+                        history: '/adviser/history',
                         notifications: '/adviser/notifications',
                         'feedback-review': '/adviser/role-permissions',
                         'ratings-analytics': '/adviser/ratings',

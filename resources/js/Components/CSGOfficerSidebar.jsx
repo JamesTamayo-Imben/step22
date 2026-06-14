@@ -104,8 +104,8 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
 
   // Quick actions for mobile bottom bar
   const quickActions = [
-    { icon: Plus, label: 'New Project', color: 'bg-green-600' },
-    { icon: DollarSign, label: 'Add Entry', color: 'bg-blue-600' },
+    // { icon: Plus, label: 'New Project', color: 'bg-green-600' },
+    // { icon: DollarSign, label: 'Add Entry', color: 'bg-blue-600' },
   ];
 
   return (

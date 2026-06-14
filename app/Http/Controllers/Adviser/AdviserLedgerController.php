@@ -43,6 +43,7 @@ class AdviserLedgerController extends Controller
     {
         $entries = LedgerEntry::query()
             ->with('project')
+            ->with('creator.student')
             ->orderBy('created_at', 'asc')
             ->where('archive', false)
             ->get();
