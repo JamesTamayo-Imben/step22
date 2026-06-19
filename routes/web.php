@@ -194,7 +194,7 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
     Route::post('/adviser/approvals/reject', [AdviserApprovalController::class, 'reject'])->name('adviser.approvals.reject');
 
     // History test 
-    Route::get('/adviser/history', [AdviserApprovalController::class, 'index'])->name('adviser.history');
+    Route::get('/adviser/history', [AdviserHistoryController::class, 'index'])->name('adviser.history');
 
     //Change Request Management
     Route::post('/adviser/approvals/request-change', [AdviserApprovalController::class, 'requestChange'])->name('adviser.approvals.request-change');

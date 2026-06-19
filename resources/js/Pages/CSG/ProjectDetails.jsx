@@ -2303,7 +2303,34 @@ function maskUserName(fullName) {
       <Modal open={showChangeDatesModal} onClose={() => setShowChangeDateModal(false)} title="Request Change of Project Dates">
         <div className="space-y-4">
           <p className="text-sm text-gray-500">Select new proposed start and end dates for the project:</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Proposed Start Date</label>
+              <input 
+                type="date"
+                // value={proposedStartDate}
+                // onChange={(e) => setProposedStartDate(e.target.value)}
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Proposed End Date</label>
+              <input 
+                type="date"
+                // value={proposedEndDate}
+                // onChange={(e) => setProposedEndDate(e.target.value)}
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+          <div className="flex gap-3 pt-4">
+                        <Button onClick={() => setShowChangeDatesModal(false)} variant="outline" className="flex-1 rounded-xl">Cancel</Button>
 
+            <Button  className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+              {/* <Send className="w-4 h-4 mr-2" /> */}
+              Submit Request
+            </Button>
+          </div>
         </div>
       </Modal>
 

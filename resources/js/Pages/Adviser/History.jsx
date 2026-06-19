@@ -282,11 +282,30 @@ export default function AdviserApprovalsPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredEntries.slice(indexOfFirstItem, indexOfLastItem);
 
- 
-
   return (
     <AuthenticatedLayout>
+      <Head title="History" />
+      
+            <div className="py-8 px-4 lg:px-0 md:px-0">
+              <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h1 className="text-gray-900 text-2xl font-semibold">History</h1>
+                    <p className="text-gray-500">Review approved and rejected submissions</p>
+                  </div>
+      
+                  {/* <div className="flex items-center gap-3">
+                    <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-full shadow">
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm font-medium">{totalPending} Pending</span>
+                    </div>
+                  </div> */}
+                </div>
+      
+               
+              </div>
+            </div>
+
     </AuthenticatedLayout>
-   
   );
 }

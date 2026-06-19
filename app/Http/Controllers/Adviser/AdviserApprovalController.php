@@ -338,7 +338,7 @@ class AdviserApprovalController extends Controller
         );
     }
 
-    private function pendingMeetings()
+    protected function pendingMeetings()
     {
         return Meeting::query()
             ->where('archive', false)
@@ -356,7 +356,7 @@ class AdviserApprovalController extends Controller
             ->values();
     }
 
-    private function meetingMinutesMeta(Meeting $m): array
+    protected function meetingMinutesMeta(Meeting $m): array
     {
         $raw = $m->action_items;
         if (! $raw) {
@@ -367,7 +367,7 @@ class AdviserApprovalController extends Controller
         return is_array($j) ? $j : [];
     }
 
-    private function userName(?string $userId): string
+    protected function userName(?string $userId): string
     {
         if (! $userId) {
             return 'Unknown';
@@ -377,7 +377,7 @@ class AdviserApprovalController extends Controller
         return $u?->name ?? 'Unknown';
     }
 
-    private function serializeProject(Project $p, string $status): array
+    protected function serializeProject(Project $p, string $status): array
     {
         $submittedBy = $this->userName($p->created_by)
             ?: ($p->student?->user?->name ?? $p->proposed_by ?? 'Unknown');
@@ -404,7 +404,7 @@ class AdviserApprovalController extends Controller
         ];
     }
 
-    private function serializeLedgerCard(LedgerEntry $e, ?string $forceStatus = null): array
+    protected function serializeLedgerCard(LedgerEntry $e, ?string $forceStatus = null): array
 {
     $status = $forceStatus ?? 'Pending Approval';
     if ($forceStatus === null && $e->approval_status === 'Rejected') {
@@ -452,7 +452,7 @@ class AdviserApprovalController extends Controller
         return $card;
     }
 
-    private function serializeMeeting(Meeting $m, ?string $forceStatus = null): array
+    protected function serializeMeeting(Meeting $m, ?string $forceStatus = null): array
     {
         $meta = $this->meetingMinutesMeta($m);
         $status = $forceStatus ?? (($meta['adviser_minutes_status'] ?? null) === 'rejected' ? 'Rejected' : 'Pending Approval');
