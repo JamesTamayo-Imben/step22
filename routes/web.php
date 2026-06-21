@@ -415,6 +415,8 @@ Route::prefix('api')->group(function () {
         Route::delete('/{id}', [ProjectController::class, 'destroy']);
         Route::post('/{id}/archive', [ProjectController::class, 'archive']);
         Route::post('/{id}/submit', [ProjectController::class, 'submitForApproval']);
+        Route::post('/{id}/request-date-change', [ProjectController::class, 'requestDateChange']);
+        Route::get('/{id}/date-change-requests', [ProjectController::class, 'getDateChangeRequests']);
         Route::get('/{id}/ledger', [ProjectController::class, 'ledgerEntries']);
         Route::get('/{id}/ratings', [ProjectController::class, 'getRatings']);
         Route::get('/{id}/file', [ProjectController::class, 'getFile']);

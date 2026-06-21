@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use Illuminate\Support\Facades\Auth;
 use App\Models\CSG\Meeting;
+use App\Models\CSG\DateChangeRequest;
 use App\Models\User;
 use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
@@ -101,6 +102,30 @@ class AdviserApprovalController extends Controller
 
         $approvedItems = $approvedProjects->concat($approvedLedger)->concat($approvedMeetings)->sortByDesc(fn ($i) => $i['submittedDate'] ?? '')->values();
 
+        // Fetch pending date change requests
+        $dateChangeRequests = \App\Models\CSG\DateChangeRequest::where('status', 'pending')
+            ->with(['project:id,title', 'requestedByUser:id,name'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function ($dcr) {
+                return [
+                    'id' => $dcr->id,
+                    'approvalType' => 'date_change',
+                    'title' => 'Date Change Request - ' . $dcr->project?->title,
+                    'project' => $dcr->project?->title,
+                    'submittedBy' => $dcr->requestedByUser?->name ?? 'Unknown',
+                    'submittedDate' => $dcr->created_at?->format('Y-m-d H:i:s'),
+                    'status' => 'Pending Approval',
+                    'description' => $dcr->reason,
+                    'currentStartDate' => $dcr->current_start_date,
+                    'currentEndDate' => $dcr->current_end_date,
+                    'proposedStartDate' => $dcr->proposed_start_date,
+                    'proposedEndDate' => $dcr->proposed_end_date,
+                    'reason' => $dcr->reason,
+                    'projectId' => $dcr->project_id,
+                ];
+            })->values();
+
         return Inertia::render('Adviser/Approvals', [
             'pendingProjects' => $projects,
             'pendingLedger' => $ledgerRows,
@@ -108,6 +133,7 @@ class AdviserApprovalController extends Controller
             'pendingMeetings' => $meetings,
             'approvedItems' => $approvedItems,
             'rejectedItems' => $rejectedItems,
+            'changeRequests' => $dateChangeRequests,
         ]);
     }
 

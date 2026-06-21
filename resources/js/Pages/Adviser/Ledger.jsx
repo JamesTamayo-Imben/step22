@@ -564,14 +564,13 @@ export default function LedgerApprovalsPage() {
             <button
               type="button"
               onClick={handleExport}
-              className="inline-flex items-center justify-center px-4 py-2 border bg-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-            >
+className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-colors"            >
               <Download className="w-4 h-4 mr-2" />
               Export CSV
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
               <div className="flex items-center justify-between">
                 <div>

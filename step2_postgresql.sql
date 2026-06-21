@@ -1,482 +1,122 @@
--- PostgreSQL Database Export for STEP Platform
--- Converted from MySQL (step_system_database.sql)
--- Generated: June 10, 2026
-
-BEGIN;
-
--- ============================================
--- Create ENUMS
--- ============================================
-
-CREATE TYPE ledger_type AS ENUM ('Income', 'Expense', 'Donation', 'Sponsorship', 'Canvas', 'Initial');
-CREATE TYPE approval_status_enum AS ENUM ('Draft', 'Pending Adviser Approval', 'Approved', 'Rejected');
-CREATE TYPE user_role_enum AS ENUM ('student', 'teacher');
-CREATE TYPE verification_status_enum AS ENUM ('pending', 'approved', 'rejected');
-CREATE TYPE user_status_enum AS ENUM ('active', 'suspended', 'archived');
-
--- ============================================
--- Table: approval
--- ============================================
-
-CREATE TABLE IF NOT EXISTS approval (
-  id uuid PRIMARY KEY,
-  employee_id varchar(100),
-  project_id uuid,
-  reference_type varchar(100),
-  approvable_type varchar(100),
-  status varchar(50),
-  rejection_reason text,
-  reviewed_at timestamp,
-  officers_approved text,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP
-);
-
--- ============================================
--- Table: audit_logs
--- ============================================
-
-CREATE TABLE IF NOT EXISTS audit_logs (
-  id uuid PRIMARY KEY,
-  user_id uuid,
-  actionable_id varchar(100),
-  actionable_type varchar(100),
-  action varchar(255),
-  module varchar(100),
-  action_type varchar(100),
-  status varchar(50),
-  details text,
-  ip_address varchar(45),
-  browser_info text,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0
-);
-
--- ============================================
--- Table: badge
--- ============================================
-
-CREATE TABLE IF NOT EXISTS badge (
-  id uuid PRIMARY KEY,
-  name varchar(255) NOT NULL,
-  description text,
-  icon varchar(255),
-  category varchar(100),
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_badge_category ON badge(category);
-
--- ============================================
--- Table: badge_collected
--- ============================================
-
-CREATE TABLE IF NOT EXISTS badge_collected (
-  id uuid PRIMARY KEY,
-  badge_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  earned_date timestamp DEFAULT CURRENT_TIMESTAMP,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0,
-  UNIQUE(badge_id, user_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_badge_collected_user ON badge_collected(user_id);
-CREATE INDEX IF NOT EXISTS idx_badge_collected_badge ON badge_collected(badge_id);
-CREATE INDEX IF NOT EXISTS idx_badge_collected_earned ON badge_collected(earned_date);
-
--- ============================================
--- Table: chain
--- ============================================
-
-CREATE TABLE IF NOT EXISTS chain (
-  id uuid PRIMARY KEY,
-  project_id uuid,
-  block_index integer DEFAULT 0,
-  prev_hash varchar(255),
-  hash varchar(255),
-  data_snapshot text,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP
-);
-
--- ============================================
--- Table: course
--- ============================================
-
-CREATE TABLE IF NOT EXISTS course (
-  id uuid PRIMARY KEY,
-  institute_id uuid,
-  name varchar(255),
-  description text,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0
-);
-
--- ============================================
--- Table: id_verifications
--- ============================================
-
-CREATE TABLE IF NOT EXISTS id_verifications (
-  id uuid PRIMARY KEY,
-  user_id uuid NOT NULL,
-  role_type user_role_enum NOT NULL,
-  student_id varchar(255),
-  teacher_id varchar(255),
-  proof_file_path varchar(255) NOT NULL,
-  original_filename varchar(255) NOT NULL,
-  file_mime_type varchar(255) NOT NULL,
-  file_size bigint NOT NULL,
-  status verification_status_enum DEFAULT 'pending',
-  admin_notes text,
-  verified_by uuid,
-  verified_at timestamp,
-  rejection_count integer DEFAULT 0,
-  last_rejection_at timestamp,
-  created_at timestamp,
-  updated_at timestamp,
-  deleted_at timestamp
-);
-
-CREATE INDEX IF NOT EXISTS idx_id_verifications_user ON id_verifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_id_verifications_role ON id_verifications(role_type);
-CREATE INDEX IF NOT EXISTS idx_id_verifications_status ON id_verifications(status);
-
--- ============================================
--- Table: institute
--- ============================================
-
-CREATE TABLE IF NOT EXISTS institute (
-  id uuid PRIMARY KEY,
-  name varchar(255),
-  description text,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0
-);
-
--- ============================================
--- Table: ledger_entries
--- ============================================
-
-CREATE TABLE IF NOT EXISTS ledger_entries (
-  id uuid PRIMARY KEY,
-  project_id uuid NOT NULL,
-  type ledger_type NOT NULL,
-  amount numeric(15,2) NOT NULL,
-  description text NOT NULL,
-  category varchar(100),
-  budget_breakdown text,
-  ledger_proof varchar(500),
-  file_content_hash varchar(64),
-  approval_status approval_status_enum DEFAULT 'Draft',
-  is_initial_entry smallint DEFAULT 0,
-  note text,
-  approved_by uuid,
-  created_by uuid,
-  updated_by uuid,
-  approved_at timestamp,
-  rejected_at timestamp,
-  archive smallint DEFAULT 0,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_ledger_project ON ledger_entries(project_id);
-CREATE INDEX IF NOT EXISTS idx_ledger_approved_by ON ledger_entries(approved_by);
-CREATE INDEX IF NOT EXISTS idx_ledger_created_by ON ledger_entries(created_by);
-
--- ============================================
--- Table: meeting
--- ============================================
-
-CREATE TABLE IF NOT EXISTS meeting (
-  id uuid PRIMARY KEY,
-  student_id varchar(100),
-  title varchar(255),
-  description text,
-  scheduled_date timestamp,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  is_done smallint DEFAULT 0,
-  minutes_content text,
-  action_items text,
-  expected_attendees text,
-  attendees text,
-  meeting_proof varchar(255),
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0
-);
-
--- ============================================
--- Table: migrations
--- ============================================
-
-CREATE TABLE IF NOT EXISTS migrations (
-  id SERIAL PRIMARY KEY,
-  migration varchar(255) NOT NULL,
-  batch integer NOT NULL
-);
-
--- ============================================
--- Table: notifications
--- ============================================
-
-CREATE TABLE IF NOT EXISTS notifications (
-  id uuid PRIMARY KEY,
-  user_id uuid,
-  title varchar(255),
-  message text,
-  type varchar(50),
-  is_read smallint DEFAULT 0,
-  read_at timestamp,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0
-);
-
--- ============================================
--- Table: permission
--- ============================================
-
-CREATE TABLE IF NOT EXISTS permission (
-  id uuid PRIMARY KEY,
-  module varchar(255),
-  action varchar(255),
-  permission varchar(255),
-  description text,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0
-);
-
--- ============================================
--- Table: personal_access_tokens
--- ============================================
-
-CREATE TABLE IF NOT EXISTS personal_access_tokens (
-  id BIGSERIAL PRIMARY KEY,
-  tokenable_type varchar(255) NOT NULL,
-  tokenable_id bigint NOT NULL,
-  name text NOT NULL,
-  token varchar(64) NOT NULL UNIQUE,
-  abilities text,
-  last_used_at timestamp,
-  expires_at timestamp,
-  created_at timestamp,
-  updated_at timestamp
-);
-
-CREATE INDEX IF NOT EXISTS idx_personal_access_tokens_tokenable ON personal_access_tokens(tokenable_type, tokenable_id);
-
--- ============================================
--- Table: position
--- ============================================
-
-CREATE TABLE IF NOT EXISTS position (
-  id char(32) PRIMARY KEY,
-  position_name varchar(255),
-  created_at date DEFAULT CURRENT_DATE,
-  updated_at date DEFAULT CURRENT_DATE
-);
-
--- ============================================
--- Table: projects
--- ============================================
-
-CREATE TABLE IF NOT EXISTS projects (
-  id uuid PRIMARY KEY,
-  student_id varchar(100),
-  title varchar(255),
-  description text,
-  objective text,
-  category varchar(100),
-  budget numeric(15,2),
-  is_initial smallint DEFAULT 0,
-  venue varchar(255),
-  status varchar(50),
-  proposed_by varchar(255),
-  note text,
-  project_proof bytea,
-  start_date date,
-  end_date date,
-  approve_by varchar(255),
-  approval_status varchar(50),
-  approved_at timestamp,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  created_by uuid,
-  updated_by uuid,
-  archive smallint DEFAULT 0
-);
-
--- ============================================
--- Table: push_subscriptions
--- ============================================
-
-CREATE TABLE IF NOT EXISTS push_subscriptions (
-  id uuid PRIMARY KEY,
-  user_id uuid NOT NULL,
-  endpoint text NOT NULL,
-  auth_key text NOT NULL,
-  public_key text NOT NULL,
-  is_active smallint DEFAULT 1,
-  created_at timestamp,
-  updated_at timestamp,
-  archive smallint DEFAULT 0,
-  UNIQUE(endpoint)
-);
-
-CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id, is_active);
-
--- ============================================
--- Table: ratings
--- ============================================
-
-CREATE TABLE IF NOT EXISTS ratings (
-  id uuid PRIMARY KEY,
-  project_id uuid,
-  user_id uuid,
-  rating_score integer,
-  comments text,
-  helpful_count integer DEFAULT 0,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0,
-  UNIQUE(project_id, user_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_ratings_project ON ratings(project_id);
-
--- ============================================
--- Table: reset_password_token
--- ============================================
-
-CREATE TABLE IF NOT EXISTS reset_password_token (
-  id uuid PRIMARY KEY,
-  user_id uuid,
-  token varchar(255) NOT NULL,
-  expires_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP
-);
-
--- ============================================
--- Table: roles
--- ============================================
-
-CREATE TABLE IF NOT EXISTS roles (
-  id uuid PRIMARY KEY,
-  permission_id uuid,
-  name varchar(255),
-  slug varchar(255),
-  description text,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0
-);
-
--- ============================================
--- Table: role_permission
--- ============================================
-
-CREATE TABLE IF NOT EXISTS role_permission (
-  id uuid PRIMARY KEY,
-  user_id uuid,
-  role_id uuid,
-  permission_id uuid,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_role_permission_user ON role_permission(user_id);
-CREATE INDEX IF NOT EXISTS idx_role_permission_role ON role_permission(role_id);
-
--- ============================================
--- Table: sessions
--- ============================================
-
-CREATE TABLE IF NOT EXISTS sessions (
-  id varchar(255) PRIMARY KEY,
-  user_id uuid,
-  ip_address varchar(45),
-  user_agent text,
-  payload text,
-  last_activity integer,
-  archive smallint DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-
--- ============================================
--- Table: student_csg_officers
--- ============================================
-
-CREATE TABLE IF NOT EXISTS student_csg_officers (
-  id varchar(100) PRIMARY KEY,
-  user_id uuid,
-  course_id uuid,  -- FIXED: Changed from varchar(100) to uuid to match course.id
-  is_csg smallint DEFAULT 0,
-  csg_position varchar(100),
-  csg_term_start date,
-  csg_term_end date,
-  csg_is_active smallint DEFAULT 1,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_student_csg_user ON student_csg_officers(user_id);
-
--- ============================================
--- Table: teacher_adviser
--- ============================================
-
-CREATE TABLE IF NOT EXISTS teacher_adviser (
-  id varchar(100) PRIMARY KEY,
-  user_id uuid,
-  institute_id uuid,
-  is_adviser smallint DEFAULT 0,
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_teacher_adviser_user ON teacher_adviser(user_id);
-CREATE INDEX IF NOT EXISTS idx_teacher_adviser_institute ON teacher_adviser(institute_id);
-
--- ============================================
--- Table: users
--- ============================================
-
-CREATE TABLE IF NOT EXISTS users (
-  id uuid PRIMARY KEY,
-  role_id uuid,
-  name varchar(255),
-  email varchar(255),
-  email_verified_at timestamp,
-  invitation_token varchar(64) UNIQUE,
-  token_expires_at timestamp,
-  is_token_expired smallint DEFAULT 0,
-  phone varchar(20),
-  password varchar(255),
-  avatar_url varchar(255),
-  profile_completed smallint DEFAULT 0,
-  id_verification_id uuid,
-  status user_status_enum DEFAULT 'active',
-  last_login_at timestamp,
-  remember_token varchar(100),
-  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp DEFAULT CURRENT_TIMESTAMP,
-  archive smallint DEFAULT 0
-);
-
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role_id);
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-
--- ============================================
--- INSERT DATA
--- ============================================
-
-INSERT INTO badge (id, name, description, icon, category, created_at, updated_at, archive) VALUES
+-- phpMyAdmin SQL Dump
+-- version 5.2.1
+-- https://www.phpmyadmin.net/
+--
+-- Host: 127.0.0.1
+-- Generation Time: Jun 21, 2026 at 04:57 AM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.2.12
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Database: `step2`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `approval`
+--
+
+CREATE TABLE `approval` (
+  `id` char(36) NOT NULL,
+  `employee_id` varchar(100) DEFAULT NULL,
+  `project_id` char(36) DEFAULT NULL,
+  `approvable_id` char(36) DEFAULT NULL,
+  `reference_type` varchar(100) DEFAULT NULL,
+  `approvable_type` varchar(100) DEFAULT NULL,
+  `status` varchar(50) DEFAULT NULL,
+  `rejection_reason` text DEFAULT NULL,
+  `reviewed_at` timestamp NULL DEFAULT NULL,
+  `officers_approved` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `audit_logs`
+--
+
+CREATE TABLE `audit_logs` (
+  `id` char(36) NOT NULL,
+  `user_id` char(36) DEFAULT NULL,
+  `actionable_id` varchar(100) DEFAULT NULL,
+  `actionable_type` varchar(100) DEFAULT NULL,
+  `action` varchar(255) DEFAULT NULL,
+  `module` varchar(100) DEFAULT NULL,
+  `action_type` varchar(100) DEFAULT NULL,
+  `status` varchar(50) DEFAULT NULL,
+  `details` text DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `browser_info` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `audit_logs`
+--
+
+INSERT INTO `audit_logs` (`id`, `user_id`, `actionable_id`, `actionable_type`, `action`, `module`, `action_type`, `status`, `details`, `ip_address`, `browser_info`, `created_at`, `archive`) VALUES
+('06570619-3ef7-4a22-adbc-fdd2c6b68535', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'ce97f462-8d9d-4941-be93-91976f027512', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Expense ledger entry for project ID 2e8dc2e7-5618-44b4-9230-a48658daf0a6', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 01:52:38', 0),
+('11c30957-cff6-422d-9999-adf376e11258', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'f7f8b067-e630-4809-959b-77360c366108', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"123\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-06-01 02:11:55', 0),
+('26df601b-a438-49ff-b6d6-548d9e6faddc', '087ccbc9-efa8-44e0-8435-3310207554d7', 'e6808957-5fca-42ef-813a-446935e61126', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: TESTING', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 09:54:23', 0),
+('53640bfc-8113-4145-83a1-b607791335fa', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'e77a70cd-f3bd-4776-9a03-05f88dfdd960', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Expense ledger entry for project ID 2e8dc2e7-5618-44b4-9230-a48658daf0a6', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-10 08:02:18', 0),
+('56812e4b-2439-422d-9a76-b98b408cade9', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '3397d634-4b91-40d7-8727-3ac093aa27ce', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Donation ledger entry for project ID 2e8dc2e7-5618-44b4-9230-a48658daf0a6', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 01:42:45', 0),
+('5a783cf6-a1f7-4343-a26f-13939d5df841', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'ea06eeaa-7d27-4912-a511-a5559b1c72a9', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Donation ledger entry for project ID 3e79a958-802c-4597-ad7f-14ec50c492b1', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 01:46:49', 0),
+('5d72cca0-211c-46e8-9d82-42c04a8734ce', '087ccbc9-efa8-44e0-8435-3310207554d7', NULL, 'project', 'Project Budget Synced from Ledger', 'ledger', NULL, NULL, 'Synchronized 1 project budget(s) with approved ledger totals', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:27:39', 0),
+('66cba088-2c7c-43ca-ab8e-22472de11ad0', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'project', 'Project Archived', 'projects', 'delete', 'Success', 'Archived project \"sdafsda\" and 0 related ledger entries', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-12 10:18:03', 0),
+('76890987-36b0-471e-9a76-ff6d2bdfbaf8', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'e6808957-5fca-42ef-813a-446935e61126', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"TESTING\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-26 09:44:07', 0),
+('7a8ac692-6b1a-41d1-8a06-aa9306524779', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'e43c6e38-5949-42ff-8158-3607ad77fee8', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Expense ledger entry for project ID 3e79a958-802c-4597-ad7f-14ec50c492b1', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 02:15:47', 0),
+('8f9a6ad3-5091-4f94-8aec-4551a301d05d', '087ccbc9-efa8-44e0-8435-3310207554d7', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: sdafsda', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-14 10:30:48', 0),
+('966502e3-3aca-421e-b267-3a1fe5087ed6', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '81f86e97-f3b4-4ab0-b437-9396875ac877', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Expense ledger entry for project ID e6808957-5fca-42ef-813a-446935e61126', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 12:03:29', 0),
+('a9a68477-43da-47b4-b69b-05fab089b10d', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'b1be13a0-1aa8-4fca-bbef-e28771a65872', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Income ledger entry for project ID e6808957-5fca-42ef-813a-446935e61126', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-26 09:56:17', 0),
+('a9ca6f4c-3b0b-49c6-bee2-bb4e1d52c5cb', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"test2\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 12:24:15', 0),
+('ac801ee3-7bea-4ff6-858a-72a1e0213b56', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"sdafsda\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-12 10:17:51', 0),
+('ae22b573-3aec-40b4-bf5c-5ddc5aa2b627', '087ccbc9-efa8-44e0-8435-3310207554d7', 'f7f8b067-e630-4809-959b-77360c366108', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: 123', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-06-01 02:12:15', 0),
+('aeedca32-da20-400e-a6fb-acccdc111ac1', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '6b733448-bb6b-4a3c-96c9-a90cc7cb17e2', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"JANIII\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 01:43:40', 0),
+('aef0ce0a-7df2-422e-b7d1-6013f2fa3776', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b1be13a0-1aa8-4fca-bbef-e28771a65872', 'ledger_entry', 'Ledger Entry Approved', 'ledger', NULL, NULL, 'emdgquintos — TESTING', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:23:57', 0),
+('cfe97d3e-f04c-41f2-b213-dfc557e15fa9', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '539f56cd-5214-4940-9144-e809e5682ee8', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Expense ledger entry for project ID 2e8dc2e7-5618-44b4-9230-a48658daf0a6', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 01:48:35', 0),
+('dd8ee350-22d9-42ef-8727-a05f951eb752', '087ccbc9-efa8-44e0-8435-3310207554d7', 'aa2860db-d074-47e5-8942-731c4cb0c598', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: dsfgfdg', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-14 10:36:04', 0),
+('e2e0b8b3-d4b1-4672-a2f5-06dd7dbb7877', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b55d1a03-f4f8-4592-8573-eb3dc6de246d', 'ledger_entry', 'Ledger Entry Restored from Blockchain', 'ledger', NULL, NULL, 'Restored to approved state using blockchain snapshot', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:27:57', 0),
+('e6e29f6b-9348-44a5-9ddc-aa7fddb999f0', '087ccbc9-efa8-44e0-8435-3310207554d7', NULL, 'project', 'Project Budget Synced from Ledger', 'ledger', NULL, NULL, 'Synchronized 1 project budget(s) with approved ledger totals', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:28:00', 0),
+('ed821bc2-ec85-4c96-8405-77e2a0535329', '087ccbc9-efa8-44e0-8435-3310207554d7', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: test2', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-26 12:24:48', 0),
+('f8e035e3-e68c-4df5-ac01-1631d3c85ec3', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'ed6bb5b3-8dbe-45f6-83c6-7be07ae7cd29', 'date_change_request', 'Date Change Requested', 'project', 'create', 'Success', 'Requested date change for project: sdafsda', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 02:38:21', 0),
+('fd984d30-7bc5-41be-9c37-d560a727cc1b', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'aa2860db-d074-47e5-8942-731c4cb0c598', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"dsfgfdg\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-14 10:31:45', 0);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `badge`
+--
+
+CREATE TABLE `badge` (
+  `id` char(36) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `description` text DEFAULT NULL,
+  `icon` varchar(255) DEFAULT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `badge`
+--
+
+INSERT INTO `badge` (`id`, `name`, `description`, `icon`, `category`, `created_at`, `updated_at`, `archive`) VALUES
 ('05aa4b9c-235d-11f1-9647-10683825ce81', 'Event Organizer', 'Successfully organized an event', 'star', 'achievement', '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
 ('05aa4d10-235d-11f1-9647-10683825ce81', 'Active Member', 'Participated in 5+ events', 'flame', 'engagement', '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
 ('05aa5cdb-235d-11f1-9647-10683825ce81', 'Budget Master', 'Managed project budget efficiently', 'coins', 'financial', '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
@@ -485,7 +125,88 @@ INSERT INTO badge (id, name, description, icon, category, created_at, updated_at
 ('05aa5e68-235d-11f1-9647-10683825ce81', 'Documentation Pro', 'Submitted complete project documentation', 'document', 'quality', '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
 ('05aa5eac-235d-11f1-9647-10683825ce81', 'Community Hero', 'Contributed to community service', 'heart', 'community', '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0);
 
-INSERT INTO course (id, institute_id, name, description, created_at, updated_at, archive) VALUES
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `badge_collected`
+--
+
+CREATE TABLE `badge_collected` (
+  `id` char(36) NOT NULL,
+  `badge_id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `earned_date` timestamp NOT NULL DEFAULT current_timestamp(),
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `chain`
+--
+
+CREATE TABLE `chain` (
+  `id` char(36) NOT NULL,
+  `project_id` char(36) DEFAULT NULL,
+  `block_index` int(11) NOT NULL DEFAULT 0,
+  `prev_hash` varchar(255) DEFAULT NULL,
+  `hash` varchar(255) DEFAULT NULL,
+  `data_snapshot` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `chain`
+--
+
+INSERT INTO `chain` (`id`, `project_id`, `block_index`, `prev_hash`, `hash`, `data_snapshot`, `created_at`) VALUES
+('495a3be7-d8ca-4c57-b8fa-c4dd4e146663', 'e6808957-5fca-42ef-813a-446935e61126', 1, '77db84e18d6eed03125bd29254ecf915f80a95df10fbd20721937eceb72bf40e', '6ee3ddda0f513bd562f67b253346edf1a37b253e5f8bf9a5248901164df52e5c', '\"{\\\"type\\\":\\\"ledger\\\",\\\"ledger_id\\\":\\\"b55d1a03-f4f8-4592-8573-eb3dc6de246d\\\",\\\"project_id\\\":\\\"e6808957-5fca-42ef-813a-446935e61126\\\",\\\"description\\\":\\\"Initial project budget baseline\\\",\\\"budget_breakdown\\\":null,\\\"amount\\\":\\\"9000.00\\\",\\\"entry_type\\\":\\\"Initial\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-05-26T02:54:23+00:00\\\",\\\"snapshot_nonce\\\":\\\"30656874b281439f\\\"}\"', '2026-05-26 02:54:23'),
+('7a415008-30b8-4eab-85d8-b46c47b7209d', 'aa2860db-d074-47e5-8942-731c4cb0c598', 0, NULL, 'f1cfa4971d36ac544f393aededc5506877d5fbb45c7b6730d42dead2e7ce4cd4', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"aa2860db-d074-47e5-8942-731c4cb0c598\\\",\\\"title\\\":\\\"dsfgfdg\\\",\\\"description\\\":\\\"dgfdg\\\",\\\"amount\\\":\\\"123.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-06-14T03:36:04+00:00\\\"}\"', '2026-06-14 03:36:04'),
+('82988b23-941d-4131-bb89-4dc212e1671f', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 0, NULL, '58edf29a2345e763b7e5952b8f632f7cd1626829f7d9e4812731cbe672ea110d', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"2e8dc2e7-5618-44b4-9230-a48658daf0a6\\\",\\\"title\\\":\\\"test2\\\",\\\"description\\\":\\\"test2\\\",\\\"amount\\\":\\\"0.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-05-26T05:24:48+00:00\\\"}\"', '2026-05-26 05:24:48'),
+('873ef469-f013-4577-8a06-4a62ecb0c7f3', 'e6808957-5fca-42ef-813a-446935e61126', 2, '6ee3ddda0f513bd562f67b253346edf1a37b253e5f8bf9a5248901164df52e5c', 'f5ca985927f6525375b6588fed17390a7575ad7f7c91ce9013636e1473a606df', '\"{\\\"type\\\":\\\"ledger\\\",\\\"ledger_id\\\":\\\"b1be13a0-1aa8-4fca-bbef-e28771a65872\\\",\\\"project_id\\\":\\\"e6808957-5fca-42ef-813a-446935e61126\\\",\\\"description\\\":\\\"emdgquintos\\\",\\\"budget_breakdown\\\":\\\"[{\\\\\\\"id\\\\\\\":1,\\\\\\\"item\\\\\\\":\\\\\\\"emdgquintos\\\\\\\",\\\\\\\"qty\\\\\\\":1,\\\\\\\"unitPrice\\\\\\\":\\\\\\\"12\\\\\\\",\\\\\\\"amount\\\\\\\":12}]\\\",\\\"amount\\\":\\\"12.00\\\",\\\"entry_type\\\":\\\"Income\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-05-26T03:23:57+00:00\\\",\\\"snapshot_nonce\\\":\\\"9fbe6f91a196e200\\\"}\"', '2026-05-26 03:23:57'),
+('9125283b-5a09-4fe7-912d-b88d87d62e80', 'e6808957-5fca-42ef-813a-446935e61126', 0, NULL, '77db84e18d6eed03125bd29254ecf915f80a95df10fbd20721937eceb72bf40e', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"e6808957-5fca-42ef-813a-446935e61126\\\",\\\"title\\\":\\\"TESTING\\\",\\\"description\\\":\\\"TESTING\\\",\\\"amount\\\":\\\"9000.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-05-26T02:54:23+00:00\\\"}\"', '2026-05-26 02:54:23'),
+('92aff0b9-b44d-442b-8394-a979711656c6', 'aa2860db-d074-47e5-8942-731c4cb0c598', 1, 'f1cfa4971d36ac544f393aededc5506877d5fbb45c7b6730d42dead2e7ce4cd4', '9a29a465a020f223b5fc7a8956857ba273172b1da4c31852352ed63b7a469681', '\"{\\\"type\\\":\\\"ledger\\\",\\\"ledger_id\\\":\\\"1bebfa69-877d-4061-8f42-398331602ce9\\\",\\\"project_id\\\":\\\"aa2860db-d074-47e5-8942-731c4cb0c598\\\",\\\"description\\\":\\\"Initial project budget baseline\\\",\\\"budget_breakdown\\\":null,\\\"amount\\\":\\\"123.00\\\",\\\"entry_type\\\":\\\"Initial\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-06-14T03:36:04+00:00\\\",\\\"snapshot_nonce\\\":\\\"79954a7711f77429\\\"}\"', '2026-06-14 03:36:04'),
+('b2e39da5-33f1-439c-8b24-40dfc95e518f', '3e79a958-802c-4597-ad7f-14ec50c492b1', 0, NULL, 'dcd801616f53d6b55a59574245f0156efb47ee4fc996420f3f62aabcd5e0bfb7', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"3e79a958-802c-4597-ad7f-14ec50c492b1\\\",\\\"title\\\":\\\"sdafsda\\\",\\\"description\\\":\\\"sdafsd\\\",\\\"amount\\\":\\\"0.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-06-14T03:30:48+00:00\\\"}\"', '2026-06-14 03:30:48'),
+('ce308a52-629c-4e42-965a-51e915602d06', 'f7f8b067-e630-4809-959b-77360c366108', 0, NULL, '44083a67d7a3a8a6f3b0de947b87dbc6b7d31cd62883e8c18e96f9760c2616a2', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"f7f8b067-e630-4809-959b-77360c366108\\\",\\\"title\\\":\\\"123\\\",\\\"description\\\":\\\"asdsa\\\",\\\"amount\\\":\\\"0.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-05-31T19:12:15+00:00\\\"}\"', '2026-05-31 19:12:15');
+
+--
+-- Triggers `chain`
+--
+DELIMITER $$
+CREATE TRIGGER `prevent_chain_deletes` BEFORE DELETE ON `chain` FOR EACH ROW BEGIN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Chain records cannot be deleted';
+END
+$$
+DELIMITER ;
+DELIMITER $$
+CREATE TRIGGER `prevent_chain_updates` BEFORE UPDATE ON `chain` FOR EACH ROW BEGIN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Chain records cannot be updated';
+END
+$$
+DELIMITER ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `course`
+--
+
+CREATE TABLE `course` (
+  `id` char(36) NOT NULL,
+  `institute_id` char(36) DEFAULT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `course`
+--
+
+INSERT INTO `course` (`id`, `institute_id`, `name`, `description`, `created_at`, `updated_at`, `archive`) VALUES
 ('059d226e-235d-11f1-9647-10683825ce81', '059bab0d-235d-11f1-9647-10683825ce81', 'BSIS', NULL, '2026-03-19 06:29:42', '2026-04-14 05:49:49', 0),
 ('059d2571-235d-11f1-9647-10683825ce81', '059bab0d-235d-11f1-9647-10683825ce81', 'BSCS', NULL, '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
 ('059d2612-235d-11f1-9647-10683825ce81', '059bab0d-235d-11f1-9647-10683825ce81', 'BSPSY', NULL, '2026-03-19 06:29:42', '2026-04-14 05:49:58', 0),
@@ -494,7 +215,83 @@ INSERT INTO course (id, institute_id, name, description, created_at, updated_at,
 ('059d2744-235d-11f1-9647-10683825ce81', '059bab0d-235d-11f1-9647-10683825ce81', 'BSN', NULL, '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
 ('059d279f-235d-11f1-9647-10683825ce81', '059bab0d-235d-11f1-9647-10683825ce81', 'BSocSc', NULL, '2026-03-19 06:29:42', '2026-04-14 05:52:23', 0);
 
-INSERT INTO institute (id, name, description, created_at, updated_at, archive) VALUES
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `date_change_requests`
+--
+
+CREATE TABLE `date_change_requests` (
+  `id` char(36) NOT NULL,
+  `project_id` char(36) NOT NULL,
+  `requested_by` char(36) NOT NULL,
+  `current_start_date` date NOT NULL,
+  `current_end_date` date NOT NULL,
+  `proposed_start_date` date NOT NULL,
+  `proposed_end_date` date NOT NULL,
+  `reason` longtext NOT NULL,
+  `status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `reviewed_by` char(36) DEFAULT NULL,
+  `reviewed_at` timestamp NULL DEFAULT NULL,
+  `rejection_reason` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `date_change_requests`
+--
+
+INSERT INTO `date_change_requests` (`id`, `project_id`, `requested_by`, `current_start_date`, `current_end_date`, `proposed_start_date`, `proposed_end_date`, `reason`, `status`, `reviewed_by`, `reviewed_at`, `rejection_reason`, `created_at`, `updated_at`) VALUES
+('ed6bb5b3-8dbe-45f6-83c6-7be07ae7cd29', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '2026-07-11', '2026-07-28', '2026-06-21', '2026-06-22', 'shabu', 'pending', NULL, NULL, NULL, '2026-06-20 02:38:21', '2026-06-20 02:38:21');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `id_verifications`
+--
+
+CREATE TABLE `id_verifications` (
+  `id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `role_type` enum('student','teacher') NOT NULL,
+  `student_id` varchar(255) DEFAULT NULL,
+  `teacher_id` varchar(255) DEFAULT NULL,
+  `proof_file_path` varchar(255) NOT NULL,
+  `original_filename` varchar(255) NOT NULL,
+  `file_mime_type` varchar(255) NOT NULL,
+  `file_size` bigint(20) NOT NULL,
+  `status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `admin_notes` longtext DEFAULT NULL,
+  `verified_by` char(36) DEFAULT NULL,
+  `verified_at` timestamp NULL DEFAULT NULL,
+  `rejection_count` int(11) NOT NULL DEFAULT 0,
+  `last_rejection_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `institute`
+--
+
+CREATE TABLE `institute` (
+  `id` char(36) NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `institute`
+--
+
+INSERT INTO `institute` (`id`, `name`, `description`, `created_at`, `updated_at`, `archive`) VALUES
 ('059bab0d-235d-11f1-9647-10683825ce81', 'ICDI', NULL, '2026-03-19 06:29:42', '2026-04-14 07:48:48', 0),
 ('059bb26f-235d-11f1-9647-10683825ce81', 'IBS', NULL, '2026-03-19 06:29:42', '2026-04-14 07:49:24', 0),
 ('059bb31d-235d-11f1-9647-10683825ce81', 'IE', NULL, '2026-03-19 06:29:42', '2026-04-14 07:49:38', 0),
@@ -504,7 +301,151 @@ INSERT INTO institute (id, name, description, created_at, updated_at, archive) V
 ('059bb3d9-235d-11f1-9647-10683825ce81', 'CCJ', NULL, '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
 ('c062692a-37d6-11f1-81d0-0ee6e07d3d3d', 'ISM', NULL, '2026-04-14 07:51:27', '2026-04-14 07:51:27', 0);
 
-INSERT INTO permission (id, module, action, permission, description, created_at, updated_at, archive) VALUES
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ledger_entries`
+--
+
+CREATE TABLE `ledger_entries` (
+  `id` char(36) NOT NULL,
+  `project_id` char(36) NOT NULL,
+  `type` enum('Income','Expense','Donation','Sponsorship','Canvas','Initial') NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `description` text NOT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `budget_breakdown` text DEFAULT NULL,
+  `ledger_proof` varchar(500) DEFAULT NULL COMMENT 'Path to uploaded proof file',
+  `file_content_hash` varchar(64) DEFAULT NULL COMMENT 'SHA-256 hash of uploaded file for integrity verification',
+  `approval_status` enum('Draft','Pending Adviser Approval','Approved','Rejected') DEFAULT 'Draft',
+  `is_initial_entry` tinyint(1) NOT NULL DEFAULT 0,
+  `note` text DEFAULT NULL COMMENT 'Approval/rejection notes',
+  `approved_by` char(36) DEFAULT NULL,
+  `created_by` char(36) DEFAULT NULL,
+  `updated_by` char(36) DEFAULT NULL,
+  `approved_at` timestamp NULL DEFAULT NULL,
+  `rejected_at` timestamp NULL DEFAULT NULL,
+  `archive` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `ledger_entries`
+--
+
+INSERT INTO `ledger_entries` (`id`, `project_id`, `type`, `amount`, `description`, `category`, `budget_breakdown`, `ledger_proof`, `file_content_hash`, `approval_status`, `is_initial_entry`, `note`, `approved_by`, `created_by`, `updated_by`, `approved_at`, `rejected_at`, `archive`, `created_at`, `updated_at`) VALUES
+('1bebfa69-877d-4061-8f42-398331602ce9', 'aa2860db-d074-47e5-8942-731c4cb0c598', 'Initial', 123.00, 'Initial project budget baseline', 'Project Budget Baseline', NULL, NULL, NULL, 'Approved', 0, 'Auto-generated baseline on project creation', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', '2026-06-14 10:36:04', NULL, 0, '2026-06-14 10:31:45', '2026-06-14 10:36:04'),
+('3397d634-4b91-40d7-8727-3ac093aa27ce', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'Donation', 123.00, 'gfdgdf', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"dgdfs\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"123\\\",\\\"amount\\\":123}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-20 01:42:45', '2026-06-20 01:42:49'),
+('539f56cd-5214-4940-9144-e809e5682ee8', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'Expense', 23.00, 'sdafdsaf', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"sadfsda\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"23\\\",\\\"amount\\\":23}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-20 01:48:35', '2026-06-20 01:48:37'),
+('81f86e97-f3b4-4ab0-b437-9396875ac877', 'e6808957-5fca-42ef-813a-446935e61126', 'Expense', 23423.00, 'qwe', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"qwe\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"23423\\\",\\\"amount\\\":23423}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, '97bf6c0e-420b-4627-be8b-31f37f5bed9f', NULL, NULL, NULL, 0, '2026-05-26 12:03:29', '2026-05-26 12:03:42'),
+('b1be13a0-1aa8-4fca-bbef-e28771a65872', 'e6808957-5fca-42ef-813a-446935e61126', 'Income', 12.00, 'emdgquintos', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"emdgquintos\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"12\\\",\\\"amount\\\":12}]\"', NULL, NULL, 'Approved', 0, '12', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', '2026-05-26 10:23:57', NULL, 0, '2026-05-26 09:56:17', '2026-05-26 10:23:57'),
+('b55d1a03-f4f8-4592-8573-eb3dc6de246d', 'e6808957-5fca-42ef-813a-446935e61126', 'Initial', 9000.00, 'Initial project budget baseline', 'Project Budget Baseline', NULL, NULL, NULL, 'Approved', 0, 'Auto-generated baseline on project creation', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', '2026-05-26 09:54:23', NULL, 0, '2026-05-26 09:44:07', '2026-05-26 10:27:57'),
+('ce97f462-8d9d-4941-be93-91976f027512', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'Expense', 123.00, 'sdfsda', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"asfdas\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"123\\\",\\\"amount\\\":123}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-20 01:52:38', '2026-06-20 01:52:41'),
+('e43c6e38-5949-42ff-8158-3607ad77fee8', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'Expense', 1123.00, 'dfgfd', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"dgsd\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"1123\\\",\\\"amount\\\":1123}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-20 02:15:47', '2026-06-20 02:15:55'),
+('e77a70cd-f3bd-4776-9a03-05f88dfdd960', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'Expense', 123.00, 'sdfaasd', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"safdsa\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"123\\\",\\\"amount\\\":123}]\"', 'storage/ledger_proofs/ad224ec3a34d8494740416d52bf07da5422b6f5bdb1ed5a4b1d8e9506828224a.png', 'ad224ec3a34d8494740416d52bf07da5422b6f5bdb1ed5a4b1d8e9506828224a', 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-10 08:02:18', '2026-06-10 09:13:09'),
+('ea06eeaa-7d27-4912-a511-a5559b1c72a9', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'Donation', 123123.00, 'JANIII', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"JANIII\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"123123\\\",\\\"amount\\\":123123}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-20 01:46:49', '2026-06-20 01:46:52');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `meeting`
+--
+
+CREATE TABLE `meeting` (
+  `id` char(36) NOT NULL,
+  `student_id` varchar(100) DEFAULT NULL,
+  `title` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `scheduled_date` datetime DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `is_done` tinyint(1) DEFAULT 0,
+  `minutes_content` text DEFAULT NULL,
+  `action_items` text DEFAULT NULL,
+  `expected_attendees` text DEFAULT NULL,
+  `attendees` text DEFAULT NULL,
+  `meeting_proof` varchar(255) DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `migrations`
+--
+
+CREATE TABLE `migrations` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `migration` varchar(255) NOT NULL,
+  `batch` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `migrations`
+--
+
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
+(1, '2026_04_09_050446_create_personal_access_tokens_table', 1),
+(2, '2026_04_09_120000_add_file_content_hash_to_ledger_entries', 2),
+(3, '2026_04_12_000001_add_profile_fields_to_users_table', 3),
+(4, '2026_04_14_000000_add_sample_upcoming_meetings', 4),
+(5, '2026_04_14_000001_fix_onboarding_foreign_keys', 4),
+(6, '2026_04_15_000000_fix_teacher_adviser_fk_constraint', 4),
+(7, '2026_04_16_000001_create_push_subscriptions_table', 5),
+(8, '2026_04_17_000001_create_id_verification_table', 6),
+(9, '2026_04_17_000002_add_id_verification_to_users', 7),
+(10, '2026_04_20_add_invitation_tokens_to_users', 8),
+(11, '2026_06_19_create_date_change_requests_table', 9);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `notifications`
+--
+
+CREATE TABLE `notifications` (
+  `id` char(36) NOT NULL,
+  `user_id` char(36) DEFAULT NULL,
+  `title` varchar(255) DEFAULT NULL,
+  `message` text DEFAULT NULL,
+  `type` varchar(50) DEFAULT NULL,
+  `is_read` tinyint(1) DEFAULT 0,
+  `read_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `notifications`
+--
+
+INSERT INTO `notifications` (`id`, `user_id`, `title`, `message`, `type`, `is_read`, `read_at`, `created_at`, `updated_at`, `archive`) VALUES
+('06d20008-235d-11f1-9647-10683825ce81', NULL, 'Welcome', 'Thank you for regitering with STEP Platform.', 'system', 0, NULL, '2026-03-20 13:30:00', '2026-04-14 03:55:02', 0);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `permission`
+--
+
+CREATE TABLE `permission` (
+  `id` char(36) NOT NULL,
+  `module` varchar(255) DEFAULT NULL,
+  `action` varchar(255) DEFAULT NULL,
+  `permission` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `permission`
+--
+
+INSERT INTO `permission` (`id`, `module`, `action`, `permission`, `description`, `created_at`, `updated_at`, `archive`) VALUES
 ('059e4bca-235d-11f1-9647-10683825ce81', 'Projects', 'Approve', NULL, NULL, '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
 ('059e56c0-235d-11f1-9647-10683825ce81', 'Users', 'Create', NULL, NULL, '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
 ('059e5761-235d-11f1-9647-10683825ce81', 'Meetings', 'Schedule', NULL, NULL, '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
@@ -513,21 +454,43 @@ INSERT INTO permission (id, module, action, permission, description, created_at,
 ('059e57e6-235d-11f1-9647-10683825ce81', 'Audit', 'Export', NULL, NULL, '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
 ('059e580c-235d-11f1-9647-10683825ce81', 'Roles', 'Assign', NULL, NULL, '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0);
 
-INSERT INTO roles (id, permission_id, name, slug, description, created_at, updated_at, archive) VALUES
-('059ef3f9-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Super Admin', 'superadmin', 'Full system access with all permissions', '2026-03-19 06:29:42', '2026-03-19 06:32:19', 0),
-('059ef712-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Admin/Adviser', 'admin', 'Oversight and approvals of projects and transactions', '2026-03-19 06:29:42', '2026-03-19 06:32:48', 0),
-('059efde1-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'CSG Officer', 'csg', 'Organization operations and submissions', '2026-03-19 06:29:42', '2026-03-19 06:33:09', 0),
-('059f4170-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Student', 'student', 'View, rate, and engage in projects', '2026-03-19 06:29:42', '2026-03-19 06:33:29', 0),
-('059f4213-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Ordinary Teacher', 'teacher', 'Teaching staff without advisory responsibilities', '2026-03-19 06:29:42', '2026-03-19 06:33:46', 0),
-('059f5000-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Admin/SADU', 'admin-sadu', 'Administrator with SADU (Student Affairs and Discipline Office) responsibilities - manages student discipline and welfare', '2026-05-30 20:36:18', '2026-05-30 20:36:18', 0);
+-- --------------------------------------------------------
 
-INSERT INTO users (id, role_id, name, email, email_verified_at, phone, password, avatar_url, profile_completed, status, last_login_at, created_at, updated_at, archive) VALUES
-('087ccbc9-efa8-44e0-8435-3310207554d7', '059ef712-235d-11f1-9647-10683825ce81', 'EDWARD QUINTOS', 'emdgquintos@kld.edu.ph', '2026-04-24 06:30:43', '09234234234', '$2y$12$ez57d.qwWe0NGNJYtU0oDer2hVL6c2HIhbVWDHtQn.0kRBPeFNv6C', 'https://lh3.googleusercontent.com/a/ACg8ocKNyOIz6fzUfGjTf5xJ08o0F1301E2IJ351GVMfd1BpsMEHbQ=s96-c', 1, 'active', '2026-05-31 09:54:41', '2026-04-24 06:30:08', '2026-05-31 10:53:59', 0),
-('97bf6c0e-420b-4627-be8b-31f37f5bed9f', '059ef3f9-235d-11f1-9647-10683825ce81', 'JHONNY MACAWILI SUMULONG', 'jmsumulong@kld.edu.ph', '2026-04-24 05:33:52', NULL, '$2y$12$0tiBxJWX3qRNRUOr.V0UAu6MEf4y0kXAAU68YpFQQawyIpV8vukli', 'https://lh3.googleusercontent.com/a/ACg8ocLXVrWI7RGw1OTDRtjF9lXO27fk8oBLR-ZI3irgbXl_7fS5sA=s96-c', 1, 'active', '2026-05-31 08:29:12', '2026-04-24 05:33:52', '2026-05-31 08:29:12', 0),
-('b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '059efde1-235d-11f1-9647-10683825ce81', 'LAWRECE CALIBUSO', 'lpcalibuso@kld.edu.ph', '2026-04-24 05:48:10', '09398331593', '$2y$12$./qxavDvVjZjFlfz4kxRLOdREWZJKpD76iNFbqwNLDATYRi3L3VKK', 'https://lh3.googleusercontent.com/a/ACg8ocLOknbW0osCP4Lh54xqyTvuiW46epCl9qPOyoQbc8GYXbLWhA=s96-c', 1, 'active', '2026-04-26 18:09:04', '2026-04-24 05:48:10', '2026-05-28 03:38:42', 0),
-('f6b776d6-8d77-43e3-976a-fbb0daffa325', '059f4213-235d-11f1-9647-10683825ce81', 'JAMES TAMAYO', 'jttamayo@kld.edu.ph', NULL, NULL, '$2y$12$9MvKx3sc82BPlDGMYqxRaeybMw2Lwjp5GX3EsJY5nZ527Ahg528w6', NULL, 0, 'active', '2026-05-28 01:33:53', '2026-05-10 09:19:57', '2026-05-28 01:33:53', 0);
+--
+-- Table structure for table `personal_access_tokens`
+--
 
-INSERT INTO position (id, position_name, created_at, updated_at) VALUES
+CREATE TABLE `personal_access_tokens` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `tokenable_type` varchar(255) NOT NULL,
+  `tokenable_id` bigint(20) UNSIGNED NOT NULL,
+  `name` text NOT NULL,
+  `token` varchar(64) NOT NULL,
+  `abilities` text DEFAULT NULL,
+  `last_used_at` timestamp NULL DEFAULT NULL,
+  `expires_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `position`
+--
+
+CREATE TABLE `position` (
+  `id` char(32) NOT NULL,
+  `position_name` varchar(255) DEFAULT NULL,
+  `created_at` date NOT NULL DEFAULT current_timestamp(),
+  `updated_at` date NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `position`
+--
+
+INSERT INTO `position` (`id`, `position_name`, `created_at`, `updated_at`) VALUES
 ('0ccfddd1088444f6b51ab3ab2db4136d', 'Student Liaison', '2026-05-31', '2026-05-31'),
 ('149ec35a62264ad0bfda18568cd63580', 'Press Relations Officer', '2026-05-31', '2026-05-31'),
 ('1e4c17b97cdd4698bcff7c013968ca0c', 'Secretary', '2026-05-31', '2026-05-31'),
@@ -543,130 +506,630 @@ INSERT INTO position (id, position_name, created_at, updated_at) VALUES
 ('d866ab91189341e582fdcf09ccda7c41', 'President', '2026-05-30', '2026-05-30'),
 ('f95370650f034c519f0d664804e6e39e', 'Vice President for Internal Affairs', '2026-05-30', '2026-05-30');
 
-INSERT INTO student_csg_officers (id, user_id, course_id, is_csg, csg_position, csg_term_start, csg_term_end, csg_is_active, created_at, updated_at, archive) VALUES
-('123', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '059d226e-235d-11f1-9647-10683825ce81', 0, 'Member', '2026-05-13', '2026-05-30', 0, '2026-04-24 05:34:53', '2026-05-28 01:20:45', 0),
-('12312', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '059d226e-235d-11f1-9647-10683825ce81', 1, 'President', '2026-05-28', '2026-09-18', 1, '2026-04-24 05:48:10', '2026-05-31 09:33:23', 0),
-('123123', NULL, NULL, 0, NULL, NULL, NULL, 0, '2026-04-24 06:28:24', '2026-05-24 16:27:09', 0);
+-- --------------------------------------------------------
 
-INSERT INTO teacher_adviser (id, user_id, institute_id, is_adviser, created_at, updated_at, archive) VALUES
-('123', '087ccbc9-efa8-44e0-8435-3310207554d7', '059bb388-235d-11f1-9647-10683825ce81', 1, '2026-04-24 06:30:43', '2026-05-31 05:31:01', 0);
+--
+-- Table structure for table `projects`
+--
 
-INSERT INTO projects (id, student_id, title, description, objective, category, budget, is_initial, venue, status, proposed_by, note, start_date, end_date, approve_by, approval_status, approved_at, created_at, updated_at, created_by, updated_by, archive) VALUES
-('2e8dc2e7-5618-44b4-9230-a48658daf0a6', NULL, 'test2', 'test2', 'test2', 'Sports', 0.00, 0, 'test2', 'Draft', 'test2', 'emdgquintos', '2026-06-26', '2026-06-30', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-05-26 12:24:48', '2026-05-26 12:24:15', '2026-05-26 12:24:48', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '087ccbc9-efa8-44e0-8435-3310207554d7', 0),
-('e6808957-5fca-42ef-813a-446935e61126', NULL, 'TESTING', 'TESTING', 'TESTING', 'Sports', 9012.00, 1, 'TESTING', 'Draft', 'TESTING', 'emdgquintos', '2026-06-25', '2026-06-25', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-05-26 09:54:23', '2026-05-26 09:44:07', '2026-05-26 10:28:00', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', 0);
+CREATE TABLE `projects` (
+  `id` char(36) NOT NULL,
+  `student_id` varchar(100) DEFAULT NULL,
+  `title` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `objective` text DEFAULT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `budget` decimal(15,2) DEFAULT NULL,
+  `is_initial` tinyint(4) NOT NULL DEFAULT 0,
+  `venue` varchar(255) DEFAULT NULL,
+  `status` varchar(50) DEFAULT NULL,
+  `proposed_by` varchar(255) DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  `project_proof` blob DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `approve_by` varchar(255) DEFAULT NULL,
+  `approval_status` varchar(50) DEFAULT NULL,
+  `approved_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_by` char(36) DEFAULT NULL,
+  `updated_by` char(36) DEFAULT NULL,
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO ledger_entries (id, project_id, type, amount, description, category, budget_breakdown, approval_status, is_initial_entry, note, approved_by, created_by, updated_by, approved_at, rejected_at, archive, created_at, updated_at) VALUES
-('81f86e97-f3b4-4ab0-b437-9396875ac877', 'e6808957-5fca-42ef-813a-446935e61126', 'Expense', 23423.00, 'qwe', NULL, '"[{\"id\":1,\"item\":\"qwe\",\"qty\":1,\"unitPrice\":\"23423\",\"amount\":23423}]"', 'Pending Adviser Approval', 0, NULL, NULL, '97bf6c0e-420b-4627-be8b-31f37f5bed9f', NULL, NULL, NULL, 0, '2026-05-26 12:03:29', '2026-05-26 12:03:42'),
-('b1be13a0-1aa8-4fca-bbef-e28771a65872', 'e6808957-5fca-42ef-813a-446935e61126', 'Income', 12.00, 'emdgquintos', NULL, '"[{\"id\":1,\"item\":\"emdgquintos\",\"qty\":1,\"unitPrice\":\"12\",\"amount\":12}]"', 'Approved', 0, '12', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', '2026-05-26 10:23:57', NULL, 0, '2026-05-26 09:56:17', '2026-05-26 10:23:57'),
-('b55d1a03-f4f8-4592-8573-eb3dc6de246d', 'e6808957-5fca-42ef-813a-446935e61126', 'Initial', 9000.00, 'Initial project budget baseline', 'Project Budget Baseline', NULL, 'Approved', 0, 'Auto-generated baseline on project creation', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', '2026-05-26 09:54:23', NULL, 0, '2026-05-26 09:44:07', '2026-05-26 10:27:57');
+--
+-- Dumping data for table `projects`
+--
 
-INSERT INTO chain (id, project_id, block_index, prev_hash, hash, data_snapshot, created_at) VALUES
-('495a3be7-d8ca-4c57-b8fa-c4dd4e146663', 'e6808957-5fca-42ef-813a-446935e61126', 1, '77db84e18d6eed03125bd29254ecf915f80a95df10fbd20721937eceb72bf40e', '6ee3ddda0f513bd562f67b253346edf1a37b253e5f8bf9a5248901164df52e5c', '"{\"type\":\"ledger\",\"ledger_id\":\"b55d1a03-f4f8-4592-8573-eb3dc6de246d\",\"project_id\":\"e6808957-5fca-42ef-813a-446935e61126\",\"description\":\"Initial project budget baseline\",\"budget_breakdown\":null,\"amount\":\"9000.00\",\"entry_type\":\"Initial\",\"approval_status\":\"Approved\",\"approved_at\":\"2026-05-26T02:54:23+00:00\",\"snapshot_nonce\":\"30656874b281439f\"}"', '2026-05-26 02:54:23'),
-('82988b23-941d-4131-bb89-4dc212e1671f', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 0, NULL, '58edf29a2345e763b7e5952b8f632f7cd1626829f7d9e4812731cbe672ea110d', '"{\"type\":\"project\",\"project_id\":\"2e8dc2e7-5618-44b4-9230-a48658daf0a6\",\"title\":\"test2\",\"description\":\"test2\",\"amount\":\"0.00\",\"approval_status\":\"Approved\",\"approved_at\":\"2026-05-26T05:24:48+00:00\"}"', '2026-05-26 05:24:48'),
-('873ef469-f013-4577-8a06-4a62ecb0c7f3', 'e6808957-5fca-42ef-813a-446935e61126', 2, '6ee3ddda0f513bd562f67b253346edf1a37b253e5f8bf9a5248901164df52e5c', 'f5ca985927f6525375b6588fed17390a7575ad7f7c91ce9013636e1473a606df', '"{\"type\":\"ledger\",\"ledger_id\":\"b1be13a0-1aa8-4fca-bbef-e28771a65872\",\"project_id\":\"e6808957-5fca-42ef-813a-446935e61126\",\"description\":\"emdgquintos\",\"budget_breakdown\":\"[{\\\"id\\\":1,\\\"item\\\":\\\"emdgquintos\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"12\\\",\\\"amount\\\":12}]\",\"amount\":\"12.00\",\"entry_type\":\"Income\",\"approval_status\":\"Approved\",\"approved_at\":\"2026-05-26T03:23:57+00:00\",\"snapshot_nonce\":\"9fbe6f91a196e200\"}"', '2026-05-26 03:23:57'),
-('9125283b-5a09-4fe7-912d-b88d87d62e80', 'e6808957-5fca-42ef-813a-446935e61126', 0, NULL, '77db84e18d6eed03125bd29254ecf915f80a95df10fbd20721937eceb72bf40e', '"{\"type\":\"project\",\"project_id\":\"e6808957-5fca-42ef-813a-446935e61126\",\"title\":\"TESTING\",\"description\":\"TESTING\",\"amount\":\"9000.00\",\"approval_status\":\"Approved\",\"approved_at\":\"2026-05-26T02:54:23+00:00\"}"', '2026-05-26 02:54:23');
+INSERT INTO `projects` (`id`, `student_id`, `title`, `description`, `objective`, `category`, `budget`, `is_initial`, `venue`, `status`, `proposed_by`, `note`, `project_proof`, `start_date`, `end_date`, `approve_by`, `approval_status`, `approved_at`, `created_at`, `updated_at`, `created_by`, `updated_by`, `archive`) VALUES
+('2e8dc2e7-5618-44b4-9230-a48658daf0a6', NULL, 'test2', 'test2', 'test2', 'Sports', 0.00, 0, 'test2', 'Draft', 'test2', 'emdgquintos', NULL, '2026-06-11', '2026-06-30', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-05-26 12:24:48', '2026-05-26 12:24:15', '2026-06-14 03:36:27', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '087ccbc9-efa8-44e0-8435-3310207554d7', 0),
+('3e79a958-802c-4597-ad7f-14ec50c492b1', NULL, 'sdafsda', 'sdafsd', 'asfdsda', 'Technology', 0.00, 0, 'asfsad', 'Draft', 'sadfsdafasd', 'asfsdf', NULL, '2026-07-11', '2026-07-28', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-06-14 10:30:48', '2026-06-12 10:17:51', '2026-06-14 10:30:48', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', 0),
+('6b733448-bb6b-4a3c-96c9-a90cc7cb17e2', NULL, 'JANIII', 'JANIII', 'JANIII', 'Technology', 0.00, 0, 'JANIII', 'Draft', 'JANIII', NULL, NULL, '2026-07-20', '2026-07-29', NULL, 'Pending Adviser Approval', NULL, '2026-06-20 01:43:40', '2026-06-20 01:43:43', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 0),
+('aa2860db-d074-47e5-8942-731c4cb0c598', NULL, 'dsfgfdg', 'dgfdg', 'dfgsfds', 'Technology', 123.00, 1, 'dsfgfdsg', 'Draft', 'dsfgfds', 'safsdfsdfsadf', 0x73746f726167652f70726f6a6563745f70726f6f66732f313738313430373930345f45784d6d684f577959785f3633343630353738315f3931393236303533333932383634305f383534363830383236363335383938323937375f6e202832292e706e67, '2026-07-13', '2026-07-22', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-06-14 10:36:04', '2026-06-14 10:31:45', '2026-06-14 10:36:04', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', 0),
+('e6808957-5fca-42ef-813a-446935e61126', NULL, 'TESTING', 'TESTING', 'TESTING', 'Sports', 9012.00, 1, 'TESTING', 'Draft', 'TESTING', 'emdgquintos', NULL, '2026-06-25', '2026-06-25', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-05-26 09:54:23', '2026-05-26 09:44:07', '2026-05-26 10:28:00', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', 0),
+('f7f8b067-e630-4809-959b-77360c366108', NULL, '123', 'asdsa', 'asds', 'Sports', 0.00, 0, 'asd', 'Draft', 'asdsa', 'dfd', NULL, '2026-07-02', '2026-07-22', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-06-01 02:12:15', '2026-06-01 02:11:55', '2026-06-01 02:12:15', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', 0);
 
-INSERT INTO audit_logs (id, user_id, actionable_id, actionable_type, action, module, action_type, status, details, ip_address, browser_info, created_at, archive) VALUES
-('26df601b-a438-49ff-b6d6-548d9e6faddc', '087ccbc9-efa8-44e0-8435-3310207554d7', 'e6808957-5fca-42ef-813a-446935e61126', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: TESTING', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 09:54:23', 0),
-('5d72cca0-211c-46e8-9d82-42c04a8734ce', '087ccbc9-efa8-44e0-8435-3310207554d7', NULL, 'project', 'Project Budget Synced from Ledger', 'ledger', NULL, NULL, 'Synchronized 1 project budget(s) with approved ledger totals', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:27:39', 0),
-('76890987-36b0-471e-9a76-ff6d2bdfbaf8', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'e6808957-5fca-42ef-813a-446935e61126', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project "TESTING"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-26 09:44:07', 0),
-('966502e3-3aca-421e-b267-3a1fe5087ed6', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '81f86e97-f3b4-4ab0-b437-9396875ac877', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Expense ledger entry for project ID e6808957-5fca-42ef-813a-446935e61126', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 12:03:29', 0),
-('a9a68477-43da-47b4-b69b-05fab089b10d', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'b1be13a0-1aa8-4fca-bbef-e28771a65872', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Income ledger entry for project ID e6808957-5fca-42ef-813a-446935e61126', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-26 09:56:17', 0),
-('a9ca6f4c-3b0b-49c6-bee2-bb4e1d52c5cb', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project "test2"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 12:24:15', 0),
-('aef0ce0a-7df2-422e-b7d1-6013f2fa3776', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b1be13a0-1aa8-4fca-bbef-e28771a65872', 'ledger_entry', 'Ledger Entry Approved', 'ledger', NULL, NULL, 'emdgquintos — TESTING', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:23:57', 0),
-('e2e0b8b3-d4b1-4672-a2f5-06dd7dbb7877', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b55d1a03-f4f8-4592-8573-eb3dc6de246d', 'ledger_entry', 'Ledger Entry Restored from Blockchain', 'ledger', NULL, NULL, 'Restored to approved state using blockchain snapshot', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:27:57', 0),
-('e6e29f6b-9348-44a5-9ddc-aa7fddb999f0', '087ccbc9-efa8-44e0-8435-3310207554d7', NULL, 'project', 'Project Budget Synced from Ledger', 'ledger', NULL, NULL, 'Synchronized 1 project budget(s) with approved ledger totals', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:28:00', 0),
-('ed821bc2-ec85-4c96-8405-77e2a0535329', '087ccbc9-efa8-44e0-8435-3310207554d7', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: test2', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-26 12:24:48', 0);
+-- --------------------------------------------------------
 
-INSERT INTO ratings (id, project_id, user_id, rating_score, comments, helpful_count, created_at, archive) VALUES
+--
+-- Table structure for table `push_subscriptions`
+--
+
+CREATE TABLE `push_subscriptions` (
+  `id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `endpoint` text NOT NULL,
+  `auth_key` text NOT NULL,
+  `public_key` text NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `archive` tinyint(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ratings`
+--
+
+CREATE TABLE `ratings` (
+  `id` char(36) NOT NULL,
+  `project_id` char(36) DEFAULT NULL,
+  `user_id` char(36) DEFAULT NULL,
+  `rating_score` int(11) DEFAULT NULL,
+  `comments` text DEFAULT NULL,
+  `helpful_count` int(11) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `ratings`
+--
+
+INSERT INTO `ratings` (`id`, `project_id`, `user_id`, `rating_score`, `comments`, `helpful_count`, `created_at`, `archive`) VALUES
 ('598910fc-5661-47ca-b1c9-938b5ea790c2', 'e6808957-5fca-42ef-813a-446935e61126', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 5, '123', 0, '2026-05-26 10:29:00', 0);
 
-INSERT INTO notifications (id, user_id, title, message, type, is_read, read_at, created_at, updated_at, archive) VALUES
-('06d20008-235d-11f1-9647-10683825ce81', NULL, 'Welcome', 'Thank you for regitering with STEP Platform.', 'system', 0, NULL, '2026-03-20 13:30:00', '2026-04-14 03:55:02', 0);
+-- --------------------------------------------------------
 
-INSERT INTO migrations (migration, batch) VALUES
-('2026_04_09_050446_create_personal_access_tokens_table', 1),
-('2026_04_09_120000_add_file_content_hash_to_ledger_entries', 2),
-('2026_04_12_000001_add_profile_fields_to_users_table', 3),
-('2026_04_14_000000_add_sample_upcoming_meetings', 4),
-('2026_04_14_000001_fix_onboarding_foreign_keys', 4),
-('2026_04_15_000000_fix_teacher_adviser_fk_constraint', 4),
-('2026_04_16_000001_create_push_subscriptions_table', 5),
-('2026_04_17_000001_create_id_verification_table', 6),
-('2026_04_17_000002_add_id_verification_to_users', 7),
-('2026_04_20_add_invitation_tokens_to_users', 8);
+--
+-- Table structure for table `reset_password_token`
+--
 
--- ============================================
--- ADD FOREIGN KEY CONSTRAINTS
--- ============================================
+CREATE TABLE `reset_password_token` (
+  `id` char(36) NOT NULL,
+  `user_id` char(36) DEFAULT NULL,
+  `token` varchar(255) NOT NULL,
+  `expires_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE approval
-  ADD CONSTRAINT fk_approval_employee FOREIGN KEY (employee_id) REFERENCES teacher_adviser(id) ON DELETE SET NULL,
-  ADD CONSTRAINT fk_approval_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+-- --------------------------------------------------------
 
-ALTER TABLE audit_logs
-  ADD CONSTRAINT fk_audit_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+--
+-- Table structure for table `roles`
+--
 
-ALTER TABLE badge_collected
-  ADD CONSTRAINT fk_badge_collected_badge FOREIGN KEY (badge_id) REFERENCES badge(id) ON DELETE CASCADE,
-  ADD CONSTRAINT fk_badge_collected_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+CREATE TABLE `roles` (
+  `id` char(36) NOT NULL,
+  `permission_id` char(36) DEFAULT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `slug` varchar(255) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE chain
-  ADD CONSTRAINT fk_chain_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+--
+-- Dumping data for table `roles`
+--
 
-ALTER TABLE course
-  ADD CONSTRAINT fk_course_institute FOREIGN KEY (institute_id) REFERENCES institute(id) ON DELETE CASCADE;
+INSERT INTO `roles` (`id`, `permission_id`, `name`, `slug`, `description`, `created_at`, `updated_at`, `archive`) VALUES
+('059ef3f9-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Super Admin', 'superadmin', 'Full system access with all permissions', '2026-03-19 06:29:42', '2026-03-19 06:32:19', 0),
+('059ef712-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Admin/Adviser', 'admin', 'Oversight and approvals of projects and transactions', '2026-03-19 06:29:42', '2026-03-19 06:32:48', 0),
+('059efde1-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'CSG Officer', 'csg', 'Organization operations and submissions', '2026-03-19 06:29:42', '2026-03-19 06:33:09', 0),
+('059f4170-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Student', 'student', 'View, rate, and engage in projects', '2026-03-19 06:29:42', '2026-03-19 06:33:29', 0),
+('059f4213-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Ordinary Teacher', 'teacher', 'Teaching staff without advisory responsibilities', '2026-03-19 06:29:42', '2026-03-19 06:33:46', 0),
+('059f5000-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Admin/SADU', 'admin-sadu', 'Administrator with SADU (Student Affairs and Discipline Office) responsibilities - manages student discipline and welfare', '2026-05-30 20:36:18', '2026-05-31 04:47:47', 0);
 
-ALTER TABLE id_verifications
-  ADD CONSTRAINT fk_id_verifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  ADD CONSTRAINT fk_id_verifications_verified_by FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL;
+-- --------------------------------------------------------
 
-ALTER TABLE ledger_entries
-  ADD CONSTRAINT fk_ledger_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-  ADD CONSTRAINT fk_ledger_approved_by FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL,
-  ADD CONSTRAINT fk_ledger_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-  ADD CONSTRAINT fk_ledger_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL;
+--
+-- Table structure for table `role_permission`
+--
 
-ALTER TABLE meeting
-  ADD CONSTRAINT fk_meeting_student FOREIGN KEY (student_id) REFERENCES student_csg_officers(id) ON DELETE SET NULL;
+CREATE TABLE `role_permission` (
+  `id` char(36) NOT NULL,
+  `user_id` char(36) DEFAULT NULL,
+  `role_id` char(36) DEFAULT NULL,
+  `permission_id` char(36) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE notifications
-  ADD CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+-- --------------------------------------------------------
 
-ALTER TABLE projects
-  ADD CONSTRAINT fk_projects_student FOREIGN KEY (student_id) REFERENCES student_csg_officers(id) ON DELETE SET NULL;
+--
+-- Table structure for table `sessions`
+--
 
-ALTER TABLE push_subscriptions
-  ADD CONSTRAINT fk_push_subscriptions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+CREATE TABLE `sessions` (
+  `id` varchar(255) NOT NULL,
+  `user_id` char(36) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text DEFAULT NULL,
+  `payload` longtext DEFAULT NULL,
+  `last_activity` int(11) DEFAULT NULL,
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE ratings
-  ADD CONSTRAINT fk_ratings_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-  ADD CONSTRAINT fk_ratings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+--
+-- Dumping data for table `sessions`
+--
 
-ALTER TABLE reset_password_token
-  ADD CONSTRAINT fk_reset_password_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`, `archive`) VALUES
+('6gAZZjxhEwr4tYXpitj4voToRAmrc6sOFtEnu4ol', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', 'YTo1OntzOjY6Il90b2tlbiI7czo0MDoibGMwb3ltWkNDUjUxRVB3WmNYWEhqU3FJYzJ5ajRYMExjdEFXc0ZReCI7czozOiJ1cmwiO2E6MTp7czo4OiJpbnRlbmRlZCI7czoyOToiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2FkdmlzZXIiO31zOjk6Il9wcmV2aW91cyI7YToyOntzOjM6InVybCI7czo0ODoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2NzZy9yZWNlbnQtYWN0aXZpdHk/cGFnZT0yIjtzOjU6InJvdXRlIjtzOjE5OiJjc2cucmVjZW50LWFjdGl2aXR5Ijt9czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo1MDoibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiO3M6MzY6ImIwOWU1YmZiLTc1ZmMtNGIxZi05YTM3LTRiZjU4OGJkNmExYiI7fQ==', 1781932473, 1),
+('7qcQNa1t3G5noCBbtDx94bX5I7N9mwe6NNzjQQ0f', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 'YTo0OntzOjY6Il90b2tlbiI7czo0MDoiTVU0NVVDc01tQUlRdGNvcXdDSTRmT0p6bllQRUhtVlp1VzVtVEVPVCI7czozOiJ1cmwiO2E6MTp7czo4OiJpbnRlbmRlZCI7czoyNToiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2NzZyI7fXM6OToiX3ByZXZpb3VzIjthOjI6e3M6MzoidXJsIjtzOjI3OiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvbG9naW4iO3M6NToicm91dGUiO3M6NToibG9naW4iO31zOjY6Il9mbGFzaCI7YToyOntzOjM6Im9sZCI7YTowOnt9czozOiJuZXciO2E6MDp7fX19', 1781925605, 0),
+('mo7hTpEu0IpvbU7Z9ASAn5aScnyazoxXyGqqzvqt', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', 'YTo0OntzOjY6Il90b2tlbiI7czo0MDoiQ2ludWNZUUJRMWRmUUo2MTBqaU5xNzBYd0cxakc3TjV1TW4xVTF1UiI7czozOiJ1cmwiO2E6MTp7czo4OiJpbnRlbmRlZCI7czoyOToiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2FkdmlzZXIiO31zOjk6Il9wcmV2aW91cyI7YToyOntzOjM6InVybCI7czoyOToiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2FkdmlzZXIiO3M6NToicm91dGUiO3M6MTc6ImFkdmlzZXIuZGFzaGJvYXJkIjt9czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319fQ==', 1781925363, 0);
 
-ALTER TABLE roles
-  ADD CONSTRAINT fk_roles_permission FOREIGN KEY (permission_id) REFERENCES permission(id) ON DELETE SET NULL;
+-- --------------------------------------------------------
 
-ALTER TABLE role_permission
-  ADD CONSTRAINT fk_role_permission_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  ADD CONSTRAINT fk_role_permission_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
-  ADD CONSTRAINT fk_role_permission_permission FOREIGN KEY (permission_id) REFERENCES permission(id) ON DELETE CASCADE;
+--
+-- Table structure for table `student_csg_officers`
+--
 
-ALTER TABLE sessions
-  ADD CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+CREATE TABLE `student_csg_officers` (
+  `id` varchar(100) NOT NULL,
+  `user_id` char(36) DEFAULT NULL,
+  `course_id` varchar(100) DEFAULT NULL,
+  `is_csg` tinyint(1) DEFAULT 0,
+  `csg_position` varchar(100) DEFAULT NULL,
+  `csg_term_start` date DEFAULT NULL,
+  `csg_term_end` date DEFAULT NULL,
+  `csg_is_active` tinyint(1) DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE student_csg_officers
-  ADD CONSTRAINT fk_student_csg_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-  ADD CONSTRAINT fk_student_csg_course FOREIGN KEY (course_id) REFERENCES course(id) ON DELETE SET NULL;
+--
+-- Dumping data for table `student_csg_officers`
+--
 
-ALTER TABLE teacher_adviser
-  ADD CONSTRAINT fk_teacher_adviser_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  ADD CONSTRAINT fk_teacher_adviser_institute FOREIGN KEY (institute_id) REFERENCES institute(id) ON DELETE SET NULL;
+INSERT INTO `student_csg_officers` (`id`, `user_id`, `course_id`, `is_csg`, `csg_position`, `csg_term_start`, `csg_term_end`, `csg_is_active`, `created_at`, `updated_at`, `archive`) VALUES
+('123', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '059d226e-235d-11f1-9647-10683825ce81', 0, 'Member', '2026-05-13', '2026-05-30', 0, '2026-04-24 05:34:53', '2026-05-28 01:20:45', 0),
+('12312', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '059d226e-235d-11f1-9647-10683825ce81', 1, 'President', '2026-05-28', '2026-09-18', 1, '2026-04-24 05:48:10', '2026-06-10 07:31:22', 0),
+('123123', NULL, NULL, 0, NULL, NULL, NULL, 0, '2026-04-24 06:28:24', '2026-05-24 16:27:09', 0);
 
-ALTER TABLE users
-  ADD CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL,
-  ADD CONSTRAINT fk_users_id_verification FOREIGN KEY (id_verification_id) REFERENCES id_verifications(id) ON DELETE SET NULL;
+-- --------------------------------------------------------
 
+--
+-- Table structure for table `teacher_adviser`
+--
+
+CREATE TABLE `teacher_adviser` (
+  `id` varchar(100) NOT NULL,
+  `user_id` char(36) DEFAULT NULL,
+  `institute_id` char(36) DEFAULT NULL,
+  `is_adviser` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `teacher_adviser`
+--
+
+INSERT INTO `teacher_adviser` (`id`, `user_id`, `institute_id`, `is_adviser`, `created_at`, `updated_at`, `archive`) VALUES
+('123', '087ccbc9-efa8-44e0-8435-3310207554d7', '059bb388-235d-11f1-9647-10683825ce81', 1, '2026-04-24 06:30:43', '2026-05-31 11:46:27', 0);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `users`
+--
+
+CREATE TABLE `users` (
+  `id` char(36) NOT NULL,
+  `role_id` char(36) DEFAULT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `email_verified_at` timestamp NULL DEFAULT NULL,
+  `invitation_token` varchar(64) DEFAULT NULL,
+  `token_expires_at` timestamp NULL DEFAULT NULL,
+  `is_token_expired` tinyint(1) NOT NULL DEFAULT 0,
+  `phone` varchar(20) DEFAULT NULL,
+  `password` varchar(255) DEFAULT NULL,
+  `avatar_url` varchar(255) DEFAULT NULL,
+  `profile_completed` tinyint(1) NOT NULL DEFAULT 0,
+  `id_verification_id` char(36) DEFAULT NULL,
+  `status` enum('active','suspended','archived') DEFAULT 'active',
+  `last_login_at` timestamp NULL DEFAULT NULL,
+  `remember_token` varchar(100) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `archive` tinyint(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `users`
+--
+
+INSERT INTO `users` (`id`, `role_id`, `name`, `email`, `email_verified_at`, `invitation_token`, `token_expires_at`, `is_token_expired`, `phone`, `password`, `avatar_url`, `profile_completed`, `id_verification_id`, `status`, `last_login_at`, `remember_token`, `created_at`, `updated_at`, `archive`) VALUES
+('087ccbc9-efa8-44e0-8435-3310207554d7', '059ef712-235d-11f1-9647-10683825ce81', 'EDWARD QUINTOS', 'emdgquintos@kld.edu.ph', '2026-04-24 06:30:43', NULL, NULL, 0, '09234234234', '$2y$12$ez57d.qwWe0NGNJYtU0oDer2hVL6c2HIhbVWDHtQn.0kRBPeFNv6C', 'https://lh3.googleusercontent.com/a/ACg8ocKNyOIz6fzUfGjTf5xJ08o0F1301E2IJ351GVMfd1BpsMEHbQ=s96-c', 1, NULL, 'active', '2026-06-20 11:09:59', NULL, '2026-04-24 06:30:08', '2026-06-20 11:09:59', 0),
+('97bf6c0e-420b-4627-be8b-31f37f5bed9f', '059ef3f9-235d-11f1-9647-10683825ce81', 'JHONNY MACAWILI SUMULONG', 'jmsumulong@kld.edu.ph', '2026-04-24 05:33:52', NULL, NULL, 0, NULL, '$2y$12$0tiBxJWX3qRNRUOr.V0UAu6MEf4y0kXAAU68YpFQQawyIpV8vukli', 'https://lh3.googleusercontent.com/a/ACg8ocLXVrWI7RGw1OTDRtjF9lXO27fk8oBLR-ZI3irgbXl_7fS5sA=s96-c', 1, NULL, 'active', '2026-06-16 02:35:29', NULL, '2026-04-24 05:33:52', '2026-06-16 02:35:29', 0),
+('b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '059efde1-235d-11f1-9647-10683825ce81', 'LAWRECE CALIBUSO', 'lpcalibuso@kld.edu.ph', '2026-04-24 05:48:10', NULL, NULL, 0, '09398331593', '$2y$12$./qxavDvVjZjFlfz4kxRLOdREWZJKpD76iNFbqwNLDATYRi3L3VKK', 'https://lh3.googleusercontent.com/a/ACg8ocLOknbW0osCP4Lh54xqyTvuiW46epCl9qPOyoQbc8GYXbLWhA=s96-c', 1, NULL, 'active', '2026-06-20 12:05:23', NULL, '2026-04-24 05:48:10', '2026-06-20 12:05:23', 0),
+('f6b776d6-8d77-43e3-976a-fbb0daffa325', '059f4213-235d-11f1-9647-10683825ce81', 'JAMES TAMAYO', 'jttamayo@kld.edu.ph', NULL, NULL, NULL, 0, NULL, '$2y$12$9MvKx3sc82BPlDGMYqxRaeybMw2Lwjp5GX3EsJY5nZ527Ahg528w6', NULL, 0, NULL, 'active', '2026-05-28 01:33:53', NULL, '2026-05-10 09:19:57', '2026-05-28 01:33:53', 0);
+
+--
+-- Indexes for dumped tables
+--
+
+--
+-- Indexes for table `approval`
+--
+ALTER TABLE `approval`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `employee_id` (`employee_id`),
+  ADD KEY `project_id` (`project_id`);
+
+--
+-- Indexes for table `audit_logs`
+--
+ALTER TABLE `audit_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `badge`
+--
+ALTER TABLE `badge`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_category` (`category`);
+
+--
+-- Indexes for table `badge_collected`
+--
+ALTER TABLE `badge_collected`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_user_badge` (`badge_id`,`user_id`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_badge_id` (`badge_id`),
+  ADD KEY `idx_earned_date` (`earned_date`);
+
+--
+-- Indexes for table `chain`
+--
+ALTER TABLE `chain`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `project_id` (`project_id`);
+
+--
+-- Indexes for table `course`
+--
+ALTER TABLE `course`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `institute_id` (`institute_id`);
+
+--
+-- Indexes for table `date_change_requests`
+--
+ALTER TABLE `date_change_requests`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `date_change_requests_project_id_foreign` (`project_id`),
+  ADD KEY `date_change_requests_requested_by_foreign` (`requested_by`),
+  ADD KEY `date_change_requests_reviewed_by_foreign` (`reviewed_by`);
+
+--
+-- Indexes for table `id_verifications`
+--
+ALTER TABLE `id_verifications`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `id_verifications_student_id_foreign` (`student_id`),
+  ADD KEY `id_verifications_teacher_id_foreign` (`teacher_id`),
+  ADD KEY `id_verifications_user_id_index` (`user_id`),
+  ADD KEY `id_verifications_role_type_index` (`role_type`),
+  ADD KEY `id_verifications_status_index` (`status`),
+  ADD KEY `id_verifications_verified_by_index` (`verified_by`),
+  ADD KEY `id_verifications_created_at_index` (`created_at`);
+
+--
+-- Indexes for table `institute`
+--
+ALTER TABLE `institute`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `ledger_entries`
+--
+ALTER TABLE `ledger_entries`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `project_id` (`project_id`),
+  ADD KEY `approved_by` (`approved_by`),
+  ADD KEY `created_by` (`created_by`),
+  ADD KEY `updated_by` (`updated_by`);
+
+--
+-- Indexes for table `meeting`
+--
+ALTER TABLE `meeting`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `student_id` (`student_id`);
+
+--
+-- Indexes for table `migrations`
+--
+ALTER TABLE `migrations`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `permission`
+--
+ALTER TABLE `permission`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `personal_access_tokens`
+--
+ALTER TABLE `personal_access_tokens`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `personal_access_tokens_token_unique` (`token`),
+  ADD KEY `personal_access_tokens_tokenable_type_tokenable_id_index` (`tokenable_type`,`tokenable_id`),
+  ADD KEY `personal_access_tokens_expires_at_index` (`expires_at`);
+
+--
+-- Indexes for table `position`
+--
+ALTER TABLE `position`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `projects`
+--
+ALTER TABLE `projects`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `student_id` (`student_id`);
+
+--
+-- Indexes for table `push_subscriptions`
+--
+ALTER TABLE `push_subscriptions`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `push_subscriptions_endpoint_unique` (`endpoint`) USING HASH,
+  ADD KEY `push_subscriptions_user_id_is_active_index` (`user_id`,`is_active`),
+  ADD KEY `push_subscriptions_is_active_index` (`is_active`);
+
+--
+-- Indexes for table `ratings`
+--
+ALTER TABLE `ratings`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_project_user_rating` (`project_id`,`user_id`),
+  ADD KEY `project_id` (`project_id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `reset_password_token`
+--
+ALTER TABLE `reset_password_token`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `roles`
+--
+ALTER TABLE `roles`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `permission_id` (`permission_id`);
+
+--
+-- Indexes for table `role_permission`
+--
+ALTER TABLE `role_permission`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `role_id` (`role_id`),
+  ADD KEY `permission_id` (`permission_id`);
+
+--
+-- Indexes for table `sessions`
+--
+ALTER TABLE `sessions`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `student_csg_officers`
+--
+ALTER TABLE `student_csg_officers`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `course_id` (`course_id`);
+
+--
+-- Indexes for table `teacher_adviser`
+--
+ALTER TABLE `teacher_adviser`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `institute_id` (`institute_id`);
+
+--
+-- Indexes for table `users`
+--
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `users_invitation_token_unique` (`invitation_token`),
+  ADD KEY `role_id` (`role_id`),
+  ADD KEY `users_id_verification_id_index` (`id_verification_id`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `migrations`
+--
+ALTER TABLE `migrations`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+
+--
+-- AUTO_INCREMENT for table `personal_access_tokens`
+--
+ALTER TABLE `personal_access_tokens`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `approval`
+--
+ALTER TABLE `approval`
+  ADD CONSTRAINT `approval_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `teacher_adviser` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `approval_ibfk_2` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `audit_logs`
+--
+ALTER TABLE `audit_logs`
+  ADD CONSTRAINT `audit_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `badge_collected`
+--
+ALTER TABLE `badge_collected`
+  ADD CONSTRAINT `badge_collected_ibfk_1` FOREIGN KEY (`badge_id`) REFERENCES `badge` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `badge_collected_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `chain`
+--
+ALTER TABLE `chain`
+  ADD CONSTRAINT `chain_ibfk_1` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `course`
+--
+ALTER TABLE `course`
+  ADD CONSTRAINT `course_ibfk_1` FOREIGN KEY (`institute_id`) REFERENCES `institute` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `date_change_requests`
+--
+ALTER TABLE `date_change_requests`
+  ADD CONSTRAINT `date_change_requests_project_id_foreign` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `date_change_requests_requested_by_foreign` FOREIGN KEY (`requested_by`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `date_change_requests_reviewed_by_foreign` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `id_verifications`
+--
+ALTER TABLE `id_verifications`
+  ADD CONSTRAINT `id_verifications_student_id_foreign` FOREIGN KEY (`student_id`) REFERENCES `student_csg_officers` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `id_verifications_teacher_id_foreign` FOREIGN KEY (`teacher_id`) REFERENCES `teacher_adviser` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `id_verifications_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `id_verifications_verified_by_foreign` FOREIGN KEY (`verified_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `ledger_entries`
+--
+ALTER TABLE `ledger_entries`
+  ADD CONSTRAINT `ledger_entries_ibfk_1` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `ledger_entries_ibfk_2` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `ledger_entries_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `ledger_entries_ibfk_4` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `meeting`
+--
+ALTER TABLE `meeting`
+  ADD CONSTRAINT `meeting_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student_csg_officers` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `projects`
+--
+ALTER TABLE `projects`
+  ADD CONSTRAINT `projects_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `student_csg_officers` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `push_subscriptions`
+--
+ALTER TABLE `push_subscriptions`
+  ADD CONSTRAINT `push_subscriptions_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `ratings`
+--
+ALTER TABLE `ratings`
+  ADD CONSTRAINT `ratings_ibfk_1` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `ratings_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `reset_password_token`
+--
+ALTER TABLE `reset_password_token`
+  ADD CONSTRAINT `reset_password_token_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `roles`
+--
+ALTER TABLE `roles`
+  ADD CONSTRAINT `roles_ibfk_1` FOREIGN KEY (`permission_id`) REFERENCES `permission` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `role_permission`
+--
+ALTER TABLE `role_permission`
+  ADD CONSTRAINT `role_permission_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `role_permission_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `role_permission_ibfk_3` FOREIGN KEY (`permission_id`) REFERENCES `permission` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `sessions`
+--
+ALTER TABLE `sessions`
+  ADD CONSTRAINT `sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `student_csg_officers`
+--
+ALTER TABLE `student_csg_officers`
+  ADD CONSTRAINT `student_csg_officers_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `student_csg_officers_ibfk_2` FOREIGN KEY (`course_id`) REFERENCES `course` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `teacher_adviser`
+--
+ALTER TABLE `teacher_adviser`
+  ADD CONSTRAINT `teacher_adviser_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `teacher_adviser_ibfk_2` FOREIGN KEY (`institute_id`) REFERENCES `institute` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `users`
+--
+ALTER TABLE `users`
+  ADD CONSTRAINT `users_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `users_id_verification_id_foreign` FOREIGN KEY (`id_verification_id`) REFERENCES `id_verifications` (`id`) ON DELETE SET NULL;
 COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

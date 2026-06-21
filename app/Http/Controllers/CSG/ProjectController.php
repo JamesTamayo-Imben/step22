@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\CSG\Project;
 use App\Models\CSG\Approval;
+use App\Models\CSG\DateChangeRequest;
 use App\Models\CSG\LedgerEntry;
 use App\Models\User\Rating;
 use Illuminate\Http\Request;
@@ -576,6 +577,120 @@ class ProjectController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch ratings',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Request a change to project dates
+     */
+    public function requestDateChange(Request $request, $id)
+    {
+        try {
+            $project = Project::find($id);
+            
+            if (!$project) {
+                return response()->json(['message' => 'Project not found'], 404);
+            }
+
+            $validated = $request->validate([
+                'proposed_start_date' => 'required|date',
+                'proposed_end_date' => 'required|date|after_or_equal:proposed_start_date',
+                'reason' => 'required|string|max:1000',
+            ]);
+
+            // Create date change request
+            $changeRequest = \App\Models\CSG\DateChangeRequest::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $id,
+                'requested_by' => Auth::id(),
+                'current_start_date' => $project->start_date,
+                'current_end_date' => $project->end_date,
+                'proposed_start_date' => $validated['proposed_start_date'],
+                'proposed_end_date' => $validated['proposed_end_date'],
+                'reason' => $validated['reason'],
+                'status' => 'pending',
+            ]);
+
+            Log::info('Date change request created: ' . $changeRequest->id . ' for project: ' . $id);
+
+            // Create audit log
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => Auth::id(),
+                'actionable_id' => $changeRequest->id,
+                'actionable_type' => 'date_change_request',
+                'action' => 'Date Change Requested',
+                'module' => 'project',
+                'action_type' => 'create',
+                'status' => 'Success',
+                'details' => 'Requested date change for project: ' . $project->title,
+                'ip_address' => $request->ip(),
+                'browser_info' => substr((string) $request->userAgent(), 0, 500),
+                'archive' => 0,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Date change request submitted successfully',
+                'data' => $changeRequest,
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Date change request validation failed: ' . json_encode($e->errors()));
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Date change request failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to submit date change request',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getDateChangeRequests($id)
+    {
+        try {
+            $project = Project::find($id);
+            
+            if (!$project) {
+                return response()->json(['message' => 'Project not found'], 404);
+            }
+
+            $requests = \App\Models\CSG\DateChangeRequest::where('project_id', $id)
+                ->with(['requestedByUser:id,name', 'reviewedByUser:id,name'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($request) {
+                    return [
+                        'id' => $request->id,
+                        'project_id' => $request->project_id,
+                        'status' => $request->status,
+                        'current_start_date' => $request->current_start_date,
+                        'current_end_date' => $request->current_end_date,
+                        'proposed_start_date' => $request->proposed_start_date,
+                        'proposed_end_date' => $request->proposed_end_date,
+                        'reason' => $request->reason,
+                        'requested_by_user' => $request->requestedByUser,
+                        'reviewed_by_user' => $request->reviewedByUser,
+                        'reviewed_at' => $request->reviewed_at,
+                        'rejection_reason' => $request->rejection_reason,
+                        'created_at' => $request->created_at,
+                        'updated_at' => $request->updated_at,
+                    ];
+                });
+
+            return response()->json($requests, 200);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch date change requests: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to fetch date change requests',
                 'error' => $e->getMessage()
             ], 500);
         }

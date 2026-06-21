@@ -259,7 +259,7 @@ function CSGProofPageInner() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-3 gap-4">
 
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
     <div className="flex items-center justify-between">

@@ -710,8 +710,9 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
         onClick={() => onClick && onClick(cardName)}
         className="w-full text-left hover:shadow-md transition-shadow"
       >
-        <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white cursor-pointer hover:shadow-lg transition-all">
-          <div className="flex items-center justify-between">
+        <div className="">
+<Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white cursor-pointer hover:shadow-lg transition-all">
+          <div className=" flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">{title}</p>
               <p className="text-2xl text-gray-900 mt-1">{value}</p>
@@ -722,6 +723,8 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
             </div>
           </div>
         </Card>
+        </div>
+        
       </button>
     );
   }

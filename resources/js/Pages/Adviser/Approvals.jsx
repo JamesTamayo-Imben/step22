@@ -5,7 +5,7 @@ import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import ReactDOM from 'react-dom';
-import { Clock, FolderKanban, DollarSign, FileText, Eye, CheckCircle, XCircle, Hash, Shield, Search, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { Clock, FolderKanban, DollarSign, FileText, Eye, CheckCircle, XCircle, Hash, Shield, Search, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
 
 function formatLimitedNumber(value, opts = {}) {
   const { minFractionDigits = 0, maxFractionDigits = 2 } = opts;
@@ -73,6 +73,7 @@ export default function AdviserApprovalsPage() {
     pendingLedger = [],
     approvedItems = [],
     rejectedItems = [],
+    changeRequests = [],
   } = usePage().props;
 
   const [tab, setTab] = useState('project proposals');
@@ -88,6 +89,7 @@ export default function AdviserApprovalsPage() {
   const [approvalNotes, setApprovalNotes] = useState('');
   const [showLedgerProofViewer, setShowLedgerProofViewer] = useState(false);
 
+
   const itemsPerPage = 5;
 
   useEffect(() => {
@@ -99,8 +101,7 @@ export default function AdviserApprovalsPage() {
   const counts = {
     'project proposals': pendingProjects.length,
     'ledger entries': pendingLedger.length,
-    'approved items': approvedItems.length,
-    'rejected items': rejectedItems.length,
+    'Change Requests': changeRequests.length,
   };
 
   // Calculate project statistics from approved ledger entries
@@ -215,6 +216,7 @@ export default function AdviserApprovalsPage() {
     switch (approvalType) {
       case 'project': return <FolderKanban className="w-5 h-5 text-blue-600" />;
       case 'ledger': return <DollarSign className="w-5 h-5 text-green-600" />;
+      case 'date_change': return <Calendar className="w-5 h-5 text-purple-600" />;
       default: return <FileText className="w-5 h-5 text-gray-600" />;
     }
   };
@@ -238,6 +240,8 @@ export default function AdviserApprovalsPage() {
         return pendingProjects.map(item => ({ ...item, approvalType: 'project', status: item.status || 'Pending Adviser Approval' }));
       case 'ledger entries': 
         return pendingLedger.map(item => ({ ...item, approvalType: 'ledger', status: item.status || 'Pending Adviser Approval' }));
+      case 'Change Requests':
+        return changeRequests.map(item => ({ ...item, approvalType: 'date_change', status: 'Pending Approval' }));
       case 'approved items': 
         return approvedItems.map(item => ({
           ...item,
@@ -253,7 +257,7 @@ export default function AdviserApprovalsPage() {
       default: 
         return [];
     }
-  }, [tab, pendingProjects, pendingLedger, approvedItems, rejectedItems]);
+  }, [tab, pendingProjects, pendingLedger, approvedItems, rejectedItems, changeRequests]);
 
   const filteredEntries = useMemo(() => {
     let filtered = itemsForTab.filter((i) => {
@@ -301,6 +305,16 @@ export default function AdviserApprovalsPage() {
             <p className="text-sm text-gray-600">Submitted by: {item.submittedBy}</p>
             <p className="text-sm text-gray-600">Date: {item.submittedDate || item.created_at}</p>
             {item.project && <p className="text-sm text-gray-600">Project Title: {item.project}</p>}
+            
+            {/* Show date details for date change requests */}
+            {/* {item.approvalType === 'date_change' && (
+              <div className="mt-2 p-2 bg-purple-50 rounded border border-purple-200">
+                <p className="text-sm font-medium text-purple-900 mb-1">Date Change Details:</p>
+                <p className="text-xs text-purple-700">Current: {item.currentStartDate} to {item.currentEndDate}</p>
+                <p className="text-xs text-purple-700">Proposed: {item.proposedStartDate} to {item.proposedEndDate}</p>
+                <p className="text-xs text-purple-600 mt-1 italic">Reason: {item.reason}</p>
+              </div>
+            )} */}
           </div>
 
           {(item.status === 'Pending Approval' || item.status === 'Pending Adviser Approval') && (
@@ -422,7 +436,7 @@ export default function AdviserApprovalsPage() {
               ))}
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               {currentItems.length === 0 ? (
                 <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
                  <div className="text-center py-4">
@@ -527,6 +541,70 @@ export default function AdviserApprovalsPage() {
           </div>
         </div>
       </div>
+
+            {/* Review Change Date Request Modal */}
+      <Modal open={showReview && selectedItem?.approvalType === 'date_change'} onClose={() => setShowReview(false)} title="Review Date Change Request">
+        {selectedItem && selectedItem.approvalType === 'date_change' && (
+          <div className="space-y-4 pt-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">ID *</p>
+                <p className="font-mono text-sm text-gray-900 break-all">{selectedItem.id}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Status *</p>
+                <Badge className={`rounded-lg ${getApprovalStatusColor(selectedItem.status)}`}>
+                  {selectedItem.status}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Project Title *</p>
+                <p className="text-gray-900">{selectedItem.project || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Submitted By *</p>
+                <p className="text-sm text-gray-900">{selectedItem.submittedBy || 'Unknown'}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-sm text-gray-500 mb-1">Submitted At *</p>
+                <p className="text-sm text-gray-900">{selectedItem.submittedDate || selectedItem.created_at || 'N/A'}</p>
+              </div>
+               <div>
+                <p className="text-sm text-gray-500 mb-1">Current Date *</p>
+               <p className="text-sm text-purple-700">Current: {selectedItem.currentStartDate} to {selectedItem.currentEndDate}</p>
+              </div>
+               <div>
+                <p className="text-sm text-gray-500 mb-1">Proposed Date Change*</p>
+               <p className="text-sm text-purple-700">Proposed: {selectedItem.proposedStartDate} to {selectedItem.proposedEndDate}</p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-sm font-medium text-gray-900">Reason why it was changed:</p>
+            </div>
+
+            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <p className="text-sm text-purple-600 mt-2 italic">{selectedItem.reason || 'No reason provided'}</p>
+            </div>
+          </div>
+          
+        )}
+         
+              <div className="flex gap-3 pt-4 border-t">
+                <Button variant="outline" className="flex-1 rounded-xl" >
+                  Cancel
+                </Button>
+                <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" >
+                   <XCircle className="w-4 h-4 text-red-600" />
+                  Reject
+                </Button>
+                <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700">
+                  <CheckCircle className="w-4 h-4 text-white-600" />
+                  Approve
+                </Button>
+              </div>
+           
+      </Modal>
 
       {/* Review Project Modal */}
       <Modal open={showReview && selectedItem?.approvalType === 'project'} onClose={() => setShowReview(false)} title="Review Project">

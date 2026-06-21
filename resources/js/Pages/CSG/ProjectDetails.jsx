@@ -242,12 +242,31 @@ const getTypeAmountColor = (type) => {
   }
 };
 
-//show change date button when the date is start date is not yet reached
+//show change date button when the date is start date is not yet reached when the status of change date is pending make it disabled
+//make it so if there is a pending date change request the button is disabled and shows the proposed date change in the project details section with the status of the request
 const canChangeDatesRequest = (project) => {
   if (!project.startDate) return false;
   const now = new Date();
   const startDate = new Date(project.startDate);
   return now < startDate;
+};
+
+// Check if the change date button should be disabled
+const isChangeDateButtonDisabled = () => {
+  if (!project.startDate) return true;
+  
+  // Disable if there's a pending date change request
+  if (dateChangeRequests.length > 0) {
+    const latestRequest = dateChangeRequests[0];
+    if (latestRequest.status === 'pending') {
+      return true;
+    }
+  }
+  
+  // Disable if start date has already passed
+  const now = new Date();
+  const startDate = new Date(project.startDate);
+  return now >= startDate;
 };
 
 const getStatusIcon = (status) => {
@@ -374,6 +393,11 @@ export function CSGProjectDetailsPage({
   const [showEditLedgerModal, setShowEditLedgerModal] = useState(false);
   const [showUploadProofModal, setShowUploadProofModal] = useState(false);
   const [showChangeDatesModal, setShowChangeDatesModal] = useState(false);
+  const [proposedStartDate, setProposedStartDate] = useState('');
+  const [proposedEndDate, setProposedEndDate] = useState('');
+  const [dateChangeReason, setDateChangeReason] = useState('');
+  const [isSubmittingDateChange, setIsSubmittingDateChange] = useState(false);
+  const [dateChangeRequests, setDateChangeRequests] = useState([]);
   const [showProofViewer, setShowProofViewer] = useState(false);
   const [showLedgerProofViewer, setShowLedgerProofViewer] = useState(false);
   const [showLedgerDetails, setShowLedgerDetails] = useState(false);
@@ -410,6 +434,68 @@ export function CSGProjectDetailsPage({
   const isApprovedOrPending = ['Approved', 'Pending Adviser Approval', 'Ongoing'].includes(project.approvalStatus);
   const isApproved = project.approvalStatus === 'Approved';
   const shouldShowNotes = isApprovedOrPending || project.approvalStatus === 'Rejected';
+
+//when the use request for change date shows the proposed date change if the request is pending or approved
+const getDateChangeBadgeClass = (status) => {
+  switch (status) {
+    case 'Draft': return 'bg-gray-100 text-gray-700';
+    case 'Upcoming': return 'bg-purple-100 text-purple-700';
+    case 'Pending Adviser Approval': return 'bg-yellow-100 text-yellow-700';
+    case 'Approved':
+    case 'Ongoing': return 'bg-blue-100 text-blue-700';
+    case 'Completed': return 'bg-green-100 text-green-700';
+    case 'Rejected': return 'bg-red-100 text-red-700';
+    default: return 'bg-gray-100 text-gray-700';
+  }
+};
+
+// Get the status badge for date change requests
+const getDateChangeStatusBadge = () => {
+  if (dateChangeRequests.length === 0) return null;
+  
+  // Get the most recent request
+  const latestRequest = dateChangeRequests[0];
+  
+  let badgeClass = '';
+  let label = '';
+  
+  switch (latestRequest.status) {
+    case 'pending':
+      badgeClass = 'bg-yellow-100 text-yellow-700';
+      label = 'Date Change Pending';
+      break;
+    case 'approved':
+      badgeClass = 'bg-green-100 text-green-700';
+      label = 'Date Change Approved';
+      break;
+    case 'rejected':
+      badgeClass = 'bg-red-100 text-red-700';
+      label = 'Date Change Rejected';
+      break;
+    default:
+      return null;
+  }
+  
+  return { badgeClass, label, request: latestRequest };
+};
+
+
+//change teh color of the date text based on the date change request status
+const getDateTextClass = () => {
+  const dateChangeBadge = getDateChangeStatusBadge();
+  if (!dateChangeBadge) return '';
+
+  switch (dateChangeBadge.request.status) {
+    case 'pending':
+      return 'text-yellow-600';
+    case 'approved':
+      return 'text-green-600';
+    case 'rejected':
+      return 'text-red-600';
+    default:
+      return '';
+  }
+};
 
 // tampering disable
 const isTampered = verificationStatus.status === 'tampering_detected' || verificationStatus.status === 'Tampered';
@@ -458,6 +544,27 @@ const formatDate = (dateString) => {
     return dateString;
   }
 };
+
+  // Fetch date change requests for this project
+  const fetchDateChangeRequests = async () => {
+    if (!projectId) return;
+    
+    try {
+      const response = await fetch(`/api/projects/${projectId}/date-change-requests`, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDateChangeRequests(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error('Error fetching date change requests:', error);
+    }
+  };
 
   // Fetch project from API if we have a projectId but no initial data (deep link refresh)
   useEffect(() => {
@@ -772,6 +879,7 @@ function maskUserName(fullName) {
     if (project.id) {
       fetchLedgerEntries();
       fetchVerificationStatus();
+      fetchDateChangeRequests();
       if (isApproved) {
         fetchProjectRatings();
       }
@@ -1035,6 +1143,53 @@ function maskUserName(fullName) {
       showToastMessage(error.message || 'Failed to submit project', 'error');
     }
   };
+
+  const handleSubmitDateChangeRequest = async () => {
+    try {
+      if (!proposedStartDate || !proposedEndDate || !dateChangeReason.trim()) {
+        showToastMessage('Please fill in all fields', 'error');
+        return;
+      }
+
+      if (new Date(proposedEndDate) < new Date(proposedStartDate)) {
+        showToastMessage('End date must be after start date', 'error');
+        return;
+      }
+
+      setIsSubmittingDateChange(true);
+
+      const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      const response = await fetch(`/api/projects/${project.id}/request-date-change`, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': token,
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          proposed_start_date: proposedStartDate,
+          proposed_end_date: proposedEndDate,
+          reason: dateChangeReason.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to submit date change request');
+      }
+
+      showToastMessage('Date change request submitted successfully. It will appear in the Adviser\'s approval center.', 'success');
+      setShowChangeDatesModal(false);
+      setProposedStartDate('');
+      setProposedEndDate('');
+      setDateChangeReason('');
+    } catch (error) {
+      showToastMessage(error.message || 'Failed to submit date change request', 'error');
+    } finally {
+      setIsSubmittingDateChange(false);
+    }
+  };
   
   const handleAddLedgerEntry = async (ledgerData) => {
     console.log('📝 handleAddLedgerEntry called with ledgerData:', ledgerData);
@@ -1259,7 +1414,7 @@ function maskUserName(fullName) {
   return (
     <div className="space-y-6">
       {/* Back Button */}
-      <Button variant="ghost" onClick={onBack} className="rounded-xl">
+      <Button variant="ghost" onClick={onBack} className="rounded-xl hover:text-blue-600 hover:underline">
         <ArrowLeft className="w-4 h-4 mr-2" />Back to Projects
       </Button>
       
@@ -1273,6 +1428,11 @@ function maskUserName(fullName) {
                 <Badge className={`rounded-lg ${getStatusColor(project.approvalStatus)}`}>{project.approvalStatus}</Badge>
                 <Badge className={`rounded-lg ${getStatusColor(getCalculatedStatus(project))}`}>{getCalculatedStatus(project)}</Badge>
                 {isEditable && <Badge className="rounded-lg bg-purple-100 text-purple-700">Edit Mode</Badge>}
+                {getDateChangeStatusBadge() && (
+                  <Badge className={`rounded-lg ${getDateChangeStatusBadge().badgeClass}`}>
+                    {getDateChangeStatusBadge().label}
+                  </Badge>
+                )}
               </div>
               <p className="text-gray-600">{project.description}</p>
             </div>
@@ -1347,16 +1507,30 @@ function maskUserName(fullName) {
            
              <div className="flex items-center mb-2">
                 <Calendar className="w-5 h-5 text-blue-600 mr-2" />
+                {/* disable the button when there is already a pending date change request */}
                  {canChangeDatesRequest(project) && (
                 <Button onClick={() => setShowChangeDatesModal(true)} variant="outline" size="sm" className="bg-blue-600 text-white hover:bg-blue-700"
+                  disabled={!!getDateChangeStatusBadge()}
                 >
                   Change Dates
                 </Button>
                  )}
              </div> 
            
-              <p className="text-sm text-gray-500">Timeline</p>
-              <p className="text-sm text-gray-900">{formatDate(project.startDate)} to {formatDate(project.endDate)}</p>
+              <p className="text-sm text-gray-500">Timeline 
+                
+              </p>
+              {getDateTextClass(getCalculatedStatus(project)) ? (
+                <p className={`text-sm font-semibold ${getDateTextClass(getCalculatedStatus(project))}`}>
+                  {formatDate(project.startDate)} to {formatDate(project.endDate)}
+                </p>
+              ) : (
+                <p className="text-sm font-semibold text-blue-700">
+                  {formatDate(project.startDate)} to {formatDate(project.endDate)}
+                </p>
+               )
+
+              }
             </div>
           </div>
         </div>
@@ -1461,6 +1635,37 @@ function maskUserName(fullName) {
                 <p className="text-sm text-gray-500 mb-1">End Date</p>
                 <p className="text-gray-900">{formatDate(project.endDate)}</p>
               </div>
+              {getDateChangeStatusBadge() && (
+                <div className="col-span-full border-t pt-4">
+                  <div className="mb-3">
+                    <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-purple-600" />
+                      Pending Date Change
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 bg-purple-50 p-3 rounded-lg">
+                    <div>
+                      <p className="text-xs text-gray-600 mb-1">Current Dates</p>
+                      <p className="text-sm text-gray-900">{formatDate(getDateChangeStatusBadge().request.current_start_date)} to {formatDate(getDateChangeStatusBadge().request.current_end_date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600 mb-1">Proposed Dates</p>
+                      <p className="text-sm text-gray-900">{formatDate(getDateChangeStatusBadge().request.proposed_start_date)} to {formatDate(getDateChangeStatusBadge().request.proposed_end_date)}</p>
+                    </div>
+                  </div>
+                  {getDateChangeStatusBadge().request.reason && (
+                    <div className="mt-3">
+                      <p className="text-xs text-gray-600 mb-1">Reason</p>
+                      <p className="text-sm text-gray-700">{getDateChangeStatusBadge().request.reason}</p>
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getDateChangeStatusBadge().badgeClass}`}>
+                      {getDateChangeStatusBadge().label}
+                    </span>
+                  </div>
+                </div>
+              )}
               <div>
                 <p className="text-sm text-gray-500 mb-1">Created by:</p>
                 <p className="text-gray-900">{project.createdBy || 'Not specified'}</p>
@@ -1477,7 +1682,7 @@ function maskUserName(fullName) {
               <h2 className="text-lg font-semibold text-gray-900">
                 {project.approvalStatus === 'Rejected' ? 'Rejection Notes' : 'Adviser Notes'}
               </h2>
-              <div className={`rounded-xl p-4 mt-3 ${
+              <div className={`rounded-xl p-4 ${
                 project.approvalStatus === 'Rejected' ? 'bg-red-50' : 'bg-blue-50'
               }`}>
                 <p className={`text-sm ${
@@ -2300,7 +2505,7 @@ function maskUserName(fullName) {
       </Modal>
 
       {/* Modal for change date request */}
-      <Modal open={showChangeDatesModal} onClose={() => setShowChangeDateModal(false)} title="Request Change of Project Dates">
+      <Modal open={showChangeDatesModal} onClose={() => setShowChangeDatesModal(false)} title="Request Change of Project Dates">
         <div className="space-y-4">
           <p className="text-sm text-gray-500">Select new proposed start and end dates for the project:</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2308,27 +2513,38 @@ function maskUserName(fullName) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Proposed Start Date</label>
               <input 
                 type="date"
-                // value={proposedStartDate}
-                // onChange={(e) => setProposedStartDate(e.target.value)}
-                className="w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                value={proposedStartDate}
+                onChange={(e) => setProposedStartDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 border"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Proposed End Date</label>
               <input 
                 type="date"
-                // value={proposedEndDate}
-                // onChange={(e) => setProposedEndDate(e.target.value)}
-                className="w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                value={proposedEndDate}
+                onChange={(e) => setProposedEndDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 border"
               />
             </div>
           </div>
+          {/* note why change the date of the project  */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Date Change</label>
+            <textarea
+              value={dateChangeReason}
+              onChange={(e) => setDateChangeReason(e.target.value)}
+              rows={4}
+              className="w-full px-3 py-2 rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 border"
+              placeholder="Provide a reason for the date change request"
+            />
+          </div>
+
           <div className="flex gap-3 pt-4">
                         <Button onClick={() => setShowChangeDatesModal(false)} variant="outline" className="flex-1 rounded-xl">Cancel</Button>
 
-            <Button  className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
-              {/* <Send className="w-4 h-4 mr-2" /> */}
-              Submit Request
+            <Button onClick={handleSubmitDateChangeRequest} disabled={isSubmittingDateChange} className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+              {isSubmittingDateChange ? 'Submitting...' : 'Submit Request'}
             </Button>
           </div>
         </div>
