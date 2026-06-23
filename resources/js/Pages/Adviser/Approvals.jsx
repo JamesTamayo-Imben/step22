@@ -438,12 +438,12 @@ export default function AdviserApprovalsPage() {
 
             <div className="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               {currentItems.length === 0 ? (
-                <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
-                 <div className="text-center py-4">
-                                 <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                 <p className="text-sm text-gray-500">No recent activity found</p>
-                                 <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
-                               </div>
+                <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center md:col-span-2">
+                  <div className="text-center py-4">
+                    <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500">No recent activity found</p>
+                    <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
+                  </div>
                 </Card>
               ) : (
                 currentItems.map((item) => renderItem(item))

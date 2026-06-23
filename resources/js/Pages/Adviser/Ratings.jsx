@@ -103,7 +103,6 @@ export function RatingsAnalyticsPage() {
   const [selectedRating, setSelectedRating] = useState('all');
   const [dateRange, setDateRange] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('satisfaction');
   const [sortBy, setSortBy] = useState('highest');
 
   // Filter ratings based on all filters
@@ -121,11 +120,7 @@ export function RatingsAnalyticsPage() {
     });
   }, [dateRange, searchQuery, selectedProject, selectedRating, studentRatings]);
 
-   const tabs = [
-    { id: 'satisfaction', label: 'Satisfaction Rating' },
-    { id: 'completeness', label: 'Completeness Rating' },
-    { id: 'engagement', label: 'Engagement Rating' },
-  ];
+
 
   // Filter and sort projects
   const filteredProjects = useMemo(() => {
@@ -214,12 +209,12 @@ export function RatingsAnalyticsPage() {
       </div>
 
       {/* Overview Cards - KPI Dashboard */}
-      <div className="grid grid-cols-2 md:grid-cols-1 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
           <div className="flex items-center justify-between">
             <div>
                 <p className="text-sm text-gray-500">
-                Average {activeTab === 'satisfaction' ? 'Satisfaction' : activeTab === 'completeness' ? 'Completeness' : 'Engagement'}
+                Overall Average Rating
               </p>
               {/* <p className="text-sm text-gray-500">Overall Average</p> */}
               <div className="flex items-center gap-3 mt-2">
@@ -253,8 +248,8 @@ export function RatingsAnalyticsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Satisfaction Rate</p>
-              <p className="text-3xl font-semibold text-gray-900 mt-2">{totalRatings ? `${satisfactionRate}%` : '—'}</p>
-              <p className="text-xs text-green-600 mt-1">% of ratings ≥ 4★</p>
+              <p className="text-3xl font-semibold text-gray-900 mt-2">{totalRatings ? `${satisfactionRate}%` : '0'}</p>
+              <p className="text-xs text-green-600 mt-1">Satisfied (3-5 stars)</p>
             </div>
             <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
               <ThumbsUp className="w-6 h-6 text-green-600" />
@@ -314,25 +309,6 @@ export function RatingsAnalyticsPage() {
         </div>
       </Card>
 
-       {/* Tabs Navigation */}
-            <Card className="rounded-[20px] border-0 shadow-sm bg-white">
-              <div className="flex border-gray-200 p-2">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 text-center ${
-                      activeTab === tab.id
-                        ? 'text-white border-b-2 bg-blue-600 p-2 rounded-xl'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </Card>
-
       {/* Project Ratings */}
       <div className="space-y-6">
         {filteredProjects.map((project) => {
@@ -340,7 +316,7 @@ export function RatingsAnalyticsPage() {
           return (
             <Card key={project.id} className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
               {/* Project Header */}
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 mb-2">
                     {project.projectName}
@@ -348,7 +324,7 @@ export function RatingsAnalyticsPage() {
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <span className="text-3xl font-semibold text-gray-900">
-                        {project.totalRatings ? project.averageRating.toFixed(2) : '—'}
+                        {project.totalRatings ? project.averageRating.toFixed(2) : ''}
                       </span>
                       {project.totalRatings > 0 && <div className="flex">{renderStars(project.averageRating)}</div>}
                     </div>
@@ -359,14 +335,41 @@ export function RatingsAnalyticsPage() {
                 {project.totalRatings > 0 && (
                   <Badge className="bg-blue-100 text-blue-700 rounded-lg px-3 py-1">
                     <TrendingUp className="w-3 h-3 mr-1" />
-                    {Math.round((project.totalRatings / totalRatings) * 100)}% of feedback
+                    {Math.round((project.totalRatings / (kpi.totalRatings || 1)) * 100)}% of feedback
                   </Badge>
                 )}
               </div>
 
+              {/* Rating Breakdown by Category */}
+              {project.totalRatings > 0 && (
+                <div className="grid grid-cols-3 gap-3 mb-2">
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-600 font-medium mb-1">Satisfaction</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-semibold text-blue-900">{project.satisfactionRating.toFixed(1)}</span>
+                      <div className="flex gap-0.5">{renderSmallStars(project.satisfactionRating)}</div>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-600 font-medium mb-1">Completeness</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-semibold text-blue-900">{project.completenessRating.toFixed(1)}</span>
+                      <div className="flex gap-0.5">{renderSmallStars(project.completenessRating)}</div>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-600 font-medium mb-1">Engagement</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-semibold text-blue-900">{project.engagementRating.toFixed(1)}</span>
+                      <div className="flex gap-0.5">{renderSmallStars(project.engagementRating)}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Rating Distribution */}
               {project.totalRatings > 0 && (
-                <div className="mb-6">
+                <div className="mb-2">
                   <h3 className="text-sm font-medium text-gray-700 mb-3">Rating Distribution</h3>
                   <div className="space-y-2">
                     {[5, 4, 3, 2, 1].map((stars) => {
@@ -446,13 +449,11 @@ export function RatingsAnalyticsPage() {
 
         {filteredProjects.length === 0 && (
           <Card className="rounded-[20px] border-0 shadow-sm p-12 bg-white text-center">
-           <div className="text-center">
-                     <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm text-gray-500">No upcoming meetings found</p>
-                        <p className="text-xs text-gray-400 mt-1 mb-4">
-                        Student didnt rate project yet
-                        </p>
-                    </div>
+            <div className="text-center">
+              <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">No projects found</p>
+              <p className="text-xs text-gray-400 mt-1">No projects match your filters</p>
+            </div>
           </Card>
         )}
       </div>

@@ -318,7 +318,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-gray-600">{project.rating || 0}</span>
+                  <span className="text-sm text-gray-600">{project.rating || 0}</span> 
                   <span className="text-xs text-gray-400">({project.ratingsCount})</span>
                 </div>
               </div>

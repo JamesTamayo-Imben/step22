@@ -26,74 +26,20 @@ class CSGRatingsController extends Controller
 
         $byProject = $ratings->groupBy('project_id');
 
-        $projectSummaries = Project::query()
-            ->whereIn('id', $projects)
-            ->get()
-            ->map(function (Project $project) use ($byProject) {
-                $rows = $byProject->get($project->id, collect());
-                $total = $rows->count();
-                $avg = $total > 0 ? round($rows->avg('rating_score'), 2) : 0.0;
-                
-                // Rating distribution
-                $distribution = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
-                foreach ($rows as $row) {
-                    $s = (int) $row->rating_score;
-                    if ($s >= 1 && $s <= 5) {
-                        $distribution[$s]++;
-                    }
-                }
-
-                // CSAT Calculation: 1-2 stars = not satisfied, 3-5 stars = satisfied
-                $satisfied = $distribution[5] + $distribution[4] + $distribution[3];
-                $notSatisfied = $distribution[2] + $distribution[1];
-                $csat = $total > 0 ? (int) round(100 * $satisfied / $total) : 0;
-
-                return [
-                    'id' => $project->id,
-                    'projectName' => $project->title ?? 'Untitled',
-                    'averageRating' => $total ? (float) $avg : 0.0,
-                    'totalRatings' => $total,
-                    'ratingDistribution' => $distribution,
-                    'csat' => $csat,
-                    'satisfied' => $satisfied,
-                    'notSatisfied' => $notSatisfied,
-                ];
-            })
-            ->sortByDesc('totalRatings')
-            ->values();
-
-        $recentComments = $ratings->map(function (Rating $r) {
-            return [
-                'id' => $r->id,
-                'studentName' => $r->user?->name ?? 'Student',
-                'projectName' => $r->project?->title ?? 'Project',
-                'projectId' => $r->project_id,
-                'rating' => (int) $r->rating_score,
-                'comment' => (string) ($r->comments ?? ''),
-                'date' => optional($r->created_at)->format('Y-m-d') ?? '',
-                'createdAt' => optional($r->created_at)?->toIso8601String(),
-                'helpful' => (int) ($r->helpful_count ?? 0),
-            ];
-        })->values();
-
-        // Overall statistics
-        $overallAvg = $ratings->count() ? round($ratings->avg('rating_score'), 2) : 0.0;
-        
-        // CSAT: 3-5 stars = satisfied
-        $satisfied = $ratings->whereIn('rating_score', [3, 4, 5])->count();
-        $notSatisfied = $ratings->whereIn('rating_score', [1, 2])->count();
-        $csatRate = $ratings->count() ? (int) round(100 * $satisfied / $ratings->count()) : 0;
+        $projectSummaries = $this->buildProjectSummaries($projects, $byProject);
+        $recentComments   = $this->buildRecentComments($ratings);
+        [$overallAvg, $csatRate, $satisfied, $notSatisfied] = $this->buildKpiStats($ratings);
 
         return Inertia::render('CSG/Ratings', [
             'projectSummaries' => $projectSummaries,
-            'recentComments' => $recentComments,
-            'kpi' => [
-                'overallAverage' => (float) $overallAvg,
-                'totalRatings' => $ratings->count(),
+            'recentComments'   => $recentComments,
+            'kpi'              => [
+                'overallAverage'          => (float) $overallAvg,
+                'totalRatings'            => $ratings->count(),
                 'projectCountWithRatings' => $byProject->count(),
-                'csatRate' => $csatRate,
-                'satisfied' => $satisfied,
-                'notSatisfied' => $notSatisfied,
+                'csatRate'                => $csatRate,
+                'satisfied'               => $satisfied,
+                'notSatisfied'            => $notSatisfied,
             ],
         ]);
     }
@@ -117,72 +63,133 @@ class CSGRatingsController extends Controller
 
         $byProject = $ratings->groupBy('project_id');
 
-        $projectSummaries = Project::query()
-            ->whereIn('id', $projects)
+        $projectSummaries = $this->buildProjectSummaries($projects, $byProject);
+        $recentComments   = $this->buildRecentComments($ratings, 10);
+        [$overallAvg, $csatRate, $satisfied, $notSatisfied] = $this->buildKpiStats($ratings);
+
+        return response()->json([
+            'projectSummaries' => $projectSummaries,
+            'recentComments'   => $recentComments,
+            'kpi'              => [
+                'overallAverage'          => (float) $overallAvg,
+                'totalRatings'            => $ratings->count(),
+                'projectCountWithRatings' => $byProject->count(),
+                'csatRate'                => $csatRate,
+                'satisfied'               => $satisfied,
+                'notSatisfied'            => $notSatisfied,
+            ],
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers (eliminates duplication between index & getRatingsData)
+    // -------------------------------------------------------------------------
+
+    private function buildProjectSummaries($projectIds, $byProject)
+    {
+        return Project::query()
+            ->whereIn('id', $projectIds)
             ->get()
             ->map(function (Project $project) use ($byProject) {
-                $rows = $byProject->get($project->id, collect());
+                $rows  = $byProject->get($project->id, collect());
                 $total = $rows->count();
-                $avg = $total > 0 ? round($rows->avg('rating_score'), 2) : 0.0;
-                
+
+                $avg = $total > 0 ? round(
+                    ($rows->avg('satisfaction_rating') +
+                     $rows->avg('engagement_rating') +
+                     $rows->avg('completeness_rating')) / 3, 2
+                ) : 0.0;
+
+                // Distribution bucketed by rounded per-row average
                 $distribution = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
                 foreach ($rows as $row) {
-                    $s = (int) $row->rating_score;
+                    $s = (int) round(
+                        ((float) $row->satisfaction_rating +
+                         (float) $row->engagement_rating +
+                         (float) $row->completeness_rating) / 3
+                    );
                     if ($s >= 1 && $s <= 5) {
                         $distribution[$s]++;
                     }
                 }
 
-                $satisfied = $distribution[5] + $distribution[4] + $distribution[3];
+                // CSAT: 3-5 stars = satisfied
+                $satisfied    = $distribution[5] + $distribution[4] + $distribution[3];
                 $notSatisfied = $distribution[2] + $distribution[1];
-                $csat = $total > 0 ? (int) round(100 * $satisfied / $total) : 0;
+                $csat         = $total > 0 ? (int) round(100 * $satisfied / $total) : 0;
 
                 return [
-                    'id' => $project->id,
-                    'projectName' => $project->title ?? 'Untitled',
-                    'averageRating' => $total ? (float) $avg : 0.0,
-                    'totalRatings' => $total,
+                    'id'                 => $project->id,
+                    'projectName'        => $project->title ?? 'Untitled',
+                    'averageRating'      => (float) $avg,
+                    'satisfactionRating' => $total > 0 ? round((float) $rows->avg('satisfaction_rating'), 2) : 0.0,
+                    'completenessRating' => $total > 0 ? round((float) $rows->avg('completeness_rating'), 2) : 0.0,
+                    'engagementRating'   => $total > 0 ? round((float) $rows->avg('engagement_rating'), 2) : 0.0,
+                    'totalRatings'       => $total,
                     'ratingDistribution' => $distribution,
-                    'csat' => $csat,
-                    'satisfied' => $satisfied,
-                    'notSatisfied' => $notSatisfied,
+                    'csat'               => $csat,
+                    'satisfied'          => $satisfied,
+                    'notSatisfied'       => $notSatisfied,
                 ];
             })
             ->sortByDesc('totalRatings')
             ->values();
+    }
 
-        $recentComments = $ratings
-            ->sortByDesc('created_at')
-            ->take(10)
-            ->map(function (Rating $r) {
-                return [
-                    'id' => $r->id,
-                    'studentName' => $r->user?->name ?? 'Student',
-                    'projectName' => $r->project?->title ?? 'Project',
-                    'projectId' => $r->project_id,
-                    'rating' => (int) $r->rating_score,
-                    'comment' => (string) ($r->comments ?? ''),
-                    'date' => optional($r->created_at)->format('Y-m-d') ?? '',
-                    'helpful' => (int) ($r->helpful_count ?? 0),
-                ];
-            })->values();
+    private function buildRecentComments($ratings, ?int $limit = null)
+    {
+        $collection = $ratings->sortByDesc('created_at');
 
-        $overallAvg = $ratings->count() ? round($ratings->avg('rating_score'), 2) : 0.0;
-        $satisfied = $ratings->whereIn('rating_score', [3, 4, 5])->count();
-        $notSatisfied = $ratings->whereIn('rating_score', [1, 2])->count();
-        $csatRate = $ratings->count() ? (int) round(100 * $satisfied / $ratings->count()) : 0;
+        if ($limit) {
+            $collection = $collection->take($limit);
+        }
 
-        return response()->json([
-            'projectSummaries' => $projectSummaries,
-            'recentComments' => $recentComments,
-            'kpi' => [
-                'overallAverage' => (float) $overallAvg,
-                'totalRatings' => $ratings->count(),
-                'projectCountWithRatings' => $byProject->count(),
-                'csatRate' => $csatRate,
-                'satisfied' => $satisfied,
-                'notSatisfied' => $notSatisfied,
-            ],
-        ]);
+        return $collection->map(function (Rating $r) {
+            $avg = round(
+                ((float) $r->satisfaction_rating +
+                 (float) $r->completeness_rating +
+                 (float) $r->engagement_rating) / 3,
+                1
+            );
+
+            return [
+                'id'          => $r->id,
+                'studentName' => $r->user?->name ?? 'Student',
+                'projectName' => $r->project?->title ?? 'Project',
+                'projectId'   => $r->project_id,
+                'rating'      => $avg,
+                'comment'     => (string) ($r->comments ?? ''),
+                'date'        => optional($r->created_at)->format('Y-m-d') ?? '',
+                'createdAt'   => optional($r->created_at)?->toIso8601String(),
+                'helpful'     => (int) ($r->helpful_count ?? 0),
+            ];
+        })->values();
+    }
+
+    private function buildKpiStats($ratings): array
+    {
+        if ($ratings->count() === 0) {
+            return [0.0, 0, 0, 0];
+        }
+
+        $overallAvg = round(
+            ($ratings->avg('satisfaction_rating') +
+             $ratings->avg('completeness_rating') +
+             $ratings->avg('engagement_rating')) / 3, 2
+        );
+
+        // CSAT per-row: average of three sub-ratings >= 3 = satisfied
+        $satisfied = $ratings->filter(
+            fn ($r) => round(
+                ((float) $r->satisfaction_rating +
+                 (float) $r->engagement_rating +
+                 (float) $r->completeness_rating) / 3
+            ) >= 3
+        )->count();
+
+        $notSatisfied = $ratings->count() - $satisfied;
+        $csatRate     = (int) round(100 * $satisfied / $ratings->count());
+
+        return [$overallAvg, $csatRate, $satisfied, $notSatisfied];
     }
 }

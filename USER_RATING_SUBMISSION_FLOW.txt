@@ -1,0 +1,770 @@
+================================================================================
+                   HOW USERS SUBMIT RATINGS - COMPLETE FLOW
+================================================================================
+PROJECT: User Rating Submission System
+CREATED: 2026-06-21
+PURPOSE: Documents the entire flow from UI to database for rating submission
+
+================================================================================
+                            QUICK OVERVIEW
+================================================================================
+
+USER JOURNEY:
+  1. Student/User opens a project details page
+  2. User sees a "Rate Project" button
+  3. User clicks button to open rating modal
+  4. User fills in:
+     - Satisfaction Rating (1-5 stars)
+     - Completeness Rating (1-5 stars)
+     - Engagement Rating (1-5 stars)
+     - Comment (optional text)
+  5. User clicks "Submit Rating"
+  6. Frontend sends POST request to backend
+  7. Backend validates and stores rating in database
+  8. Page reloads to show success
+  9. Rating becomes visible in Analytics Dashboard
+
+
+================================================================================
+                        STEP 1: FRONTEND COMPONENT
+================================================================================
+FILE: resources/js/Pages/User/pages/StudentProjectDetails.jsx
+LOCATION: Full file (~900+ lines)
+
+COMPONENT: StudentProjectDetails 
+PURPOSE: Displays individual project details and rating interface
+
+A) INITIAL STATE SETUP (Line 10-28):
+   
+   Local State Variables:
+   - currentProject: stores project data
+   - showRatingModal: boolean toggle for rating modal visibility
+   - satisfactionRating: integer 1-5 (or 0 if not set)
+   - completenessRating: integer 1-5 (or 0 if not set)
+   - engagementRating: integer 1-5 (or 0 if not set)
+   - comment: string for user's written feedback
+   - hoveredSatisfactionRating: for star hover effect UI
+   - hoveredCompletenessRating: for star hover effect UI
+   - hoveredEngagementRating: for star hover effect UI
+   - isSubmitting: boolean flag during submission
+   - activeTab: tracks which tab user is on
+   - selectedLedgerEntry: for ledger details
+   - selectedProofDocument: for proof documents
+   - showAllComments: toggle to show all or limited comments
+
+B) CHECK IF USER CAN RATE (Line 31-37):
+   
+   hasUserRated = currentProject?.currentUserRating !== null && !== undefined
+   isRatingDisabled = hasUserRated
+   
+   PURPOSE:
+   - One user can only rate each project ONCE
+   - If user already rated, rating button is disabled
+   - Prevents duplicate ratings from same user
+
+C) SYNC RATING STATE WITH PROJECT DATA (Line 39-47):
+   
+   useEffect hook watches for project prop changes:
+   - When project changes, update all rating state variables
+   - If project has existing currentUserRating:
+     * Load satisfactionRating from project.currentUserRating.rating
+     * Load completenessRating from project.currentUserRating.completeness
+     * Load engagementRating from project.currentUserRating.engagement
+     * Load comment from project.currentUserRating.comment
+   
+   Dependencies: [project]
+   PURPOSE: Keep UI in sync with data
+
+D) RENDER STAR RATING PICKER (Line 700-730 approximate):
+   
+   For each rating type (Satisfaction, Completeness, Engagement):
+   
+   Stars Display:
+   1. Render 5 interactive star icons
+   2. onClick: setXxxRating(starNumber)
+   3. onMouseEnter: setHoveredXxxRating(starNumber) [for hover effect]
+   4. onMouseLeave: setHoveredXxxRating(0)
+   
+   Star Fill Logic:
+   - If star <= (hoveredRating OR currentRating): filled (colored)
+   - Otherwise: empty (gray)
+   
+   Colors by Type:
+   - Satisfaction: Blue stars (fill-blue-400)
+   - Completeness: Green stars (fill-green-400)
+   - Engagement: Red stars (fill-red-400)
+   
+   Scaling: On hover, stars scale up (hover:scale-110)
+   
+   PURPOSE: Provide intuitive 5-star rating interface
+
+E) COMMENT INPUT (Line 760-770 approximate):
+   
+   textarea element:
+   - Placeholder: "Share your thoughts about this project..."
+   - value: controlled by comment state
+   - onChange: updates comment state in real-time
+   - Max rows: 4
+   - Max chars: 1000 (enforced on backend)
+   
+   PURPOSE: Allow users to provide qualitative feedback
+
+F) SUBMIT BUTTON & VALIDATION (Line 772-788):
+   
+   Button Properties:
+   - label: "Submit Rating" or "Submitting..." while in progress
+   - disabled: if satisfactionRating === 0 OR isSubmitting
+   - disabled state: gray color (bg-gray-300)
+   - active state: blue color (bg-blue-600) with hover effect
+   - onClick: calls handleSubmitRating()
+   
+   Validation Logic (client-side):
+   - Requires at least satisfactionRating to be selected
+   - Completeness and Engagement are optional
+   - Comment is optional
+   - Cannot submit while already submitting
+   
+   PURPOSE: Prevent invalid/incomplete submissions
+
+G) CANCEL BUTTON:
+   
+   onClick resets all rating state:
+   - Closes modal: setShowRatingModal(false)
+   - Clears satisfaction: setSatisfactionRating(0)
+   - Clears completeness: setCompletenessRating(0)
+   - Clears engagement: setEngagementRating(0)
+   - Clears comment: setComment('')
+   
+   PURPOSE: Allow user to discard unsaved rating
+
+
+================================================================================
+                   STEP 2: RATING SUBMISSION HANDLER
+================================================================================
+FILE: resources/js/Pages/User/pages/StudentProjectDetails.jsx
+LOCATION: Line 161-180
+
+FUNCTION: handleSubmitRating()
+
+EXECUTION FLOW:
+
+1. GUARD CLAUSE (Line 162):
+   if (!rating) return;
+   
+   Checks if satisfactionRating is set
+   PURPOSE: Early exit if validation fails
+
+2. SET LOADING STATE (Line 164):
+   setIsSubmitting(true);
+   
+   Updates button to show "Submitting..." text
+   PURPOSE: Prevent multiple submissions while one is in progress
+
+3. CONSTRUCT REQUEST (Line 166-177):
+   
+   const response = await fetch(`/user/projects/${projectId}/ratings`, {
+     method: 'POST',
+     headers: {
+       'Content-Type': 'application/json',
+       'Accept': 'application/json',
+       'X-Requested-With': 'XMLHttpRequest',
+       'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+     },
+     body: JSON.stringify({ rating, comment }),
+   });
+   
+   Endpoint: /user/projects/{projectId}/ratings
+   HTTP Method: POST
+   
+   Headers Explained:
+   - Content-Type: Tells server body is JSON
+   - Accept: Accept JSON responses
+   - X-Requested-With: Identifies AJAX request
+   - X-CSRF-TOKEN: Security token from HTML meta tag
+   
+   Body Sent:
+   {
+     "rating": 5,                    // 1-5 star rating (satisfactionRating)
+     "comment": "Great project!"     // Optional feedback
+   }
+   
+   NOTE: Only satisfactionRating is sent as "rating" field
+   NOTE: completenessRating and engagementRating are NOT sent in current code
+
+4. HANDLE RESPONSE (Line 179-182):
+   
+   if (!response.ok) {
+     throw new Error('Failed to submit rating');
+   }
+   
+   Checks if HTTP status indicates success (200-299)
+   If not OK (4xx, 5xx errors): throw exception
+   PURPOSE: Catch server-side validation errors
+
+5. SUCCESS ACTION (Line 184):
+   window.location.reload();
+   
+   Reloads entire page after successful submission
+   PURPOSE: 
+   - Refresh data from server
+   - Show updated ratings count
+   - Disable rating button if user can only rate once
+   - Clear modal
+
+6. ERROR HANDLING (Line 185-187):
+   
+   catch (error) {
+     console.error(error);
+   }
+   
+   Logs error to browser console
+   NOTE: No user-facing error message shown
+   PURPOSE: Developer debugging
+
+7. CLEANUP (Line 188-191):
+   
+   finally {
+     setIsSubmitting(false);
+   }
+   
+   Resets loading state regardless of success/failure
+   PURPOSE: Re-enable submit button
+
+
+================================================================================
+                            STEP 3: ROUTING
+================================================================================
+FILE: routes/web.php
+LOCATION: Line 389
+
+ROUTE DEFINITION:
+  Route::post('/user/projects/{id}/ratings', [UserProjectController::class, 'upsertRating'])->name('user.project-rate');
+
+URL Pattern: /user/projects/{projectId}/ratings
+HTTP Method: POST
+Controller: UserProjectController (app/Http/Controllers/User/UserProjectController.php)
+Method: upsertRating()
+Route Name: user.project-rate
+
+MIDDLEWARE APPLIED:
+  - auth: User must be logged in
+  - verified: User email must be verified (likely)
+  - role:user: User must have 'user' role
+
+PURPOSE: Map POST request to controller method that processes rating
+
+
+================================================================================
+                            STEP 4: BACKEND CONTROLLER
+================================================================================
+FILE: app/Http/Controllers/User/UserProjectController.php
+LOCATION: Line 244-289
+
+METHOD: upsertRating(Request $request, string $projectId)
+
+EXECUTION FLOW:
+
+A) AUTHENTICATION CHECK (Line 245-247):
+   
+   $user = $this->resolveCurrentUser();
+   if (!$user) {
+       return response()->json(['message' => 'No user found for rating'], 422);
+   }
+   
+   Resolves currently authenticated user
+   If no user found (shouldn't happen due to auth middleware):
+   - Return HTTP 422 error
+   - Error message: "No user found for rating"
+   
+   PURPOSE: Ensure request is from authenticated user
+
+B) VALIDATION (Line 249-252):
+   
+   $validated = $request->validate([
+       'rating' => ['required', 'integer', 'min:1', 'max:5'],
+       'comment' => ['nullable', 'string', 'max:1000'],
+   ]);
+   
+   Validates incoming request data:
+   
+   'rating' field:
+   - Required: Must be present in request
+   - Integer: Must be whole number
+   - Min: 1 (minimum 1 star)
+   - Max: 5 (maximum 5 stars)
+   
+   'comment' field:
+   - Nullable: Can be empty/null
+   - String: Must be text
+   - Max: 1000 characters
+   
+   If validation fails:
+   - Returns automatic HTTP 422 error
+   - Includes field errors (details about what failed)
+   
+   PURPOSE: Ensure data integrity before storing
+
+C) FETCH & VALIDATE PROJECT (Line 254-258):
+   
+   $project = Project::query()->where('archive', 0)->findOrFail($projectId);
+   if (($project->approval_status ?? '') !== 'Approved') {
+       return response()->json(['message' => 'Project is not approved for public ratings'], 422);
+   }
+   
+   Query logic:
+   1. Find project by ID
+   2. Where archive = 0 (not deleted)
+   3. findOrFail(): Throw 404 if not found
+   
+   Approval check:
+   - Only users can rate projects with approval_status = 'Approved'
+   - If status is not 'Approved':
+     * Return HTTP 422 error
+     * Message: "Project is not approved for public ratings"
+   
+   PURPOSE: 
+   - Prevent rating non-existent projects
+   - Prevent rating unapproved/draft projects
+
+D) CHECK FOR EXISTING RATING (Line 260-267):
+   
+   $existingRating = Rating::query()
+       ->where('project_id', $project->id)
+       ->where('user_id', $user->id)
+       ->first();
+   
+   if ($existingRating) {
+       return response()->json([
+           'message' => 'You have already rated this project. You can only rate once per project.'
+       ], 422);
+   }
+   
+   Query logic:
+   1. Search ratings table for:
+      - Matching project_id
+      - Matching user_id
+   2. first(): Get first match (if any)
+   
+   If rating exists:
+   - Return HTTP 422 error
+   - Message: "You have already rated this project. You can only rate once per project."
+   - Purpose: Enforce one-rating-per-user-per-project rule
+   
+   PURPOSE: Prevent duplicate ratings
+
+E) CREATE NEW RATING RECORD (Line 269-276):
+   
+   $rating = new Rating();
+   $rating->id = (string) Str::uuid();           // Generate UUID
+   $rating->project_id = $project->id;            // Link to project
+   $rating->user_id = $user->id;                  // Link to user
+   $rating->rating_score = $validated['rating'];  // 1-5 stars
+   $rating->comments = $validated['comment'] ?? null;  // Optional comment
+   $rating->archive = 0;                          // Mark as active
+   $rating->save();                               // Persist to database
+   
+   Step-by-step:
+   1. Create new Rating model instance
+   2. Generate UUID for primary key
+   3. Set foreign key to project
+   4. Set foreign key to user (student who rated)
+   5. Store validated rating score (1-5)
+   6. Store validated comment (or null if empty)
+   7. Mark as not archived (active)
+   8. save(): Execute INSERT query on ratings table
+   
+   Created Fields (automatic):
+   - created_at: Set to current timestamp by database
+   - updated_at: Not used (set to null per model)
+   
+   PURPOSE: Store rating persistently in database
+
+F) RETURN SUCCESS RESPONSE (Line 278-282):
+   
+   return response()->json([
+       'success' => true,
+       'message' => 'Rating submitted successfully'
+   ]);
+   
+   HTTP Status: 200 (default for successful response)
+   Response Body:
+   {
+     "success": true,
+     "message": "Rating submitted successfully"
+   }
+   
+   PURPOSE: 
+   - Confirm to frontend that submission succeeded
+   - Frontend then reloads page
+
+
+================================================================================
+                            STEP 5: DATABASE STORAGE
+================================================================================
+FILE: step_system_database.sql
+LOCATION: Lines 512-528
+
+TABLE: ratings
+
+SCHEMA:
+CREATE TABLE `ratings` (
+  `id` char(36) NOT NULL,               -- UUID primary key
+  `project_id` char(36) DEFAULT NULL,   -- Foreign key to projects
+  `user_id` char(36) DEFAULT NULL,      -- Foreign key to users
+  `rating_score` int(11) DEFAULT NULL,  -- 1-5 stars
+  `comments` text DEFAULT NULL,         -- Optional feedback
+  `helpful_count` int(11) DEFAULT 0,    -- Vote count on this rating
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),  -- Submission time
+  `archive` tinyint(1) DEFAULT 0        -- Soft delete flag
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+FOREIGN KEY CONSTRAINTS (Lines 1003-1004):
+  ratings_ibfk_1: project_id → projects(id) ON DELETE CASCADE
+    - If project deleted, this rating deleted automatically
+  
+  ratings_ibfk_2: user_id → users(id) ON DELETE SET NULL
+    - If user deleted, user_id set to NULL (preserves rating data)
+
+SAMPLE INSERT STATEMENT:
+  INSERT INTO `ratings` (
+    `id`,
+    `project_id`,
+    `user_id`,
+    `rating_score`,
+    `comments`,
+    `helpful_count`,
+    `created_at`,
+    `archive`
+  ) VALUES (
+    '598910fc-5661-47ca-b1c9-938b5ea790c2',  -- Generated UUID
+    'e6808957-5fca-42ef-813a-446935e61126',  -- Project UUID
+    'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b',  -- User UUID
+    5,                                        -- 5 stars
+    '123',                                    -- Comment text
+    0,                                        -- No helpful votes yet
+    '2026-05-26 10:29:00',                   -- Timestamp
+    0                                         -- Not archived
+  );
+
+PURPOSE: Persistent storage of all ratings with audit trail
+
+
+================================================================================
+                          ERROR SCENARIOS & RESPONSES
+================================================================================
+
+SCENARIO 1: User Not Authenticated
+  Status: 401 Unauthorized (by auth middleware)
+  User redirected to login
+  PURPOSE: Prevent unauthenticated rating submissions
+
+SCENARIO 2: Invalid Project ID
+  Status: 404 Not Found
+  Message: (Laravel default not found response)
+  Cause: Project doesn't exist or is archived
+  PURPOSE: Prevent rating non-existent projects
+
+SCENARIO 3: Project Not Approved
+  Status: 422 Unprocessable Entity
+  Message: "Project is not approved for public ratings"
+  Cause: Project approval_status !== 'Approved'
+  PURPOSE: Enforce only rating approved projects
+
+SCENARIO 4: Rating Score Invalid
+  Status: 422 Unprocessable Entity
+  Message: Contains validation errors (e.g., "rating must be between 1 and 5")
+  Cause: rating < 1 or > 5, or not integer, or missing
+  PURPOSE: Ensure data quality
+
+SCENARIO 5: Comment Too Long
+  Status: 422 Unprocessable Entity
+  Message: Contains validation errors (e.g., "comment may not be greater than 1000 characters")
+  Cause: Comment string length > 1000
+  PURPOSE: Prevent database overflow
+
+SCENARIO 6: User Already Rated This Project
+  Status: 422 Unprocessable Entity
+  Message: "You have already rated this project. You can only rate once per project."
+  Cause: Existing rating found for this user + project combination
+  PURPOSE: Enforce one-rating-per-project rule
+
+SCENARIO 7: Network Error During Submission
+  Frontend: Error caught in catch block
+  Console: Error logged to developer console
+  UI: Button remains disabled, no message shown to user
+  PURPOSE: Prevent silent failures
+
+
+================================================================================
+                              DATA FLOW DIAGRAM
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           FRONTEND (BROWSER)                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  StudentProjectDetails Component                                       │
+│  ├─ State: satisfactionRating, completenessRating,                   │
+│  │          engagementRating, comment, isSubmitting                  │
+│  │                                                                   │
+│  ├─ Render: 3 Star Pickers + Comment TextArea + Submit Button       │
+│  │                                                                   │
+│  └─ handleSubmitRating()                                             │
+│     └─ fetch('POST /user/projects/{id}/ratings', {                  │
+│        body: { rating: 5, comment: 'Great!' }                        │
+│     })                                                                │
+│                                                                         │
+└────────────────────────────────┬────────────────────────────────────────┘
+                                 │ (Network Request)
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     ROUTING LAYER (web.php)                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  Route::post('/user/projects/{id}/ratings', ...)                      │
+│  ├─ Middleware: [auth, verified, role:user]                          │
+│  └─ Handler: UserProjectController@upsertRating                      │
+│                                                                         │
+└────────────────────────────────┬────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│              CONTROLLER (UserProjectController.php)                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  upsertRating($request, $projectId)                                   │
+│  ├─ 1. Get current user                                              │
+│  ├─ 2. Validate: rating (1-5), comment (max 1000)                   │
+│  ├─ 3. Load project & verify: not archived, approved                │
+│  ├─ 4. Check: user hasn't rated this project yet                    │
+│  ├─ 5. Create Rating record in memory                               │
+│  ├─ 6. $rating->save() → INSERT query                               │
+│  └─ 7. Return JSON: { success: true, message: "..." }               │
+│                                                                         │
+└────────────────────────────────┬────────────────────────────────────────┘
+                                 │ (SQL Query)
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                  DATABASE (ratings table)                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  INSERT INTO ratings (id, project_id, user_id, rating_score, ...)    │
+│  VALUES ('uuid...', 'proj-id', 'user-id', 5, '...comment...', ...)   │
+│                                                                         │
+│  ✓ Rating now stored persistently                                     │
+│  ✓ Appears in adviser analytics                                       │
+│  ✓ Contributes to project average                                     │
+│                                                                         │
+└────────────────────────────────┬────────────────────────────────────────┘
+                                 │ (Return Response)
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           FRONTEND (BROWSER)                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  handleSubmitRating() continued:                                      │
+│  └─ Receives: { success: true, message: "Rating submitted..." }      │
+│  └─ if (response.ok) window.location.reload()                        │
+│     ├─ Page reloads                                                   │
+│     ├─ Fresh data fetched from server                                │
+│     ├─ User sees updated rating count                                │
+│     ├─ Rate button disabled (already rated)                          │
+│     └─ Modal closes                                                   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                          SEQUENCE OF ACTIONS
+================================================================================
+
+USER PERSPECTIVE:
+┌────────────────────────────────────────────────────────────────────────┐
+│ 1. User navigates to /user/projects/abc123                            │
+│ 2. StudentProjectDetails component loads & renders project            │
+│ 3. User sees "Rate Project" button (unless already rated)             │
+│ 4. User clicks button → Rating modal appears                          │
+│ 5. User selects stars:                                                │
+│    - Hovers over stars to preview selection                           │
+│    - Clicks star to confirm selection                                 │
+│ 6. User optionally types comment                                      │
+│ 7. User clicks "Submit Rating" button                                 │
+│ 8. Button shows "Submitting..." (disabled)                            │
+│ 9. Behind the scenes: POST /user/projects/abc123/ratings              │
+│ 10. Server processes request:                                          │
+│    - Validates data                                                    │
+│    - Checks user hasn't rated before                                  │
+│    - Inserts record into database                                     │
+│ 11. Server returns success (JSON)                                      │
+│ 12. Frontend reloads page                                              │
+│ 13. User sees:                                                         │
+│    - Modal closed                                                      │
+│    - Rating count incremented                                          │
+│    - Average rating updated                                            │
+│    - Rate button now disabled with message "Already Rated"            │
+└────────────────────────────────────────────────────────────────────────┘
+
+DEVELOPER PERSPECTIVE (Network Timeline):
+┌────────────────────────────────────────────────────────────────────────┐
+│ T=0s      User clicks "Submit Rating"                                 │
+│ T=0.1s    handleSubmitRating() executes                               │
+│ T=0.2s    fetch() sends POST request with JSON body                   │
+│ T=0.5s    Request arrives at server                                   │
+│ T=0.6s    Middleware: Check auth, role, etc.                          │
+│ T=0.7s    Router dispatches to AdviserRatingsController               │
+│ T=0.8s    Controller: Validate request                                │
+│ T=0.9s    Database: Query for existing ratings                        │
+│ T=1.0s    Database: INSERT new rating                                 │
+│ T=1.1s    Controller: Build response JSON                             │
+│ T=1.2s    Response sent from server                                   │
+│ T=1.5s    Response received by browser                                │
+│ T=1.6s    window.location.reload() triggered                          │
+│ T=2.0s    Page fully reloaded with fresh data                         │
+└────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                            IMPORTANT CONSTRAINTS
+================================================================================
+
+ONE RATING PER USER PER PROJECT:
+  - User can only submit one rating per project
+  - Enforced in Controller at line 260-267
+  - Database can have multiple ratings from same user if for different projects
+  - Database can have multiple ratings for same project from different users
+
+RATING SCALE:
+  - Must be integer 1-5 (inclusive)
+  - Validated in Controller at line 250
+  - No half-stars (e.g., 3.5) allowed
+  - No zero or negative ratings allowed
+
+COMMENT OPTIONAL BUT LIMITED:
+  - Comment can be null/empty
+  - If provided: must be string, max 1000 characters
+  - Comment stored as TEXT in database (can handle long comments)
+  - Special characters (quotes, newlines) properly escaped by ORM
+
+PROJECT MUST BE APPROVED:
+  - Only 'Approved' projects can be rated
+  - Enforced in Controller at line 257-258
+  - Draft, pending, or rejected projects cannot be rated
+  - Prevents rating unfinished projects
+
+USER MUST BE AUTHENTICATED:
+  - Requires login (auth middleware)
+  - Requires verified account (verified middleware)
+  - Requires user role (role:user middleware)
+  - System knows exact user ID from session
+
+NO RATING UPDATES ALLOWED:
+  - Current implementation only allows INSERT (new ratings)
+  - Controller checks if rating exists and rejects if found
+  - If user wants to change rating: must use API differently
+  - Or ratings must be soft-deleted and recreated
+
+
+================================================================================
+                          HOW DATA FLOWS TO ANALYTICS
+================================================================================
+
+1. USER SUBMITS RATING
+   └─ Rating stored in ratings table
+
+2. ADVISER VISITS /adviser/ratings
+   └─ AdviserRatingsController::index() called
+
+3. CONTROLLER QUERIES RATINGS TABLE
+   └─ Fetches all non-archived ratings for approved projects
+
+4. AGGREGATION HAPPENS:
+   ├─ Counts total ratings per project
+   ├─ Calculates average rating_score per project
+   ├─ Builds rating distribution (5★, 4★, 3★, 2★, 1★)
+   ├─ Analyzes trends (last 30 vs 30-60 days)
+   └─ Calculates KPIs (overall average, satisfaction rate)
+
+5. DATA TRANSFORMED FOR FRONTEND:
+   ├─ projectSummaries: Array of project stats
+   ├─ studentRatings: Array of individual ratings
+   └─ kpi: Overall metrics
+
+6. RENDERED IN DASHBOARD:
+   ├─ KPI Cards show aggregate statistics
+   ├─ Project Cards show per-project stats
+   ├─ Star distributions show breakdown
+   └─ Comments display shows recent feedback
+
+
+================================================================================
+                          RELATED ENDPOINTS
+================================================================================
+
+GET /user/projects
+  - Lists all projects available for user to rate
+  - Shows which ones user has already rated
+
+GET /user/projects/{id}
+  - Shows project details
+  - Includes: project.currentUserRating (if exists)
+  - Includes: project.averageRating (from other users)
+
+POST /user/projects/{id}/ratings
+  - SUBMIT A NEW RATING (this flow)
+  - Request: { rating: 1-5, comment?: string }
+  - Response: { success: true, message: string }
+
+GET /adviser/ratings
+  - Adviser views all ratings analytics
+  - Shows aggregated data (projects, trends, KPIs)
+  - Related to VIEWING ratings, not submitting
+
+GET /api/csg/ratings
+  - CSG officer views ratings data (different role)
+  - Similar to adviser but CSG-specific scope
+
+
+================================================================================
+                              FILE SUMMARY
+================================================================================
+
+FRONTEND FILES:
+  [1] resources/js/Pages/User/pages/StudentProjectDetails.jsx
+      - Rating modal UI
+      - Star pickers for 3 rating types
+      - Comment input
+      - handleSubmitRating() function
+      - Submission logic
+
+BACKEND FILES:
+  [2] app/Http/Controllers/User/UserProjectController.php (Line 244-289)
+      - upsertRating() method
+      - Validation logic
+      - Database storage
+      - Error handling
+      - Response formatting
+
+  [3] app/Models/User/Rating.php
+      - Rating model with relationships
+      - Database column mappings
+      - Type casting
+
+  [4] app/Models/User/Project.php
+      - Project model
+      - Used for validation in rating submission
+
+ROUTING:
+  [5] routes/web.php (Line 389)
+      - POST /user/projects/{id}/ratings route definition
+      - Middleware configuration
+
+DATABASE:
+  [6] step_system_database.sql (Lines 512-528)
+      - ratings table schema
+      - Foreign key constraints
+      - Column definitions
+
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 31, 2026 at 05:55 AM
+-- Generation Time: Jun 24, 2026 at 12:24 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -31,6 +31,7 @@ CREATE TABLE `approval` (
   `id` char(36) NOT NULL,
   `employee_id` varchar(100) DEFAULT NULL,
   `project_id` char(36) DEFAULT NULL,
+  `approvable_id` char(36) DEFAULT NULL,
   `reference_type` varchar(100) DEFAULT NULL,
   `approvable_type` varchar(100) DEFAULT NULL,
   `status` varchar(50) DEFAULT NULL,
@@ -68,16 +69,32 @@ CREATE TABLE `audit_logs` (
 --
 
 INSERT INTO `audit_logs` (`id`, `user_id`, `actionable_id`, `actionable_type`, `action`, `module`, `action_type`, `status`, `details`, `ip_address`, `browser_info`, `created_at`, `archive`) VALUES
+('06570619-3ef7-4a22-adbc-fdd2c6b68535', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'ce97f462-8d9d-4941-be93-91976f027512', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Expense ledger entry for project ID 2e8dc2e7-5618-44b4-9230-a48658daf0a6', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 01:52:38', 0),
+('11c30957-cff6-422d-9999-adf376e11258', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'f7f8b067-e630-4809-959b-77360c366108', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"123\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-06-01 02:11:55', 0),
 ('26df601b-a438-49ff-b6d6-548d9e6faddc', '087ccbc9-efa8-44e0-8435-3310207554d7', 'e6808957-5fca-42ef-813a-446935e61126', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: TESTING', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 09:54:23', 0),
+('53640bfc-8113-4145-83a1-b607791335fa', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'e77a70cd-f3bd-4776-9a03-05f88dfdd960', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Expense ledger entry for project ID 2e8dc2e7-5618-44b4-9230-a48658daf0a6', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-10 08:02:18', 0),
+('56812e4b-2439-422d-9a76-b98b408cade9', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '3397d634-4b91-40d7-8727-3ac093aa27ce', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Donation ledger entry for project ID 2e8dc2e7-5618-44b4-9230-a48658daf0a6', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 01:42:45', 0),
+('5a783cf6-a1f7-4343-a26f-13939d5df841', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'ea06eeaa-7d27-4912-a511-a5559b1c72a9', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Donation ledger entry for project ID 3e79a958-802c-4597-ad7f-14ec50c492b1', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 01:46:49', 0),
 ('5d72cca0-211c-46e8-9d82-42c04a8734ce', '087ccbc9-efa8-44e0-8435-3310207554d7', NULL, 'project', 'Project Budget Synced from Ledger', 'ledger', NULL, NULL, 'Synchronized 1 project budget(s) with approved ledger totals', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:27:39', 0),
+('66cba088-2c7c-43ca-ab8e-22472de11ad0', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'project', 'Project Archived', 'projects', 'delete', 'Success', 'Archived project \"sdafsda\" and 0 related ledger entries', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-12 10:18:03', 0),
 ('76890987-36b0-471e-9a76-ff6d2bdfbaf8', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'e6808957-5fca-42ef-813a-446935e61126', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"TESTING\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-26 09:44:07', 0),
+('7a8ac692-6b1a-41d1-8a06-aa9306524779', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'e43c6e38-5949-42ff-8158-3607ad77fee8', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Expense ledger entry for project ID 3e79a958-802c-4597-ad7f-14ec50c492b1', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 02:15:47', 0),
+('8f9a6ad3-5091-4f94-8aec-4551a301d05d', '087ccbc9-efa8-44e0-8435-3310207554d7', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: sdafsda', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-14 10:30:48', 0),
 ('966502e3-3aca-421e-b267-3a1fe5087ed6', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '81f86e97-f3b4-4ab0-b437-9396875ac877', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Expense ledger entry for project ID e6808957-5fca-42ef-813a-446935e61126', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 12:03:29', 0),
 ('a9a68477-43da-47b4-b69b-05fab089b10d', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'b1be13a0-1aa8-4fca-bbef-e28771a65872', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Income ledger entry for project ID e6808957-5fca-42ef-813a-446935e61126', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-26 09:56:17', 0),
 ('a9ca6f4c-3b0b-49c6-bee2-bb4e1d52c5cb', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"test2\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 12:24:15', 0),
+('ac801ee3-7bea-4ff6-858a-72a1e0213b56', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"sdafsda\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-12 10:17:51', 0),
+('ae22b573-3aec-40b4-bf5c-5ddc5aa2b627', '087ccbc9-efa8-44e0-8435-3310207554d7', 'f7f8b067-e630-4809-959b-77360c366108', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: 123', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-06-01 02:12:15', 0),
+('aeedca32-da20-400e-a6fb-acccdc111ac1', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '6b733448-bb6b-4a3c-96c9-a90cc7cb17e2', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"JANIII\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 01:43:40', 0),
 ('aef0ce0a-7df2-422e-b7d1-6013f2fa3776', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b1be13a0-1aa8-4fca-bbef-e28771a65872', 'ledger_entry', 'Ledger Entry Approved', 'ledger', NULL, NULL, 'emdgquintos — TESTING', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:23:57', 0),
+('cfe97d3e-f04c-41f2-b213-dfc557e15fa9', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '539f56cd-5214-4940-9144-e809e5682ee8', 'ledger_entry', 'Ledger Entry Created', 'ledger', 'create', 'Success', 'Created Expense ledger entry for project ID 2e8dc2e7-5618-44b4-9230-a48658daf0a6', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 01:48:35', 0),
+('db48f9a1-495e-4537-911d-a613fa04056b', '087ccbc9-efa8-44e0-8435-3310207554d7', '6b733448-bb6b-4a3c-96c9-a90cc7cb17e2', 'project', 'Project Rejected', 'approvals', NULL, NULL, 'Rejected project: JANIII — etretw', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-24 01:25:59', 0),
+('dd8ee350-22d9-42ef-8727-a05f951eb752', '087ccbc9-efa8-44e0-8435-3310207554d7', 'aa2860db-d074-47e5-8942-731c4cb0c598', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: dsfgfdg', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-14 10:36:04', 0),
 ('e2e0b8b3-d4b1-4672-a2f5-06dd7dbb7877', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b55d1a03-f4f8-4592-8573-eb3dc6de246d', 'ledger_entry', 'Ledger Entry Restored from Blockchain', 'ledger', NULL, NULL, 'Restored to approved state using blockchain snapshot', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:27:57', 0),
 ('e6e29f6b-9348-44a5-9ddc-aa7fddb999f0', '087ccbc9-efa8-44e0-8435-3310207554d7', NULL, 'project', 'Project Budget Synced from Ledger', 'ledger', NULL, NULL, 'Synchronized 1 project budget(s) with approved ledger totals', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', '2026-05-26 10:28:00', 0),
-('ed821bc2-ec85-4c96-8405-77e2a0535329', '087ccbc9-efa8-44e0-8435-3310207554d7', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: test2', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-26 12:24:48', 0);
+('ed821bc2-ec85-4c96-8405-77e2a0535329', '087ccbc9-efa8-44e0-8435-3310207554d7', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'project', 'Project Approved', 'approvals', NULL, NULL, 'Approved project: test2', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', '2026-05-26 12:24:48', 0),
+('f8e035e3-e68c-4df5-ac01-1631d3c85ec3', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'ed6bb5b3-8dbe-45f6-83c6-7be07ae7cd29', 'date_change_request', 'Date Change Requested', 'project', 'create', 'Success', 'Requested date change for project: sdafsda', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-20 02:38:21', 0),
+('fd984d30-7bc5-41be-9c37-d560a727cc1b', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 'aa2860db-d074-47e5-8942-731c4cb0c598', 'project', 'Project Created', 'projects', 'create', 'Success', 'Created project \"dsfgfdg\"', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', '2026-06-14 10:31:45', 0);
 
 -- --------------------------------------------------------
 
@@ -146,9 +163,13 @@ CREATE TABLE `chain` (
 
 INSERT INTO `chain` (`id`, `project_id`, `block_index`, `prev_hash`, `hash`, `data_snapshot`, `created_at`) VALUES
 ('495a3be7-d8ca-4c57-b8fa-c4dd4e146663', 'e6808957-5fca-42ef-813a-446935e61126', 1, '77db84e18d6eed03125bd29254ecf915f80a95df10fbd20721937eceb72bf40e', '6ee3ddda0f513bd562f67b253346edf1a37b253e5f8bf9a5248901164df52e5c', '\"{\\\"type\\\":\\\"ledger\\\",\\\"ledger_id\\\":\\\"b55d1a03-f4f8-4592-8573-eb3dc6de246d\\\",\\\"project_id\\\":\\\"e6808957-5fca-42ef-813a-446935e61126\\\",\\\"description\\\":\\\"Initial project budget baseline\\\",\\\"budget_breakdown\\\":null,\\\"amount\\\":\\\"9000.00\\\",\\\"entry_type\\\":\\\"Initial\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-05-26T02:54:23+00:00\\\",\\\"snapshot_nonce\\\":\\\"30656874b281439f\\\"}\"', '2026-05-26 02:54:23'),
+('7a415008-30b8-4eab-85d8-b46c47b7209d', 'aa2860db-d074-47e5-8942-731c4cb0c598', 0, NULL, 'f1cfa4971d36ac544f393aededc5506877d5fbb45c7b6730d42dead2e7ce4cd4', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"aa2860db-d074-47e5-8942-731c4cb0c598\\\",\\\"title\\\":\\\"dsfgfdg\\\",\\\"description\\\":\\\"dgfdg\\\",\\\"amount\\\":\\\"123.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-06-14T03:36:04+00:00\\\"}\"', '2026-06-14 03:36:04'),
 ('82988b23-941d-4131-bb89-4dc212e1671f', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 0, NULL, '58edf29a2345e763b7e5952b8f632f7cd1626829f7d9e4812731cbe672ea110d', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"2e8dc2e7-5618-44b4-9230-a48658daf0a6\\\",\\\"title\\\":\\\"test2\\\",\\\"description\\\":\\\"test2\\\",\\\"amount\\\":\\\"0.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-05-26T05:24:48+00:00\\\"}\"', '2026-05-26 05:24:48'),
 ('873ef469-f013-4577-8a06-4a62ecb0c7f3', 'e6808957-5fca-42ef-813a-446935e61126', 2, '6ee3ddda0f513bd562f67b253346edf1a37b253e5f8bf9a5248901164df52e5c', 'f5ca985927f6525375b6588fed17390a7575ad7f7c91ce9013636e1473a606df', '\"{\\\"type\\\":\\\"ledger\\\",\\\"ledger_id\\\":\\\"b1be13a0-1aa8-4fca-bbef-e28771a65872\\\",\\\"project_id\\\":\\\"e6808957-5fca-42ef-813a-446935e61126\\\",\\\"description\\\":\\\"emdgquintos\\\",\\\"budget_breakdown\\\":\\\"[{\\\\\\\"id\\\\\\\":1,\\\\\\\"item\\\\\\\":\\\\\\\"emdgquintos\\\\\\\",\\\\\\\"qty\\\\\\\":1,\\\\\\\"unitPrice\\\\\\\":\\\\\\\"12\\\\\\\",\\\\\\\"amount\\\\\\\":12}]\\\",\\\"amount\\\":\\\"12.00\\\",\\\"entry_type\\\":\\\"Income\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-05-26T03:23:57+00:00\\\",\\\"snapshot_nonce\\\":\\\"9fbe6f91a196e200\\\"}\"', '2026-05-26 03:23:57'),
-('9125283b-5a09-4fe7-912d-b88d87d62e80', 'e6808957-5fca-42ef-813a-446935e61126', 0, NULL, '77db84e18d6eed03125bd29254ecf915f80a95df10fbd20721937eceb72bf40e', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"e6808957-5fca-42ef-813a-446935e61126\\\",\\\"title\\\":\\\"TESTING\\\",\\\"description\\\":\\\"TESTING\\\",\\\"amount\\\":\\\"9000.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-05-26T02:54:23+00:00\\\"}\"', '2026-05-26 02:54:23');
+('9125283b-5a09-4fe7-912d-b88d87d62e80', 'e6808957-5fca-42ef-813a-446935e61126', 0, NULL, '77db84e18d6eed03125bd29254ecf915f80a95df10fbd20721937eceb72bf40e', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"e6808957-5fca-42ef-813a-446935e61126\\\",\\\"title\\\":\\\"TESTING\\\",\\\"description\\\":\\\"TESTING\\\",\\\"amount\\\":\\\"9000.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-05-26T02:54:23+00:00\\\"}\"', '2026-05-26 02:54:23'),
+('92aff0b9-b44d-442b-8394-a979711656c6', 'aa2860db-d074-47e5-8942-731c4cb0c598', 1, 'f1cfa4971d36ac544f393aededc5506877d5fbb45c7b6730d42dead2e7ce4cd4', '9a29a465a020f223b5fc7a8956857ba273172b1da4c31852352ed63b7a469681', '\"{\\\"type\\\":\\\"ledger\\\",\\\"ledger_id\\\":\\\"1bebfa69-877d-4061-8f42-398331602ce9\\\",\\\"project_id\\\":\\\"aa2860db-d074-47e5-8942-731c4cb0c598\\\",\\\"description\\\":\\\"Initial project budget baseline\\\",\\\"budget_breakdown\\\":null,\\\"amount\\\":\\\"123.00\\\",\\\"entry_type\\\":\\\"Initial\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-06-14T03:36:04+00:00\\\",\\\"snapshot_nonce\\\":\\\"79954a7711f77429\\\"}\"', '2026-06-14 03:36:04'),
+('b2e39da5-33f1-439c-8b24-40dfc95e518f', '3e79a958-802c-4597-ad7f-14ec50c492b1', 0, NULL, 'dcd801616f53d6b55a59574245f0156efb47ee4fc996420f3f62aabcd5e0bfb7', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"3e79a958-802c-4597-ad7f-14ec50c492b1\\\",\\\"title\\\":\\\"sdafsda\\\",\\\"description\\\":\\\"sdafsd\\\",\\\"amount\\\":\\\"0.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-06-14T03:30:48+00:00\\\"}\"', '2026-06-14 03:30:48'),
+('ce308a52-629c-4e42-965a-51e915602d06', 'f7f8b067-e630-4809-959b-77360c366108', 0, NULL, '44083a67d7a3a8a6f3b0de947b87dbc6b7d31cd62883e8c18e96f9760c2616a2', '\"{\\\"type\\\":\\\"project\\\",\\\"project_id\\\":\\\"f7f8b067-e630-4809-959b-77360c366108\\\",\\\"title\\\":\\\"123\\\",\\\"description\\\":\\\"asdsa\\\",\\\"amount\\\":\\\"0.00\\\",\\\"approval_status\\\":\\\"Approved\\\",\\\"approved_at\\\":\\\"2026-05-31T19:12:15+00:00\\\"}\"', '2026-05-31 19:12:15');
 
 --
 -- Triggers `chain`
@@ -194,6 +215,36 @@ INSERT INTO `course` (`id`, `institute_id`, `name`, `description`, `created_at`,
 ('059d26df-235d-11f1-9647-10683825ce81', '059bab0d-235d-11f1-9647-10683825ce81', 'BSM', NULL, '2026-03-19 06:29:42', '2026-04-14 05:50:34', 0),
 ('059d2744-235d-11f1-9647-10683825ce81', '059bab0d-235d-11f1-9647-10683825ce81', 'BSN', NULL, '2026-03-19 06:29:42', '2026-03-19 06:29:42', 0),
 ('059d279f-235d-11f1-9647-10683825ce81', '059bab0d-235d-11f1-9647-10683825ce81', 'BSocSc', NULL, '2026-03-19 06:29:42', '2026-04-14 05:52:23', 0);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `date_change_requests`
+--
+
+CREATE TABLE `date_change_requests` (
+  `id` char(36) NOT NULL,
+  `project_id` char(36) NOT NULL,
+  `requested_by` char(36) NOT NULL,
+  `current_start_date` date NOT NULL,
+  `current_end_date` date NOT NULL,
+  `proposed_start_date` date NOT NULL,
+  `proposed_end_date` date NOT NULL,
+  `reason` longtext NOT NULL,
+  `status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `reviewed_by` char(36) DEFAULT NULL,
+  `reviewed_at` timestamp NULL DEFAULT NULL,
+  `rejection_reason` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `date_change_requests`
+--
+
+INSERT INTO `date_change_requests` (`id`, `project_id`, `requested_by`, `current_start_date`, `current_end_date`, `proposed_start_date`, `proposed_end_date`, `reason`, `status`, `reviewed_by`, `reviewed_at`, `rejection_reason`, `created_at`, `updated_at`) VALUES
+('ed6bb5b3-8dbe-45f6-83c6-7be07ae7cd29', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '2026-07-11', '2026-07-28', '2026-06-21', '2026-06-22', 'shabu', 'pending', NULL, NULL, NULL, '2026-06-20 02:38:21', '2026-06-20 02:38:21');
 
 -- --------------------------------------------------------
 
@@ -285,9 +336,16 @@ CREATE TABLE `ledger_entries` (
 --
 
 INSERT INTO `ledger_entries` (`id`, `project_id`, `type`, `amount`, `description`, `category`, `budget_breakdown`, `ledger_proof`, `file_content_hash`, `approval_status`, `is_initial_entry`, `note`, `approved_by`, `created_by`, `updated_by`, `approved_at`, `rejected_at`, `archive`, `created_at`, `updated_at`) VALUES
+('1bebfa69-877d-4061-8f42-398331602ce9', 'aa2860db-d074-47e5-8942-731c4cb0c598', 'Initial', 123.00, 'Initial project budget baseline', 'Project Budget Baseline', NULL, NULL, NULL, 'Approved', 0, 'Auto-generated baseline on project creation', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', '2026-06-14 10:36:04', NULL, 0, '2026-06-14 10:31:45', '2026-06-14 10:36:04'),
+('3397d634-4b91-40d7-8727-3ac093aa27ce', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'Donation', 123.00, 'gfdgdf', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"dgdfs\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"123\\\",\\\"amount\\\":123}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-20 01:42:45', '2026-06-20 01:42:49'),
+('539f56cd-5214-4940-9144-e809e5682ee8', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'Expense', 23.00, 'sdafdsaf', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"sadfsda\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"23\\\",\\\"amount\\\":23}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-20 01:48:35', '2026-06-20 01:48:37'),
 ('81f86e97-f3b4-4ab0-b437-9396875ac877', 'e6808957-5fca-42ef-813a-446935e61126', 'Expense', 23423.00, 'qwe', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"qwe\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"23423\\\",\\\"amount\\\":23423}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, '97bf6c0e-420b-4627-be8b-31f37f5bed9f', NULL, NULL, NULL, 0, '2026-05-26 12:03:29', '2026-05-26 12:03:42'),
 ('b1be13a0-1aa8-4fca-bbef-e28771a65872', 'e6808957-5fca-42ef-813a-446935e61126', 'Income', 12.00, 'emdgquintos', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"emdgquintos\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"12\\\",\\\"amount\\\":12}]\"', NULL, NULL, 'Approved', 0, '12', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', '2026-05-26 10:23:57', NULL, 0, '2026-05-26 09:56:17', '2026-05-26 10:23:57'),
-('b55d1a03-f4f8-4592-8573-eb3dc6de246d', 'e6808957-5fca-42ef-813a-446935e61126', 'Initial', 9000.00, 'Initial project budget baseline', 'Project Budget Baseline', NULL, NULL, NULL, 'Approved', 0, 'Auto-generated baseline on project creation', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', '2026-05-26 09:54:23', NULL, 0, '2026-05-26 09:44:07', '2026-05-26 10:27:57');
+('b55d1a03-f4f8-4592-8573-eb3dc6de246d', 'e6808957-5fca-42ef-813a-446935e61126', 'Initial', 9000.00, 'Initial project budget baseline', 'Project Budget Baseline', NULL, NULL, NULL, 'Approved', 0, 'Auto-generated baseline on project creation', '087ccbc9-efa8-44e0-8435-3310207554d7', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', '2026-05-26 09:54:23', NULL, 0, '2026-05-26 09:44:07', '2026-05-26 10:27:57'),
+('ce97f462-8d9d-4941-be93-91976f027512', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'Expense', 123.00, 'sdfsda', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"asfdas\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"123\\\",\\\"amount\\\":123}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-20 01:52:38', '2026-06-20 01:52:41'),
+('e43c6e38-5949-42ff-8158-3607ad77fee8', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'Expense', 1123.00, 'dfgfd', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"dgsd\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"1123\\\",\\\"amount\\\":1123}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-20 02:15:47', '2026-06-20 02:15:55'),
+('e77a70cd-f3bd-4776-9a03-05f88dfdd960', '2e8dc2e7-5618-44b4-9230-a48658daf0a6', 'Expense', 123.00, 'sdfaasd', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"safdsa\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"123\\\",\\\"amount\\\":123}]\"', 'storage/ledger_proofs/ad224ec3a34d8494740416d52bf07da5422b6f5bdb1ed5a4b1d8e9506828224a.png', 'ad224ec3a34d8494740416d52bf07da5422b6f5bdb1ed5a4b1d8e9506828224a', 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-10 08:02:18', '2026-06-10 09:13:09'),
+('ea06eeaa-7d27-4912-a511-a5559b1c72a9', '3e79a958-802c-4597-ad7f-14ec50c492b1', 'Donation', 123123.00, 'JANIII', NULL, '\"[{\\\"id\\\":1,\\\"item\\\":\\\"JANIII\\\",\\\"qty\\\":1,\\\"unitPrice\\\":\\\"123123\\\",\\\"amount\\\":123123}]\"', NULL, NULL, 'Pending Adviser Approval', 0, NULL, NULL, 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', NULL, NULL, NULL, 0, '2026-06-20 01:46:49', '2026-06-20 01:46:52');
 
 -- --------------------------------------------------------
 
@@ -338,7 +396,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (7, '2026_04_16_000001_create_push_subscriptions_table', 5),
 (8, '2026_04_17_000001_create_id_verification_table', 6),
 (9, '2026_04_17_000002_add_id_verification_to_users', 7),
-(10, '2026_04_20_add_invitation_tokens_to_users', 8);
+(10, '2026_04_20_add_invitation_tokens_to_users', 8),
+(11, '2026_06_19_create_date_change_requests_table', 9);
 
 -- --------------------------------------------------------
 
@@ -485,8 +544,12 @@ CREATE TABLE `projects` (
 --
 
 INSERT INTO `projects` (`id`, `student_id`, `title`, `description`, `objective`, `category`, `budget`, `is_initial`, `venue`, `status`, `proposed_by`, `note`, `project_proof`, `start_date`, `end_date`, `approve_by`, `approval_status`, `approved_at`, `created_at`, `updated_at`, `created_by`, `updated_by`, `archive`) VALUES
-('2e8dc2e7-5618-44b4-9230-a48658daf0a6', NULL, 'test2', 'test2', 'test2', 'Sports', 0.00, 0, 'test2', 'Draft', 'test2', 'emdgquintos', NULL, '2026-06-26', '2026-06-30', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-05-26 12:24:48', '2026-05-26 12:24:15', '2026-05-26 12:24:48', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '087ccbc9-efa8-44e0-8435-3310207554d7', 0),
-('e6808957-5fca-42ef-813a-446935e61126', NULL, 'TESTING', 'TESTING', 'TESTING', 'Sports', 9012.00, 1, 'TESTING', 'Draft', 'TESTING', 'emdgquintos', NULL, '2026-06-25', '2026-06-25', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-05-26 09:54:23', '2026-05-26 09:44:07', '2026-05-26 10:28:00', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', 0);
+('2e8dc2e7-5618-44b4-9230-a48658daf0a6', NULL, 'test2', 'test2', 'test2', 'Sports', 0.00, 0, 'test2', 'Draft', 'test2', 'emdgquintos', NULL, '2026-06-11', '2026-06-30', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-05-26 12:24:48', '2026-05-26 12:24:15', '2026-06-14 03:36:27', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '087ccbc9-efa8-44e0-8435-3310207554d7', 0),
+('3e79a958-802c-4597-ad7f-14ec50c492b1', NULL, 'sdafsda', 'sdafsd', 'asfdsda', 'Technology', 0.00, 0, 'asfsad', 'Draft', 'sadfsdafasd', 'asfsdf', NULL, '2026-07-11', '2026-07-28', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-06-14 10:30:48', '2026-06-12 10:17:51', '2026-06-14 10:30:48', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', 0),
+('6b733448-bb6b-4a3c-96c9-a90cc7cb17e2', NULL, 'JANIII', 'JANIII', 'JANIII', 'Technology', 0.00, 0, 'JANIII', 'Draft', 'JANIII', 'etretw', NULL, '2026-07-20', '2026-07-29', NULL, 'Rejected', NULL, '2026-06-20 01:43:40', '2026-06-24 01:25:59', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', 0),
+('aa2860db-d074-47e5-8942-731c4cb0c598', NULL, 'dsfgfdg', 'dgfdg', 'dfgsfds', 'Technology', 123.00, 1, 'dsfgfdsg', 'Draft', 'dsfgfds', 'safsdfsdfsadf', 0x73746f726167652f70726f6a6563745f70726f6f66732f313738313430373930345f45784d6d684f577959785f3633343630353738315f3931393236303533333932383634305f383534363830383236363335383938323937375f6e202832292e706e67, '2026-07-13', '2026-07-22', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-06-14 10:36:04', '2026-06-14 10:31:45', '2026-06-14 10:36:04', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', 0),
+('e6808957-5fca-42ef-813a-446935e61126', NULL, 'TESTING', 'TESTING', 'TESTING', 'Sports', 9012.00, 1, 'TESTING', 'Draft', 'TESTING', 'emdgquintos', NULL, '2026-06-25', '2026-06-25', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-05-26 09:54:23', '2026-05-26 09:44:07', '2026-05-26 10:28:00', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', 0),
+('f7f8b067-e630-4809-959b-77360c366108', NULL, '123', 'asdsa', 'asds', 'Sports', 0.00, 0, 'asd', 'Draft', 'asdsa', 'dfd', NULL, '2026-07-02', '2026-07-22', '087ccbc9-efa8-44e0-8435-3310207554d7', 'Approved', '2026-06-01 02:12:15', '2026-06-01 02:11:55', '2026-06-01 02:12:15', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '087ccbc9-efa8-44e0-8435-3310207554d7', 0);
 
 -- --------------------------------------------------------
 
@@ -516,7 +579,9 @@ CREATE TABLE `ratings` (
   `id` char(36) NOT NULL,
   `project_id` char(36) DEFAULT NULL,
   `user_id` char(36) DEFAULT NULL,
-  `rating_score` int(11) DEFAULT NULL,
+  `satisfaction_rating` int(11) DEFAULT NULL,
+  `completeness_rating` int(11) DEFAULT NULL,
+  `engagement_rating` int(11) DEFAULT NULL,
   `comments` text DEFAULT NULL,
   `helpful_count` int(11) DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -527,8 +592,9 @@ CREATE TABLE `ratings` (
 -- Dumping data for table `ratings`
 --
 
-INSERT INTO `ratings` (`id`, `project_id`, `user_id`, `rating_score`, `comments`, `helpful_count`, `created_at`, `archive`) VALUES
-('598910fc-5661-47ca-b1c9-938b5ea790c2', 'e6808957-5fca-42ef-813a-446935e61126', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 5, '123', 0, '2026-05-26 10:29:00', 0);
+INSERT INTO `ratings` (`id`, `project_id`, `user_id`, `satisfaction_rating`, `completeness_rating`, `engagement_rating`, `comments`, `helpful_count`, `created_at`, `archive`) VALUES
+('5833b9a6-d0fd-4cab-b7d8-45910f7f410a', 'aa2860db-d074-47e5-8942-731c4cb0c598', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', 3, 5, 1, '1234', 0, '2026-06-24 04:19:43', 0),
+('f317524f-efa5-4748-bec6-8897ad165552', 'aa2860db-d074-47e5-8942-731c4cb0c598', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', 5, 5, 5, '123', 0, '2026-06-24 04:19:19', 0);
 
 -- --------------------------------------------------------
 
@@ -571,7 +637,7 @@ INSERT INTO `roles` (`id`, `permission_id`, `name`, `slug`, `description`, `crea
 ('059efde1-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'CSG Officer', 'csg', 'Organization operations and submissions', '2026-03-19 06:29:42', '2026-03-19 06:33:09', 0),
 ('059f4170-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Student', 'student', 'View, rate, and engage in projects', '2026-03-19 06:29:42', '2026-03-19 06:33:29', 0),
 ('059f4213-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Ordinary Teacher', 'teacher', 'Teaching staff without advisory responsibilities', '2026-03-19 06:29:42', '2026-03-19 06:33:46', 0),
-('059f5000-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Admin/SADU', 'admin-sadu', 'Administrator with SADU (Student Affairs and Discipline Office) responsibilities - manages student discipline and welfare', '2026-05-30 20:36:18', '2026-05-30 20:36:18', 0);
+('059f5000-235d-11f1-9647-10683825ce81', '059e4bca-235d-11f1-9647-10683825ce81', 'Admin/SADU', 'admin-sadu', 'Administrator with SADU (Student Affairs and Discipline Office) responsibilities - manages student discipline and welfare', '2026-05-30 20:36:18', '2026-05-31 04:47:47', 0);
 
 -- --------------------------------------------------------
 
@@ -608,9 +674,9 @@ CREATE TABLE `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`, `archive`) VALUES
-('7o7mVKlP5L9O4EYJxSGnUQb87Y3eIwZhST6Snx2X', '087ccbc9-efa8-44e0-8435-3310207554d7', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36', 'YTo0OntzOjY6Il90b2tlbiI7czo0MDoiUnJjNjE2Wk5pM3U1NWpBcXo4RmpMT1dDWkE1cERmcFlRZGlPa0pINyI7czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6NjM6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9hZHZpc2VyL3JvbGUtcGVybWlzc2lvbnMvZ2V0LWNvdW5jaWwtdGVybSI7czo1OiJyb3V0ZSI7czo0MToiYWR2aXNlci5yb2xlLXBlcm1pc3Npb25zLmdldC1jb3VuY2lsLXRlcm0iO31zOjUwOiJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI7czozNjoiMDg3Y2NiYzktZWZhOC00NGUwLTg0MzUtMzMxMDIwNzU1NGQ3Ijt9', 1780199340, 0),
-('KROgF53SPFHjCciplcBVHDAasM9QqlBPBMr1tTUv', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', 'YTo0OntzOjY6Il90b2tlbiI7czo0MDoiS1NzWXB4dDJIWGpFejRMR1Mxc0psNnRsYzlKUXRNbWN5b0RIQks3SyI7czo1MDoibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiO3M6MzY6Ijk3YmY2YzBlLTQyMGItNDYyNy1iZThiLTMxZjM3ZjViZWQ5ZiI7czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6NTQ6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9hZG1pbi9yb2xlLXBlcm1pc3Npb25zL3Bvc2l0aW9ucyI7czo1OiJyb3V0ZSI7czozMjoiYWRtaW4ucm9sZS1wZXJtaXNzaW9ucy5wb3NpdGlvbnMiO319', 1780199640, 0),
-('rGuaLtSRf5DDARIbnnxNp29jG3tBw9D9azsXxaiD', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0', 'YTo1OntzOjY6Il90b2tlbiI7czo0MDoicFh2SFV1aTNGbzlINWwwODhyYnFOeUtuUFR4bVhDUkFuMFhWbm15VyI7czozOiJ1cmwiO2E6MTp7czo4OiJpbnRlbmRlZCI7czoyOToiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2FkdmlzZXIiO31zOjk6Il9wcmV2aW91cyI7YToyOntzOjM6InVybCI7czozODoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL3NhZG1pbi9kYXNoYm9hcmQiO3M6NToicm91dGUiO3M6MjI6InNhZG1pbi5kYXNoYm9hcmQuYWxpYXMiO31zOjY6Il9mbGFzaCI7YToyOntzOjM6Im9sZCI7YTowOnt9czozOiJuZXciO2E6MDp7fX1zOjUwOiJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI7czozNjoiOTdiZjZjMGUtNDIwYi00NjI3LWJlOGItMzFmMzdmNWJlZDlmIjt9', 1780190953, 0);
+('JlXyfdQibanbocsW7Lk0NB7KWVPae7Ls6TiZsdGb', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0', 'YTo1OntzOjY6Il90b2tlbiI7czo0MDoiY1QyNjY0UFNwR2xMcm9XdG9KRzRySGNwU2cwek0yZkhWQWhrVFl3NyI7czozOiJ1cmwiO2E6MTp7czo4OiJpbnRlbmRlZCI7czoyOToiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2FkdmlzZXIiO31zOjk6Il9wcmV2aW91cyI7YToyOntzOjM6InVybCI7czo3MjoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL3VzZXIvcHJvamVjdHMvYWEyODYwZGItZDA3NC00N2U1LTg5NDItNzMxYzRjYjBjNTk4IjtzOjU6InJvdXRlIjtzOjIwOiJ1c2VyLnByb2plY3QtZGV0YWlscyI7fXM6NjoiX2ZsYXNoIjthOjI6e3M6Mzoib2xkIjthOjA6e31zOjM6Im5ldyI7YTowOnt9fXM6NTA6ImxvZ2luX3dlYl81OWJhMzZhZGRjMmIyZjk0MDE1ODBmMDE0YzdmNThlYTRlMzA5ODlkIjtzOjM2OiJiMDllNWJmYi03NWZjLTRiMWYtOWEzNy00YmY1ODhiZDZhMWIiO30=', 1782249559, 0),
+('vG8D38zIW4MP9YTEpW2ruhcDi9h8qjlQS62BdazS', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 'YTo1OntzOjY6Il90b2tlbiI7czo0MDoiVEVBdHcxbXVsUElzekFaMUdzZ2E1NTFkcjFmbmVhNkszMVBxZXQ5dyI7czozOiJ1cmwiO2E6MTp7czo4OiJpbnRlbmRlZCI7czo0NjoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2FkdmlzZXIvcm9sZS1wZXJtaXNzaW9ucyI7fXM6OToiX3ByZXZpb3VzIjthOjI6e3M6MzoidXJsIjtzOjQwOiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvYXBpL2xlZGdlci1lbnRyaWVzIjtzOjU6InJvdXRlIjtOO31zOjY6Il9mbGFzaCI7YToyOntzOjM6Im9sZCI7YTowOnt9czozOiJuZXciO2E6MDp7fX1zOjUwOiJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI7czozNjoiOTdiZjZjMGUtNDIwYi00NjI3LWJlOGItMzFmMzdmNWJlZDlmIjt9', 1782253466, 1),
+('XaBtBkUOckr7GlG7pEbebzqY2gubDqZrsPFN8hzT', '087ccbc9-efa8-44e0-8435-3310207554d7', '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', 'YTo1OntzOjY6Il90b2tlbiI7czo0MDoieWxtVDRuY0JjSExzMnJ2NXpaVFV1Z0RjdjdNMWFTSGJEaTRSZDNyMyI7czozOiJ1cmwiO2E6MTp7czo4OiJpbnRlbmRlZCI7czoyNToiaHR0cDovLzEyNy4wLjAuMTo4MDAwL2NzZyI7fXM6OToiX3ByZXZpb3VzIjthOjI6e3M6MzoidXJsIjtzOjM3OiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvYWR2aXNlci9yYXRpbmdzIjtzOjU6InJvdXRlIjtzOjE1OiJhZHZpc2VyLnJhdGluZ3MiO31zOjY6Il9mbGFzaCI7YToyOntzOjM6Im9sZCI7YTowOnt9czozOiJuZXciO2E6MDp7fX1zOjUwOiJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI7czozNjoiMDg3Y2NiYzktZWZhOC00NGUwLTg0MzUtMzMxMDIwNzU1NGQ3Ijt9', 1782253408, 0);
 
 -- --------------------------------------------------------
 
@@ -637,8 +703,8 @@ CREATE TABLE `student_csg_officers` (
 --
 
 INSERT INTO `student_csg_officers` (`id`, `user_id`, `course_id`, `is_csg`, `csg_position`, `csg_term_start`, `csg_term_end`, `csg_is_active`, `created_at`, `updated_at`, `archive`) VALUES
-('123', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '059d226e-235d-11f1-9647-10683825ce81', 0, 'Member', '2026-05-13', '2026-05-30', 0, '2026-04-24 05:34:53', '2026-05-28 01:20:45', 0),
-('12312', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '059d226e-235d-11f1-9647-10683825ce81', 1, 'President', '2026-05-28', '2026-09-18', 1, '2026-04-24 05:48:10', '2026-05-31 09:33:23', 0),
+('123', '97bf6c0e-420b-4627-be8b-31f37f5bed9f', '059d226e-235d-11f1-9647-10683825ce81', 1, 'President', '2026-05-13', '2026-05-30', 1, '2026-04-24 05:34:53', '2026-06-24 04:20:23', 0),
+('12312', 'b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '059d226e-235d-11f1-9647-10683825ce81', 0, 'Member', '2026-05-28', '2026-09-18', 0, '2026-04-24 05:48:10', '2026-06-22 09:54:30', 0),
 ('123123', NULL, NULL, 0, NULL, NULL, NULL, 0, '2026-04-24 06:28:24', '2026-05-24 16:27:09', 0);
 
 -- --------------------------------------------------------
@@ -662,7 +728,7 @@ CREATE TABLE `teacher_adviser` (
 --
 
 INSERT INTO `teacher_adviser` (`id`, `user_id`, `institute_id`, `is_adviser`, `created_at`, `updated_at`, `archive`) VALUES
-('123', '087ccbc9-efa8-44e0-8435-3310207554d7', '059bb388-235d-11f1-9647-10683825ce81', 1, '2026-04-24 06:30:43', '2026-05-31 05:31:01', 0);
+('123', '087ccbc9-efa8-44e0-8435-3310207554d7', '059bb388-235d-11f1-9647-10683825ce81', 1, '2026-04-24 06:30:43', '2026-05-31 11:46:27', 0);
 
 -- --------------------------------------------------------
 
@@ -697,9 +763,9 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `role_id`, `name`, `email`, `email_verified_at`, `invitation_token`, `token_expires_at`, `is_token_expired`, `phone`, `password`, `avatar_url`, `profile_completed`, `id_verification_id`, `status`, `last_login_at`, `remember_token`, `created_at`, `updated_at`, `archive`) VALUES
-('087ccbc9-efa8-44e0-8435-3310207554d7', '059ef712-235d-11f1-9647-10683825ce81', 'EDWARD QUINTOS', 'emdgquintos@kld.edu.ph', '2026-04-24 06:30:43', NULL, NULL, 0, '09234234234', '$2y$12$ez57d.qwWe0NGNJYtU0oDer2hVL6c2HIhbVWDHtQn.0kRBPeFNv6C', 'https://lh3.googleusercontent.com/a/ACg8ocKNyOIz6fzUfGjTf5xJ08o0F1301E2IJ351GVMfd1BpsMEHbQ=s96-c', 1, NULL, 'active', '2026-05-31 09:54:41', NULL, '2026-04-24 06:30:08', '2026-05-31 10:53:59', 0),
-('97bf6c0e-420b-4627-be8b-31f37f5bed9f', '059ef3f9-235d-11f1-9647-10683825ce81', 'JHONNY MACAWILI SUMULONG', 'jmsumulong@kld.edu.ph', '2026-04-24 05:33:52', NULL, NULL, 0, NULL, '$2y$12$0tiBxJWX3qRNRUOr.V0UAu6MEf4y0kXAAU68YpFQQawyIpV8vukli', 'https://lh3.googleusercontent.com/a/ACg8ocLXVrWI7RGw1OTDRtjF9lXO27fk8oBLR-ZI3irgbXl_7fS5sA=s96-c', 1, NULL, 'active', '2026-05-31 08:29:12', NULL, '2026-04-24 05:33:52', '2026-05-31 08:29:12', 0),
-('b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '059efde1-235d-11f1-9647-10683825ce81', 'LAWRECE CALIBUSO', 'lpcalibuso@kld.edu.ph', '2026-04-24 05:48:10', NULL, NULL, 0, '09398331593', '$2y$12$./qxavDvVjZjFlfz4kxRLOdREWZJKpD76iNFbqwNLDATYRi3L3VKK', 'https://lh3.googleusercontent.com/a/ACg8ocLOknbW0osCP4Lh54xqyTvuiW46epCl9qPOyoQbc8GYXbLWhA=s96-c', 1, NULL, 'active', '2026-04-26 18:09:04', NULL, '2026-04-24 05:48:10', '2026-05-28 03:38:42', 0),
+('087ccbc9-efa8-44e0-8435-3310207554d7', '059ef712-235d-11f1-9647-10683825ce81', 'EDWARD QUINTOS', 'emdgquintos@kld.edu.ph', '2026-04-24 06:30:43', NULL, NULL, 0, '09234234234', '$2y$12$ez57d.qwWe0NGNJYtU0oDer2hVL6c2HIhbVWDHtQn.0kRBPeFNv6C', 'https://lh3.googleusercontent.com/a/ACg8ocKNyOIz6fzUfGjTf5xJ08o0F1301E2IJ351GVMfd1BpsMEHbQ=s96-c', 1, NULL, 'active', '2026-06-23 23:40:44', NULL, '2026-04-24 06:30:08', '2026-06-23 23:40:44', 0),
+('97bf6c0e-420b-4627-be8b-31f37f5bed9f', '059efde1-235d-11f1-9647-10683825ce81', 'JHONNY MACAWILI SUMULONG', 'jmsumulong@kld.edu.ph', '2026-04-24 05:33:52', NULL, NULL, 0, NULL, '$2y$12$0tiBxJWX3qRNRUOr.V0UAu6MEf4y0kXAAU68YpFQQawyIpV8vukli', 'https://lh3.googleusercontent.com/a/ACg8ocLXVrWI7RGw1OTDRtjF9lXO27fk8oBLR-ZI3irgbXl_7fS5sA=s96-c', 1, NULL, 'active', '2026-06-24 02:19:10', NULL, '2026-04-24 05:33:52', '2026-06-24 04:20:23', 0),
+('b09e5bfb-75fc-4b1f-9a37-4bf588bd6a1b', '059f4170-235d-11f1-9647-10683825ce81', 'LAWRECE CALIBUSO', 'lpcalibuso@kld.edu.ph', '2026-04-24 05:48:10', NULL, NULL, 0, '09398331593', '$2y$12$./qxavDvVjZjFlfz4kxRLOdREWZJKpD76iNFbqwNLDATYRi3L3VKK', 'https://lh3.googleusercontent.com/a/ACg8ocLOknbW0osCP4Lh54xqyTvuiW46epCl9qPOyoQbc8GYXbLWhA=s96-c', 1, NULL, 'active', '2026-06-23 23:39:34', NULL, '2026-04-24 05:48:10', '2026-06-23 23:39:34', 0),
 ('f6b776d6-8d77-43e3-976a-fbb0daffa325', '059f4213-235d-11f1-9647-10683825ce81', 'JAMES TAMAYO', 'jttamayo@kld.edu.ph', NULL, NULL, NULL, 0, NULL, '$2y$12$9MvKx3sc82BPlDGMYqxRaeybMw2Lwjp5GX3EsJY5nZ527Ahg528w6', NULL, 0, NULL, 'active', '2026-05-28 01:33:53', NULL, '2026-05-10 09:19:57', '2026-05-28 01:33:53', 0);
 
 --
@@ -751,6 +817,15 @@ ALTER TABLE `chain`
 ALTER TABLE `course`
   ADD PRIMARY KEY (`id`),
   ADD KEY `institute_id` (`institute_id`);
+
+--
+-- Indexes for table `date_change_requests`
+--
+ALTER TABLE `date_change_requests`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `date_change_requests_project_id_foreign` (`project_id`),
+  ADD KEY `date_change_requests_requested_by_foreign` (`requested_by`),
+  ADD KEY `date_change_requests_reviewed_by_foreign` (`reviewed_by`);
 
 --
 -- Indexes for table `id_verifications`
@@ -910,7 +985,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `personal_access_tokens`
@@ -953,6 +1028,14 @@ ALTER TABLE `chain`
 --
 ALTER TABLE `course`
   ADD CONSTRAINT `course_ibfk_1` FOREIGN KEY (`institute_id`) REFERENCES `institute` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `date_change_requests`
+--
+ALTER TABLE `date_change_requests`
+  ADD CONSTRAINT `date_change_requests_project_id_foreign` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `date_change_requests_requested_by_foreign` FOREIGN KEY (`requested_by`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `date_change_requests_reviewed_by_foreign` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `id_verifications`

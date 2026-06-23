@@ -87,17 +87,12 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
   const [dateRange, setDateRange] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('highest');
-  const [activeTab, setActiveTab] = useState('satisfaction');
   const [projectSummaries, setProjectSummaries] = useState(initialProjects || []);
   const [recentComments, setRecentComments] = useState(initialComments || []);
   const [kpi, setKpi] = useState(initialKpi || {});
   const [loading, setLoading] = useState(false);
 
-  const tabs = [
-    { id: 'satisfaction', label: 'Satisfaction Rating' },
-    { id: 'completeness', label: 'Completeness Rating' },
-    { id: 'engagement', label: 'Engagement Rating' },
-  ];
+
 
   // Fetch data if not provided via Inertia props
   useEffect(() => {
@@ -204,6 +199,11 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
     ));
   };
 
+  const totalRatings = kpi.totalRatings ?? recentComments.length;
+  const overallAverage = totalRatings ? (kpi.overallAverage ?? 0) : 0;
+  const satisfactionRate = kpi.satisfactionRate ?? 0;
+  const projectCount = kpi.projectCountWithRatings ?? projectSummaries.filter((p) => p.totalRatings > 0).length;
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -226,32 +226,13 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
         </Button> */}
       </div>
 
-      {/* Tabs Navigation */}
-      {/* <Card className="rounded-[20px] border-0 shadow-sm bg-white">
-        <div className="flex border-b border-gray-200">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 px-6 py-4 text-center font-medium transition-all ${
-                activeTab === tab.id
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </Card> */}
 
-      {/* Overview Cards - KPI Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">
-                Average {activeTab === 'satisfaction' ? 'Satisfaction' : activeTab === 'completeness' ? 'Completeness' : 'Engagement'}
+                Overall Average Rating
               </p>
               <div className="flex items-center gap-3 mt-2">
                 <p className="text-3xl font-semibold text-gray-900">
@@ -345,133 +326,151 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
         </div>
       </Card>
 
-       {/* Tabs Navigation */}
-      <Card className="rounded-[20px] border-0 shadow-sm bg-white">
-        <div className="flex border-gray-200 p-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 text-center ${
-                activeTab === tab.id
-                  ? 'text-white border-b-2 bg-blue-600 p-2 rounded-xl'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </Card>
-
-      {/* Project Ratings */}
+       {/* Project Ratings */}
       <div className="space-y-6">
         {filteredProjects.map((project) => {
           const projectComments = getProjectComments(project.id);
           return (
             <Card key={project.id} className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
-              {/* Project Header */}
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                    {project.projectName}
-                  </h2>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-3xl font-semibold text-gray-900">
-                        {project.averageRating.toFixed(1)}
-                      </span>
-                      <div className="flex">{renderStars(project.averageRating)}</div>
-                    </div>
-                    <span className="text-sm text-gray-500">({project.totalRatings} ratings)</span>
-                  </div>
-                </div>
-
-                <Badge className="bg-blue-100 text-blue-700 rounded-lg px-3 py-1">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  {project.csat}% CSAT
-                </Badge>
-              </div>
-
-              {/* Rating Distribution */}
-              <div className="mb-6">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Rating Distribution</h3>
-                <div className="space-y-2">
-                  {[5, 4, 3, 2, 1].map((stars) => {
-                    const count = project.ratingDistribution[stars];
-                    const percentage = project.totalRatings > 0 ? (count / project.totalRatings) * 100 : 0;
-                    return (
-                      <div key={stars} className="flex items-center gap-3">
-                        <span className="text-sm text-gray-600 w-6">{stars}</span>
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all bg-yellow-400`}
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                        <span className="text-sm text-gray-600 w-12 text-right">{count}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Recent Comments for this Project (Filtered) */}
-              {projectComments.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-4">Recent Feedback</h3>
-                  <div className="space-y-4">
-                    {projectComments.map((comment) => (
-                      <div
-                        key={comment.id}
-                        className="flex gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0"
-                      >
-                        <Avatar className="w-10 h-10 flex-shrink-0">
-                          <AvatarFallback className="bg-blue-100 text-blue-700 text-sm">
-                            {comment.studentName
-                              .split(' ')
-                              .map((n) => n[0])
-                              .join('')}
-                          </AvatarFallback>
-                        </Avatar>
-
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between gap-2 mb-1">
+                          {/* Project Header */}
+                          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                             <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {maskUserName(comment.studentName)}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <div className="flex">{renderSmallStars(comment.rating)}</div>
-                                <span className="text-xs text-gray-400">{comment.date}</span>
+                              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                                {project.projectName}
+                              </h2>
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-3xl font-semibold text-gray-900">
+                                    {project.totalRatings ? project.averageRating.toFixed(2) : ''}
+                                  </span>
+                                  {project.totalRatings > 0 && <div className="flex">{renderStars(project.averageRating)}</div>}
+                                </div>
+                                <span className="text-sm text-gray-500">({project.totalRatings} ratings)</span>
                               </div>
                             </div>
+            
+                            {project.totalRatings > 0 && (
+                              <Badge className="bg-blue-100 text-blue-700 rounded-lg px-3 py-1">
+                                <TrendingUp className="w-3 h-3 mr-1" />
+                                {Math.round((project.totalRatings / (kpi.totalRatings || 1)) * 100)}% of feedback
+                              </Badge>
+                            )}
                           </div>
-                          {comment.comment && (
-                            <p className="text-sm text-gray-600 mt-2">{comment.comment}</p>
+            
+                          {/* Rating Breakdown by Category */}
+                          {project.totalRatings > 0 && (
+                            <div className="grid grid-cols-3 gap-3 mb-2">
+                              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <p className="text-xs text-blue-600 font-medium mb-1">Satisfaction</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg font-semibold text-blue-900">{project.satisfactionRating.toFixed(1)}</span>
+                                  <div className="flex gap-0.5">{renderSmallStars(project.satisfactionRating)}</div>
+                                </div>
+                              </div>
+                              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <p className="text-xs text-blue-600 font-medium mb-1">Completeness</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg font-semibold text-blue-900">{project.completenessRating.toFixed(1)}</span>
+                                  <div className="flex gap-0.5">{renderSmallStars(project.completenessRating)}</div>
+                                </div>
+                              </div>
+                              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <p className="text-xs text-blue-600 font-medium mb-1">Engagement</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg font-semibold text-blue-900">{project.engagementRating.toFixed(1)}</span>
+                                  <div className="flex gap-0.5">{renderSmallStars(project.engagementRating)}</div>
+                                </div>
+                              </div>
+                            </div>
                           )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </Card>
+            
+                          {/* Rating Distribution */}
+                          {project.totalRatings > 0 && (
+                            <div className="mb-6">
+                              <h3 className="text-sm font-medium text-gray-700 mb-3">Rating Distribution</h3>
+                              <div className="space-y-2">
+                                {[5, 4, 3, 2, 1].map((stars) => {
+                                  const count = project.ratingDistribution?.[stars] ?? 0;
+                                  const percentage = project.totalRatings > 0 ? (count / project.totalRatings) * 100 : 0;
+                                  return (
+                                    <div key={stars} className="flex items-center gap-3">
+                                      <span className="text-sm text-gray-600 w-6">{stars}</span>
+                                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full rounded-full transition-all bg-yellow-400"
+                                          style={{ width: `${percentage}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-sm text-gray-600 w-12 text-right">{count}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+            
+                          {/* Recent Comments for this Project (Filtered) */}
+                          {projectComments.length > 0 && (
+                            <div>
+                              <h3 className="text-sm font-medium text-gray-700 mb-4">Recent Feedback</h3>
+                              <div className="space-y-4">
+                                {projectComments.map((comment) => (
+                                  <div
+                                    key={comment.id}
+                                    className="flex gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0"
+                                  >
+                                    <Avatar className="bg-blue-100 text-blue-800 text-sm w-10 h-10 flex-shrink-0">
+                                      <AvatarFallback>
+                                        {comment.studentName
+                                          .split(' ')
+                                          .filter(Boolean)
+                                          .map((n) => n[0])
+                                          .join('')
+                                          .slice(0, 2)
+                                          .toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+            
+                                    <div className="flex-1">
+                                      <div className="flex items-start justify-between gap-2 mb-1">
+                                        <div>
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {maskUserName(comment.studentName)}
+                                          </p>
+                                          <div className="flex items-center gap-2 mt-1">
+                                            <div className="flex">{renderSmallStars(comment.rating)}</div>
+                                            <span className="text-xs text-gray-400">{comment.date}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      {comment.comment && (
+                                        <p className="text-sm text-gray-600 mt-2">{comment.comment}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+            
+                          {projectComments.length === 0 && project.totalRatings > 0 && (
+                            <div className="text-center py-6">
+                              <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                              <p className="text-sm text-gray-500">No comments in filters, but project has ratings</p>
+                            </div>
+                          )}
+                        </Card>
           );
         })}
 
         {filteredProjects.length === 0 && (
           <Card className="rounded-[20px] border-0 shadow-sm p-12 bg-white text-center">
-            <Card className="col-span-full rounded-xl border-0 shadow-sm p-12">
-         <div className="text-center">
-          <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-             <p className="text-sm text-gray-500">No upcoming meetings found</p>
-             <p className="text-xs text-gray-400 mt-1 mb-4">
-             Student didnt rate project yet
-             </p>
-         </div>
-      </Card>
+            <div className="text-center">
+              <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">No projects found</p>
+              <p className="text-xs text-gray-400 mt-1">No projects match your filters</p>
+            </div>
           </Card>
         )}
       </div>

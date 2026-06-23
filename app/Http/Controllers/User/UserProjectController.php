@@ -77,6 +77,7 @@ class UserProjectController extends Controller
         ]);
     }
 
+    //this is for showing the project details when user click on the project card in the dashboard
     public function show(Request $request, string $id)
     {
         $user = $this->resolveCurrentUser();
@@ -98,7 +99,17 @@ class UserProjectController extends Controller
             ])
             ->withAvg(['ratings' => function ($query) {
                 $query->where('archive', 0);
-            }], 'rating_score')
+            // }], 'rating_score')
+            }], 'satisfaction_rating')
+
+             ->withAvg(['ratings' => function ($query) {
+                $query->where('archive', 0);
+            }], 'completeness_rating')
+
+             ->withAvg(['ratings' => function ($query) {
+                $query->where('archive', 0);
+            }], 'engagement_rating')
+            
             ->withCount(['ratings' => function ($query) {
                 $query->where('archive', 0);
             }])
@@ -191,6 +202,12 @@ class UserProjectController extends Controller
             $tamperedCount = count($verification['tamperedBlocks']);
         }
 
+        // Calculate overall average from all three dimensions
+        $satisfactionAvg = (float) ($project->ratings_avg_satisfaction_rating ?? 0);
+        $completenessAvg = (float) ($project->ratings_avg_completeness_rating ?? 0);
+        $engagementAvg = (float) ($project->ratings_avg_engagement_rating ?? 0);
+        $overallAvg = ($satisfactionAvg + $completenessAvg + $engagementAvg) / 3;
+
         return Inertia::render('User/Dashboard', [
             'projects' => $this->getProjects($user?->id),
             'project' => [
@@ -203,17 +220,22 @@ class UserProjectController extends Controller
                 'budget' => (float) ($project->budget ?? 0),
                 'startDate' => optional($project->start_date)->format('F j, Y'),
                 'endDate' => optional($project->end_date)->format('F j, Y'),
-                'averageRating' => round((float) ($project->ratings_avg_rating_score ?? 0), 1),
+                'averageRating' => round($overallAvg),
                 'venue' => $project->venue ?: 'No venue specified.',
                 'objective' => $project->objective ?: 'No objective available.',
                 'proposeBy' => $project->proposed_by ?: 'Not specified',
                 'approvedBy' => $project->approver?->name ?? 'CSG Adviser',
                 'ratingsCount' => (int) ($project->ratings_count ?? 0),
                 'tamperedAlerts' => $tamperedCount,
-                'ratings' => $project->ratings->map(function ($rating) {
+                'ratings' => $project->ratings->map(function ($rating) 
+                
+                {
                     return [
                         'id' => $rating->id,
-                        'rating' => (int) $rating->rating_score,
+                        // 'rating' => (int) $rating->rating_score,
+                        'satisfaction_rating' => (int) $rating->satisfaction_rating,
+                        'completeness_rating' => (int) ($rating->completeness_rating ?? 0),
+                        'engagement_rating' => (int) ($rating->engagement_rating ?? 0),
                         'comment' => $rating->comments,
                         'helpfulCount' => (int) ($rating->helpful_count ?? 0),
                         'date' => optional($rating->created_at)->format('Y-m-d'),
@@ -224,7 +246,10 @@ class UserProjectController extends Controller
                     ];
                 })->values(),
                 'currentUserRating' => $userRating ? [
-                    'rating' => (int) $userRating->rating_score,
+                    // 'rating' => (int) $userRating->rating_score,
+                    'satisfaction_rating' => (int) $userRating->satisfaction_rating,
+                    'completeness_rating' => (int) ($userRating->completeness_rating ?? 0),
+                    'engagement_rating' => (int) ($userRating->engagement_rating ?? 0),
                     'comment' => $userRating->comments,
                 ] : null,
                 'ledgerEntries' => $ledgerEntries,
@@ -241,6 +266,7 @@ class UserProjectController extends Controller
         ]);
     }
 
+    //this is for handling the rating submission from the project details page
    public function upsertRating(Request $request, string $projectId)
 {
     $user = $this->resolveCurrentUser();
@@ -249,7 +275,9 @@ class UserProjectController extends Controller
     }
 
     $validated = $request->validate([
-        'rating' => ['required', 'integer', 'min:1', 'max:5'],
+        'satisfaction_rating' => ['required', 'integer', 'min:1', 'max:5'],
+        'completeness_rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+        'engagement_rating' => ['nullable', 'integer', 'min:1', 'max:5'],
         'comment' => ['nullable', 'string', 'max:1000'],
     ]);
 
@@ -275,7 +303,9 @@ class UserProjectController extends Controller
     $rating->id = (string) Str::uuid();
     $rating->project_id = $project->id;
     $rating->user_id = $user->id;
-    $rating->rating_score = $validated['rating'];
+    $rating->satisfaction_rating = $validated['satisfaction_rating'];
+    $rating->completeness_rating = $validated['completeness_rating'] ?? null;
+    $rating->engagement_rating = $validated['engagement_rating'] ?? null;
     $rating->comments = $validated['comment'] ?? null;
     $rating->archive = 0;
     $rating->save();
@@ -357,6 +387,7 @@ class UserProjectController extends Controller
         return $this->renderUserSimplePage('points');
     }
 
+    //this is for showing the project details when user click on the project card in the dashboard
     private function withSampleLedgerEntries(Project $project, Collection $entries): Collection
     {
         if ($entries->count() >= 4) {
@@ -443,8 +474,11 @@ class UserProjectController extends Controller
         $allProjects = Project::query()
             ->where('archive', 0)
             ->where('approval_status', 'Approved')
-            ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'rating_score')
-            ->withCount(['ratings' => fn ($q) => $q->where('archive', 0)])
+            // ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'rating_score')
+            ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'satisfaction_rating')
+            ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'completeness_rating')
+            ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'engagement_rating') 
+            ->withCount(['ratings' => fn ($q) => $q->where('archive', 0)]) //this is for showing the number of participants in the project card in the dashboard
             ->with(['ledgerEntries' => fn ($query) => $query->where('approval_status', 'Approved')])
             ->orderByDesc('updated_at')
             ->get();
@@ -470,11 +504,17 @@ class UserProjectController extends Controller
             }, 0.0);
             $isBudgetMismatch = $approvedLedgerEntries->count() > 0 && $displayBudget > 0 && abs($displayBudget - $computedBudget) > 0.01;
 
+            // Calculate overall average from all three dimensions
+            $satisfactionAvg = (float) ($project->ratings_avg_satisfaction_rating ?? 0);
+            $completenessAvg = (float) ($project->ratings_avg_completeness_rating ?? 0);
+            $engagementAvg = (float) ($project->ratings_avg_engagement_rating ?? 0);
+            $overallAvg = ($satisfactionAvg + $completenessAvg + $engagementAvg) / 3;
+
             return [
                 'id' => $project->id,
                 'title' => $project->title,
                 'status' => $calculatedStatus,
-                'rating' => round((float) ($project->ratings_avg_rating_score ?? 0), 1),
+                'rating' => round($overallAvg, 1),
                 'participants' => max(1, (int) (($project->ratings_count ?? 0) * 8)),
                 'deadline' => optional($project->end_date)->format('M d, Y') ?: 'TBD',
                 'progress' => $dateProgress !== null ? $dateProgress : $this->statusProgress($calculatedStatus),
@@ -803,7 +843,13 @@ class UserProjectController extends Controller
             ->where('approval_status', 'Approved')
             ->withAvg(['ratings' => function ($query) {
                 $query->where('archive', 0);
-            }], 'rating_score')
+            }], 'satisfaction_rating')
+            ->withAvg(['ratings' => function ($query) {
+                $query->where('archive', 0);
+            }], 'completeness_rating')
+            ->withAvg(['ratings' => function ($query) {
+                $query->where('archive', 0);
+            }], 'engagement_rating')
             ->withCount(['ratings' => function ($query) {
                 $query->where('archive', 0);
             }])
@@ -811,13 +857,19 @@ class UserProjectController extends Controller
             ->get();
 
         return $projects->map(function ($project) {
+            // Calculate overall average from all three dimensions
+            $satisfactionAvg = (float) ($project->ratings_avg_satisfaction_rating ?? 0);
+            $completenessAvg = (float) ($project->ratings_avg_completeness_rating ?? 0);
+            $engagementAvg = (float) ($project->ratings_avg_engagement_rating ?? 0);
+            $overallAvg = ($satisfactionAvg + $completenessAvg + $engagementAvg) / 3;
+            
             return [
                 'id' => $project->id,
                 'title' => $project->title,
                 'category' => $project->category ?: 'General',
                 'status' => $project->status ?: 'Draft',
                 'description' => $project->description,
-                'rating' => round((float) ($project->ratings_avg_rating_score ?? 0), 1),
+                'rating' => round($overallAvg, 1),
                 'ratingsCount' => (int) ($project->ratings_count ?? 0),
                 'budget' => (float) ($project->budget ?? 0),
                 'startDate' => optional($project->start_date)->format('Y-m-d'),
@@ -837,7 +889,8 @@ class UserProjectController extends Controller
         return Rating::query()
             ->where('archive', 0)
             ->where('user_id', $userId)
-            ->pluck('rating_score', 'project_id')
+            // ->pluck('rating_score', 'project_id')
+            ->pluck('satisfaction_rating', 'project_id')
             ->map(function ($value) {
                 return (int) $value;
             })

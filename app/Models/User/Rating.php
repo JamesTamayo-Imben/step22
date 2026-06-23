@@ -15,18 +15,24 @@ class Rating extends Model
     protected $keyType = 'string';
     const UPDATED_AT = null;
 
-    protected $fillable = [
+    protected $fillable = [ 
         'id',
         'project_id',
         'user_id',
-        'rating_score',
+        // 'rating_score',
+        'satisfaction_rating',
+        'completeness_rating',
+        'engagement_rating',
         'comments',
         'helpful_count',
         'archive',
     ];
 
     protected $casts = [
-        'rating_score' => 'integer',
+        // 'rating_score' => 'integer',
+        'satisfaction_rating' => 'integer',
+        'completeness_rating' => 'integer',
+        'engagement_rating' => 'integer',
         'helpful_count' => 'integer',
         'archive' => 'boolean',
         'created_at' => 'datetime',

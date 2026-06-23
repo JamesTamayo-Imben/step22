@@ -116,7 +116,8 @@ class AdviserDashboardController extends Controller
             }
         }
 
-        $ratingAvg = Rating::query()->where('archive', false)->avg('rating_score');
+        // $ratingAvg = Rating::query()->where('archive', false)->avg('rating_score');
+        $ratingAvg = Rating::query()->where('archive', false)->avg('satisfaction_rating');
         $avgRating = $ratingAvg !== null ? round((float) $ratingAvg, 2) : 0.0;
 
         $recentActivity = AuditLog::query()

@@ -8,15 +8,16 @@ import { ArrowLeft, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shiel
 export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [currentProject, setCurrentProject] = useState(project);
   const [showRatingModal, setShowRatingModal] = useState(false);
-  const [satisfactionRating, setSatisfactionRating] = useState(project?.currentUserRating?.rating || 0);
-  const [completenessRating, setCompletenessRating] = useState(project?.currentUserRating?.completeness || 0);
-  const [engagementRating, setEngagementRating] = useState(project?.currentUserRating?.engagement || 0);
+  const [satisfactionRating, setSatisfactionRating] = useState(project?.currentUserRating?.satisfaction_rating || 0);
+  const [completenessRating, setCompletenessRating] = useState(project?.currentUserRating?.completeness_rating || 0);
+  const [engagementRating, setEngagementRating] = useState(project?.currentUserRating?.engagement_rating || 0);
   const [comment, setComment] = useState(project?.currentUserRating?.comment || '');
   const [hoveredSatisfactionRating, setHoveredSatisfactionRating] = useState(0);
   const [hoveredCompletenessRating, setHoveredCompletenessRating] = useState(0);
   const [hoveredEngagementRating, setHoveredEngagementRating] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [activeRatingTab, setActiveRatingTab] = useState('satisfaction');
   const [selectedLedgerEntry, setSelectedLedgerEntry] = useState(null);
   const [selectedProofDocument, setSelectedProofDocument] = useState(null);
   const [showAllComments, setShowAllComments] = useState(false);
@@ -32,9 +33,9 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
     setCurrentProject(project);
     // Update rating state if project has existing rating
     if (project?.currentUserRating) {
-      setSatisfactionRating(project.currentUserRating.rating || 0);
-      setCompletenessRating(project.currentUserRating.completeness || 0);
-      setEngagementRating(project.currentUserRating.engagement || 0);
+      setSatisfactionRating(project.currentUserRating.satisfaction_rating || 0);
+      setCompletenessRating(project.currentUserRating.completeness_rating || 0);
+      setEngagementRating(project.currentUserRating.engagement_rating || 0);
       setComment(project.currentUserRating.comment || '');
     }  }, [project]);
 
@@ -159,7 +160,7 @@ function maskUserName(fullName) {
 };
 
   const handleSubmitRating = async () => {
-    if (!rating) return;
+    if (!satisfactionRating) return;
 
     setIsSubmitting(true);
     try {
@@ -171,7 +172,12 @@ function maskUserName(fullName) {
           'X-Requested-With': 'XMLHttpRequest',
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
         },
-        body: JSON.stringify({ rating, comment }),
+        body: JSON.stringify({ 
+          satisfaction_rating: satisfactionRating, 
+          completeness_rating: completenessRating,
+          engagement_rating: engagementRating,
+          comment 
+        }),
       });
 
       if (!response.ok) {
@@ -235,37 +241,52 @@ function maskUserName(fullName) {
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-5 h-5 ${
-                        i < Math.floor(currentProject.averageRating || 0)
-                          ? 'fill-yellow-400 text-yellow-400' 
-                          : 'text-gray-300'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <span className="font-semibold text-gray-900">{currentProject.averageRating || 0}</span>
-                <span className="text-sm text-gray-500">({currentProject.ratingsCount || 0} ratings)</span>
+                {(() => {
+                  const ratings = currentProject.ratings || [];
+                  const satisfactionAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.satisfaction_rating || 0), 0) / ratings.length) : 0;
+                  const completenessAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.completeness_rating || 0), 0) / ratings.length) : 0;
+                  const engagementAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.engagement_rating || 0), 0) / ratings.length) : 0;
+                  const overallAvg = ratings.length ? (satisfactionAvg + completenessAvg + engagementAvg) / 3 : 0;
+                  
+                  return (
+                    <>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-5 h-5 ${
+                              i < Math.floor(overallAvg)
+                                ? 'fill-yellow-400 text-yellow-400' 
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="font-semibold text-gray-900">{overallAvg.toFixed(2)}</span>
+                      <span className="text-sm text-gray-500">({ratings.length} ratings)</span>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Rating Button*/}
                 <div className="flex flex-col items-end gap-2">
                 <button
                   onClick={() => setShowRatingModal(true)}
-                  // disabled={isRatingDisabled}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors bg-blue-600 hover:bg-blue-700 text-white`}
+                  disabled={isRatingDisabled}
+                  className={`flex items-center gap-2 px-4 py-2 
+                     disabled:bg-gray-400 disabled:hover:bg-gray-400 
+   disabled:text-gray-200
+                    rounded-xl transition-colors bg-blue-600 hover:bg-blue-700 text-white`}
                 >
                   <Star className="w-4 h-4" />
                   {isRatingDisabled ? 'Already Rated' : 'Rate this Project'}
                 </button>
-                {/* {isRatingDisabled && (
+                {isRatingDisabled && (
                   <p className="text-xs text-yellow-600">
                     You have already rated this project. Thank you!
                   </p>
-                )} */}
+                )}
               </div>
             
             </div>
@@ -476,57 +497,124 @@ function maskUserName(fullName) {
 
       {activeTab === 'ratings' && (
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-yellow-50">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Ratings</h2>
-          
-          {/* Show user's own rating at the top if they have rated */}
-          {hasUserRated && (
-            <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <p className="text-sm font-medium text-blue-800 mb-2">Your Rating</p>
-              <div className="flex items-center gap-3">
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-5 h-5 ${i < rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-gray-600">{comment || 'No comment provided.'}</span>
-              </div>
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Ratings</h2>
+              
+              {/* Calculate averages */}
+              {currentProject.ratings?.length > 0 && (() => {
+                const ratings = currentProject.ratings || [];
+                const satisfactionAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.satisfaction_rating || 0), 0) / ratings.length).toFixed(2) : 0;
+                const completenessAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.completeness_rating || 0), 0) / ratings.length).toFixed(2) : 0;
+                const engagementAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.engagement_rating || 0), 0) / ratings.length).toFixed(2) : 0;
+                const overallAvg = ratings.length ? ((parseFloat(satisfactionAvg) + parseFloat(completenessAvg) + parseFloat(engagementAvg)) / 3).toFixed(2) : 0;
+                
+                return (
+                  <div className="grid grid-cols-3 gap-3 mb-6">
+                    {/* <div className="bg-white rounded-xl border border-yellow-100 p-4 text-center">
+                      <p className="text-xs text-gray-500 mb-1">Overall</p>
+                      <p className="text-2xl font-bold text-gray-900">{overallAvg}</p>
+                      <div className="flex justify-center gap-1 mt-2">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className={`w-3 h-3 ${i < Math.floor(overallAvg) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                        ))}
+                      </div>
+                    </div> */}
+                    <div className="bg-white rounded-xl border border-blue-100 p-4 text-center">
+                      <p className="text-xs text-gray-500 mb-1">Satisfaction</p>
+                      <p className="text-2xl font-bold text-gray-900">{satisfactionAvg}</p>
+                      <div className="flex justify-center gap-1 mt-2">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className={`w-3 h-3 ${i < Math.floor(satisfactionAvg) ? 'fill-blue-400 text-blue-400' : 'text-gray-300'}`} />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-xl border border-green-100 p-4 text-center">
+                      <p className="text-xs text-gray-500 mb-1">Completeness</p>
+                      <p className="text-2xl font-bold text-gray-900">{completenessAvg}</p>
+                      <div className="flex justify-center gap-1 mt-2">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className={`w-3 h-3 ${i < Math.floor(completenessAvg) ? 'fill-green-400 text-green-400' : 'text-gray-300'}`} />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
+                      <p className="text-xs text-gray-500 mb-1">Engagement</p>
+                      <p className="text-2xl font-bold text-gray-900">{engagementAvg}</p>
+                      <div className="flex justify-center gap-1 mt-2">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className={`w-3 h-3 ${i < Math.floor(engagementAvg) ? 'fill-red-400 text-red-400' : 'text-gray-300'}`} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
-          )}
+
+            {/* Rating Type Tabs - REMOVED */}
+            {/* Now showing all ratings at once */}
+          </div>
           
           <div className="space-y-6">
-            {(showAllComments ? (currentProject.ratings || []) : (currentProject.ratings || []).slice(0, 5)).map((review) => (
-              <div key={review.id} className="flex gap-4 pb-6 border-b border-yellow-100 last:border-0">
-                <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-blue-700">
-                    {(review.user?.name || 'U')
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')}
-                  </span>
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{maskUserName(review.user?.name) || 'Unknown User'}</h3>
-                  <div className="flex items-center gap-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-                      />
-                    ))}
-                    <span className="text-sm text-gray-500">{review.date || ''}</span>
-                  </div>
-                  <p className="text-gray-700 mt-2">{review.comment || 'No comment provided.'}</p>
-                  <div className="mt-2">
-                    <span className="inline-flex items-center text-xs px-2 py-1 rounded-md bg-white border border-yellow-200 text-yellow-700">
-                      Helpful {review.helpfulCount || 0}
+            {(showAllComments ? (currentProject.ratings || []) : (currentProject.ratings || []).slice(0, 5)).map((review) => {
+              return (
+                <div key={review.id} className="flex gap-4 pb-6 border-b  last:border-0">
+                  <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-white">
+                      {(review.user?.name || 'U')
+                        .split(' ')
+                        .map((n) => n[0])
+                        .join('')}
                     </span>
                   </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900">{maskUserName(review.user?.name) || 'Unknown User'}</h3>
+                    
+                    {/* Display all three ratings */}
+                    <div className="flex flex-wrap items-center gap-1 md:gap-2">
+  <div className="flex-1 min-w-[100px] md:flex-none flex items-center gap-2">
+    <span className="text-xs text-gray-500 font-semibold">Satisfaction:</span>
+    <div className="flex">
+      {[...Array(5)].map((_, i) => (
+        <Star key={i} className={`w-3 h-3 ${i < (review.satisfaction_rating || 0) ? 'fill-blue-400 text-blue-400' : 'text-gray-300'}`} />
+      ))}
+    </div>
+    {/* <span className="text-xs text-gray-600">{review.satisfaction_rating || 0}/5</span> */}
+  </div>
+  
+  <div className="flex-1 min-w-[100px] md:flex-none flex items-center gap-2">
+    <span className="text-xs text-gray-500 font-semibold">Completeness:</span>
+    <div className="flex">
+      {[...Array(5)].map((_, i) => (
+        <Star key={i} className={`w-3 h-3 ${i < (review.completeness_rating || 0) ? 'fill-green-400 text-green-400' : 'text-gray-300'}`} />
+      ))}
+    </div>
+    {/* <span className="text-xs text-gray-600">{review.completeness_rating || 0}/5</span> */}
+  </div>
+  
+  <div className="flex-1 min-w-[100px] md:flex-none flex items-center gap-2">
+    <span className="text-xs text-gray-500 font-semibold">Engagement:</span>
+    <div className="flex">
+      {[...Array(5)].map((_, i) => (
+        <Star key={i} className={`w-3 h-3 ${i < (review.engagement_rating || 0) ? 'fill-red-400 text-red-400' : 'text-gray-300'}`} />
+      ))}
+    </div>
+    {/* <span className="text-xs text-gray-600">{review.engagement_rating || 0}/5</span> */}
+  </div>
+</div>
+                    
+                    <p className="text-xs text-gray-500 mt-2">{review.date || ''}</p>
+                    <p className="text-gray-700 mt-2">{review.comment || 'No comment provided.'}</p>
+                    <div className="mt-2">
+                      {/* <span className="inline-flex items-center text-xs px-2 py-1 rounded-md bg-white border border-yellow-200 text-yellow-700">
+                        Helpful {review.helpful_count || 0}
+                      </span> */}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {(currentProject.ratings || []).length > 5 && (
               <button
                 onClick={() => setShowAllComments((prev) => !prev)}
@@ -662,7 +750,7 @@ function maskUserName(fullName) {
                   <Star
                     className={`w-10 h-10 ${
                       star <= (hoveredSatisfactionRating || satisfactionRating)
-                        ? 'fill-yellow-400 text-yellow-400'
+                        ? 'fill-blue-400 text-blue-400'
                         : 'text-gray-300'
                     }`}
                   />

@@ -1,0 +1,526 @@
+================================================================================
+                        RATING LOGIC FLOW MAP - COMPLETE OVERVIEW
+================================================================================
+PROJECT: Adviser Ratings System
+FILE: resources/js/Pages/Adviser/Ratings.jsx
+CREATED: 2026-06-21
+
+================================================================================
+                              FLOW ARCHITECTURE
+================================================================================
+
+DATA FLOW DIRECTION:
+  Database → Model → Controller → Route → Frontend Component
+    ↓
+ ratings table → Rating.php → AdviserRatingsController → web.php → Ratings.jsx
+
+================================================================================
+                          STEP-BY-STEP BREAKDOWN
+================================================================================
+
+STEP 1: DATABASE LAYER
+================================================================================
+FILE: step_system_database.sql
+LOCATION: Line 512-528
+
+TABLE: ratings
+COLUMNS:
+  - id (char(36))          → UUID primary key
+  - project_id (char(36))  → Foreign key to projects table
+  - user_id (char(36))     → Foreign key to users table (student who rated)
+  - rating_score (int)     → Rating value (1-5 stars)
+  - comments (text)        → Student's feedback/comment
+  - helpful_count (int)    → Number of helpful votes on this rating
+  - created_at (timestamp) → When the rating was created
+  - archive (tinyint)      → Soft delete flag (0 = active, 1 = deleted)
+
+FOREIGN KEY CONSTRAINTS (Line 1003-1004):
+  - ratings_ibfk_1: project_id → projects(id) ON DELETE CASCADE
+  - ratings_ibfk_2: user_id → users(id) ON DELETE SET NULL
+
+PURPOSE: Stores all student ratings for projects submitted by advisers
+
+ 
+STEP 2: DATA MODEL LAYER
+================================================================================
+FILE: app/Models/User/Rating.php
+LOCATION: Full file
+
+CLASS: Rating (Eloquent Model)
+CONFIGURATION:
+  - Table: 'ratings'
+  - Primary Key Type: String (UUID not auto-increment)
+  - Updated At: null (read-only, no update_at column)
+
+FILLABLE FIELDS (Line 15-21):
+  'id', 'project_id', 'user_id', 'rating_score', 'comments', 'helpful_count', 'archive'
+
+RELATIONSHIPS:
+  1. project() - Line 43-46: BelongsTo Project Model
+     Purpose: Link rating to the project being rated
+  
+  2. user() - Line 48-51: BelongsTo User Model
+     Purpose: Link rating to the student who submitted the rating
+
+CASTS (Line 23-28):
+  - rating_score → integer
+  - helpful_count → integer
+  - archive → boolean
+  - created_at → datetime
+
+PURPOSE: Provides ORM interface to ratings table with automatic relationships
+
+ 
+STEP 3: PROJECT MODEL RELATIONSHIP
+================================================================================
+FILE: app/Models/User/Project.php
+LOCATION: Line 1-50 (partial)
+
+FIELDS USED BY RATINGS:
+  - id: Project UUID identifier
+  - title: Project name displayed in ratings interface
+  - approval_status: Must be 'Approved' to show ratings
+  - archive: When true, project ratings are excluded
+
+RELATIONSHIP TO RATINGS:
+  Ratings table uses project_id to reference this model
+  One Project can have many Ratings (One-to-Many)
+
+PURPOSE: Provides project context for ratings display
+
+
+STEP 4: CONTROLLER LOGIC
+================================================================================
+FILE: app/Http/Controllers/Adviser/AdviserRatingsController.php
+LOCATION: Full file (97 lines)
+
+METHOD: index()
+EXECUTION FLOW:
+
+  1. GET APPROVED PROJECTS (Line 14-17):
+     - Query projects where:
+       * archive = false (not deleted)
+       * approval_status = 'Approved' (only approved projects)
+     - Store project IDs in $approvedProjectIds array
+     - PURPOSE: Only show ratings for approved projects
+
+  2. FETCH ALL RATINGS (Line 19-23):
+     - Query ratings where:
+       * archive = false (not archived)
+       * project_id IN $approvedProjectIds (only from approved projects)
+     - With eager loading:
+       * Load related project with 'title'
+       * Load related user with 'name'
+     - Order by created_at DESC (newest first)
+     - PURPOSE: Get all valid ratings with project and user data
+
+  3. GROUP RATINGS BY PROJECT (Line 25):
+     - $byProject = ratings grouped by project_id
+     - PURPOSE: Organize ratings for per-project aggregation
+
+  4. CREATE PROJECT SUMMARIES (Line 27-65):
+     For each approved project, calculate:
+
+     a) RATING COUNT & AVERAGE (Line 31-32):
+        - $total = count of ratings for this project
+        - $avg = average rating_score for this project (rounded to 2 decimals)
+        - Result: Used in UI for "X ratings | 4.23 average"
+
+     b) RATING DISTRIBUTION (Line 33-40):
+        - Create array [5=>count, 4=>count, 3=>count, 2=>count, 1=>count]
+        - Count how many ratings fall into each star category
+        - PURPOSE: Feed the horizontal bar chart showing distribution
+
+     c) TREND CALCULATION (Line 42-60):
+        - Recent ratings: last 30 days
+        - Older ratings: 30-60 days ago
+        - Calculate average for each period
+        - Compare difference:
+          * If avgRecent > avgOlder + 0.05 → trend = 'up'
+          * If avgRecent < avgOlder - 0.05 → trend = 'down'
+          * Otherwise → trend = 'stable'
+        - PURPOSE: Show if project ratings are improving/declining
+
+     d) BUILD SUMMARY OBJECT (Line 62-69):
+        Returns:
+          - id: project UUID
+          - projectName: project.title
+          - averageRating: calculated average
+          - totalRatings: count of ratings
+          - trend: 'up', 'down', or 'stable'
+          - trendValue: absolute change value
+          - ratingDistribution: [5=>X, 4=>X, ...]
+
+     e) SORT & FORMAT (Line 70-71):
+        - Sort by totalRatings descending (most-rated projects first)
+        - Convert to indexed array
+
+  5. FORMAT INDIVIDUAL RATINGS (Line 73-90):
+     $studentRatings = map all ratings to frontend-friendly format:
+       {
+         'id': rating UUID,
+         'studentName': user name (or 'Student'),
+         'projectName': project title (or 'Project'),
+         'projectId': project UUID,
+         'rating': integer 1-5,
+         'comment': rating comments,
+         'date': formatted as YYYY-MM-DD,
+         'createdAt': ISO8601 timestamp,
+         'helpful': helpful_count integer
+       }
+     PURPOSE: Denormalized data for frontend filtering/display
+
+  6. CALCULATE KPI METRICS (Line 92-95):
+     - overallAvg: average of all rating_scores (rounded to 2 decimals)
+     - totalRatings: total count of all ratings
+     - fourPlus: count of ratings >= 4 stars
+     - satisfactionRate: percentage of ratings >= 4 stars
+     PURPOSE: Display KPI dashboard cards
+
+  7. RENDER INERTIA VIEW (Line 97-104):
+     Return props to frontend:
+       - projectSummaries: [array of project summary objects]
+       - studentRatings: [array of individual rating objects]
+       - kpi: {overallAverage, totalRatings, projectCountWithRatings, satisfactionRate}
+
+PURPOSE OF CONTROLLER:
+  - Fetch raw rating data from database
+  - Aggregate and transform data for frontend consumption
+  - Calculate statistics, trends, and distributions
+  - Prepare data in format expected by React component
+
+
+STEP 5: ROUTING LAYER
+================================================================================
+FILE: routes/web.php
+LOCATION: Line 224
+
+ROUTE DEFINITION:
+  Route::get('/adviser/ratings', [AdviserRatingsController::class, 'index'])->name('adviser.ratings');
+
+  - HTTP Method: GET
+  - URL Path: /adviser/ratings
+  - Controller: AdviserRatingsController
+  - Method: index()
+  - Route Name: adviser.ratings (used for URL generation)
+
+PURPOSE: Map URL to controller method that returns the ratings page
+
+
+STEP 6: FRONTEND COMPONENT LAYER
+================================================================================
+FILE: resources/js/Pages/Adviser/Ratings.jsx
+LOCATION: Full file (700+ lines)
+
+COMPONENT: RatingsAnalyticsPage (main component)
+
+A) DATA RECEPTION (Line 107):
+   const { projectSummaries = [], studentRatings = [], kpi = {} } = usePage().props;
+   
+   Receives from Inertia props:
+   - projectSummaries: Array of project summary objects from controller
+   - studentRatings: Array of individual rating objects from controller
+   - kpi: Object with overall statistics
+
+B) LOCAL STATE MANAGEMENT (Line 109-114):
+   useState hooks for filters:
+   - selectedProject: 'all' or project name
+   - selectedRating: 'all' or star rating (1-5)
+   - dateRange: 'all', 'week', 'month', 'quarter'
+   - searchQuery: string for searching students/comments
+   - activeTab: 'satisfaction', 'completeness', 'engagement'
+   - sortBy: 'highest', 'lowest', 'most-rated'
+
+C) FILTER LOGIC (Line 116-140):
+   useMemo hook: filteredRatings
+   
+   Filters studentRatings array based on ALL criteria:
+   1. Project filter: matchesProject = rating.projectName === selectedProject OR selectedProject === 'all'
+   2. Rating filter: matchesRating = rating.rating matches selected stars
+   3. Search filter: matchesSearch = search query found in studentName, comment, or projectName
+   4. Date filter: matchesDate = inDateRange() function checks created_at against dateRange
+   
+   Dependencies: [dateRange, searchQuery, selectedProject, selectedRating, studentRatings]
+   PURPOSE: Client-side filtering of ratings for display
+
+D) PROJECT FILTERING & SORTING (Line 142-160):
+   useMemo hook: filteredProjects
+   
+   Logic:
+   1. Filter projects list based on selectedProject
+   2. If selectedRating selected, filter by Math.floor(averageRating) === ratingNum
+   3. Sort based on sortBy:
+      - 'highest': descending by averageRating
+      - 'lowest': ascending by averageRating
+      - 'most-rated': descending by totalRatings
+   
+   PURPOSE: Client-side filtering of projects for display
+
+E) KPI DASHBOARD RENDERING (Line 190-242):
+   Display 3 cards:
+   
+   Card 1 - Average Rating (Line 193-213):
+     - Title: "Average [Satisfaction/Completeness/Engagement]"
+     - Value: overallAverage.toFixed(1) stars
+     - Display: renderStars() shows 5 stars with fill based on rating
+     - Subtitle: "Across all projects"
+     - Icon: Yellow star icon
+   
+   Card 2 - Total Ratings (Line 215-228):
+     - Title: "Total Ratings"
+     - Value: totalRatings count
+     - Subtitle: "Across X projects"
+     - Icon: Message square icon
+   
+   Card 3 - Satisfaction Rate (Line 230-242):
+     - Title: "Satisfaction Rate"
+     - Value: satisfactionRate percentage
+     - Subtitle: "% of ratings ≥ 4★"
+     - Calculation: From KPI.satisfactionRate (% of ratings >= 4)
+
+F) FILTER UI CONTROLS (Line 244-286):
+   5 input fields:
+   1. Search box - query by student name, comment, project
+   2. Project dropdown - select specific project or 'all'
+   3. Rating dropdown - select star count or 'all'
+   4. Date range dropdown - week/month/quarter/all
+   5. Sort by dropdown - highest/lowest/most-rated
+
+   Each updates corresponding useState hook
+   onChange triggers useMemo recalculation
+
+G) PROJECT CARDS RENDERING (Line 298-363):
+   For each project in filteredProjects:
+   
+   1. PROJECT HEADER (Line 302-312):
+      - Project name (title)
+      - Average rating displayed as number + 5 stars
+      - Total ratings count
+      - Badge: "X% of feedback"
+
+   2. RATING DISTRIBUTION BAR CHART (Line 314-337):
+      For each star level (5, 4, 3, 2, 1):
+      - Show count and percentage
+      - Horizontal bar with length = (count/totalRatings)*100
+      - Yellow bar fill
+
+   3. RECENT COMMENTS SECTION (Line 339-374):
+      getProjectComments(projectName) returns filtered comments for this project
+      For each comment (max 3):
+      - User avatar with initials
+      - Masked student name (privacy)
+      - Rating shown as small stars
+      - Comment date
+      - Comment text
+
+   4. EMPTY STATE (Line 376-383):
+      If no comments but project has ratings:
+      - Shows message "No comments in filters, but project has ratings"
+
+H) HELPER FUNCTIONS:
+   
+   1. maskUserName() - Line 38-48:
+      Privacy masking: "John Doe" → "J**** D****"
+      Purpose: Hide full names in ratings display
+   
+   2. inDateRange() - Line 59-70:
+      Checks if date falls within selected range
+      Logic: Compare created_at to current date - 7/30/90 days
+   
+   3. renderStars() - Line 178-188:
+      Creates 5 star icons with fill based on rating
+      Yellow fill for whole/partial stars, gray for empty
+   
+   4. renderSmallStars() - Line 190-197:
+      Same as renderStars but smaller (for comments)
+   
+   5. csvEscape() - Line 54-58:
+      Escapes special characters for CSV export
+   
+   6. handleExport() - Line 166-177:
+      Creates CSV download of filtered ratings:
+      - Headers: Student, Project, Rating, Comment, Date
+      - Rows: One per filtered rating
+      - Triggers browser download
+      - Shows toast notification
+
+I) RENDERING ORDER IN UI:
+   1. Header with title/description
+   2. KPI dashboard cards (3 cards)
+   3. Filter controls panel
+   4. Tab navigation (satisfaction/completeness/engagement)
+   5. Project cards with ratings (if any)
+   6. Empty state message (if no projects)
+
+================================================================================
+                          DATA TRANSFORMATION CHAIN
+================================================================================
+
+DATABASE (ratings table)
+  ↓
+  [AdviserRatingsController fetches with Query Builder]
+  ↓
+CONTROLLER PROCESSING:
+  1. Filters for approved projects only
+  2. Groups by project
+  3. Calculates aggregates:
+     - Average rating per project
+     - Rating distribution (1-5 star counts)
+     - Trend analysis (30 vs 60 day comparison)
+     - Satisfaction rate (% >= 4 stars)
+  4. Denormalizes to include project.title, user.name
+  5. Formats timestamps and rounds decimals
+  ↓
+INERTIA PROPS (JSON payload to frontend)
+  {
+    projectSummaries: [...],
+    studentRatings: [...],
+    kpi: {...}
+  }
+  ↓
+REACT COMPONENT RECEIVES:
+  - usePage().props extracts three main data structures
+  - useState hooks manage filter selections
+  ↓
+CLIENT-SIDE PROCESSING:
+  1. useMemo(filteredRatings) - filters based on all 4 criteria
+  2. useMemo(filteredProjects) - filters & sorts projects
+  3. getProjectComments() - extracts top 3 comments per project
+  ↓
+RENDER TO UI:
+  - KPI cards display aggregated metrics
+  - Filter controls allow interactivity
+  - Project cards show summaries + comments
+  - Export generates CSV with filtered data
+
+================================================================================
+                              KEY CALCULATIONS
+================================================================================
+
+AVERAGE RATING (Controller Line 32):
+  avg = ratings.avg('rating_score')
+  Result: Float rounded to 2 decimals
+  Display: In KPI card and project cards
+
+SATISFACTION RATE (Controller Line 95):
+  fourPlus = count of ratings where rating_score >= 4
+  satisfactionRate = (fourPlus / total_ratings) * 100
+  Result: Integer percentage
+  Purpose: Shows % of positive ratings
+
+TREND CALCULATION (Controller Line 47-57):
+  Recent: ratings from now to -30 days
+  Older: ratings from -30 days to -60 days
+  avgRecent = recent.avg('rating_score')
+  avgOlder = older.avg('rating_score')
+  trendValue = avgRecent - avgOlder
+  
+  IF trendValue > 0.05: trend = 'up'      (5% improvement)
+  ELSE IF trendValue < -0.05: trend = 'down' (5% decline)
+  ELSE: trend = 'stable'
+
+RATING DISTRIBUTION (Controller Line 39-40):
+  distribution[s] = count of ratings where floor(rating_score) == s
+  Results in: [5=>3, 4=>7, 3=>2, 2=>1, 1=>0] example
+
+================================================================================
+                          WHY THIS ARCHITECTURE?
+================================================================================
+
+1. SEPARATION OF CONCERNS:
+   - Database: Raw data storage with constraints
+   - Model: ORM layer for type safety and relationships
+   - Controller: Business logic (aggregation, calculations)
+   - Route: URL mapping and middleware
+   - Component: UI rendering and user interaction
+
+2. PERFORMANCE OPTIMIZATION:
+   - Server-side aggregation reduces client-side work
+   - Eager loading (project, user) prevents N+1 queries
+   - useMemo prevents unnecessary re-renders
+   - Client-side filtering (no extra DB queries)
+
+3. SECURITY:
+   - Server validates which projects/ratings to show
+   - User names masked in display (maskUserName)
+   - Archive flag allows soft deletes
+   - Foreign key constraints maintain referential integrity
+
+4. SCALABILITY:
+   - Stateless controller handles any user's ratings
+   - Can add caching at controller level
+   - Client-side filtering scales to thousands of ratings
+   - Database indexes on project_id, user_id, created_at
+
+5. USER EXPERIENCE:
+   - Rich filtering (project, rating, date, search)
+   - Real-time sorting and search
+   - Data export to CSV
+   - Trend indicators show progress
+   - Comments show qualitative feedback
+
+================================================================================
+                          COMMON USAGE PATTERNS
+================================================================================
+
+SCENARIO 1: User visits adviser/ratings page
+  1. Browser GET /adviser/ratings
+  2. Router dispatches to AdviserRatingsController::index()
+  3. Controller fetches ratings, calculates metrics
+  4. Inertia renders component with data props
+  5. Component displays all ratings with default filters
+
+SCENARIO 2: User filters by date range
+  1. User selects "Last Month" in dateRange dropdown
+  2. Component useState updates dateRange state
+  3. filteredRatings useMemo recalculates
+  4. inDateRange() filters out older ratings
+  5. UI updates showing only recent ratings
+
+SCENARIO 3: User searches for student
+  1. User types student name in search box
+  2. searchQuery state updates
+  3. filteredRatings useMemo recalculates
+  4. Filter checks studentName and comment includes search term
+  5. UI shows only matching ratings
+
+SCENARIO 4: User exports filtered data
+  1. User clicks export button
+  2. handleExport() generates CSV from filteredRatings
+  3. csvEscape() ensures special chars are escaped
+  4. Browser downloads file: adviser_ratings_export_YYYY-MM-DD.csv
+  5. Toast notification confirms success
+
+================================================================================
+                              FILE REFERENCES SUMMARY
+================================================================================
+
+Frontend:
+  - resources/js/Pages/Adviser/Ratings.jsx (707 lines)
+    Main React component for adviser ratings dashboard
+
+Backend:
+  - app/Http/Controllers/Adviser/AdviserRatingsController.php (97 lines)
+    Fetches, aggregates, and transforms rating data
+  
+  - app/Models/User/Rating.php (51 lines)
+    Eloquent model for ratings table with relationships
+  
+  - app/Models/User/Project.php (50+ lines)
+    Eloquent model for projects (referenced by ratings)
+
+Routing:
+  - routes/web.php (Line 224)
+    GET /adviser/ratings → AdviserRatingsController@index
+
+Database:
+  - step_system_database.sql (Lines 512-528)
+    CREATE TABLE ratings schema and structure
+
+Related Files:
+  - app/Models/User.php - Referenced via user_id foreign key
+  - app/Models/User/Project.php - Referenced via project_id foreign key
+
+================================================================================
+                              END OF MAPPING
+================================================================================
