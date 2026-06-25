@@ -591,20 +591,20 @@ export default function AdviserApprovalsPage() {
         )}
          
               <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1 rounded-xl" >
+                <Button variant="outline" className="flex-1 rounded-xl"  onClick={() => setShowReview(false)} >
                   Cancel
                 </Button>
-                <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" >
+                <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }} >
                    <XCircle className="w-4 h-4 text-red-600" />
                   Reject
                 </Button>
-                <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700">
+                <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
                   <CheckCircle className="w-4 h-4 text-white-600" />
                   Approve
                 </Button>
               </div>
            
-      </Modal>
+      </Modal> 
 
       {/* Review Project Modal */}
       <Modal open={showReview && selectedItem?.approvalType === 'project'} onClose={() => setShowReview(false)} title="Review Project">
@@ -712,7 +712,8 @@ export default function AdviserApprovalsPage() {
             {/* Action Buttons */}
             {(selectedItem.status === 'Pending Approval' || selectedItem.status === 'Pending Adviser Approval') && (
               <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowReview(false)}>
+                
+                <Button variant="outline" className="flex-1 rounded-xl"  onClick={() => setShowReview(false)}>
                   Cancel
                 </Button>
                 <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>

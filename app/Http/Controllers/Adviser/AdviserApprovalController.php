@@ -140,17 +140,19 @@ class AdviserApprovalController extends Controller
     public function approve(Request $request)
     {
         $data = $request->validate([
-            'type' => 'required|in:project,ledger,proof,meeting',
+            'type' => 'required|in:project,ledger,proof,meeting,change_date,date_change',
             'id' => 'required|string',
             'notes' => 'nullable|string|max:2000',
         ]);
 
         $userId = Auth::id();
+        $type = $data['type'] === 'date_change' ? 'change_date' : $data['type'];
 
-        match ($data['type']) {
+        match ($type) {
             'project' => $this->approveProject($data['id'], $userId, $data['notes'] ?? ''),
             'ledger', 'proof' => $this->approveLedger($data['id'], $userId, $data['notes'] ?? ''),
             'meeting' => $this->approveMeeting($data['id'], $data['notes'] ?? ''),
+            'change_date' => $this->approveDateChangeRequest($data['id'], $userId, $data['notes'] ?? ''),
         };
 
         return back();
@@ -159,15 +161,18 @@ class AdviserApprovalController extends Controller
     public function reject(Request $request)
     {
         $data = $request->validate([
-            'type' => 'required|in:project,ledger,proof,meeting',
+            'type' => 'required|in:project,ledger,proof,meeting,change_date,date_change',
             'id' => 'required|string',
             'reason' => 'required|string|min:3|max:2000',
         ]);
 
-        match ($data['type']) {
+        $type = $data['type'] === 'date_change' ? 'change_date' : $data['type'];
+
+        match ($type) {
             'project' => $this->rejectProject($data['id'], $data['reason']),
             'ledger', 'proof' => $this->rejectLedger($data['id'], $data['reason']),
             'meeting' => $this->rejectMeeting($data['id'], $data['reason']),
+            'change_date' => $this->rejectDateChangeRequest($data['id'], $data['reason']),
         };
 
         return back();
@@ -249,6 +254,48 @@ class AdviserApprovalController extends Controller
             $project->id,
             'project',
             'Rejected project: '.($project->title ?? $project->id).' — '.$reason,
+            'approvals'
+        );
+    }
+
+    //approve change date request
+    private function approveDateChangeRequest(string $id, $userId, string $notes = ''): void
+    {
+        $request = DateChangeRequest::where('id', $id)->firstOrFail();
+        $request->update([
+            'status' => 'approved',
+            'approved_by' => $userId,
+            'approved_at' => now(),
+            'updated_by' => $userId,
+            'rejection_reason' => $notes,
+        ]);
+
+        $this->writeAudit(
+            'Date Change Request Approved',
+            $request->id,
+            'date_change_request',
+            'Approved date change request for project: '.($request->project?->title ?? $request->project_id),
+            'approvals'
+        );
+    }
+
+    //reject change date request
+    private function rejectDateChangeRequest(string $id, string $reason): void
+    {
+        $request = DateChangeRequest::where('id', $id)->firstOrFail();
+        $request->update([
+            'status' => 'rejected',
+            'rejected_by' => Auth::id(),
+            'rejected_at' => now(),
+            'updated_by' => Auth::id(),
+            'rejection_reason' => $reason,
+        ]);
+
+        $this->writeAudit(
+            'Date Change Request Rejected',
+            $request->id,
+            'date_change_request',
+            'Rejected date change request for project: '.($request->project?->title ?? $request->project_id).' — '.$reason,
             'approvals'
         );
     }
