@@ -380,8 +380,8 @@ function CSGProofPageInner() {
 
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-xs text-gray-600">
-                  <Hash className="w-3 h-3 text-blue-600 flex-shrink-0" />
-                  <span className="font-mono truncate">{proof.linkedTransaction}</span>
+                  {/* <Hash className="w-3 h-3 text-blue-600 flex-shrink-0" /> */}
+                  {/* <span className="font-mono truncate">{proof.linkedTransaction}</span> */}
                 </div>
                 <p className="text-xs text-gray-500 truncate">{proof.linkedProject}</p>
                 <p className="text-xs text-gray-400">Uploaded by {proof.uploadedBy}</p>
@@ -401,11 +401,11 @@ function CSGProofPageInner() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2 pt-2 border-t">
+              <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 rounded-lg"
+                  className="flex-1 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
                   onClick={() => {
                     setSelectedProof(proof);
                     setShowViewModal(true);

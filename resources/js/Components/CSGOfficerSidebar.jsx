@@ -71,7 +71,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
     { id: 'proof', label: 'Proof', icon: FileText },
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     { id: 'ratings', label: 'Ratings', icon: Star },
-    // { id: 'notification', label: 'Notification', icon: Bell },
+    { id: 'notification', label: 'Notification', icon: Bell },
     { id: 'profile', label: 'Profile', icon: User },
   ];
 

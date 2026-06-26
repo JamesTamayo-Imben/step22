@@ -512,7 +512,10 @@ public function uploadProof(Request $request, $id)
                     'fileType' => $fileType,
                     'fileSize' => $fileSize,
                     'status' => 'Approved',
-                    'uploadedBy' => $project->created_by ? 'User ' . $project->created_by : 'Unknown',
+                    // 'uploadedBy' => $project->created_by ? 'User ' . $project->created_by : 'Unknown',
+                   'uploadedBy' => $project->created_by
+    ? User::find($project->created_by)?->name ?? 'Unknown'
+    : 'Unknown',
                     'hash' => 'N/A',
                     'filePath' => $filePath,
                     'description' => 'Initial Project Proof',
@@ -556,7 +559,10 @@ public function uploadProof(Request $request, $id)
                     'fileType' => $fileType,
                     'fileSize' => $fileSize,
                     'status' => $entry->approval_status,
-                    'uploadedBy' => $entry->created_by ? 'User ' . $entry->created_by : 'Unknown',
+                    // 'uploadedBy' => $entry->created_by ? 'User ' . $entry->created_by : 'Unknown',
+                   'uploadedBy' => $entry->created_by
+    ? User::find($entry->created_by)?->name ?? 'Unknown'
+    : 'Unknown',
                     'hash' => $entry->file_content_hash ?? 'Not available',
                     'filePath' => $filePath,
                     'description' => $entry->description ?? 'No description available',
