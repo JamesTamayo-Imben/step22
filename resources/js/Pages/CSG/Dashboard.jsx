@@ -1261,7 +1261,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
           <h2 className="text-gray-900">Active Projects</h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {dashboardProjects && dashboardProjects.length > 0 ? (
             dashboardProjects.slice(0, 2).map((project, index) => (
               <div 

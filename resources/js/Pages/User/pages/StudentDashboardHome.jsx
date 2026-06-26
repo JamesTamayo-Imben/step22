@@ -98,7 +98,8 @@ const getStatusColor = (status) => {
           </button>
         </div>
 
-        <div className="space-y-3">
+       <div className="grid grid-cols-2 gap-3">
+         {/* <div className="space-y-3"> */}
           {(activeProjects || []).map((project, index) => {
             const isLocked = !!project?.isTampered || !!project?.isBudgetMismatch;
             const lockTitle = project?.isTampered
@@ -164,8 +165,8 @@ const getStatusColor = (status) => {
                 </div>
                 <span className="text-xs text-gray-600">{project.progress}%</span>
               </div>
-            </button>
-          )          })}
+             </button>
+          )})}
           {!activeProjects?.length && 
           <div className="text-center py-4">
                                  <FolderKanban className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -173,7 +174,8 @@ const getStatusColor = (status) => {
                                  <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
                                </div>
           }
-        </div>
+        {/* </div> */}
+       </div>
       </div>
 
       {/* Recent Badges & Upcoming Events */}

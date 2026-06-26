@@ -47,6 +47,13 @@ function formatLimitedNumber(value, opts = {}) {
   return n.toLocaleString('en-US', { minimumFractionDigits: minFractionDigits, maximumFractionDigits: maxFractionDigits });
 }
 
+function renderStars(value) {
+  const stars = Math.max(0, Math.min(5, Math.round(Number(value) || 0)));
+  return [...Array(5)].map((_, i) => (
+    <Star key={i} className={`w-3 h-3 ${i < stars ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+  ));
+}
+
 import {
   EditProjectModal,
   AddLedgerModal,
@@ -347,6 +354,9 @@ export function CSGProjectDetailsPage({
     csatRate: 0,
     satisfied: 0,
     notSatisfied: 0,
+    satisfactionAverage: 0,
+    completenessAverage: 0,
+    engagementAverage: 0,
   });
   
   const [budgetItems, setBudgetItems] = useState(() => {
@@ -880,11 +890,14 @@ function maskUserName(fullName) {
       fetchLedgerEntries();
       fetchVerificationStatus();
       fetchDateChangeRequests();
-      if (isApproved) {
-        fetchProjectRatings();
-      }
     }
   }, [project.id]);
+
+  useEffect(() => {
+    if (project.id && isApproved) {
+      fetchProjectRatings();
+    }
+  }, [project.id, isApproved]);
 
   // Rebuild status timeline whenever ledger entries change
   useEffect(() => {
@@ -1748,12 +1761,10 @@ function maskUserName(fullName) {
                 <p className="text-gray-500 mt-2">Loading ledger entries...</p>
               </div>
             ) : ledgerEntries.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-gray-400 mb-4">
-                  <Wallet className="w-16 h-16 mx-auto opacity-50" />
-                </div>
-                <p className="text-gray-500 mb-2">No ledger entries found.</p>
-                <p className="text-sm text-gray-400">Click the "Add Ledger Entry" button to create your first transaction.</p>
+              <div className="text-center">
+                <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-sm text-gray-500">No ledger entries found</p>
+                            <p className="text-xs text-gray-400 mt-1 mb-4">Add your first transaction to get started</p>
               </div>
             ) : (
               <>
@@ -2054,8 +2065,10 @@ function maskUserName(fullName) {
             </div>
             
             {proofDocuments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No proof documents uploaded yet.
+              <div className="text-center">
+               <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3"/>
+               <p className="text-sm text-gray-500">No proof documents found</p>
+             <p className="text-xs text-gray-400 mt-1 mb-4">Add your first proof document to get started</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2131,24 +2144,46 @@ function maskUserName(fullName) {
       {activeTab === 'ratings' && isApproved && (
         <div className="space-y-6">
           <Card className="rounded-[20px] border-0 shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Student Ratings & Satisfaction</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Student Ratings & Satisfaction</h2>
         
             
             {/* Average Rating Display */}
-            <div className="bg-blue-50 rounded-xl p-6 mb-6 text-center">
-              <div className="flex items-center justify-center gap-3 mb-2">
-                <span className="text-5xl font-bold text-gray-900">{ratingsStats.averageRating?.toFixed(1) || '0'}</span>
-                <div>
-                  <div className="flex items-center gap-1 mb-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className={`w-6 h-6 ${i < Math.round(ratingsStats.averageRating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
-                    ))}
-                  </div>
-                  <p className="text-sm text-gray-500">{ratingsStats.totalRatings || 0} {ratingsStats.totalRatings === 1 ? 'rating' : 'ratings'}</p>
-                </div>
-              </div>
-              {/* <p className="text-sm text-gray-600 mt-2">CSAT Rate: <span className="font-semibold">{ratingsStats.csatRate || 0}%</span></p> */}
-            </div>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
+              <div className="bg-blue-50 rounded-xl border border-blue-200 p-4 text-center">
+                      <p className="text-xs text-blue-900 mb-1">Average</p>
+                      <p className="text-2xl font-bold text-blue-500">{ratingsStats.totalRatings ? ratingsStats.averageRating.toFixed(1) : '0.0'}</p>
+                      <div className="flex justify-center gap-1 mt-2">
+                        {renderStars(ratingsStats.averageRating)}
+                      </div>
+                    </div>
+
+             <div className="bg-blue-50 rounded-xl border border-blue-200 p-4 text-center">
+                      <p className="text-xs text-blue-900 mb-1">Satisfaction</p>
+                      <p className="text-2xl font-bold text-blue-500">{ratingsStats.totalRatings ? ratingsStats.satisfactionAverage.toFixed(1) : '0.0'}</p>
+                      <div className="flex justify-center gap-1 mt-2">
+                        {renderStars(ratingsStats.satisfactionAverage)}
+                      </div>
+                    </div>
+
+             <div className="bg-blue-50 rounded-xl border border-blue-200 p-4 text-center">
+                      <p className="text-xs text-blue-900 mb-1">Completeness</p>
+                      <p className="text-2xl font-bold text-blue-500">{ratingsStats.totalRatings ? ratingsStats.completenessAverage.toFixed(1) : '0.0'}</p>
+                      <div className="flex justify-center gap-1 mt-2">
+                        {renderStars(ratingsStats.completenessAverage)}
+                      </div>
+                    </div>
+
+             <div className="bg-blue-50 rounded-xl border border-blue-200 p-4 text-center">
+                      <p className="text-xs text-blue-900 mb-1">Engagement</p>
+                      <p className="text-2xl font-bold text-blue-500">{ratingsStats.totalRatings ? ratingsStats.engagementAverage.toFixed(1) : '0.0'}</p>
+                      <div className="flex justify-center gap-1 mt-2">
+                        {renderStars(ratingsStats.engagementAverage)}
+                      </div>
+                    </div>
+                    
+             </div>
+
+            
             
             {/* Ratings List */}
             {ratings.length > 0 ? (
@@ -2159,21 +2194,46 @@ function maskUserName(fullName) {
                       <AvatarFallback className="bg-blue-100 text-blue-700 text-sm">
                         {maskUserName(review.user_name)?.split(' ').map((n) => n[0]).join('') || 'U'}
                       </AvatarFallback>
-                    </Avatar>
+                    </Avatar> 
                     <div className="flex-1">
-                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{maskUserName(review.user_name)}</h3>
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1">
-                              {[...Array(5)].map((_, i) => (
-                                <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
-                              ))}
-                            </div>
-                            <span className="text-sm text-gray-500">{review.created_at}</span>
-                          </div>
+                     
+                         <h3 className="font-semibold text-gray-900">{maskUserName(review.user_name)}</h3>
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                         
+                          
+                         <div className="flex flex-wrap items-center gap-1 md:gap-2">
+
+                         <span className="text-xs text-gray-500 font-semibold">Satisfaction:</span>
+                          <div className="flex">
+                               {[...Array(5)].map((_, i) => (
+                                 <Star key={i} className={`w-3 h-3 ${i < (review.satisfaction_rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                               ))}
+                             </div>
+
+                         <div className="flex-1 min-w-[100px] md:flex-none flex items-center gap-2">
+                             <span className="text-xs text-gray-500 font-semibold">Completeness:</span>
+                             <div className="flex">
+                               {[...Array(5)].map((_, i) => (
+                                 <Star key={i} className={`w-3 h-3 ${i < (review.completeness_rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                               ))}
+                             </div>
+                           </div>
+
+                         <div className="flex-1 min-w-[100px] md:flex-none flex items-center gap-2">
+                             <span className="text-xs text-gray-500 font-semibold">Engagement:</span>
+                             <div className="flex">
+                               {[...Array(5)].map((_, i) => (
+                                 <Star key={i} className={`w-3 h-3 ${i < (review.engagement_rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                               ))}
+                             </div>
+                           </div>
+
+                         </div>
+
                         </div>
-                      </div>
+                      
+                      {/* date */}
+                      <p className="text-xs text-gray-400 mb-2">{review.date || review.created_at}</p>
                       {review.comment && (
                         <p className="text-gray-700">{review.comment}</p>
                       )}
@@ -2182,10 +2242,10 @@ function maskUserName(fullName) {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <Star className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No ratings yet</h3>
-                <p className="text-gray-500">Ratings will appear here once students rate this project</p>
+             <div className="text-center">
+               <Star className="w-12 h-12 text-gray-300 mx-auto mb-3"/>
+               <p className="text-sm text-gray-500">No ratings yet</p>
+             <p className="text-xs text-gray-400 mt-1 mb-4">Ratings will appear here once students rate this project</p>
               </div>
             )}
           </Card>

@@ -540,16 +540,25 @@ class ProjectController extends Controller
                     return [
                         'id' => $r->id,
                         'user_name' => $r->user?->name ?? 'Student',
-                        'rating' => (int) $r->rating_score,
+                        'rating' => (int) ($r->rating_score ?? 0),
+                        'satisfaction_rating' => (int) ($r->satisfaction_rating ?? 0),
+                        'completeness_rating' => (int) ($r->completeness_rating ?? 0),
+                        'engagement_rating' => (int) ($r->engagement_rating ?? 0),
                         'comment' => (string) ($r->comments ?? ''),
                         'created_at' => optional($r->created_at)->format('Y-m-d') ?? '',
+                        'date' => optional($r->created_at)->format('Y-m-d') ?? '',
                         'helpful' => (int) ($r->helpful_count ?? 0),
                     ];
                 })->values();
             
             // Calculate statistics
             $total = $ratings->count();
-            $average = $total > 0 ? round($ratings->avg('rating') * 2) / 2 : 0;
+            $satisfactionAverage = $total > 0 ? round($ratings->avg('satisfaction_rating'), 2) : 0;
+            $completenessAverage = $total > 0 ? round($ratings->avg('completeness_rating'), 2) : 0;
+            $engagementAverage = $total > 0 ? round($ratings->avg('engagement_rating'), 2) : 0;
+            $average = $total > 0
+                ? round((float) (($satisfactionAverage + $completenessAverage + $engagementAverage) / 3), 2)
+                : 0;
             $distribution = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
             
             foreach ($ratings as $r) {
@@ -568,6 +577,9 @@ class ProjectController extends Controller
                 'statistics' => [
                     'averageRating' => (float) $average,
                     'totalRatings' => $total,
+                    'satisfactionAverage' => $satisfactionAverage,
+                    'completenessAverage' => $completenessAverage,
+                    'engagementAverage' => $engagementAverage,
                     'ratingDistribution' => $distribution,
                     'csatRate' => $csat,
                     'satisfied' => $satisfied,

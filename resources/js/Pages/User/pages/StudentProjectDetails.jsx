@@ -375,7 +375,7 @@ function maskUserName(fullName) {
       {activeTab === 'ledger' && (
         <Card className="rounded-[20px] border-0 shadow-sm p-6">
           
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Ledger</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Ledger Entries Record</h2>
 
           {/* Tamper Alert */}
       {currentProject.tamperedAlerts > 0 && (
@@ -421,13 +421,19 @@ function maskUserName(fullName) {
               </button>
             ))}
           </div>
-          {!currentProject.ledgerEntries?.length && <p className="text-gray-500 mt-3">No ledger entries yet.</p>}
+          {!currentProject.ledgerEntries?.length && 
+          <div className="text-center">
+                         <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-3"/>
+                         <p className="text-sm text-gray-500">No ledger entries yet</p>
+                       <p className="text-xs text-gray-400 mt-1 mb-4">Add your first ledger entry to get started</p>
+                        </div>
+          }
         </Card>
       )}
 
       {activeTab === 'proof' && (
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-indigo-50">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Proof</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Project Transaction Proof</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(currentProject.proofDocuments || []).map((proof) => (
               <button
@@ -459,7 +465,13 @@ function maskUserName(fullName) {
                 </div>
               </button>
             ))}
-            {!currentProject.proofDocuments?.length && <p className="text-gray-500">No proof documents uploaded.</p>}
+            {!currentProject.proofDocuments?.length && 
+            <div className="text-center md:col-span-2">
+                           <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3"/>
+                           <p className="text-sm text-gray-500">No proof documents found</p>
+                         <p className="text-xs text-gray-400 mt-1 mb-4">Add your first proof document to get started</p>
+                          </div>
+            }
           </div>
         </Card>
       )}
@@ -499,33 +511,25 @@ function maskUserName(fullName) {
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-yellow-50">
           <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Ratings</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Project Ratings</h2>
               
               {/* Calculate averages */}
-              {currentProject.ratings?.length > 0 && (() => {
+              {(() => {
                 const ratings = currentProject.ratings || [];
-                const satisfactionAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.satisfaction_rating || 0), 0) / ratings.length).toFixed(2) : 0;
-                const completenessAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.completeness_rating || 0), 0) / ratings.length).toFixed(2) : 0;
-                const engagementAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.engagement_rating || 0), 0) / ratings.length).toFixed(2) : 0;
-                const overallAvg = ratings.length ? ((parseFloat(satisfactionAvg) + parseFloat(completenessAvg) + parseFloat(engagementAvg)) / 3).toFixed(2) : 0;
-                
+                const satisfactionAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.satisfaction_rating || 0), 0) / ratings.length).toFixed(2) : '0';
+                const completenessAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.completeness_rating || 0), 0) / ratings.length).toFixed(2) : '0';
+                const engagementAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.engagement_rating || 0), 0) / ratings.length).toFixed(2) : '0';
+                const overallAvg = ratings.length ? ((parseFloat(satisfactionAvg) + parseFloat(completenessAvg) + parseFloat(engagementAvg)) / 3).toFixed(2) : '0';
+                const filledStars = Math.floor(parseFloat(overallAvg));
+
                 return (
                   <div className="grid grid-cols-3 gap-3 mb-6">
-                    {/* <div className="bg-white rounded-xl border border-yellow-100 p-4 text-center">
-                      <p className="text-xs text-gray-500 mb-1">Overall</p>
-                      <p className="text-2xl font-bold text-gray-900">{overallAvg}</p>
-                      <div className="flex justify-center gap-1 mt-2">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className={`w-3 h-3 ${i < Math.floor(overallAvg) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
-                        ))}
-                      </div>
-                    </div> */}
                     <div className="bg-white rounded-xl border border-blue-100 p-4 text-center">
                       <p className="text-xs text-gray-500 mb-1">Satisfaction</p>
                       <p className="text-2xl font-bold text-gray-900">{satisfactionAvg}</p>
                       <div className="flex justify-center gap-1 mt-2">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className={`w-3 h-3 ${i < Math.floor(satisfactionAvg) ? 'fill-blue-400 text-blue-400' : 'text-gray-300'}`} />
+                          <Star key={i} className={`w-3 h-3 ${i < Math.floor(parseFloat(satisfactionAvg)) ? 'fill-blue-400 text-blue-400' : 'text-gray-300'}`} />
                         ))}
                       </div>
                     </div>
@@ -534,7 +538,7 @@ function maskUserName(fullName) {
                       <p className="text-2xl font-bold text-gray-900">{completenessAvg}</p>
                       <div className="flex justify-center gap-1 mt-2">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className={`w-3 h-3 ${i < Math.floor(completenessAvg) ? 'fill-green-400 text-green-400' : 'text-gray-300'}`} />
+                          <Star key={i} className={`w-3 h-3 ${i < Math.floor(parseFloat(completenessAvg)) ? 'fill-green-400 text-green-400' : 'text-gray-300'}`} />
                         ))}
                       </div>
                     </div>
@@ -543,7 +547,7 @@ function maskUserName(fullName) {
                       <p className="text-2xl font-bold text-gray-900">{engagementAvg}</p>
                       <div className="flex justify-center gap-1 mt-2">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className={`w-3 h-3 ${i < Math.floor(engagementAvg) ? 'fill-red-400 text-red-400' : 'text-gray-300'}`} />
+                          <Star key={i} className={`w-3 h-3 ${i < Math.floor(parseFloat(engagementAvg)) ? 'fill-red-400 text-red-400' : 'text-gray-300'}`} />
                         ))}
                       </div>
                     </div>
@@ -602,7 +606,7 @@ function maskUserName(fullName) {
     </div>
     {/* <span className="text-xs text-gray-600">{review.engagement_rating || 0}/5</span> */}
   </div>
-</div>
+                    </div>
                     
                     <p className="text-xs text-gray-500 mt-2">{review.date || ''}</p>
                     <p className="text-gray-700 mt-2">{review.comment || 'No comment provided.'}</p>
@@ -623,7 +627,13 @@ function maskUserName(fullName) {
                 {showAllComments ? 'Show less comments' : `More comments (${(currentProject.ratings || []).length - 5})`}
               </button>
             )}
-            {!currentProject.ratings?.length && <p className="text-gray-500">No ratings yet.</p>}
+            {!currentProject.ratings?.length && 
+           <div className="text-center">
+                          <Star className="w-12 h-12 text-gray-300 mx-auto mb-3"/>
+                          <p className="text-sm text-gray-500">No ratings yet</p>
+                        <p className="text-xs text-gray-400 mt-1 mb-4">Ratings will appear here once students rate this project</p>
+                         </div>
+            }
           </div>
         </Card>
       )}
