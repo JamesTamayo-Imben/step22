@@ -393,6 +393,16 @@ public function uploadProof(Request $request, $id)
             } catch (\Exception $approvalError) {
                 Log::warning('Approval insertion skipped for ledger submit: ' . $approvalError->getMessage());
             }
+
+            $this->createNotification(
+                'Ledger entry submitted for approval',
+                sprintf(
+                    'Ledger entry for project "%s" was submitted and is pending adviser approval.',
+                    $entry->project?->title ?? 'Unknown Project'
+                ),
+                'ledger',
+                $entry->created_by
+            );
             
             return response()->json($entry);
             

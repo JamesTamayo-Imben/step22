@@ -10,6 +10,7 @@ use App\Http\Controllers\Adviser\AdviserRatingsController;
 use App\Http\Controllers\Adviser\AdviserSystemLogsController;
 use App\Http\Controllers\BlockchainController;
 use App\Http\Controllers\CSG\CSGDashboardController;
+use App\Http\Controllers\CSG\CSGNotificationController;
 use App\Http\Controllers\CSG\CSGProjectController;
 use App\Http\Controllers\CSG\CSGRatingsController;
 use App\Http\Controllers\CSG\LedgerEntryController;
@@ -322,9 +323,9 @@ Route::middleware(['auth', 'verified', 'role:csg', 'csg.online'])->group(functio
     Route::get('/api/csg/ratings', [CSGRatingsController::class, 'getRatingsData'])->name('api.csg.ratings');
 
     // Notifications & Profile
-    Route::get('/csg/notification', function () {
-        return Inertia::render('CSG/Notification');
-    })->name('csg.notification');
+    Route::get('/csg/notification', [CSGNotificationController::class, 'index'])->name('csg.notification');
+    Route::post('/csg/notifications/read/{id}', [CSGNotificationController::class, 'markRead'])->name('csg.notifications.read');
+    Route::post('/csg/notifications/mark-all-read', [CSGNotificationController::class, 'markAllRead'])->name('csg.notifications.mark-all-read');
 
     Route::get('/csg/profile', function (Request $request) {
         return Inertia::render('CSG/Profile', [
@@ -482,8 +483,8 @@ Route::prefix('projects')->group(function () {
 // });
 Route::middleware('auth')->group(function () {
     Route::post('/sadmin/notifications/read/{id}', function ($id) {
-        // Use the Model to ensure string ID handling
-        \App\Models\Notification::where('id', $id)->update([
+        // Use the correct Notification model namespace
+        \App\Models\User\Notification::where('id', $id)->update([
             'is_read' => 1, 
             'read_at' => now()
         ]);
@@ -491,12 +492,12 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::post('/sadmin/notifications/archive/{id}', function ($id) {
-        \App\Models\Notification::where('id', $id)->update(['archive' => 1]);
+        \App\Models\User\Notification::where('id', $id)->update(['archive' => 1]);
         return back();
     });
 
     Route::post('/sadmin/notifications/mark-all-read', function () {
-        \App\Models\Notification::where('user_id', Auth::id())
+        \App\Models\User\Notification::where('user_id', Auth::id())
             ->where('is_read', 0)
             ->update(['is_read' => 1, 'read_at' => now()]);
         return back();
@@ -504,7 +505,7 @@ Route::middleware('auth')->group(function () {
 
     // Student notification read/unread (mark as read)
     Route::post('/user/notifications/read/{id}', function ($id) {
-        \App\Models\Notification::where('id', $id)
+        \App\Models\User\Notification::where('id', $id)
             ->where(function ($q) {
                 $q->where('user_id', Auth::id())->orWhereNull('user_id');
             })
@@ -518,7 +519,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::post('/user/notifications/mark-all-read', function () {
-        \App\Models\Notification::where('archive', 0)
+        \App\Models\User\Notification::where('archive', 0)
             ->where(function ($q) {
                 $q->where('user_id', Auth::id())->orWhereNull('user_id');
             })

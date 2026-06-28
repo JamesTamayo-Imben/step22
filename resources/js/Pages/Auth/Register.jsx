@@ -257,8 +257,9 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
     <div className="min-h-screen flex">
       <style>{animationStyles}</style>
 
+<div className="flex h-screen overflow-hidden mx-auto">
       {/* LEFT PANEL (Same as Login) */}
-      <div className="hidden md:flex w-2/5 bg-gradient-to-br from-[#155DFC] to-[#193CB8] text-white p-12 flex-col justify-between relative overflow-hidden">
+      <div className="hidden md:flex w-2/5 bg-gradient-to-br from-[#155DFC] to-[#193CB8] h-screen text-white p-12 flex-col justify-between relative overflow-hidden">
 
         <div className="absolute -top-40 -right-40 w-72 h-72 bg-white/10 rounded-full"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full"></div>
@@ -267,32 +268,35 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
           <h1 className="text-3xl font-medium mb-1">Welcome to STEP</h1>
           <p className="text-lg">Create your school account</p>
 
-          <div className="relative z-10 mt-10 flex justify-center">
-            <div className="mt-20 space-y-4 w-1/2">
+            <div className="relative z-10 mt-10 flex justify-center">
+            <div className="mt-44 space-y-4 w-1/2">
               <h2 className="text-4xl font-semibold leading-tight">
                 Transparent.<br />
                 Accountable.<br />
                 Trustworthy.
               </h2>
-              <p className="text-white/80 max-w-md">
+              {/* <p className="text-white/80 max-w-md">
                 Empowering students and organizations with financial transparency
                 and collaborative decision-making.
-              </p>
+              </p> */}
             </div>
 
-            <div className="gap-2 overflow-hidden">
-              <img
-                src="/images/login-bg.png"
-                alt="Register Background"
-                className="w-full object-cover"
-              />
+            <div className="mt-20 gap-2 overflow-hidden">
+              <img src="/images/login-bg.png" alt="Login Background" className="w-full object-cover" />
             </div>
+
           </div>
+           <div>
+              <p className="text-white/80 max-w-md">
+                Empowering students and organizations with financial transparency
+                and collaborative decision making. 
+              </p> 
+            </div>
         </div>
       </div>
 
       {/* RIGHT PANEL */}
-      <div className="flex-1 flex items-center justify-center bg-[#F5F6F8] p-6 relative">
+      <div className="flex-1 bg-[#F5F6F8] p-6 relative overflow-y-auto ">
 
  <div className="absolute top-2 left-6">
   <Link href="/" className="text-blue-600 hover:underline flex items-center gap-1">
@@ -301,7 +305,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
   </Link>
 </div>
 
-        <div className="w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-sm p-10 mt-6 md:mt-6 fade-in-container">
+        <div className="w-full max-w-lg mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm p-10 mt-6 md:mt-6 fade-in-container">
 
           {/* Logo */}
           <div className="flex justify-center mb-2">
@@ -543,6 +547,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
             </button>
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

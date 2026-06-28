@@ -432,6 +432,16 @@ class ProjectController extends Controller
                 // Log success path and continue. Data may still be in project record.
                 Log::warning('Approval insertion skipped due to error: ' . $approvalError->getMessage());
             }
+
+            $this->createNotification(
+                'Project submitted for approval',
+                sprintf(
+                    'Your project "%s" has been submitted and is pending adviser approval.',
+                    $project->title ?? 'Untitled Project'
+                ),
+                'project',
+                $project->created_by
+            );
             
             return response()->json([
                 'message' => 'Project submitted for adviser approval successfully',

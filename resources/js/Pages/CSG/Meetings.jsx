@@ -923,7 +923,7 @@ const renderAttendees = (attendees) => {
             <Button
               variant="outline"
               size="sm"
-              className="flex-1 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               onClick={() => {
                 setSelectedMeeting(meeting);
                 setMeetingForm({

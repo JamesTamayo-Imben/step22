@@ -40,7 +40,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'approvals', label: 'Approvals', icon: CheckSquare },
-    { id: 'history', label: 'History', icon: Layers },
+    // { id: 'history', label: 'History', icon: Layers },
     { id: 'ledger-view', label: 'Ledger Oversight', icon: BookOpen },
     { id: 'feedback-review', label: 'Role & Permissions', icon: ShieldCheck },
     { id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp },

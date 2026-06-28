@@ -20,8 +20,8 @@ const filters = [
   { id: 'all', label: 'All' },
   { id: 'project', label: 'Projects' },
   { id: 'meeting', label: 'Meetings' },
-  { id: 'badge', label: 'Badges' },
-  { id: 'points', label: 'Points' },
+  // { id: 'badge', label: 'Badges' },
+  // { id: 'points', label: 'Points' },
   { id: 'rating', label: 'Ratings' },
   { id: 'system', label: 'System' },
 ];
@@ -104,17 +104,17 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
             )}
           </div>
 
-          <div className="flex items-center gap-2 overflow-x-auto pb-2">
-            <Filter className="w-4 h-4 text-gray-500 flex-shrink-0" />
+          <div className="bg-white mx-auto p-2 rounded-xl flex items-center gap-2 overflow-x-auto pb-2">
+            {/* <Filter className="w-4 h-4 text-gray-500 flex-shrink-0" /> */}
             {filters.map((filter) => (
               <button
                 key={filter.id}
                 type="button"
                 onClick={() => setSelectedFilter(filter.id)}
-                className={`px-4 py-2 rounded-full whitespace-nowrap transition-all ${
+                className={`px-4 py-2 rounded-xl w-[200px]  py-2 whitespace-nowrap transition-all  ${
                   selectedFilter === filter.id
                     ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-white text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 {filter.label}
@@ -125,9 +125,11 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
           <div className="space-y-3">
             {filteredNotifications.length === 0 ? (
               <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
-                <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-gray-900 font-semibold mb-2">No notifications</h3>
-                <p className="text-gray-600">Nothing matches this filter.</p>
+                   <div className="text-center">
+                              <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                              <p className="text-sm text-gray-500">No notifications found</p>
+                              <p className="text-xs text-gray-400 mt-1">No notifications match your filters</p>
+                            </div>
               </Card>
             ) : (
               filteredNotifications.map((n) => (
@@ -135,20 +137,24 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
                   key={n.id}
                   className={`rounded-[20px] border-0 shadow-sm p-4 flex gap-4 ${!n.isRead ? 'bg-blue-50/40' : ''}`}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-white border flex items-center justify-center flex-shrink-0">
+                  <div className="flex justify-between items-start w-full gap-4">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 border flex items-center justify-center flex-shrink-0">
                     {getIcon(n.icon)}
                   </div>
+                  
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <h3 className="text-sm font-semibold text-gray-900">{n.title}</h3>
                       {!n.isRead && <Badge className="bg-blue-100 text-blue-800">New</Badge>}
                     </div>
                     <p className="text-sm text-gray-600 mb-2">{n.message || '—'}</p>
+                  </div>
+                    
                     <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                       <span>{n.timestamp}</span>
-                      {n.userId != null && n.userId !== '' && (
+                      {/* {n.userId != null && n.userId !== '' && (
                         <span className="font-mono">User: {String(n.userId).slice(0, 8)}…</span>
-                      )}
+                      )} */}
                       {!n.isRead && (
                         <button type="button" onClick={() => markAsRead(n.id)} className="text-blue-600 hover:underline">
                           Mark read

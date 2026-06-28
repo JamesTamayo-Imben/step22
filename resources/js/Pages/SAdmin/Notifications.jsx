@@ -42,9 +42,7 @@ export default function NotificationsPage() {
   const filteredNotifications = initialNotifications.filter((notif) => {
     const matchesSearch = notif.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           notif.message?.toLowerCase().includes(searchTerm.toLowerCase());
-    // const matchesCategory = filterCategory === 'All' || notif.type === filterCategory;
-    // Change this to match exactly what you typed in the SQL 'type' column
-const categories = ['All', 'alert', 'info', 'success', 'warning', 'System'];
+    const matchesCategory = filterCategory === 'All' || notif.type === filterCategory.toLowerCase();
     const matchesReadStatus = !showUnread || notif.is_read === 0;
     return matchesSearch && matchesCategory && matchesReadStatus;
   });

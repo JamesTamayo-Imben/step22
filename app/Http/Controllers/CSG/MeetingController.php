@@ -5,6 +5,7 @@ namespace App\Http\Controllers\CSG;
 use App\Http\Controllers\Controller;
 use App\Models\CSG\Meeting;
 use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -68,6 +69,54 @@ class MeetingController extends Controller
         }
     }
 
+    private function getMeetingNotificationRecipients(?string $studentId, ?string $fallbackUserId = null): array
+    {
+        $recipientUserIds = [];
+
+        $studentUser = null;
+        $studentProfile = null;
+
+        if ($studentId) {
+            $studentProfile = \App\Models\Student::where('id', $studentId)->where('archive', false)->first();
+
+            if ($studentProfile && $studentProfile->user_id) {
+                $studentUser = User::find($studentProfile->user_id);
+            }
+
+            if (!$studentUser) {
+                $studentUser = User::find($studentId);
+            }
+
+            if (!$studentUser) {
+                $studentProfile = \App\Models\Student::where('user_id', $studentId)->where('archive', false)->first();
+                if ($studentProfile && $studentProfile->user_id) {
+                    $studentUser = User::find($studentProfile->user_id);
+                }
+            }
+        }
+
+        if (!$studentUser && $fallbackUserId) {
+            $studentUser = User::find($fallbackUserId);
+        }
+
+        if ($studentUser) {
+            $recipientUserIds[] = $studentUser->id;
+
+            $studentProfile = $studentProfile ?: \App\Models\Student::where('user_id', $studentUser->id)->where('archive', false)->first();
+            $teacherUserId = $studentProfile?->adviser?->user_id;
+
+            if ($teacherUserId && !in_array($teacherUserId, $recipientUserIds, true)) {
+                $recipientUserIds[] = $teacherUserId;
+            }
+        }
+
+        if (empty($recipientUserIds) && $fallbackUserId) {
+            $recipientUserIds[] = $fallbackUserId;
+        }
+
+        return array_values(array_unique($recipientUserIds));
+    }
+
     /**
      * Store a new meeting
      */
@@ -128,6 +177,14 @@ class MeetingController extends Controller
                 'browser_info' => substr((string) request()->userAgent(), 0, 500),
                 'archive' => 0,
             ]);
+
+            $meetingDateFormatted = date('F j, Y, g:i A', strtotime($meeting->scheduled_date));
+            $this->createNotification(
+                'New Meeting Scheduled',
+                "A new meeting titled '{$meeting->title}' has been scheduled for {$meetingDateFormatted}",
+                'meeting',
+                null
+            );
 
             return response()->json([
                 'message' => 'Meeting created successfully',
@@ -212,6 +269,14 @@ public function update(Request $request, $id)
             'browser_info' => substr((string) request()->userAgent(), 0, 500),
             'archive' => 0,
         ]);
+
+        $meetingDateFormatted = date('F j, Y, g:i A', strtotime($meeting->scheduled_date));
+        $this->createNotification(
+            'Meeting Updated',
+            "The meeting titled '{$meeting->title}' was updated for {$meetingDateFormatted}",
+            'meeting',
+            null
+        );
 
         return response()->json(['message' => 'Meeting updated successfully']);
     } catch (\Exception $e) {

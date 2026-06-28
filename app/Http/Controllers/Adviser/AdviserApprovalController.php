@@ -238,6 +238,16 @@ class AdviserApprovalController extends Controller
             'Approved project: '.($project->title ?? $project->id),
             'approvals'
         );
+
+        $this->createNotification(
+            'Project Approved',
+            sprintf(
+                'Project "%s" has been approved.',
+                $project->title ?? 'Untitled Project'
+            ),
+            'project',
+            null
+        );
     }
 
     private function rejectProject(string $id, string $reason): void
@@ -255,6 +265,17 @@ class AdviserApprovalController extends Controller
             'project',
             'Rejected project: '.($project->title ?? $project->id).' — '.$reason,
             'approvals'
+        );
+
+        $this->createNotification(
+            'Project Rejected',
+            sprintf(
+                'Your project "%s" was rejected. Reason: %s',
+                $project->title ?? 'Untitled Project',
+                $reason
+            ),
+            'project',
+            $project->created_by
         );
     }
 
@@ -277,6 +298,17 @@ class AdviserApprovalController extends Controller
             'Approved date change request for project: '.($request->project?->title ?? $request->project_id),
             'approvals'
         );
+
+        $this->createNotification(
+            'Date Change Request Approved',
+            sprintf(
+                'Your date change request for project "%s" has been approved.',
+                $request->project?->title ?? 'Unknown Project'
+            ),
+            'date_change',
+            $request->requested_by
+        );
+
     }
 
     //reject change date request
@@ -297,6 +329,17 @@ class AdviserApprovalController extends Controller
             'date_change_request',
             'Rejected date change request for project: '.($request->project?->title ?? $request->project_id).' — '.$reason,
             'approvals'
+        );
+
+        $this->createNotification(
+            'Date Change Request Rejected',
+            sprintf(
+                'Your date change request for project "%s" was rejected. Reason: %s',
+                $request->project?->title ?? 'Unknown Project',
+                $reason
+            ),
+            'date_change',
+            $request->requested_by
         );
     }
 
@@ -351,6 +394,16 @@ class AdviserApprovalController extends Controller
             $details,
             'ledger'
         );
+
+        $this->createNotification(
+            'Ledger Entry Approved',
+            sprintf(
+                'Ledger entry for project "%s" has been approved.',
+                $entry->project?->title ?? 'Unknown Project'
+            ),
+            'ledger',
+            $entry->created_by ?? $entry->project?->created_by
+        );
     }
 
     private function rejectLedger(string $id, string $reason): void
@@ -371,6 +424,17 @@ class AdviserApprovalController extends Controller
             'ledger_entry',
             ($entry->description ?? '').' — '.$reason,
             'ledger'
+        );
+
+        $this->createNotification(
+            'Ledger Entry Rejected',
+            sprintf(
+                'Ledger entry for project "%s" was rejected. Reason: %s',
+                $entry->project?->title ?? 'Unknown Project',
+                $reason
+            ),
+            'ledger',
+            $entry->created_by ?? $entry->project?->created_by
         );
     }
 

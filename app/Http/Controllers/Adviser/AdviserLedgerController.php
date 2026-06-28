@@ -132,43 +132,55 @@ class AdviserLedgerController extends Controller
     }
 
     public function approve(Request $request, string $id)
-{
-    $entry = LedgerEntry::where('id', $id)->with('project')->firstOrFail();
-    if ($entry->type === 'Initial') {
-        return back()->withErrors(['error' => 'Initial baseline entries are managed automatically.']);
-    }
-    $wasApproved = $entry->approval_status === 'Approved';
+    {
+        $entry = LedgerEntry::where('id', $id)->with('project')->firstOrFail();
 
-    $entry->update([
-        'approval_status' => 'Approved',
-        'approved_by' => auth()->id(),
-        'approved_at' => now(),
-        'updated_by' => auth()->id(),
-        'rejected_at' => null,
-    ]);
-
-    if (! $wasApproved && $entry->project) {
-        $amount = (float) $entry->amount;
-        if ($amount > 0) {
-            if ($entry->type === 'Expense') {
-                    $entry->project->budget = (float) $entry->project->budget - $amount;
-            } elseif (in_array($entry->type, ['Income', 'Canvas', 'Donation', 'Sponsorship'], true)) {
-                $entry->project->budget = (float) $entry->project->budget + $amount;
-            }
-            $entry->project->save();
+        if ($entry->type === 'Initial') {
+            return back()->withErrors(['error' => 'Initial baseline entries are managed automatically.']);
         }
+
+        $wasApproved = $entry->approval_status === 'Approved';
+
+        $entry->update([
+            'approval_status' => 'Approved',
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+            'updated_by' => auth()->id(),
+            'rejected_at' => null,
+        ]);
+
+        if (! $wasApproved && $entry->project) {
+            $amount = (float) $entry->amount;
+            if ($amount > 0) {
+                if ($entry->type === 'Expense') {
+                    $entry->project->budget = (float) $entry->project->budget - $amount;
+                } elseif (in_array($entry->type, ['Income', 'Canvas', 'Donation', 'Sponsorship'], true)) {
+                    $entry->project->budget = (float) $entry->project->budget + $amount;
+                }
+                $entry->project->save();
+            }
+        }
+
+        $this->writeAudit(
+            'Ledger Entry Approved',
+            $entry->id,
+            'ledger_entry',
+            ($entry->description ?? '').' — '.$entry->project?->title,
+            'ledger'
+        );
+
+        $this->createNotification(
+            'Ledger Entry Approved',
+            sprintf(
+                'Ledger entry for project "%s" has been approved.',
+                $entry->project?->title ?? 'Unknown Project'
+            ),
+            'ledger',
+            $entry->created_by ?? $entry->project?->created_by
+        );
+
+        return back();
     }
-
-    $this->writeAudit(
-        'Ledger Entry Approved',
-        $entry->id,
-        'ledger_entry',
-        ($entry->description ?? '').' — '.$entry->project?->title,
-        'ledger'
-    );
-
-    return back();
-}
 
     public function reject(Request $request, string $id)
     {
@@ -176,10 +188,11 @@ class AdviserLedgerController extends Controller
             'reason' => 'required|string|min:3|max:2000',
         ]);
 
-        $entry = LedgerEntry::where('id', $id)->firstOrFail();
+        $entry = LedgerEntry::where('id', $id)->with('project')->firstOrFail();
         if ($entry->type === 'Initial') {
             return back()->withErrors(['error' => 'Initial baseline entries are managed automatically.']);
         }
+
         $entry->update([
             'approval_status' => 'Rejected',
             'note' => $data['reason'],
@@ -195,6 +208,17 @@ class AdviserLedgerController extends Controller
             'ledger_entry',
             ($entry->description ?? '').' — '.$data['reason'],
             'ledger'
+        );
+
+        $this->createNotification(
+            'Ledger Entry Rejected',
+            sprintf(
+                'Ledger entry for project "%s" was rejected. Reason: %s',
+                $entry->project?->title ?? 'Unknown Project',
+                $data['reason']
+            ),
+            'ledger',
+            $entry->created_by ?? $entry->project?->created_by
         );
 
         return back();
@@ -231,7 +255,7 @@ class AdviserLedgerController extends Controller
 
     public function fixTampered(Request $request, string $id)
     {
-        $entry = LedgerEntry::where('id', $id)->firstOrFail();
+        $entry = LedgerEntry::where('id', $id)->with('project')->firstOrFail();
 
         // Get the blockchain snapshot for this entry
         $chainBlocks = \App\Models\Chain::where('project_id', $entry->project_id)->get();
@@ -271,6 +295,29 @@ class AdviserLedgerController extends Controller
             'ledger_entry',
             'Restored to approved state using blockchain snapshot',
             'ledger'
+        );
+
+        $this->createNotification(
+            'Ledger Tampering Resolved',
+            sprintf(
+                'Tampered ledger entry "%s" for project "%s" was restored from the blockchain snapshot.',
+                $entry->description ?? 'Ledger entry',
+                $entry->project?->title ?? $entry->project_id
+            ),
+            'ledger',
+            $entry->created_by ?? $entry->project?->created_by
+        );
+
+        $this->createNotification(
+            'Ledger Tampering Resolved',
+            sprintf(
+                'Tampered ledger entry "%s" in project "%s" was restored by %s.',
+                $entry->description ?? 'Ledger entry',
+                $entry->project?->title ?? $entry->project_id,
+                $this->userName(auth()->id())
+            ),
+            'ledger',
+            null
         );
 
         return back();
@@ -322,8 +369,17 @@ class AdviserLedgerController extends Controller
             'ledger'
         );
 
+        //create notification for budget mismatch fix
+        $this->createNotification(
+        'Project Budget Synced from Ledger',
+        "Synchronized {$updatedCount} project budget(s) with approved ledger totals",
+        'ledger',
+        null
+    );
+
         return back();
     }
+
 
     private function userName(?string $userId): string
     {

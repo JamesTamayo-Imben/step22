@@ -1,0 +1,334 @@
+================================================================================
+                    NOTIFICATION SYSTEM FLOW DIAGRAM
+================================================================================
+
+DATABASE SCHEMA (notifications table):
+├── id (UUID) - Unique identifier
+├── user_id (UUID) - Target recipient of notification
+├── title (varchar) - Notification title
+├── message (text) - Detailed message content
+├── type (varchar) - Notification type (ledger, project, rating, meeting, badge, points, proof, system)
+├── is_read (boolean) - Read status (0 = unread, 1 = read)
+├── read_at (timestamp) - When notification was read
+├── archive (boolean) - Archive status (0 = active, 1 = archived)
+├── created_at (timestamp) - Creation timestamp
+└── updated_at (timestamp) - Last update timestamp
+
+
+================================================================================
+                        NOTIFICATION CREATION FLOW
+================================================================================
+
+STEP 1: ACTION TRIGGERS NOTIFICATION
+│
+├─ LedgerEntry Actions (AdviserLedgerController):
+│  ├─ approve() → "Ledger Entry Approved" to entry.created_by / project.created_by
+│  ├─ reject() → "Ledger Entry Rejected" to entry.created_by / project.created_by
+│  ├─ approveAll() → "Ledger Entries Bulk Approved" to creator
+│  └─ fixBudgetMismatch() → "Budget mismatch fixed" notification
+│
+├─ Project Actions (ProjectController):
+│  ├─ store() → "Project submitted for approval" to project.created_by
+│  ├─ update() → Various project status notifications
+│  └─ Changes trigger advisers notifications
+│
+├─ Approval Actions (AdviserApprovalController):
+│  ├─ approve() → "Approval Granted"
+│  ├─ reject() → "Approval Rejected"
+│  ├─ request() → "Approval Requested"
+│  └─ withdraw() → "Approval Withdrawn"
+│
+└─ Rating Actions (RatingController):
+   └─ submit() → Notifications sent to relevant parties
+
+
+STEP 2: NOTIFICATION CREATION METHOD
+│
+│  Location: app/Http/Controllers/Controller.php
+│
+│  protected function createNotification(
+│      string $title,        // "Project submitted for approval"
+│      string $message,      // "Your project 'X' has been submitted..."
+│      string $type = 'system',  // Type: ledger, project, rating, etc.
+│      ?string $userId = null    // Target USER ID
+│  ): Notification
+│  {
+│      return Notification::create([
+│          'id' => Str::uuid(),           // Generate unique ID
+│          'user_id' => $userId,          // Who receives this notification
+│          'title' => $title,
+│          'message' => $message,
+│          'type' => $type,
+│          'is_read' => 0,                // Initially unread
+│          'archive' => 0,                // Initially not archived
+│      ]);
+│  }
+│
+│  ✓ Notification saved to database
+│  ✓ user_id column stores the recipient's user ID
+
+
+STEP 3: NOTIFICATION RECIPIENT TARGETING
+│
+│  Recipients are specified at creation time
+│
+│  Example 1: Ledger Entry Approval
+│  ─────────────────────────────────
+│  $this->createNotification(
+│      'Ledger Entry Approved',
+│      sprintf('Ledger entry for project "%s" has been approved.',
+│              $entry->project?->title ?? 'Unknown Project'),
+│      'ledger',
+│      $entry->created_by ?? $entry->project?->created_by  ← TARGET USER ID
+│  );
+│
+│  Example 2: Project Submission
+│  ──────────────────────────────
+│  $this->createNotification(
+│      'Project submitted for approval',
+│      sprintf('Your project "%s" has been submitted and is pending adviser approval.',
+│              $project->title ?? 'Untitled Project'),
+│      'project',
+│      $project->created_by  ← TARGET USER ID (project creator)
+│  );
+│
+│  Example 3: Multiple Recipients
+│  ───────────────────────────────
+│  For multiple users, you call createNotification() multiple times
+│  with different user IDs, OR fetch a collection of users and loop:
+│
+│  $recipients = User::where('role_id', $adviserId)->get();
+│  foreach ($recipients as $user) {
+│      $this->createNotification(..., $user->id);
+│  }
+
+
+================================================================================
+                    NOTIFICATION RETRIEVAL & DISPLAY FLOW
+================================================================================
+
+STEP 1: INERTIA MIDDLEWARE (Automatic on every page load)
+│
+│  Location: app/Http/Middleware/HandleInertiaRequests.php
+│
+│  public function share(Request $request): array
+│  {
+│      $user = $request->user();
+│
+│      if ($user) {
+│          // Load ALL non-archived notifications for current user
+│          $notifications = Notification::where('archive', 0)
+│              ->orderBy('created_at', 'desc')
+│              ->get();
+│      }
+│
+│      return [
+│          'auth' => [
+│              'user' => $user,
+│              'notifications' => $notifications  ← Shared to frontend
+│          ]
+│      ];
+│  }
+│
+│  ✓ Runs automatically on every page load
+│  ✓ Filters by: archive=0 (not archived)
+│  ✓ Ordered by: created_at DESC (newest first)
+│  ✓ Sent to: React/Vue frontend via Inertia
+
+
+STEP 2: FRONTEND DISPLAY (CSG/Notification component)
+│
+│  1. Receive notifications from Inertia middleware
+│  2. Process notifications in CSGNotificationController::index()
+│     - Maps each notification to display object
+│     - Assigns icon based on type:
+│        * 'rating' → star icon
+│        * 'meeting' → calendar icon
+│        * 'project' → project icon
+│        * 'badge' → badge icon
+│        * 'points' → points icon
+│        * 'proof' → file icon
+│        * 'ledger' → dollar icon
+│        * default → bell icon
+│
+│  3. Returns to frontend with:
+│     {
+│         id: notification.id,
+│         type: notification.type,
+│         title: "Project submitted for approval",
+│         message: "Your project 'X' has been submitted...",
+│         timestamp: "Jun 28, 2026 2:30 PM",
+│         isRead: false/true,
+│         icon: "project",
+│         userId: notification.user_id
+│     }
+│
+│  4. Display in UI with visual indicators for:
+│     - Unread status
+│     - Type-specific icons
+│     - Read time
+
+
+STEP 3: USER INTERACTIONS
+│
+│  Endpoint: POST /csg/notifications/{id}/mark-read
+│  Action: markRead() in CSGNotificationController
+│  ───────────────────────────────────────────────
+│  Notification::query()
+│      ->where('id', $id)
+│      ->where('archive', false)
+│      ->update([
+│          'is_read' => 1,
+│          'read_at' => now()
+│      ]);
+│
+│  Endpoint: POST /csg/notifications/mark-all-read
+│  Action: markAllRead() in CSGNotificationController
+│  ────────────────────────────────────────────────
+│  Notification::query()
+│      ->where('archive', false)
+│      ->where('is_read', 0)
+│      ->update([
+│          'is_read' => 1,
+│          'read_at' => now()
+│      ]);
+
+
+================================================================================
+                        COMPLETE USER FLOW EXAMPLE
+================================================================================
+
+Scenario: Project Submission Notification
+═════════════════════════════════════════════════════════════════════════════
+
+1. USER ACTION (Frontend)
+   └─ CSG Officer submits a project via ProjectController::store()
+
+2. BACKEND PROCESSING
+   └─ Project saved to database
+   └─ generateApprovers() identifies adviser responsible
+   └─ Approval record created
+   └─ createNotification() called:
+      {
+          title: "Project submitted for approval",
+          message: "Your project 'Mathematics Competition' has been submitted...",
+          type: "project",
+          userId: "project.created_by"  ← CSG Officer's ID
+      }
+
+3. DATABASE STORAGE
+   └─ INSERT INTO notifications VALUES (
+      id: "abc123-uuid",
+      user_id: "csg-officer-uuid",  ← Recipient identified
+      title: "Project submitted for approval",
+      message: "Your project 'Mathematics Competition'...",
+      type: "project",
+      is_read: 0,
+      archive: 0,
+      created_at: "2026-06-28 14:30:00"
+   )
+
+4. NEXT PAGE LOAD
+   └─ User refreshes or navigates
+   └─ Inertia middleware runs:
+      SELECT * FROM notifications
+      WHERE user_id = "csg-officer-uuid"
+      AND archive = 0
+      ORDER BY created_at DESC
+   
+   └─ Returns to frontend:
+      {
+          id: "abc123-uuid",
+          type: "project",
+          title: "Project submitted for approval",
+          message: "Your project 'Mathematics Competition'...",
+          isRead: false,
+          icon: "project",
+          timestamp: "Jun 28, 2026 2:30 PM"
+      }
+
+5. USER SEES NOTIFICATION
+   └─ Notification appears in CSG/Notification component
+   └─ Badge shows "1 unread notification"
+   └─ Notification displayed with project icon
+
+6. USER INTERACTION
+   └─ User clicks notification to read
+   └─ Frontend calls: POST /csg/notifications/abc123-uuid/mark-read
+   └─ Backend updates:
+      UPDATE notifications
+      SET is_read = 1, read_at = "2026-06-28 14:35:00"
+      WHERE id = "abc123-uuid"
+   
+   └─ Frontend shows notification as read
+   └─ Unread badge count decreases
+
+
+================================================================================
+                      NOTIFICATION TYPE ROUTING
+================================================================================
+
+Different controllers handle different notification triggers:
+
+┌─ LedgerEntryController (CSG/)
+│  ├─ Type: "ledger"
+│  ├─ Recipients: Project creator / Ledger entry creator
+│  └─ Scenarios: Approval, Rejection, Bulk Approval
+│
+├─ ProjectController (CSG/)
+│  ├─ Type: "project"
+│  ├─ Recipients: Project creator
+│  └─ Scenarios: Submission, Status updates
+│
+├─ AdviserLedgerController (Adviser/)
+│  ├─ Type: "ledger"
+│  ├─ Recipients: Project creator / Entry creator
+│  └─ Scenarios: Adviser approvals/rejections
+│
+├─ AdviserApprovalController (Adviser/)
+│  ├─ Type: "project"
+│  ├─ Recipients: Project stakeholders
+│  └─ Scenarios: Approval decisions
+│
+└─ [Other Controllers]
+   ├─ Type: "rating", "meeting", "badge", "points", "proof", "system"
+   └─ Recipients: Various based on context
+
+
+================================================================================
+                      KEY POINTS SUMMARY
+================================================================================
+
+✓ USER IDENTIFICATION:
+  - Notifications are linked to SPECIFIC users via user_id field
+  - Only that user sees their notification
+  - Retrieved from middleware on every page load
+
+✓ NOTIFICATION CREATION:
+  - createNotification() helper method in Controller base class
+  - Called from action handlers (approve, reject, submit, etc.)
+  - Requires: title, message, type, userId
+
+✓ NOTIFICATION RETRIEVAL:
+  - Inertia middleware automatically loads for authenticated users
+  - Filtered by: archive=0 (not deleted)
+  - Filtered by: belongs to current user
+  - Sent to frontend with every page load
+
+✓ NOTIFICATION INTERACTION:
+  - Mark as read: Updates is_read=1, sets read_at timestamp
+  - Archive: Sets archive=1 (soft delete)
+  - Mark all as read: Bulk update for unread notifications
+
+✓ NOTIFICATION TYPES:
+  - ledger, project, rating, meeting, badge, points, proof, system
+  - Each type gets a specific icon in the UI
+  - Used for visual categorization
+
+✓ SECURE TARGETING:
+  - userId parameter ensures only intended recipient gets notification
+  - Query filtering ensures users only see their own notifications
+  - No cross-user notification leakage
+
+
+================================================================================

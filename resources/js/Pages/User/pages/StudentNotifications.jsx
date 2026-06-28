@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
@@ -16,105 +16,12 @@ import {
   Filter
 } from 'lucide-react';
 
-const mockNotifications = [
-  {
-    id: 1,
-    type: 'badge',
-    title: 'Badge Unlocked!',
-    message: 'You earned the "Active Reviewer" badge for rating 5 projects',
-    timestamp: '5 minutes ago',
-    isRead: false,
-    icon: 'badge'
-  },
-  {
-    id: 2,
-    type: 'points',
-    title: 'Points Earned',
-    message: 'You gained 10 points for rating "Community Outreach Program"',
-    timestamp: '1 hour ago',
-    isRead: false,
-    icon: 'points'
-  },
-  {
-    id: 3,
-    type: 'project',
-    title: 'Project Updated',
-    message: 'Community Outreach Program status changed to "Completed"',
-    timestamp: '2 hours ago',
-    isRead: false,
-    icon: 'project'
-  },
-  {
-    id: 4,
-    type: 'meeting',
-    title: 'New Meeting Posted',
-    message: 'General Assembly scheduled for Nov 28, 2024 at 2:00 PM',
-    timestamp: '3 hours ago',
-    isRead: true,
-    icon: 'calendar'
-  },
-  {
-    id: 5,
-    type: 'system',
-    title: 'Ledger Update',
-    message: 'New expense entry added to "Annual Sports Fest" - ₱15,000',
-    timestamp: '5 hours ago',
-    isRead: true,
-    icon: 'dollar'
-  },
-  {
-    id: 6,
-    type: 'project',
-    title: 'Proof Document Uploaded',
-    message: 'Receipt uploaded for "Campus Sustainability Initiative"',
-    timestamp: '1 day ago',
-    isRead: true,
-    icon: 'file'
-  },
-  {
-    id: 7,
-    type: 'rating',
-    title: 'Rating Approved',
-    message: 'Your rating for "Tech Innovation Summit" has been approved',
-    timestamp: '1 day ago',
-    isRead: true,
-    icon: 'star'
-  },
-  {
-    id: 8,
-    type: 'points',
-    title: 'Points Earned',
-    message: 'You gained 5 points for attending "Budget Planning Session"',
-    timestamp: '2 days ago',
-    isRead: true,
-    icon: 'points'
-  },
-  {
-    id: 9,
-    type: 'badge',
-    title: 'Badge Progress',
-    message: 'You\'re 2 meetings away from unlocking "Regular Attendee" badge',
-    timestamp: '2 days ago',
-    isRead: true,
-    icon: 'badge'
-  },
-  {
-    id: 10,
-    type: 'meeting',
-    title: 'Meeting Minutes Posted',
-    message: 'Minutes for "Project Review Meeting" are now available',
-    timestamp: '3 days ago',
-    isRead: true,
-    icon: 'calendar'
-  }
-];
-
 const filters = [
   { id: 'all', label: 'All' },
   { id: 'project', label: 'Projects' },
   { id: 'meeting', label: 'Meetings' },
-  { id: 'badge', label: 'Badges' },
-  { id: 'points', label: 'Points' },
+  // { id: 'badge', label: 'Badges' },
+  // { id: 'points', label: 'Points' },
   { id: 'rating', label: 'Ratings' },
   { id: 'system', label: 'System' }
 ];
@@ -141,8 +48,12 @@ const getIcon = (icon) => {
 };
 
 export default function StudentNotificationsPage({ onNavigate, notificationsData = [] }) {
-  const [notifications, setNotifications] = useState(notificationsData.length ? notificationsData : mockNotifications);
+  const [notifications, setNotifications] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState('all');
+
+  useEffect(() => {
+    setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
+  }, [notificationsData]);
 
   const filteredNotifications = selectedFilter === 'all' 
     ? notifications 
@@ -194,12 +105,12 @@ export default function StudentNotificationsPage({ onNavigate, notificationsData
 
       {/* Filter Chips */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
-        <Filter className="w-4 h-4 text-gray-500 flex-shrink-0" />
+        {/* <Filter className="w-4 h-4 text-gray-500 flex-shrink-0" /> */}
         {filters.map((filter) => (
           <button
             key={filter.id}
             onClick={() => setSelectedFilter(filter.id)}
-            className={`px-4 py-2 rounded-full whitespace-nowrap transition-all ${
+            className={`px-4 py-2 rounded-full w-[100px]  py-2 whitespace-nowrap transition-all ${
               selectedFilter === filter.id
                 ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -214,13 +125,11 @@ export default function StudentNotificationsPage({ onNavigate, notificationsData
       <div className="space-y-3">
         {filteredNotifications.length === 0 ? (
           <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
-            <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-gray-900 font-semibold mb-2">No notifications</h3>
-            <p className="text-gray-600">
-              {selectedFilter === 'all' 
-                ? 'You\'re all caught up!' 
-                : `No ${selectedFilter} notifications`}
-            </p>
+            <div className="text-center">
+                              <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                              <p className="text-sm text-gray-500">No notifications found</p>
+                              <p className="text-xs text-gray-400 mt-1">No notifications match your filters</p>
+                            </div>
           </Card>
         ) : (
           filteredNotifications.map((notification) => (
@@ -266,7 +175,7 @@ export default function StudentNotificationsPage({ onNavigate, notificationsData
       </div>
 
       {/* Load More (if needed) */}
-      {filteredNotifications.length > 0 && (
+      {/* {filteredNotifications.length > 0 && (
         <div className="text-center">
           <button
             className="px-6 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors font-medium"
@@ -274,7 +183,7 @@ export default function StudentNotificationsPage({ onNavigate, notificationsData
             Load more notifications
           </button>
         </div>
-      )}
+      )} */}
     </div>
   );
 }
