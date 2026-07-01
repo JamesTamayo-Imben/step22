@@ -103,7 +103,11 @@ class AdviserRatingsController extends Controller
                 'studentName' => $r->user?->name ?? 'Student',
                 'projectName' => $r->project?->title ?? 'Project',
                 'projectId'   => $r->project_id,
-                'rating'      => (int) $r->satisfaction_rating,
+                'rating'      => round(
+                    ((float) $r->satisfaction_rating +
+                     (float) $r->engagement_rating +
+                     (float) $r->completeness_rating) / 3, 1
+                ),
                 'comment'     => (string) ($r->comments ?? ''),
                 'date'        => optional($r->created_at)->format('Y-m-d') ?? '',
                 'createdAt'   => optional($r->created_at)?->toIso8601String(),

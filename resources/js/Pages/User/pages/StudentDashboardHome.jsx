@@ -12,7 +12,7 @@ export function StudentDashboardHome({
 }) {
 
 const getStatusColor = (status) => {
-  switch (status) {
+  switch (status) { 
     case 'Draft': return 'bg-gray-100 text-gray-700';
     case 'Upcoming': return 'bg-purple-100 text-purple-700';
     case 'Pending Adviser Approval': return 'bg-yellow-100 text-yellow-700';
@@ -25,7 +25,7 @@ const getStatusColor = (status) => {
 };
 
 
-  return (
+  return ( 
     <div className="space-y-6 pb-6">
       {/* Welcome Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-[20px] p-8 text-white shadow-lg">
@@ -213,7 +213,8 @@ const getStatusColor = (status) => {
             </button>
           </div>
 
-          <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* <div className="space-y-3"> */}
             {(upcomingMeetings || []).map((meeting, index) => (
               <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex flex-col items-center justify-center flex-shrink-0">
@@ -233,7 +234,8 @@ const getStatusColor = (status) => {
                                  <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
                                </div>
             }
-          </div>
+          {/* </div> */}
+        </div>
         </div>
       </div>
 

@@ -1,20 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
-import {
-  Bell,
-  Star,
-  Calendar,
-  FolderKanban,
-  Award,
-  TrendingUp,
-  FileText,
-  DollarSign,
-  Check,
-  Filter,
-} from 'lucide-react';
+import { Button } from '@/Components/ui/button';
+import { Bell, Star, Calendar, FolderKanban, Award, TrendingUp, FileText, DollarSign, Check, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const filters = [
   { id: 'all', label: 'All' },
@@ -47,15 +37,29 @@ function getIcon(icon) {
   }
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export default function AdviserNotificationsPage({ notificationsData = [], unreadNotificationsCount = 0 }) {
   const [notifications, setNotifications] = useState(notificationsData);
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+
 
   const filteredNotifications = selectedFilter === 'all'
     ? notifications
     : notifications.filter((n) => n.type === selectedFilter);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const totalPages = Math.ceil(filteredNotifications.length / ITEMS_PER_PAGE);
+
+   useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages]);
+
+  const paginatedNotifications = filteredNotifications.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const markAsRead = (id) => {
     router.post(route('adviser.notifications.read', id), {}, {
@@ -87,12 +91,12 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
               <h1 className="text-gray-900 text-2xl font-semibold mb-2">Notifications</h1>
               <p className="text-gray-500">
                 System-wide notices (
-                {unreadCount}
+                {unreadNotificationsCount}
                 {' '}
                 unread)
               </p>
             </div>
-            {unreadCount > 0 && (
+            {unreadNotificationsCount > 0 && (
               <button
                 type="button"
                 onClick={markAllAsRead}
@@ -107,23 +111,27 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
           <div className="bg-white mx-auto p-2 rounded-xl flex items-center gap-2 overflow-x-auto pb-2">
             {/* <Filter className="w-4 h-4 text-gray-500 flex-shrink-0" /> */}
             {filters.map((filter) => (
-              <button
-                key={filter.id}
-                type="button"
-                onClick={() => setSelectedFilter(filter.id)}
-                className={`px-4 py-2 rounded-xl w-[200px]  py-2 whitespace-nowrap transition-all  ${
+             <button
+  key={filter.id}
+  type="button"
+  onClick={() => {
+    setSelectedFilter(filter.id);
+    setCurrentPage(1);
+  }}
+  className={`px-4 py-2 rounded-xl w-[200px]  py-2 whitespace-nowrap transition-all  ${
                   selectedFilter === filter.id
                     ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md'
                     : 'bg-white text-gray-700 hover:bg-gray-200'
                 }`}
-              >
-                {filter.label}
-              </button>
+>
+  {filter.label}
+</button>
             ))}
-          </div>
+          </div> 
+          
 
           <div className="space-y-3">
-            {filteredNotifications.length === 0 ? (
+            {paginatedNotifications.length === 0 ? (
               <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
                    <div className="text-center">
                               <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -132,7 +140,7 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
                             </div>
               </Card>
             ) : (
-              filteredNotifications.map((n) => (
+              paginatedNotifications.map((n) => (
                 <Card
                   key={n.id}
                   className={`rounded-[20px] border-0 shadow-sm p-4 flex gap-4 ${!n.isRead ? 'bg-blue-50/40' : ''}`}
@@ -166,6 +174,82 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
               ))
             )}
           </div>
+          {totalPages > 1 && (
+  <div className="flex items-center justify-between border-t border-gray-200 mt-4 pt-4">
+    <div className="flex flex-1 justify-between sm:hidden">
+      <Button
+        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+        disabled={currentPage === 1}
+        variant="outline"
+        className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Previous
+      </Button>
+      <Button
+        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+        disabled={currentPage === totalPages}
+        variant="outline"
+        className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Next
+      </Button>
+    </div>
+    <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+      <p className="text-sm text-gray-700">
+        Page <span className="font-medium">{currentPage}</span> of{' '}
+        <span className="font-medium">{totalPages}</span>
+      </p>
+      <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Notifications pagination">
+        <Button
+          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+          disabled={currentPage === 1}
+          variant="outline"
+          className="relative inline-flex items-center rounded-l-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span className="sr-only">Previous</span>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        {[...Array(totalPages)].map((_, i) => {
+          const page = i + 1;
+          const isCurrentPage = page === currentPage;
+          if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+            return (
+              <Button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                variant="outline"
+                className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
+                  isCurrentPage
+                    ? 'z-10 bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {page}
+              </Button>
+            );
+          }
+          if (page === currentPage - 2 || page === currentPage + 2) {
+            return (
+              <span key={page} className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700">
+                ...
+              </span>
+            );
+          }
+          return null;
+        })}
+        <Button
+          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+          disabled={currentPage === totalPages}
+          variant="outline"
+          className="relative inline-flex items-center rounded-r-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span className="sr-only">Next</span>
+          <ChevronRight className="h-5 w-5" />
+        </Button>
+      </nav>
+    </div>
+  </div>
+)}
         </div>
       </div>
     </AuthenticatedLayout>

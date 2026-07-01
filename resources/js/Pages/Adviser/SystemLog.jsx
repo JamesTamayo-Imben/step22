@@ -353,73 +353,82 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
       </Card>
 
       {/* Pagination Component */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 p-4">
-          {/* Previous Button */}
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1 || isLoading}
-            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-gray-100 text-gray-700 hover:bg-gray-200"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          {/* First Page */}
-          {getPageNumbers()[0] > 1 && (
-            <>
-              <button
-                onClick={() => handlePageChange(1)}
-                disabled={isLoading}
-                className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"
+     {totalPages > 1 && (
+  <div className="flex items-center justify-between border-t border-gray-200 mt-4 pt-4">
+    <div className="flex flex-1 justify-between sm:hidden">
+      <Button
+        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+        disabled={currentPage === 1}
+        variant="outline"
+        className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Previous
+      </Button>
+      <Button
+        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+        disabled={currentPage === totalPages}
+        variant="outline"
+        className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Next
+      </Button>
+    </div>
+    <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+      <p className="text-sm text-gray-700">
+        Page <span className="font-medium">{currentPage}</span> of{' '}
+        <span className="font-medium">{totalPages}</span>
+      </p>
+      <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Notifications pagination">
+        <Button
+          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+          disabled={currentPage === 1}
+          variant="outline"
+          className="relative inline-flex items-center rounded-l-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span className="sr-only">Previous</span>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        {[...Array(totalPages)].map((_, i) => {
+          const page = i + 1;
+          const isCurrentPage = page === currentPage;
+          if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+            return (
+              <Button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                variant="outline"
+                className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
+                  isCurrentPage
+                    ? 'z-10 bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
               >
-                1
-              </button>
-              {getPageNumbers()[0] > 2 && <span className="px-2 text-gray-400">...</span>}
-            </>
-          )}
-
-          {/* Page Numbers */}
-          {getPageNumbers().map(page => (
-            <button
-              key={page}
-              onClick={() => handlePageChange(page)}
-              disabled={isLoading}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                page === currentPage
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {page}
-            </button>
-          ))}
-
-          {/* Last Page */}
-          {getPageNumbers()[getPageNumbers().length - 1] < totalPages && (
-            <>
-              {getPageNumbers()[getPageNumbers().length - 1] < totalPages - 1 && (
-                <span className="px-2 text-gray-400">...</span>
-              )}
-              <button
-                onClick={() => handlePageChange(totalPages)}
-                disabled={isLoading}
-                className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"
-              >
-                {totalPages}
-              </button>
-            </>
-          )}
-
-          {/* Next Button */}
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages || isLoading}
-            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-gray-100 text-gray-700 hover:bg-gray-200"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+                {page}
+              </Button>
+            );
+          }
+          if (page === currentPage - 2 || page === currentPage + 2) {
+            return (
+              <span key={page} className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700">
+                ...
+              </span>
+            );
+          }
+          return null;
+        })}
+        <Button
+          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+          disabled={currentPage === totalPages}
+          variant="outline"
+          className="relative inline-flex items-center rounded-r-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <span className="sr-only">Next</span>
+          <ChevronRight className="h-5 w-5" />
+        </Button>
+      </nav>
+    </div>
+  </div>
+)}
 
       {/* Logs Cards - Mobile */}
       <div className="md:hidden space-y-4">

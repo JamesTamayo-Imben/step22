@@ -1,7 +1,7 @@
 import React from 'react';
 import { Inertia } from '@inertiajs/inertia';
 import { Card } from '../../Components/ui/card';
-import { CheckSquare, Clock, AlertCircle, TrendingUp, FileText, CheckCircle2, FolderKanban, DollarSign } from 'lucide-react';
+import { CheckSquare, Clock, AlertCircle, TrendingUp, FileText, CheckCircle2, FolderKanban, DollarSign, Star } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 
@@ -44,7 +44,7 @@ export function AdminAdviserDashboard({
   // Simple subcomponents to mirror the STEP AdminAdviser layout
   function StatsCard({ title, value, hint, icon, iconBg = 'bg-gray-100', iconColor = 'text-gray-700' }) {
     return (
-      <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+      <Card className="p-4 rounded-[20px] border-0 shadow-sm bg-white">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-500">{title}</p>
@@ -160,9 +160,9 @@ export function AdminAdviserDashboard({
           title="Avg. Rating" 
           value={s.avgRating.toFixed(1)} 
           hint="All student ratings" 
-          icon={<TrendingUp />} 
-          iconBg="bg-blue-50" 
-          iconColor="text-blue-600" 
+          icon={<Star />} 
+          iconBg="bg-yellow-50" 
+          iconColor="text-yellow-600" 
         />
         <StatsCard 
           title="Budget Mismatch" 

@@ -1107,7 +1107,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
         />
         <StatsCard
           title="Avg. Rating"
-          value={statistics.averageRating || 0}
+          value={statistics.averageRating || 0} 
           hint={`${statistics.totalRatings || 0} ratings`}
           icon={<Star />}
           iconBg="bg-yellow-50"

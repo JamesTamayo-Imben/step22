@@ -1,13 +1,16 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
+import { Button } from '@/Components/ui/button';
 import {
   Star,
   TrendingUp,
   ThumbsUp,
   MessageSquare,
   Search,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 function Badge({ children, className = '' }) {
@@ -96,6 +99,8 @@ function Select({ className = '', children, value, onValueChange, ...props }) {
   );
 }
 
+const ITEMS_PER_PAGE = 5;
+
 export function RatingsAnalyticsPage() {
   const { projectSummaries = [], studentRatings = [], kpi = {} } = usePage().props;
 
@@ -104,6 +109,7 @@ export function RatingsAnalyticsPage() {
   const [dateRange, setDateRange] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('highest');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Filter ratings based on all filters
   const filteredRatings = useMemo(() => {
@@ -119,8 +125,6 @@ export function RatingsAnalyticsPage() {
       return matchesProject && matchesRating && matchesSearch && matchesDate;
     });
   }, [dateRange, searchQuery, selectedProject, selectedRating, studentRatings]);
-
-
 
   // Filter and sort projects
   const filteredProjects = useMemo(() => {
@@ -142,6 +146,18 @@ export function RatingsAnalyticsPage() {
       return 0;
     });
   }, [projectSummaries, selectedProject, selectedRating, sortBy]);
+
+  // Pagination operates on the rendered project cards, not the raw rating rows
+  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / ITEMS_PER_PAGE));
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages]);
+
+  const paginatedProjects = filteredProjects.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   // Get comments for each project (filtered)
   const getProjectComments = (projectName) => {
@@ -267,13 +283,22 @@ export function RatingsAnalyticsPage() {
             <input
               placeholder="Search..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
             />
           </div>
 
           {/* Project Filter */}
-          <Select value={selectedProject} onValueChange={setSelectedProject}>
+          <Select
+            value={selectedProject}
+            onValueChange={(v) => {
+              setSelectedProject(v);
+              setCurrentPage(1);
+            }}
+          >
             <option value="all">All Projects</option>
             {projectSummaries.map((project) => (
               <option key={project.id} value={project.projectName}>
@@ -283,7 +308,13 @@ export function RatingsAnalyticsPage() {
           </Select>
 
           {/* Rating Filter */}
-          <Select value={selectedRating} onValueChange={setSelectedRating}>
+          <Select
+            value={selectedRating}
+            onValueChange={(v) => {
+              setSelectedRating(v);
+              setCurrentPage(1);
+            }}
+          >
             <option value="all">All Ratings</option>
             <option value="5">5 Stars</option>
             <option value="4">4 Stars</option>
@@ -293,7 +324,13 @@ export function RatingsAnalyticsPage() {
           </Select>
 
           {/* Date Range Filter */}
-          <Select value={dateRange} onValueChange={setDateRange}>
+          <Select
+            value={dateRange}
+            onValueChange={(v) => {
+              setDateRange(v);
+              setCurrentPage(1);
+            }}
+          >
             <option value="all">All Time</option>
             <option value="week">Last Week</option>
             <option value="month">Last Month</option>
@@ -311,7 +348,7 @@ export function RatingsAnalyticsPage() {
 
       {/* Project Ratings */}
       <div className="space-y-6">
-        {filteredProjects.map((project) => {
+        {paginatedProjects.map((project) => {
           const projectComments = getProjectComments(project.projectName);
           return (
             <Card key={project.id} className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
@@ -447,7 +484,7 @@ export function RatingsAnalyticsPage() {
           );
         })}
 
-        {filteredProjects.length === 0 && (
+        {paginatedProjects.length === 0 && (
           <Card className="rounded-[20px] border-0 shadow-sm p-12 bg-white text-center">
             <div className="text-center">
               <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -457,6 +494,82 @@ export function RatingsAnalyticsPage() {
           </Card>
         )}
       </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-200 mt-4 pt-4">
+          <div className="flex flex-1 justify-between sm:hidden">
+            <Button
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              variant="outline"
+              className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </Button>
+            <Button
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              variant="outline"
+              className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </Button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <p className="text-sm text-gray-700">
+              Page <span className="font-medium">{currentPage}</span> of{' '}
+              <span className="font-medium">{totalPages}</span>
+            </p>
+            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Ratings pagination">
+              <Button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                variant="outline"
+                className="relative inline-flex items-center rounded-l-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="sr-only">Previous</span>
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              {[...Array(totalPages)].map((_, i) => {
+                const page = i + 1;
+                const isCurrentPage = page === currentPage;
+                if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+                  return (
+                    <Button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      variant="outline"
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
+                        isCurrentPage
+                          ? 'z-10 bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {page}
+                    </Button>
+                  );
+                }
+                if (page === currentPage - 2 || page === currentPage + 2) {
+                  return (
+                    <span key={page} className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700">
+                      ...
+                    </span>
+                  );
+                }
+                return null;
+              })}
+              <Button
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                variant="outline"
+                className="relative inline-flex items-center rounded-r-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="sr-only">Next</span>
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </nav>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

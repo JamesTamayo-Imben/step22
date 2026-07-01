@@ -6,6 +6,7 @@ import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
+// import { Button } from '@/Components/ui/button';
 import {
   Star,
   TrendingUp,
@@ -17,6 +18,8 @@ import {
   Search,
   Download,
   StarHalf,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -81,6 +84,8 @@ function inDateRange(isoOrDate, dateRange) {
   return d >= start;
 }
 
+const ITEMS_PER_PAGE = 5;
+
 function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments: initialComments, kpi: initialKpi }) {
   const [selectedProject, setSelectedProject] = useState('all');
   const [selectedRating, setSelectedRating] = useState('all');
@@ -92,7 +97,7 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
   const [kpi, setKpi] = useState(initialKpi || {});
   const [loading, setLoading] = useState(false);
 
-
+ const [currentPage, setCurrentPage] = useState(1);
 
   // Fetch data if not provided via Inertia props
   useEffect(() => {
@@ -148,6 +153,18 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
       return 0;
     });
   }, [projectSummaries, selectedProject, selectedRating, sortBy]);
+
+  // Pagination operates on the rendered project cards, not the raw rating rows
+    const totalPages = Math.max(1, Math.ceil(filteredProjects.length / ITEMS_PER_PAGE));
+  
+    useEffect(() => {
+      if (currentPage > totalPages) setCurrentPage(totalPages);
+    }, [totalPages]);
+  
+    const paginatedProjects = filteredProjects.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE
+    );
 
   // Get comments for each project (filtered)
   const getProjectComments = (projectId) => {
@@ -283,14 +300,23 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
             />
           </div>
 
           {/* Project Filter */}
-          <Select value={selectedProject} onValueChange={setSelectedProject}>
+          <Select
+            value={selectedProject}
+            onValueChange={(v) => {
+              setSelectedProject(v);
+              setCurrentPage(1);
+            }}
+          >
             <option value="all">All Projects</option>
             {projectSummaries.map((project) => (
               <option key={project.id} value={project.id}>
@@ -300,7 +326,13 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
           </Select>
 
           {/* Rating Filter */}
-          <Select value={selectedRating} onValueChange={setSelectedRating}>
+          <Select
+            value={selectedRating}
+            onValueChange={(v) => {
+              setSelectedRating(v);
+              setCurrentPage(1);
+            }}
+          >
             <option value="all">All Ratings</option>
             <option value="5">5 Stars</option>
             <option value="4">4 Stars</option>
@@ -310,7 +342,13 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
           </Select>
 
           {/* Date Range Filter */}
-          <Select value={dateRange} onValueChange={setDateRange}>
+           <Select
+            value={dateRange}
+            onValueChange={(v) => {
+              setDateRange(v);
+              setCurrentPage(1);
+            }}
+          >
             <option value="all">All Time</option>
             <option value="week">Last Week</option>
             <option value="month">Last Month</option>
@@ -328,7 +366,7 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
 
        {/* Project Ratings */}
       <div className="space-y-6">
-        {filteredProjects.map((project) => {
+         {paginatedProjects.map((project) => {
           const projectComments = getProjectComments(project.id);
           return (
             <Card key={project.id} className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
@@ -464,7 +502,7 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
           );
         })}
 
-        {filteredProjects.length === 0 && (
+        {paginatedProjects.length === 0 && (
           <Card className="rounded-[20px] border-0 shadow-sm p-12 bg-white text-center">
             <div className="text-center">
               <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -474,7 +512,83 @@ function CSGRatingsPageInner({ projectSummaries: initialProjects, recentComments
           </Card>
         )}
       </div>
-    </div> 
+        {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-gray-200 mt-4 pt-4">
+                <div className="flex flex-1 justify-between sm:hidden">
+                  <Button
+                    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                    disabled={currentPage === 1}
+                    variant="outline"
+                    className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    variant="outline"
+                    className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </Button>
+                </div>
+                <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                  <p className="text-sm text-gray-700">
+                    Page <span className="font-medium">{currentPage}</span> of{' '}
+                    <span className="font-medium">{totalPages}</span>
+                  </p>
+                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Ratings pagination">
+                    <Button
+                      onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                      disabled={currentPage === 1}
+                      variant="outline"
+                      className="relative inline-flex items-center rounded-l-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Previous</span>
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    {[...Array(totalPages)].map((_, i) => {
+                      const page = i + 1;
+                      const isCurrentPage = page === currentPage;
+                      if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+                        return (
+                          <Button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            variant="outline"
+                            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
+                              isCurrentPage
+                                ? 'z-10 bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                                : 'bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {page}
+                          </Button>
+                        );
+                      }
+                      if (page === currentPage - 2 || page === currentPage + 2) {
+                        return (
+                          <span key={page} className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700">
+                            ...
+                          </span>
+                        );
+                      }
+                      return null;
+                    })}
+                    <Button
+                      onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      variant="outline"
+                      className="relative inline-flex items-center rounded-r-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">Next</span>
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
+                  </nav>
+                </div>
+              </div>
+            )}
+          </div> 
   );
 }
 

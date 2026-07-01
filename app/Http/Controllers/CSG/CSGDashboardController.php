@@ -151,10 +151,21 @@ class CSGDashboardController extends Controller
 
         // Calculate average rating and CSAT
         $ratings = Rating::where('archive', false)->get();
-        $averageRating = $ratings->count() > 0 ? round($ratings->avg('rating_score'), 2) : 0.0;
+        $averageRating = $ratings->count() > 0
+    ? round(
+        ($ratings->avg('satisfaction_rating')
+        + $ratings->avg('completeness_rating')
+        + $ratings->avg('engagement_rating')) / 3
+    , 1)
+    : 0.0;
         
         // CSAT: ratings of 3-5 stars = satisfied, 1-2 stars = not satisfied
-        $satisfied = $ratings->whereIn('rating_score', [3, 4, 5])->count();
+        $satisfied = $ratings->filter(function ($r) {
+    $avg = (($r->satisfaction_rating ?? 0)
+          + ($r->completeness_rating ?? 0)
+          + ($r->engagement_rating ?? 0)) / 3;
+    return $avg >= 3;
+})->count();
         $csatRate = $ratings->count() > 0 ? (int) round(100 * $satisfied / $ratings->count()) : 0;
         $totalRatings = $ratings->count();
 

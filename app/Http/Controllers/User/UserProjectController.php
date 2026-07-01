@@ -483,7 +483,7 @@ class UserProjectController extends Controller
             ->orderByDesc('updated_at')
             ->get();
 
-        $activeProjects = $allProjects->take(3)->map(function ($project) {
+        $activeProjects = $allProjects->take(4)->map(function ($project) {
             $calculatedStatus = $this->calculateProjectStatus($project);
             $dateProgress = $this->calculateProgressFromDates($project->start_date, $project->end_date);
             $verification = \App\Support\BlockchainService::verifyChain($project->id);
@@ -555,6 +555,7 @@ class UserProjectController extends Controller
 
         $leaderboard = $this->getLeaderboardData($user);
         $stats = [
+             'name' => $user->name ?? 'User',
             'badgesEarned' => collect($this->getBadgesData($user))->where('unlocked', true)->count(),
             'leaderboardRank' => $leaderboard['currentUser']['rank'] ?? null,
             'engagementLevel' => $leaderboard['currentUser']['level'] ?? 1,
