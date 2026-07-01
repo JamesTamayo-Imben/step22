@@ -2,7 +2,39 @@ import { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import InputError from '@/Components/InputError';
 import TextInput from '@/Components/TextInput';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link} from '@inertiajs/react';
+import {
+ArrowLeftIcon,
+} from 'lucide-react';
+
+const animationStyles = `
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @keyframes fadeInSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .fade-in-container {
+    animation: fadeInSlideUp 0.6s ease-out;
+  }
+
+  button, a {
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  input {
+    transition: all 0.3s ease;
+  }
+`;
 
 export default function ForgotPassword({ status }) {
     // Step 1: Email submission
@@ -216,6 +248,7 @@ export default function ForgotPassword({ status }) {
 
     return (
         <div className="min-h-screen flex">
+            <style>{animationStyles}</style>
             <Head title="Reset Password" />
 
             {/* LEFT PANEL */}
@@ -229,18 +262,29 @@ export default function ForgotPassword({ status }) {
                     </h1>
                     <p className="text-lg">Reset your account password securely</p>
 
-                    <div className="relative z-10 mt-10">
-                        <h2 className="text-4xl font-semibold leading-tight">
-                            Secure.<br />
-                            Fast.<br />
-                            Simple.
-                        </h2>
-                        <p className="text-white/80 max-w-md mt-4">
+   <div className="relative z-10 mt-10 flex justify-center">
+            <div className="mt-44 space-y-4 w-1/2">
+              <h2 className="text-4xl font-semibold leading-tight">
+                Safe.<br />
+                Accountable.<br />
+                Trustworthy.
+              </h2>
+              {/* <p className="text-white/80 max-w-md">
+                Empowering students and organizations with financial transparency
+                and collaborative decision-making.
+              </p> */}
+            </div>
+
+            <div className="mt-20 gap-2 overflow-hidden">
+              <img src="/images/login-bg.png" alt="Login Background" className="w-full object-cover" />
+            </div>
+
+          </div>
+   <p className="text-white/80 max-w-md mt-4">
                             {step === 1 && 'Enter your email and we\'ll send a verification code to your inbox.'}
                             {step === 2 && 'Enter the code sent to your email to verify your identity.'}
                             {step === 3 && 'Set a strong new password for your account.'}
                         </p>
-                    </div>
 
                     {/* Progress Indicator */}
                     <div className="mt-12 flex gap-2">
@@ -258,7 +302,8 @@ export default function ForgotPassword({ status }) {
 
             {/* RIGHT PANEL */}
             <div className="flex-1 flex items-center justify-center bg-[#F5F6F8] p-6">
-                <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-sm p-10">
+
+                <div className="w-full max-w-md bg-white rounded-2xl border border-gray-200 shadow-sm fade-in-container p-10">
                     <div className="flex justify-center mb-6">
                         <div className="w-20 overflow-hidden px-2">
                             <img src="/images/Logo.png" alt="Step Logo" className="w-full object-cover" />

@@ -19,7 +19,6 @@ import {
   CheckCircle,
   Repeat,
   Calendar,
-  ClipboardList,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -145,8 +144,6 @@ function AvatarFallback({ className = '', children, name }) {
 
 export function RolePermissionsPage() {
   const { users = [], csgOfficerCandidates = [], councilOfficers: initialCouncilOfficers = [], csgPositions: initialCsgPositions = [], roles: initialRoles = [] } = usePage().props;
-
-  const [activeTab, setActiveTab] = useState('assign'); // 'assign' | 'permissions'
 
   const [selectedRole, setSelectedRole] = useState('CSG Officer');
   const [activeDelegation, setActiveDelegation] = useState({
@@ -487,11 +484,6 @@ const handleSetCouncilTerm = async () => {
     });
   };
 
-  const tabs = [
-    { id: 'assign', label: 'Assign Officers', icon: Users, description: 'Assign students to council positions' },
-    { id: 'permissions', label: 'Role Permissions', icon: ClipboardList, description: 'Configure what each role can do' },
-  ];
-
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -505,32 +497,9 @@ const handleSetCouncilTerm = async () => {
             Set Council Term
           </Button>
         </div>
-      </div>
+      </div> 
 
-      {/* Tabs */}
-      <div className="flex gap-2 bg-white p-2 rounded-xl w-full sm:w-fit">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all flex-1 sm:flex-none ${
-                isActive
-                  ? 'text-white bg-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
 
-      {activeTab === 'assign' && (
       <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -645,10 +614,8 @@ const handleSetCouncilTerm = async () => {
   )}
 </div>
       </Card>
-      )}
 
-      {activeTab === 'permissions' && (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-3">
           {rolePermissions.map((role) => {
             const isSelected = selectedRole === role.name;
@@ -816,8 +783,7 @@ const handleSetCouncilTerm = async () => {
               )}
             </div>
 
-            <Button onClick={handleSave} className="inline-flex items-center justify-center px-4 py-2 border bg-blue-600 border-blue-300 rounded-xl text-sm text-white hover:bg-blue-700">
-              <Save className="w-4 h-4 mr-2" />
+            <Button  className="inline-flex items-center justify-center px-4 py-2 border bg-blue-600 border-blue-300 rounded-xl text-sm text-white hover:bg-blue-700">
               Save changes
             </Button>
 
@@ -840,8 +806,7 @@ const handleSetCouncilTerm = async () => {
             </div>
           </Card>
         </div>
-      </div>
-      )}
+      </div> */}
 
      <Modal
   open={isSetOfficerModalOpen}
