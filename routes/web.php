@@ -194,6 +194,12 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
     Route::post('/adviser/approvals/approve', [AdviserApprovalController::class, 'approve'])->name('adviser.approvals.approve');
     Route::post('/adviser/approvals/reject', [AdviserApprovalController::class, 'reject'])->name('adviser.approvals.reject');
 
+   // Project list
+    Route::get('/adviser/projects', function () {
+        return Inertia::render('Adviser/Projects');
+    })->name('adviser.projects');
+
+   
     // History test 
     Route::get('/adviser/history', [AdviserHistoryController::class, 'index'])->name('adviser.history');
 

@@ -12,6 +12,7 @@ import {
   Menu,
   Layers,
   X,
+  FolderKanban,
   Clock,
   LogOut,
   ShieldCheck,
@@ -41,6 +42,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'approvals', label: 'Approvals', icon: CheckSquare },
     // { id: 'history', label: 'History', icon: Layers },
+    {id: 'projects', label: 'Projects', icon: FolderKanban},
     { id: 'ledger-view', label: 'Ledger Oversight', icon: BookOpen },
     { id: 'feedback-review', label: 'Role & Permissions', icon: ShieldCheck },
     { id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp },
@@ -53,7 +55,8 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
     if (typeof window === 'undefined') return 'dashboard';
     const p = window.location.pathname;
     if (p.startsWith('/adviser/approvals')) return 'approvals';
-    if (p.startsWith('/adviser/history')) return 'history';
+    // if (p.startsWith('/adviser/history')) return 'history';
+    if (p.startsWith('/adviser/projects')) return 'projects';
     if (p.startsWith('/adviser/ledger')) return 'ledger-view';
     if (p.startsWith('/adviser/notifications')) return 'notifications';
     if (p.startsWith('/adviser/role-permissions')) return 'feedback-review';
@@ -167,6 +170,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                           const map = {
                             dashboard: '/adviser',
                             approvals: '/adviser/approvals',
+                            projects: '/adviser/projects',
                             'ledger-view': '/adviser/ledger',
                             history: '/adviser/history',
                             notifications: '/adviser/notifications',
@@ -246,6 +250,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                       const map = {
                         dashboard: '/adviser',
                         approvals: '/adviser/approvals',
+                        projects: '/adviser/projects',
                         'ledger-view': '/adviser/ledger',
                         history: '/adviser/history',
                         notifications: '/adviser/notifications',
