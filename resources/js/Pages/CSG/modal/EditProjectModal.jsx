@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -111,6 +111,48 @@ export function EditProjectModal({
   const [filePreview, setFilePreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [completedProjects, setCompletedProjects] = useState([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const loadCompletedProjects = async () => {
+      try {
+        setIsLoadingProjects(true);
+        const response = await fetch('/api/projects', {
+          headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+
+        if (!response.ok) throw new Error('Failed to load completed projects');
+
+        const data = await response.json();
+        const normalized = Array.isArray(data) ? data : [];
+        const completed = normalized.filter((p) => {
+          if (String(p?.id) === String(projectId)) return false;
+
+          const status = String(p?.status || '').toLowerCase();
+          const approvalStatus = String(p?.approval_status || '').toLowerCase();
+          const endDate = p?.end_date || p?.endDate;
+          const hasEnded = endDate ? new Date(endDate) < new Date() : false;
+
+          return status === 'complete' || status === 'completed' || (approvalStatus === 'approved' && hasEnded);
+        });
+
+        setCompletedProjects(completed);
+      } catch (error) {
+        console.error('Failed to load completed projects:', error);
+        setCompletedProjects([]);
+      } finally {
+        setIsLoadingProjects(false);
+      }
+    };
+
+    loadCompletedProjects();
+  }, [open, projectId]);
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
@@ -132,6 +174,32 @@ export function EditProjectModal({
     return;
   }
 
+  if (editForm.hasBudget && editForm.budgetSource === 'none' && (!editForm.budget || parseFloat(editForm.budget) <= 0)) {
+    showToast('Please enter a valid budget amount for a newly created budget', 'error');
+    return;
+  }
+
+  if (editForm.hasBudget && editForm.budgetSource === 'past_project') {
+    if (!editForm.transferFromProjectId) {
+      showToast('Please select a completed project to transfer budget from', 'error');
+      return;
+    }
+
+    if (!editForm.transferAmount || parseFloat(editForm.transferAmount) <= 0) {
+      showToast('Please enter a transfer amount greater than zero', 'error');
+      return;
+    }
+
+    const selectedProject = completedProjects.find((p) => String(p.id) === String(editForm.transferFromProjectId));
+    const remainingBalance = Number(selectedProject?.budget || 0);
+    const transferAmount = Number(editForm.transferAmount || 0);
+
+    if (transferAmount > remainingBalance) {
+      showToast(`Transfer amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString('en-PH', { maximumFractionDigits: 2 })}`, 'error');
+      return;
+    }
+  }
+
   setIsUploading(true);
 
   try {
@@ -147,7 +215,11 @@ export function EditProjectModal({
     formData.append('objective', editForm.objective || '');
     formData.append('venue', editForm.venue || '');
     formData.append('category', editForm.category);
-    formData.append('budget', editForm.budget || 0);
+    formData.append('budget', editForm.hasBudget ? (editForm.budget || '') : '');
+    formData.append('has_budget', editForm.hasBudget ? '1' : '0');
+    formData.append('budget_source', editForm.hasBudget ? (editForm.budgetSource || 'none') : 'none');
+    formData.append('transfer_from_project_id', editForm.transferFromProjectId || '');
+    formData.append('transfer_amount', editForm.transferAmount || '');
     formData.append('proposed_by', editForm.proposedBy);
     formData.append('start_date', editForm.startDate);
     formData.append('end_date', editForm.endDate);
@@ -268,18 +340,129 @@ export function EditProjectModal({
         </div>
 
         {/* Budget */}
-        <div>
-          <FieldLabel>Project Budget (₱)</FieldLabel>
-          <Input
-            type="number"
-            placeholder="Enter project budget amount"
-            value={editForm.budget || ''}
-            onChange={(e) => setEditForm({ ...editForm, budget: e.target.value })}
-            min="0"
-            step="0.01"
-            className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-          />
+        <div className="rounded-xl border border-gray-200 p-4 space-y-3">
+          <FieldLabel>Project Budget</FieldLabel>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="radio"
+                name="edit-has-budget"
+                checked={editForm.hasBudget === true}
+                onChange={() => setEditForm({ ...editForm, hasBudget: true, budget: editForm.budget || '', budgetSource: editForm.budgetSource || 'none' })}
+              />
+              Yes, this project has a budget
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="radio"
+                name="edit-has-budget"
+                checked={editForm.hasBudget === false}
+                onChange={() => setEditForm({ ...editForm, hasBudget: false, budget: '', budgetSource: 'none', transferFromProjectId: '', transferAmount: '' })}
+              />
+              No budget yet
+            </label>
+          </div>
+
+          {editForm.hasBudget && editForm.budgetSource === 'none' && (
+            <div>
+              <FieldLabel>Budget Amount *</FieldLabel>
+              <Input
+                type="number"
+                placeholder="Enter project budget amount"
+                value={editForm.budget || ''}
+                onChange={(e) => setEditForm({ ...editForm, budget: e.target.value })}
+                min="0"
+                step="0.01"
+                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+              />
+            </div>
+          )}
         </div>
+
+        {/* Budget Source */}
+        {editForm.hasBudget && (
+          <div className="rounded-xl border border-gray-200 p-4 space-y-3">
+            <FieldLabel>Budget Source</FieldLabel>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="edit-budget-source"
+                  checked={editForm.budgetSource === 'none'}
+                  onChange={() => setEditForm({ ...editForm, budgetSource: 'none', transferFromProjectId: '', transferAmount: '' })}
+                />
+                Use a newly created budget
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="edit-budget-source"
+                  checked={editForm.budgetSource === 'past_project'}
+                  onChange={() => setEditForm({ ...editForm, budgetSource: 'past_project', transferFromProjectId: '', transferAmount: '' })}
+                />
+                Use remaining budget from a completed project
+              </label>
+            </div>
+
+            {editForm.budgetSource === 'none' && (
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700">
+                Enter the budget amount for this project.
+              </div>
+            )}
+
+            {editForm.budgetSource === 'past_project' && (
+              <div className="space-y-3">
+                {(() => {
+                  const eligibleProjects = (completedProjects || []).filter((p) => Number(p?.budget || 0) > 0);
+
+                  if (eligibleProjects.length === 0) {
+                    return (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                        No completed projects with a remaining budget are available right now.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      <div>
+                        <FieldLabel>Completed Project *</FieldLabel>
+                        <Select
+                          value={editForm.transferFromProjectId || ''}
+                          onValueChange={(value) => setEditForm({ ...editForm, transferFromProjectId: value })}
+                        >
+                          <option value="">Select a completed project</option>
+                          {eligibleProjects.map((p) => {
+                            const remainingBalance = Number(p?.budget || 0);
+                            return (
+                              <option key={p.id} value={p.id}>
+                                {p.title} — Balance: ₱{remainingBalance.toLocaleString('en-PH', { maximumFractionDigits: 2 })}
+                              </option>
+                            );
+                          })}
+                        </Select>
+                      </div>
+
+                      <div>
+                        <FieldLabel>Transfer Amount *</FieldLabel>
+                        <Input
+                          type="number"
+                          placeholder="Enter amount to transfer"
+                          value={editForm.transferAmount || ''}
+                          onChange={(e) => setEditForm({ ...editForm, transferAmount: e.target.value })}
+                          min="0"
+                          step="0.01"
+                          className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
+                {isLoadingProjects && <p className="mt-1 text-xs text-gray-500">Loading completed projects...</p>}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* File Upload */}
         <div>

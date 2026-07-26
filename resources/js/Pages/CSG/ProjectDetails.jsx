@@ -631,6 +631,9 @@ const formatDate = (dateString) => {
             progress: data.progress || 0,
             budget: data.budget || 0,
             budgetBreakdown,
+            budgetSource: data.budgetSource || 'none',
+            transferFromProjectId: data.transferFromProjectId || '',
+            transferAmount: data.transferAmount || '',
             startDate: data.start_date || data.startDate || '',
             endDate: data.end_date || data.endDate || '',
             createdAt: data.created_at || data.createdAt || '',
@@ -1473,6 +1476,10 @@ function maskUserName(fullName) {
                     archive: project.archive,
                     note: project.note,
                     approveBy: project.approveBy,
+                    hasBudget: Number(project.budget || 0) > 0,
+                    budgetSource: project.budgetSource || 'none',
+                    transferFromProjectId: project.transferFromProjectId || '',
+                    transferAmount: project.transferAmount || '',
                   });
                   setEditBudgetItems(project.budgetBreakdown?.map((i) => ({ ...i })) || []);
                   setShowEditModal(true);

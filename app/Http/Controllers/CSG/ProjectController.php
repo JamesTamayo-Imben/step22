@@ -42,6 +42,26 @@ class ProjectController extends Controller
             $projectData['tamperedAlerts'] = $tamperedCount;
             $projectData['approveBy'] = $project->approver?->name ?? null;
             $projectData['createdBy'] = $project->creator?->name ?? null;
+
+            $initialTransferLedger = LedgerEntry::where('project_id', $project->id)
+                ->where('type', 'Initial')
+                ->where('category', 'Transfer')
+                ->where('archive', 0)
+                ->first();
+
+            if ($initialTransferLedger) {
+                $sourceEntry = $this->findTransferSourceEntry($project->id);
+                $transferMetadata = $sourceEntry ? json_decode($sourceEntry->note, true) : null;
+                $projectData['budgetSource'] = 'past_project';
+                $projectData['transferFromProjectId'] = is_array($transferMetadata)
+                    ? ($transferMetadata['transfer_source_project_id'] ?? null)
+                    : null;
+                $projectData['transferAmount'] = (float) $initialTransferLedger->amount;
+            } else {
+                $projectData['budgetSource'] = 'none';
+                $projectData['transferFromProjectId'] = null;
+                $projectData['transferAmount'] = null;
+            }
             
             return response()->json($projectData, 200);
         } catch (\Exception $e) {
@@ -307,11 +327,27 @@ class ProjectController extends Controller
                 'venue' => 'sometimes|required|string',
                 'category' => 'sometimes|required|string',
                 'budget' => 'sometimes|nullable|numeric|min:0',
+                'has_budget' => 'nullable|in:0,1,true,false',
+                'budget_source' => 'nullable|in:none,past_project',
+                'transfer_from_project_id' => 'nullable|string|exists:projects,id',
+                'transfer_amount' => 'nullable|numeric|min:0',
                 'proposed_by' => 'sometimes|required|string',
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
                 'project_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             ]);
+
+            $hasBudget = $request->boolean('has_budget');
+            $budgetSource = $request->input('budget_source', 'none');
+            $transferFromProjectId = $request->input('transfer_from_project_id');
+            $transferAmount = $request->filled('transfer_amount') ? (float) $request->input('transfer_amount') : 0;
+
+            if ($hasBudget && $budgetSource === 'past_project') {
+                $request->validate([
+                    'transfer_from_project_id' => 'required|string|exists:projects,id',
+                    'transfer_amount' => 'required|numeric|min:0.01',
+                ]);
+            }
             
             // Update only fields that are provided
             if ($request->has('title')) $project->title = $request->title;
@@ -320,22 +356,63 @@ class ProjectController extends Controller
             if ($request->has('venue')) $project->venue = $request->venue;
             if ($request->has('category')) $project->category = $request->category;
             
-            // If budget is being changed, update the Initial ledger entry too to prevent mismatch
-            if ($request->has('budget')) {
-                $oldBudget = $project->budget;
-                $newBudget = $request->budget;
+            // If budget is being changed, update the existing baseline ledger entry (never duplicate)
+            if ($request->has('has_budget') || $request->has('budget') || $request->has('budget_source')) {
+                $oldBudget = (float) $project->budget;
+                $baseline = $this->findProjectBaselineEntry($project->id);
+                $newBudget = $oldBudget;
+
+                if (!$hasBudget) {
+                    $newBudget = 0;
+                } elseif ($budgetSource === 'past_project' && $transferAmount > 0 && $transferFromProjectId) {
+                    $sourceProject = Project::where('archive', 0)->find($transferFromProjectId);
+
+                    if (!$sourceProject) {
+                        return response()->json(['message' => 'Source project not found'], 422);
+                    }
+
+                    if ((string) $sourceProject->id === (string) $project->id) {
+                        return response()->json(['message' => 'Cannot transfer budget from the same project'], 422);
+                    }
+
+                    $existingSourceEntry = $baseline && $baseline->category === 'Transfer'
+                        ? $this->findTransferSourceEntry($project->id)
+                        : null;
+                    $previousTransferAmount = $existingSourceEntry ? (float) $existingSourceEntry->amount : 0;
+                    $sameSource = $existingSourceEntry
+                        && (string) $existingSourceEntry->project_id === (string) $sourceProject->id;
+                    $availableBalance = (float) $sourceProject->budget + ($sameSource ? $previousTransferAmount : 0);
+
+                    if ($transferAmount > $availableBalance) {
+                        return response()->json(['message' => 'Transfer amount exceeds the selected project\'s remaining budget'], 422);
+                    }
+
+                    $newBudget = $transferAmount;
+                } elseif ($request->has('budget')) {
+                    $newBudget = $hasBudget && $request->filled('budget') ? (float) $request->budget : 0;
+                }
+
                 $project->budget = $newBudget;
-                
-                // Update the Initial ledger entry if budget changed and project not yet approved
-                if ((float)$oldBudget !== (float)$newBudget && $project->approval_status !== 'Approved') {
-                    LedgerEntry::where('project_id', $project->id)
-                        ->where('type', 'Initial')
-                        ->where('archive', 0)
-                        ->update([
-                            'amount' => (float)$newBudget,
-                            'updated_by' => Auth::id(),
-                            'updated_at' => now(),
-                        ]);
+
+                $resolvedBudgetContext = $this->resolveBudgetUpdateContext(
+                    $project,
+                    $baseline,
+                    $budgetSource,
+                    $transferFromProjectId,
+                    $transferAmount,
+                    $newBudget
+                );
+
+                if ($project->approval_status !== 'Approved') {
+                    $this->syncProjectBudgetLedger(
+                        $project,
+                        $baseline,
+                        $newBudget,
+                        $hasBudget,
+                        $resolvedBudgetContext['budgetSource'],
+                        $resolvedBudgetContext['transferFromProjectId'],
+                        $resolvedBudgetContext['transferAmount']
+                    );
                 }
             }
             
@@ -874,5 +951,236 @@ class ProjectController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    protected function resolveBudgetUpdateContext(
+        Project $project,
+        ?LedgerEntry $baseline,
+        string $budgetSource,
+        ?string $transferFromProjectId,
+        float $transferAmount,
+        float $newBudget
+    ): array {
+        if ($baseline && $baseline->category === 'Transfer') {
+            $sourceEntry = $this->findTransferSourceEntry($project->id);
+            $transferMetadata = $sourceEntry ? json_decode($sourceEntry->note, true) : null;
+
+            return [
+                'budgetSource' => 'past_project',
+                'transferFromProjectId' => $transferFromProjectId
+                    ?: (is_array($transferMetadata) ? ($transferMetadata['transfer_source_project_id'] ?? null) : null),
+                'transferAmount' => $transferAmount > 0 ? $transferAmount : $newBudget,
+            ];
+        }
+
+        return [
+            'budgetSource' => $budgetSource,
+            'transferFromProjectId' => $transferFromProjectId,
+            'transferAmount' => $transferAmount > 0 ? $transferAmount : $newBudget,
+        ];
+    }
+
+    protected function findProjectBaselineEntry(string $projectId): ?LedgerEntry
+    {
+        return LedgerEntry::where('project_id', $projectId)
+            ->where('type', 'Initial')
+            ->where('archive', 0)
+            ->orderBy('created_at')
+            ->first();
+    }
+
+    protected function findTransferSourceEntry(string $destinationProjectId): ?LedgerEntry
+    {
+        return LedgerEntry::where('category', 'Transfer')
+            ->where('type', 'Expense')
+            ->where('archive', 0)
+            ->get()
+            ->first(function (LedgerEntry $entry) use ($destinationProjectId) {
+                $noteData = json_decode($entry->note, true);
+
+                return is_array($noteData)
+                    && (string) ($noteData['transfer_destination_project_id'] ?? '') === (string) $destinationProjectId;
+            });
+    }
+
+    protected function syncProjectBudgetLedger(
+        Project $project,
+        ?LedgerEntry $baseline,
+        float $newBudget,
+        bool $hasBudget,
+        string $budgetSource,
+        ?string $transferFromProjectId,
+        float $transferAmount
+    ): void {
+        if (!$hasBudget || $newBudget <= 0) {
+            if ($baseline) {
+                $baseline->update([
+                    'amount' => 0,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+
+                if ($baseline->category === 'Transfer') {
+                    $sourceEntry = $this->findTransferSourceEntry($project->id);
+                    $sourceEntry?->update([
+                        'amount' => 0,
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            return;
+        }
+
+        if ($budgetSource === 'past_project' && $transferAmount > 0 && ($transferFromProjectId || ($baseline && $baseline->category === 'Transfer'))) {
+            $sourceProject = $transferFromProjectId
+                ? Project::where('archive', 0)->find($transferFromProjectId)
+                : null;
+
+            if (!$sourceProject && $baseline && $baseline->category === 'Transfer') {
+                $sourceEntry = $this->findTransferSourceEntry($project->id);
+                $transferMetadata = $sourceEntry ? json_decode($sourceEntry->note, true) : null;
+                $sourceProjectId = is_array($transferMetadata)
+                    ? ($transferMetadata['transfer_source_project_id'] ?? null)
+                    : null;
+
+                if ($sourceProjectId) {
+                    $sourceProject = Project::where('archive', 0)->find($sourceProjectId);
+                }
+            }
+
+            if (!$sourceProject) {
+                return;
+            }
+
+            if ($baseline && $baseline->category === 'Transfer') {
+                $this->updateTransferLedgerPair($project, $sourceProject, $baseline, $newBudget);
+                return;
+            }
+
+            if (!$baseline) {
+                $this->createTransferLedgerPair($project, $sourceProject, $newBudget);
+            }
+
+            return;
+        }
+
+        if ($baseline) {
+            $baseline->update([
+                'amount' => $newBudget,
+                'updated_by' => Auth::id(),
+                'updated_at' => now(),
+            ]);
+
+            if ($baseline->category === 'Transfer') {
+                $sourceEntry = $this->findTransferSourceEntry($project->id);
+                $sourceEntry?->update([
+                    'amount' => $newBudget,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            return;
+        }
+
+        LedgerEntry::create([
+            'id' => (string) Str::uuid(),
+            'project_id' => $project->id,
+            'type' => 'Initial',
+            'amount' => $newBudget,
+            'budget_breakdown' => null,
+            'description' => 'Initial project budget baseline',
+            'category' => 'Initial',
+            'approval_status' => 'Draft',
+            'created_by' => Auth::id(),
+            'updated_by' => Auth::id(),
+            'archive' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    protected function updateTransferLedgerPair(
+        Project $project,
+        Project $sourceProject,
+        LedgerEntry $destinationBaseline,
+        float $newBudget
+    ): void {
+        $transferApprovalStatus = $project->approval_status === 'Approved' ? 'Approved' : 'Draft';
+        $destinationBaseline->update([
+            'amount' => $newBudget,
+            'description' => 'Transferred from completed project "' . $sourceProject->title . '"',
+            'approval_status' => $transferApprovalStatus,
+            'updated_by' => Auth::id(),
+            'updated_at' => now(),
+        ]);
+
+        $sourceEntry = $this->findTransferSourceEntry($project->id);
+        if ($sourceEntry) {
+            $transferMetadata = json_encode([
+                'transfer_source_project_id' => $sourceProject->id,
+                'transfer_source_project_title' => $sourceProject->title,
+                'transfer_destination_project_id' => $project->id,
+                'transfer_destination_project_title' => $project->title,
+            ]);
+
+            $sourceEntry->update([
+                'project_id' => $sourceProject->id,
+                'amount' => $newBudget,
+                'description' => 'Transferred to project "' . $project->title . '"',
+                'approval_status' => $transferApprovalStatus,
+                'note' => $transferMetadata,
+                'updated_by' => Auth::id(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    protected function createTransferLedgerPair(Project $project, Project $sourceProject, float $transferAmount): void
+    {
+        $transferMetadata = json_encode([
+            'transfer_source_project_id' => $sourceProject->id,
+            'transfer_source_project_title' => $sourceProject->title,
+            'transfer_destination_project_id' => $project->id,
+            'transfer_destination_project_title' => $project->title,
+        ]);
+        $destinationTransferNote = 'Transferred from completed project "' . $sourceProject->title . '" to project "' . $project->title . '"';
+        $transferApprovalStatus = $project->approval_status === 'Approved' ? 'Approved' : 'Draft';
+
+        LedgerEntry::create([
+            'id' => (string) Str::uuid(),
+            'project_id' => $sourceProject->id,
+            'type' => 'Expense',
+            'amount' => $transferAmount,
+            'budget_breakdown' => null,
+            'description' => 'Transferred to project "' . $project->title . '"',
+            'category' => 'Transfer',
+            'approval_status' => $transferApprovalStatus,
+            'note' => $transferMetadata,
+            'created_by' => Auth::id(),
+            'updated_by' => Auth::id(),
+            'archive' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        LedgerEntry::create([
+            'id' => (string) Str::uuid(),
+            'project_id' => $project->id,
+            'type' => 'Initial',
+            'amount' => $transferAmount,
+            'budget_breakdown' => null,
+            'description' => 'Transferred from completed project "' . $sourceProject->title . '"',
+            'category' => 'Transfer',
+            'approval_status' => $transferApprovalStatus,
+            'note' => $destinationTransferNote,
+            'created_by' => Auth::id(),
+            'updated_by' => Auth::id(),
+            'archive' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }
