@@ -18,6 +18,7 @@ import {
   FileText,
   Repeat,
   Users,
+  Info,
   ChevronRight,
   Bell
 } from 'lucide-react';
@@ -72,6 +73,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     { id: 'ratings', label: 'Ratings', icon: Star },
     { id: 'notification', label: 'Notification', icon: Bell },
+    { id: 'concerns', label: 'Concerns', icon: Info },
     { id: 'profile', label: 'Profile', icon: User },
   ];
 
@@ -85,6 +87,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
     if (p.startsWith('/csg/meetings')) return 'meetings';
     if (p.startsWith('/csg/ratings')) return 'ratings';
     if (p.startsWith('/csg/notification')) return 'notification';
+    if (p.startsWith('/csg/concerns')) return 'concerns';
     if (p.startsWith('/csg/profile')) return 'profile';
     if (p === '/csg' || p.startsWith('/csg')) return 'dashboard';
     return 'dashboard';
@@ -227,6 +230,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                         meetings: '/csg/meetings',
                         ratings: '/csg/ratings',
                         'notification': '/csg/notification',
+                        concerns: '/csg/concerns',
                         profile: '/csg/profile',
                       };
                       const url = map[item.id] || '/csg';
@@ -349,6 +353,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                         meetings: '/csg/meetings',
                         ratings: '/csg/ratings',
                         'notification': '/csg/notification',
+                        concerns: '/csg/concerns',
                         profile: '/csg/profile',
                       };
                       const url = map[item.id] || '/csg';

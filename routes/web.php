@@ -307,6 +307,11 @@ Route::middleware(['auth', 'verified', 'role:csg', 'csg.online'])->group(functio
     Route::patch('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'updateLedger'])->name('csg.projects.ledger.update');
     Route::delete('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'destroyLedger'])->name('csg.projects.ledger.destroy');
 
+    //Concers
+    Route::get('/csg/concerns', function () {
+        return Inertia::render('CSG/Concerns');
+    })->name('csg.concerns');
+
     // Ledger & Proof
     Route::get('/csg/ledger', function () {
         return Inertia::render('CSG/Ledger');

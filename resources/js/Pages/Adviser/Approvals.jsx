@@ -876,7 +876,7 @@ export default function AdviserApprovalsPage() {
       <Modal open={showReject} onClose={() => setShowReject(false)} title="Reject Submission">
         <div className="space-y-4 pt-4">
           <p className="text-sm text-gray-600">Please provide a reason for rejecting this submission.</p>
-          <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={4} className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition" />
+          <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={4} className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none transition" />
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowReject(false); setRejectReason(''); }}>Cancel</Button>
             <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={handleRejectClick}>Continue</Button>
@@ -896,7 +896,7 @@ export default function AdviserApprovalsPage() {
         onChange={(e) => setApprovalNotes(e.target.value)}
         rows={4}
         placeholder="Enter approval notes (required)..."
-        className={`w-full rounded-xl border ${!approvalNotes.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-gray-50'} focus:bg-white focus:border-green-300 focus:ring-2 focus:ring-green-200 outline-none transition`}
+        className={`w-full rounded-xl border ${!approvalNotes.trim() ? 'border-gray-300 bg-gray-50' : 'border-gray-300 bg-gray-50'} focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none transition`}
       />
       {/* {!approvalNotes.trim() && (
         <p className="text-xs text-red-500 mt-1">Approval notes are required</p>
