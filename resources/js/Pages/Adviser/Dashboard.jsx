@@ -238,21 +238,18 @@ export function AdminAdviserDashboard({
         </Card>
       </div>
 
-      {/* <Card className="p-6 rounded-2xl border-0 shadow-sm bg-white">
-        <h2 className="text-gray-900 mb-4">Recent System Logs</h2>
-        <div className="space-y-3">
-          {recentActivity.length === 0 && (
-            <p className="text-sm text-gray-500">No recent system activity.</p>
-          )}
-          {recentActivity.map((activity, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <div className={`w-2 h-2 rounded-full ${activity.status === 'approved' ? 'bg-green-500' : 'bg-red-500'}`} />
-              <div className="flex-1"><p className="text-sm text-gray-900">{activity.action}</p><p className="text-xs text-gray-500">{activity.time}</p></div>
-            </div>
-          ))}
+
+      <Card className="p-6 bg-blue-50 border border-blue-500 p-4 rounded-xlshadow-sm ">
+        <div className="">
+          
+            <h1 className="text-blue-700">Project Recommendations</h1>
+            <p className="text-base text-gray-700">There are no recommended projects as of now because the cycle has not begun yet.</p>
+          
         </div>
-      </Card> */}
+      </Card>
     </div>
+
+    
   );
 }
 

@@ -78,7 +78,7 @@ const cannedResponses = [
   },
   { 
     keywords: ['hello', 'hi', 'hey', 'greetings'], 
-    text: 'Greetings, KLDian! I am STEPH. Ready to audit the ledger or check on project updates? Just let me know what you are looking for!' 
+    text: 'Greetings, Regals! I am STEPH. Ready to audit the ledger or check on project updates? Just let me know what you are looking for!' 
   },
   { 
     keywords: ['thank', 'thanks'], 
