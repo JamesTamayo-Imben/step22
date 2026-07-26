@@ -229,6 +229,59 @@ class AdviserApprovalController extends Controller
                     Log::error('Failed to add initial baseline block to chain: ' . $e->getMessage());
                 }
             }
+
+            // Also automatically approve connected transfer ledger entries when the project is approved.
+            $transferEntries = LedgerEntry::query()
+                ->where('category', 'Transfer')
+                ->where('archive', false)
+                ->where(function ($query) use ($project) {
+                    $query->where('project_id', $project->id)
+                          ->orWhere('note', 'like', '%' . $project->id . '%');
+                })
+                ->get();
+
+            foreach ($transferEntries as $transferEntry) {
+                if ($transferEntry->approval_status === 'Approved') {
+                    continue;
+                }
+
+                $transferMetadata = json_decode($transferEntry->note, true);
+
+                $transferEntry->update([
+                    'approval_status' => 'Approved',
+                    'approved_by' => $userId,
+                    'approved_at' => now(),
+                    'updated_by' => $userId,
+                    'rejected_at' => null,
+                    'note' => 'Auto-approved with project approval',
+                ]);
+
+                try {
+                    BlockchainService::addBlockToChain($transferEntry->id, $transferEntry->project_id, [
+                        'description' => $transferEntry->description,
+                        'amount' => $transferEntry->amount,
+                        'type' => $transferEntry->type,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to add transfer ledger block to chain: ' . $e->getMessage());
+                }
+
+                if (is_array($transferMetadata)) {
+                    $sourceProjectId = $transferMetadata['transfer_source_project_id'] ?? null;
+                    $destinationProjectId = $transferMetadata['transfer_destination_project_id'] ?? null;
+
+                    if ($sourceProjectId && $destinationProjectId === $project->id && $transferEntry->project_id !== $project->id) {
+                        $sourceProject = Project::where('archive', false)->find($sourceProjectId);
+                        if ($sourceProject) {
+                            $amount = (float) $transferEntry->amount;
+                            $sourceProject->budget = max(0, (float) $sourceProject->budget - $amount);
+                            $sourceProject->updated_by = $userId;
+                            $sourceProject->updated_at = now();
+                            $sourceProject->save();
+                        }
+                    }
+                }
+            }
         }
 
         $this->writeAudit(

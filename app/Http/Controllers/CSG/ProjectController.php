@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\CSG\Project;
 use App\Models\CSG\Approval;
-use App\Models\CSG\DateChangeRequest;
 use App\Models\CSG\LedgerEntry;
 use App\Models\User\Rating;
 use Illuminate\Http\Request;
@@ -64,6 +63,11 @@ class ProjectController extends Controller
                 'venue' => 'required|string',
                 'category' => 'required|string',
                 'budget' => 'nullable|numeric|min:0',
+                'has_budget' => 'nullable|in:0,1,true,false',
+                'is_active' => 'nullable|in:0,1,true,false',
+                'budget_source' => 'nullable|in:none,past_project',
+                'transfer_from_project_id' => 'nullable|string|exists:projects,id',
+                'transfer_amount' => 'nullable|numeric|min:0',
                 'proposed_by' => 'required|string',
                 'status' => 'nullable|string',
                 'approval_status' => 'nullable|string',
@@ -72,6 +76,28 @@ class ProjectController extends Controller
                 'project_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240', // 10MB max
                 'is_initial' => 'nullable|in:0,1',
             ]);
+
+            $hasBudget = $request->boolean('has_budget');
+            $isActive = $request->boolean('is_active');
+            $budgetSource = $request->input('budget_source', 'none');
+            $transferFromProjectId = $request->input('transfer_from_project_id');
+            $transferAmount = $request->filled('transfer_amount') ? (float) $request->input('transfer_amount') : 0;
+            $budgetAmount = $hasBudget && $request->filled('budget') ? (float) $request->budget : 0;
+            $effectiveBudgetAmount = $budgetAmount;
+            if ($hasBudget && $budgetSource === 'past_project' && $transferAmount > 0) {
+                $effectiveBudgetAmount = $transferAmount;
+            }
+            $submittedStatus = $request->input('status');
+            $submittedApprovalStatus = $request->input('approval_status');
+
+            if ($budgetSource === 'past_project') {
+                $request->validate([
+                    'transfer_from_project_id' => 'required|string|exists:projects,id',
+                    'transfer_amount' => 'required|numeric|min:0.01',
+                ]);
+            }
+
+            DB::beginTransaction();
             
             $project = new Project();
             $project->id = Str::uuid()->toString();
@@ -80,14 +106,14 @@ class ProjectController extends Controller
             $project->objective = $request->objective;
             $project->venue = $request->venue;
             $project->category = $request->category;
-            $project->budget = $request->budget ?? 0;
+            $project->budget = $effectiveBudgetAmount;
             $project->proposed_by = $request->proposed_by;
             $project->start_date = $request->start_date;
             $project->end_date = $request->end_date;
-            $project->status = $request->status ?? 'Draft';
-            $project->approval_status = $request->approval_status ?? 'Draft';
+            $project->status = $submittedStatus ?: ($isActive ? 'Ongoing' : 'Draft');
+            $project->approval_status = $submittedApprovalStatus ?: ($isActive ? 'Pending Adviser Approval' : 'Draft');
             $project->archive = 0;
-            $project->is_initial = $request->is_initial ?? 0;
+            $project->is_initial = $request->is_initial ?? ($effectiveBudgetAmount > 0 ? 1 : 0);
             $project->created_by = Auth::id();
             $project->updated_by = Auth::id();
             
@@ -136,9 +162,68 @@ class ProjectController extends Controller
                 'archive' => 0,
             ]);
 
+            $sourceProject = null;
+            if ($budgetSource === 'past_project' && $transferAmount > 0 && $transferFromProjectId) {
+                $sourceProject = Project::where('archive', 0)->find($transferFromProjectId);
+
+                if ($sourceProject) {
+                    $remainingBudget = (float) $sourceProject->budget;
+                    if ($remainingBudget < $transferAmount) {
+                        throw new \Exception('Transfer amount exceeds the selected project\'s remaining budget');
+                    }
+
+                    $transferMetadata = json_encode([
+                        'transfer_source_project_id' => $sourceProject->id,
+                        'transfer_source_project_title' => $sourceProject->title,
+                        'transfer_destination_project_id' => $project->id,
+                        'transfer_destination_project_title' => $project->title,
+                    ]);
+                    $destinationTransferNote = 'Transferred from completed project "' . $sourceProject->title . '" to project "' . $project->title . '"';
+                    $transferApprovalStatus = $project->approval_status === 'Approved' ? 'Approved' : 'Draft';
+                    //transferNote
+
+                    LedgerEntry::create([
+                        'id' => (string) Str::uuid(),
+                        'project_id' => $sourceProject->id,
+                        'type' => 'Expense',
+                        'amount' => $transferAmount,
+                        'budget_breakdown' => null,
+                        'description' => 'Transferred to project "' . $project->title . '"',
+                        'category' => 'Transfer',
+                        'approval_status' => $transferApprovalStatus,
+                        'note' => $transferMetadata,
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
+                        'archive' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    LedgerEntry::create([
+                        'id' => (string) Str::uuid(),
+                        'project_id' => $project->id,
+                        'type' => 'Initial',
+                        'amount' => $transferAmount,
+                        'budget_breakdown' => null,
+                        'description' => 'Transferred from completed project "' . $sourceProject->title . '"',
+                        'category' => 'Transfer',
+                        'approval_status' => $transferApprovalStatus,
+                        'note' => $destinationTransferNote,
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
+                        'archive' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
             // Create an initial baseline ledger entry when project starts with budget.
+            // Skip this for budget transfers from a past project because the transfer entry
+            // already represents the project's starting budget on the destination project.
             $initialLedger = null;
-            if ((float) ($project->budget ?? 0) > 0) {
+            $isTransferBudget = $budgetSource === 'past_project' && $transferAmount > 0 && !empty($transferFromProjectId);
+            if ((float) ($project->budget ?? 0) > 0 && !$isTransferBudget) {
                 try {
                     $initialLedger = LedgerEntry::create([
                         'id' => (string) Str::uuid(),
@@ -165,6 +250,8 @@ class ProjectController extends Controller
                 }
             }
             
+            DB::commit();
+
             // Return the project with the file URL and initial ledger
             $project->project_proof_url = $project->project_proof ? Storage::url($project->project_proof) : null;
             
@@ -182,6 +269,7 @@ class ProjectController extends Controller
             return response()->json($responseData, 201);
             
         } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
             Log::warning('❌ Project validation error', ['errors' => $e->errors()]);
             return response()->json([
                 'success' => false,
@@ -189,6 +277,7 @@ class ProjectController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('❌ Project creation failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -254,7 +343,70 @@ class ProjectController extends Controller
             if ($request->has('start_date')) $project->start_date = $request->start_date;
             if ($request->has('end_date')) $project->end_date = $request->end_date;
             if ($request->has('status')) $project->status = $request->status;
-            if ($request->has('approval_status')) $project->approval_status = $request->approval_status;
+            if ($request->has('approval_status')) {
+                $project->approval_status = $request->approval_status;
+
+                if ($project->approval_status === 'Approved') {
+                    $transferEntries = LedgerEntry::where('project_id', $project->id)
+                        ->where('category', 'Transfer')
+                        ->where('archive', 0)
+                        ->where('note', 'like', '%' . $project->id . '%')
+                        ->get();
+
+                    foreach ($transferEntries as $transferEntry) {
+                        $noteData = json_decode($transferEntry->note, true);
+                        if (!is_array($noteData)) {
+                            continue;
+                        }
+
+                        $sourceProjectId = $noteData['transfer_source_project_id'] ?? null;
+                        if (!$sourceProjectId) {
+                            continue;
+                        }
+
+                        $sourceProject = Project::where('archive', 0)->find($sourceProjectId);
+                        if (!$sourceProject) {
+                            continue;
+                        }
+
+                        $remainingBudget = (float) $sourceProject->budget;
+                        $transferAmount = (float) $transferEntry->amount;
+                        if ($remainingBudget >= $transferAmount) {
+                            $sourceProject->budget = max(0, $remainingBudget - $transferAmount);
+                            $sourceProject->updated_by = Auth::id();
+                            $sourceProject->updated_at = now();
+                            $sourceProject->save();
+                        }
+                    }
+
+                    $transferProjectEntries = LedgerEntry::where('category', 'Transfer')
+                        ->where('archive', 0)
+                        ->where('note', 'like', '%' . $project->id . '%')
+                        ->where('project_id', '!=', $project->id)
+                        ->get();
+
+                    foreach ($transferProjectEntries as $transferProjectEntry) {
+                        $destinationProject = Project::where('archive', 0)->find($transferProjectEntry->project_id);
+                        if ($destinationProject && $destinationProject->id !== $project->id) {
+                            $destinationProject->approval_status = 'Approved';
+                            $destinationProject->updated_by = Auth::id();
+                            $destinationProject->updated_at = now();
+                            $destinationProject->save();
+                        }
+                    }
+                }
+
+                $transferApprovalStatus = in_array($project->approval_status, ['Approved']) ? 'Approved' : 'Draft';
+                LedgerEntry::where('project_id', $project->id)
+                    ->where('category', 'Transfer')
+                    ->where('archive', 0)
+                    ->where('note', 'like', '%' . $project->id . '%')
+                    ->update([
+                        'approval_status' => $transferApprovalStatus,
+                        'updated_by' => Auth::id(),
+                        'updated_at' => now(),
+                    ]);
+            }
             if ($request->has('archive')) $project->archive = $request->archive;
             if ($request->has('note')) $project->note = $request->note;
             if ($request->has('approve_by')) $project->approve_by = $request->approve_by;
@@ -406,11 +558,17 @@ class ProjectController extends Controller
                 return response()->json(['message' => 'Project not found'], 404);
             }
             
-            // Update approval status to pending adviser approval
-            // Keep the project status as is (Draft/Ongoing/Complete based on dates)
+            $transferEntries = LedgerEntry::where('project_id', $project->id)
+                ->where('category', 'Transfer')
+                ->where('archive', 0)
+                ->get();
+
+            // Submitting a project for approval must always wait for adviser approval.
+            // Transfer-linked projects should not become approved immediately.
             $project->approval_status = 'Pending Adviser Approval';
             $project->updated_at = now();
             $project->save();
+
 
             // Create approval record (no teacher/adviser table dependency)
             try {

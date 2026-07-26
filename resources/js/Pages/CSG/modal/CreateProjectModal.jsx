@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -109,6 +109,46 @@ export function CreateProjectModal({
   const [filePreview, setFilePreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [completedProjects, setCompletedProjects] = useState([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const loadCompletedProjects = async () => {
+      try {
+        setIsLoadingProjects(true);
+        const response = await fetch('/api/projects', {
+          headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        });
+
+        if (!response.ok) throw new Error('Failed to load completed projects');
+
+        const data = await response.json();
+        const normalized = Array.isArray(data) ? data : [];
+        const completed = normalized.filter((project) => {
+          const status = String(project?.status || '').toLowerCase();
+          const approvalStatus = String(project?.approval_status || '').toLowerCase();
+          const endDate = project?.end_date || project?.endDate;
+          const hasEnded = endDate ? new Date(endDate) < new Date() : false;
+
+          return status === 'complete' || status === 'completed' || (approvalStatus === 'approved' && hasEnded);
+        });
+
+        setCompletedProjects(completed);
+      } catch (error) {
+        console.error('Failed to load completed projects:', error);
+        setCompletedProjects([]);
+      } finally {
+        setIsLoadingProjects(false);
+      }
+    };
+
+    loadCompletedProjects();
+  }, [open]);
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
@@ -133,6 +173,32 @@ export function CreateProjectModal({
       return;
     }
 
+    if (newProject.hasBudget && newProject.budgetSource === 'none' && (!newProject.budget || parseFloat(newProject.budget) <= 0)) {
+      showToast('Please enter a valid budget amount for a newly created budget', 'error');
+      return;
+    }
+
+    if (newProject.hasBudget && newProject.budgetSource === 'past_project') {
+      if (!newProject.transferFromProjectId) {
+        showToast('Please select a completed project to transfer budget from', 'error');
+        return;
+      }
+
+      if (!newProject.transferAmount || parseFloat(newProject.transferAmount) <= 0) {
+        showToast('Please enter a transfer amount greater than zero', 'error');
+        return;
+      }
+
+      const selectedProject = completedProjects.find((project) => String(project.id) === String(newProject.transferFromProjectId));
+      const remainingBalance = Number(selectedProject?.budget || 0);
+      const transferAmount = Number(newProject.transferAmount || 0);
+
+      if (transferAmount > remainingBalance) {
+        showToast(`Transfer amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString('en-PH', { maximumFractionDigits: 2 })}`, 'error');
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     const formData = new FormData();
@@ -141,7 +207,12 @@ export function CreateProjectModal({
     formData.append('objective', newProject.objective);
     formData.append('venue', newProject.venue);
     formData.append('category', newProject.category);
-    formData.append('budget', newProject.budget || '');
+    formData.append('budget', newProject.hasBudget ? (newProject.budget || '') : '');
+    formData.append('has_budget', newProject.hasBudget ? '1' : '0');
+    formData.append('is_active', '0');
+    formData.append('budget_source', newProject.hasBudget ? (newProject.budgetSource || 'none') : 'none');
+    formData.append('transfer_from_project_id', newProject.transferFromProjectId || '');
+    formData.append('transfer_amount', newProject.transferAmount || '');
     formData.append('status', 'Draft');
     formData.append('proposed_by', newProject.proposedBy);
     formData.append('start_date', newProject.startDate);
@@ -149,7 +220,7 @@ export function CreateProjectModal({
     formData.append('approval_status', 'Draft');
     formData.append('archive', '0');
     // Set is_initial to 1 if budget is provided, 0 otherwise
-    formData.append('is_initial', newProject.budget && parseFloat(newProject.budget) > 0 ? '1' : '0');
+    formData.append('is_initial', newProject.hasBudget && newProject.budget && parseFloat(newProject.budget) > 0 ? '1' : '0');
 
     if (selectedFile) {
       formData.append('project_proof', selectedFile);
@@ -284,18 +355,129 @@ export function CreateProjectModal({
         </div>
 
         {/* Budget */}
-        <div>
-          <FieldLabel>Project Budget (Optional)</FieldLabel>
-          <Input
-            type="number"
-            placeholder="Enter project budget amount"
-            value={newProject.budget || ''}
-            onChange={(e) => setNewProject({ ...newProject, budget: e.target.value })}
-            min="0"
-            step="0.01"
-            className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-          />
+        <div className="rounded-xl border border-gray-200 p-4 space-y-3">
+          <FieldLabel>Project Budget</FieldLabel>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="radio"
+                name="has-budget"
+                checked={newProject.hasBudget === true}
+                onChange={() => setNewProject({ ...newProject, hasBudget: true, budget: newProject.budget || '' })}
+              />
+              Yes, this project has a budget
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="radio"
+                name="has-budget"
+                checked={newProject.hasBudget === false}
+                onChange={() => setNewProject({ ...newProject, hasBudget: false, budget: '', budgetSource: 'none', transferFromProjectId: '', transferAmount: '' })}
+              />
+              No budget yet
+            </label>
+          </div>
+
+          {newProject.hasBudget && newProject.budgetSource === 'none' && (
+            <div>
+              <FieldLabel>Budget Amount *</FieldLabel>
+              <Input
+                type="number"
+                placeholder="Enter project budget amount"
+                value={newProject.budget || ''}
+                onChange={(e) => setNewProject({ ...newProject, budget: e.target.value })}
+                min="0"
+                step="0.01"
+                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+              />
+            </div>
+          )}
         </div>
+
+        {/* Budget Source */}
+        {newProject.hasBudget && (
+          <div className="rounded-xl border border-gray-200 p-4 space-y-3">
+            <FieldLabel>Budget Source</FieldLabel>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="budget-source"
+                  checked={newProject.budgetSource === 'none'}
+                  onChange={() => setNewProject({ ...newProject, budgetSource: 'none', transferFromProjectId: '', transferAmount: '' })}
+                />
+                Use a newly created budget
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="radio"
+                  name="budget-source"
+                  checked={newProject.budgetSource === 'past_project'}
+                  onChange={() => setNewProject({ ...newProject, budgetSource: 'past_project', transferFromProjectId: '', transferAmount: '' })}
+                />
+                Use remaining budget from a completed project
+              </label>
+            </div>
+
+            {newProject.budgetSource === 'none' && (
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700">
+                Enter the budget amount for this new project.
+              </div>
+            )}
+
+            {newProject.budgetSource === 'past_project' && (
+              <div className="space-y-3">
+                {(() => {
+                  const eligibleProjects = (completedProjects || []).filter((project) => Number(project?.budget || 0) > 0);
+
+                  if (eligibleProjects.length === 0) {
+                    return (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                        No completed projects with a remaining budget are available right now.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      <div>
+                        <FieldLabel>Completed Project *</FieldLabel>
+                        <Select
+                          value={newProject.transferFromProjectId || ''}
+                          onValueChange={(value) => setNewProject({ ...newProject, transferFromProjectId: value })}
+                        >
+                          <option value="">Select a completed project</option>
+                          {eligibleProjects.map((project) => {
+                            const remainingBalance = Number(project?.budget || 0);
+                            return (
+                              <option key={project.id} value={project.id}>
+                                {project.title} — Balance: ₱{remainingBalance.toLocaleString('en-PH', { maximumFractionDigits: 2 })}
+                              </option>
+                            );
+                          })}
+                        </Select>
+                      </div>
+
+                      <div>
+                        <FieldLabel>Transfer Amount *</FieldLabel>
+                        <Input
+                          type="number"
+                          placeholder="Enter amount to transfer"
+                          value={newProject.transferAmount || ''}
+                          onChange={(e) => setNewProject({ ...newProject, transferAmount: e.target.value })}
+                          min="0"
+                          step="0.01"
+                          className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
+                {isLoadingProjects && <p className="mt-1 text-xs text-gray-500">Loading completed projects...</p>}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* File Upload */}
         <div>

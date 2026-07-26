@@ -770,7 +770,7 @@ const computedBudgetFromLedger = ledgerEntries
       }
     });
 
-    console.log('📊 Built timeline with', allEvents.length, 'events:', allEvents);
+    console.log('Built timeline with', allEvents.length, 'events:', allEvents);
     return allEvents;
   };
 
@@ -1814,6 +1814,8 @@ function maskUserName(fullName) {
       {currentLedgerItems.map((entry) => {
         const entryIsTampered = tamperedLedgerIds.has(entry.id);
         const isInitialEntry = (entry.type || '').toLowerCase() === 'initial';
+        const isTransferEntry = (entry.category || '').toLowerCase() === 'transfer';
+        const canManageEntry = entry.approval_status === 'Draft' && !isLedgerDisabled && !isInitialEntry && !isTransferEntry;
         return (
           <tr
             key={entry.id}
@@ -1849,7 +1851,7 @@ function maskUserName(fullName) {
                 <Button variant="ghost" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg">
                   <Eye className="w-4 h-4" />
                 </Button>
-                {entry.approval_status === 'Draft' && !isLedgerDisabled && !isInitialEntry && (
+                {canManageEntry && (
                   <>
                     <Button variant="ghost" size="sm" onClick={() => { console.log('🖱️ Desktop edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
                       <Edit className="w-4 h-4" />
@@ -1888,6 +1890,8 @@ function maskUserName(fullName) {
   {currentLedgerItems.map((entry) => {
     const entryIsTampered = tamperedLedgerIds.has(entry.id);
     const isInitialEntry = (entry.type || '').toLowerCase() === 'initial';
+    const isTransferEntry = (entry.category || '').toLowerCase() === 'transfer';
+    const canManageEntry = entry.approval_status === 'Draft' && !isLedgerDisabled && !isInitialEntry && !isTransferEntry;
     return (
       <Card
         key={entry.id}
@@ -1921,7 +1925,7 @@ function maskUserName(fullName) {
               <Eye className="w-4 h-4 mr-1" />View
             </Button>
             {/* Only show action buttons if entry is Draft AND NOT disabled */}
-            {entry.approval_status === 'Draft' && !isLedgerDisabled && !isInitialEntry && (
+            {canManageEntry && (
               <>
                 <Button variant="outline" size="sm" onClick={() => { console.log('🖱️ Mobile edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
                   <Edit className="w-4 h-4" />
