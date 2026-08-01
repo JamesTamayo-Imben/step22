@@ -5,7 +5,7 @@ import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import ReactDOM from 'react-dom';
-import { Clock, FolderKanban, DollarSign, FileText, Eye, CheckCircle, XCircle, Hash, Shield, Search, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
+import { Clock, Upload, FolderKanban, DollarSign, FileText, Eye, CheckCircle, XCircle, Hash, Shield, Search, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
 
 function formatLimitedNumber(value, opts = {}) {
   const { minFractionDigits = 0, maxFractionDigits = 2 } = opts;
@@ -898,9 +898,15 @@ export default function AdviserApprovalsPage() {
         placeholder="Enter approval notes (required)..."
         className={`w-full rounded-xl border ${!approvalNotes.trim() ? 'border-gray-300 bg-gray-50' : 'border-gray-300 bg-gray-50'} focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none transition`}
       />
-      {/* {!approvalNotes.trim() && (
-        <p className="text-xs text-red-500 mt-1">Approval notes are required</p>
-      )} */}
+      <p className="text-sm text-gray-600 mb-2">Upload the approval copy</p>
+      <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center">
+        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+        <p className="text-sm text-gray-500">Drag and drop your file here</p>
+        <p className="text-xs text-gray-400">or</p>
+        <Button variant="outline" className="mt-2">
+          Browse Files
+        </Button>
+      </div>
     </div>
     <div className="flex gap-3">
       <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowApprove(false); setApprovalNotes(''); }}>

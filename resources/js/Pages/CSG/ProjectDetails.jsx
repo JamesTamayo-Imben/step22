@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Plus,
   Upload,
+  FolderKanban,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -1626,13 +1627,14 @@ function maskUserName(fullName) {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Project Details</h2>
             
             {project.objective && (
-              <div className="mb-6">
+              <div className="">
                 <p className="text-sm text-gray-500 mb-1">Project Objective</p>
                 <p className="text-gray-900">{project.objective}</p>
               </div>
             )}
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {project.venue && (
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Venue</p>
@@ -1695,6 +1697,28 @@ function maskUserName(fullName) {
                 <p className="text-gray-900">{project.proposedBy || 'Not specified'}</p>
               </div>
             </div>
+
+            <div className="">
+              <p className="text-lg font-semibold text-gray-900">Project Approval Copy</p>
+              <div>
+                {/* //display the image attached to the project approval copy */}
+                {project.approvalCopy ? (
+                  <img src={project.approvalCopy} alt="Project Approval Copy" className="w-full h-auto rounded-lg mt-2" />
+                ) : (
+                  <div className="text-center mt-6">
+            <FolderKanban className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">No approval copy available</p>
+            <p className="text-xs text-gray-400 mt-1 mb-4">
+              Please upload the approval copy to view it here.
+            </p>
+          </div>
+                )}  
+              </div>
+            </div>
+            </div>
+            
+
+            
           </Card>
           
           {shouldShowNotes && (

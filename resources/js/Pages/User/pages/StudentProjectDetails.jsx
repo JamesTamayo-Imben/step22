@@ -3,7 +3,7 @@ import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { StudentModal } from '@/Components/ui/StudentModal';
 import { Chatbot } from '@/Components/ui/Chatbot';
-import { ArrowLeft, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shield, XCircle } from 'lucide-react';
+import { ArrowLeft, FolderKanban, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shield, XCircle } from 'lucide-react';
 
 export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [currentProject, setCurrentProject] = useState(project);
@@ -234,7 +234,7 @@ function maskUserName(fullName) {
                   {getCalculatedStatus()}
                 </Badge>
               </div>
-              <p className="text-gray-600 leading-relaxed">{currentProject.objective || 'No objective available.'}</p>
+              <p className="text-gray-600 leading-relaxed">{currentProject.description || 'No details available.'}</p>
             </div>
 
       
@@ -341,34 +341,52 @@ function maskUserName(fullName) {
       {activeTab === 'overview' && (
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-blue-50">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Overview</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="rounded-2xl border border-blue-100 bg-white p-4 md:p-5">
-            <div className='mb-4'>
-              <p className='text-sm text-gray-500 mb-1'>Project Details *</p>
-            <p className="text-gray-900">{currentProject.description || 'No description available.'}</p>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className='col-span-2 mb-4'>
+              <p className='text-sm text-gray-500 mb-1'>Project Objective *</p>
+            <p className="text-gray-900">{currentProject.objective || 'No objective available.'}</p>
             </div>
-            <div className='mb-4'>
+             <div className='mb-4'>
               <p className='text-sm text-gray-500 mb-1'>Project Proposer *</p>
               <p className="text-gray-900">{currentProject.proposeBy || 'N/A'}</p>
             </div>
-            <div className='mb-4'>
+             <div className='mb-4'>
               <p className='text-sm text-gray-500 mb-1'>Approved By</p>
               <p className="text-gray-900">{currentProject.approvedBy || 'CSG Adviser'}</p>
             </div>
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
-                <p className="text-xs text-gray-500">Timeline</p>
-                <p className="text-sm font-semibold text-gray-900 mt-1">{currentProject.startDate || 'TBD'} to {currentProject.endDate || 'TBD'}</p>
-              </div>
-              <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
+              <div className="mb-4">
                 <p className="text-xs text-gray-500">Category</p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">{currentProject.category || 'General'}</p>
               </div>
-              <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
+              <div className="mb-4">
                 <p className="text-xs text-gray-500">Venue</p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">{currentProject.venue || 'Not specified'}</p>
               </div>
             </div>
           </div>
+
+           <div className="">
+                        <p className="text-lg font-semibold text-gray-900">Project Approval Copy</p>
+                        <div>
+                          {/* //display the image attached to the project approval copy */}
+                          {project.approvalCopy ? (
+                            <img src={project.approvalCopy} alt="Project Approval Copy" className="w-full h-auto rounded-lg mt-2" />
+                          ) : (
+                            <div className="text-center mt-6">
+                      <FolderKanban className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-sm text-gray-500">No approval copy available</p>
+                      <p className="text-xs text-gray-400 mt-1 mb-4">
+                        Please upload the approval copy to view it here.
+                      </p>
+                    </div>
+                          )}  
+                        </div>
+                      </div>
+          </div>
+
         </Card>
       )}
 
