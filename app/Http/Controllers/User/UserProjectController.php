@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use App\Support\ProjectBudgetCalculator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -472,37 +473,30 @@ class UserProjectController extends Controller
     private function getDashboardData(?User $user): array
     {
         $allProjects = Project::query()
-            ->where('archive', 0)
-            ->where('approval_status', 'Approved')
-            // ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'rating_score')
-            ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'satisfaction_rating')
-            ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'completeness_rating')
-            ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'engagement_rating') 
-            ->withCount(['ratings' => fn ($q) => $q->where('archive', 0)]) //this is for showing the number of participants in the project card in the dashboard
-            ->with(['ledgerEntries' => fn ($query) => $query->where('approval_status', 'Approved')])
-            ->orderByDesc('updated_at')
-            ->get();
+        ->where('archive', 0)
+        ->where('approval_status', 'Approved')
+        ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'satisfaction_rating')
+        ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'completeness_rating')
+        ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'engagement_rating')
+        ->withCount(['ratings' => fn ($q) => $q->where('archive', 0)])
+        ->with(['ledgerEntries' => fn ($query) => $query->where('approval_status', 'Approved')])
+        ->orderByDesc('updated_at')
+        ->get();
 
-        $activeProjects = $allProjects->take(4)->map(function ($project) {
-            $calculatedStatus = $this->calculateProjectStatus($project);
-            $dateProgress = $this->calculateProgressFromDates($project->start_date, $project->end_date);
-            $verification = \App\Support\BlockchainService::verifyChain($project->id);
-            $isTampered = !empty($verification['tamperedBlocks']) && is_array($verification['tamperedBlocks']) && count($verification['tamperedBlocks']) > 0;
+    $activeProjects = $allProjects->take(4)->map(function ($project) {
+        $calculatedStatus = $this->calculateProjectStatus($project);
+        $dateProgress = $this->calculateProgressFromDates($project->start_date, $project->end_date);
+        $verification = \App\Support\BlockchainService::verifyChain($project->id);
+        $isTampered = !empty($verification['tamperedBlocks']) && is_array($verification['tamperedBlocks']) && count($verification['tamperedBlocks']) > 0;
 
-            $approvedLedgerEntries = $project->ledgerEntries ?? collect();
-            $displayBudget = (float) ($project->budget ?? 0);
-            $computedBudget = $approvedLedgerEntries->reduce(function ($sum, $entry) {
-                $amount = (float) ($entry->amount ?? 0);
-                $type = strtolower((string) ($entry->type ?? ''));
-                if (in_array($type, ['income', 'donation', 'sponsorship', 'initial'], true)) {
-                    return $sum + $amount;
-                }
-                if ($type === 'expense') {
-                    return $sum - $amount;
-                }
-                return $sum;
-            }, 0.0);
-            $isBudgetMismatch = $approvedLedgerEntries->count() > 0 && $displayBudget > 0 && abs($displayBudget - $computedBudget) > 0.01;
+        $approvedLedgerEntries = $project->ledgerEntries ?? collect();
+        $displayBudget = (float) ($project->budget ?? 0);
+        $computedBudget = ProjectBudgetCalculator::fromLedgerEntries($approvedLedgerEntries);
+        $isBudgetMismatch = ProjectBudgetCalculator::hasMismatch(
+            $displayBudget,
+            $computedBudget,
+            $approvedLedgerEntries->count() > 0
+        );
 
             // Calculate overall average from all three dimensions
             $satisfactionAvg = (float) ($project->ratings_avg_satisfaction_rating ?? 0);

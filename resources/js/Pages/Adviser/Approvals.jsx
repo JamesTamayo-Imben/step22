@@ -674,16 +674,16 @@ export default function AdviserApprovalsPage() {
              <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <p className="text-sm text-gray-500 mb-1">Proof Document *</p>
-                {selectedItem.project_proof ? (
+                {selectedItem.project_proof || selectedItem.ledger_proof ? (
                     <div className="flex items-center justify-between">
                                      <div className="flex items-center gap-3">
                                        <FileText className="w-8 h-8 text-blue-600" />
                                        <div>
                                          <p className="text-sm font-medium text-gray-900">
-                                           {selectedItem.project_proof.split('/').pop()}
+                                           {(selectedItem.project_proof || selectedItem.ledger_proof).split('/').pop()}
                                          </p>
                                          <p className="text-xs text-gray-500">
-                                           {selectedItem.project_proof.split('.').pop().toUpperCase()} file
+                                           {(selectedItem.project_proof || selectedItem.ledger_proof).split('.').pop().toUpperCase()} file
                                          </p>
                                        </div>
                                      </div>
@@ -822,16 +822,16 @@ export default function AdviserApprovalsPage() {
 
               <div className="col-span-2">
                 <p className="text-sm text-gray-500 mb-1">Proof Document *</p>
-                {selectedItem.ledger_proof ? (
+                {selectedItem.ledger_proof || selectedItem.project_proof ? (
                    <div className="flex items-center justify-between">
                                      <div className="flex items-center gap-3">
                                        <FileText className="w-8 h-8 text-blue-600" />
                                        <div>
                                          <p className="text-sm font-medium text-gray-900">
-                                           {selectedItem.ledger_proof.split('/').pop()}
+                                           {(selectedItem.ledger_proof || selectedItem.project_proof).split('/').pop()}
                                          </p>
                                          <p className="text-xs text-gray-500">
-                                           {selectedItem.ledger_proof.split('.').pop().toUpperCase()} file
+                                           {(selectedItem.ledger_proof || selectedItem.project_proof).split('.').pop().toUpperCase()} file
                                          </p>
                                        </div>
                                      </div>

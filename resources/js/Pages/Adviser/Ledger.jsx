@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage, router } from '@inertiajs/react';
+import { computeBudgetFromEntries, computeOrgBudgetFromLedger } from '@/utils/projectBudget';
 import ReactDOM from 'react-dom';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -9,7 +10,7 @@ import {
   Download,
   Eye,
   Inbox,
-  CheckCircle2,
+  CheckCircle2, 
   XCircle,
   AlertTriangle,
   Hash,
@@ -25,6 +26,7 @@ import {
   Wallet,
   Shield,
   Verified,
+  AlertCircle
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -295,7 +297,7 @@ export default function LedgerApprovalsPage() {
 
   const stats = useMemo(() => {
     const approvedEntries = ledgerEntries.filter(
-      (e) => e.approvalStatus === 'Approved' && !e.archive
+      (e) => e.status === 'Approved' && !e.archive
     );
 
     const totalIncome = approvedEntries
@@ -305,13 +307,7 @@ export default function LedgerApprovalsPage() {
       .filter((e) => e.transactionType === 'Expense')
       .reduce((sum, e) => sum + Number(e.amount), 0);
 
-    const computedBudgetFromLedger = approvedEntries.reduce((sum, e) => {
-      const amount = Number(e.amount) || 0;
-      const type = (e.transactionType || '').toLowerCase();
-      if (type === 'expense') return (sum - amount);
-      if (type === 'initial' || ['income', 'donation', 'sponsorship'].includes(type)) return sum + amount;
-      return sum;
-    }, 0);
+    const computedBudgetFromLedger = computeOrgBudgetFromLedger(approvedEntries);
 
     const budgetDifference = (Number(totalProjectBudget) || 0) - computedBudgetFromLedger;
     const isBudgetTampered = ledgerEntries.length > 0 && Math.abs(budgetDifference) > 0.01;
@@ -361,6 +357,7 @@ export default function LedgerApprovalsPage() {
       case 'Donation': return 'bg-blue-100 text-blue-700';
       case 'Sponsorship': return 'bg-purple-100 text-purple-700';
       case 'Canvas': return 'bg-gray-100 text-gray-700';
+      case 'Transfer': return 'bg-yellow-100 text-yellow-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
@@ -373,6 +370,7 @@ export default function LedgerApprovalsPage() {
       case 'Donation': return 'text-green-700';
       case 'Sponsorship': return 'text-green-700';
       case 'Canvas': return 'text-gray-700';
+      case 'Transfer': return 'text-yellow-700';
       default: return 'text-gray-700';
     }
   };
@@ -512,6 +510,26 @@ export default function LedgerApprovalsPage() {
     return items;
   }, [ledgerEntries, filterProject, filterStatus, searchQuery, filterCategory]);
 
+  const tamperedEntriesCount = filteredEntries.filter(
+    (entry) => entry && entry.verificationState && entry.verificationState.tampered
+  ).length;
+
+  const hasTamperAlert =
+    stats.isBudgetTampered ||
+    tamperedEntriesCount > 0;
+
+  const integrityBadgeLabel = hasTamperAlert
+    ? tamperedEntriesCount > 0
+      ? 'Tampered Alert'
+      : 'Budget Alert'
+    : 'Verified';
+
+  const integrityAlertMessage = tamperedEntriesCount > 0
+    ? 'A ledger entry has been tampered. Please review the affected entries and contact system administrators immediately.'
+    : stats.isBudgetTampered
+      ? 'The project budget total does not match the ledger records. Please review and contact system administrators immediately.'
+      : 'All ledger records appear verified.';
+
   const ledgerTotalPages = Math.max(1, Math.ceil(filteredEntries.length / TABLE_PAGE_SIZE));
   const pagedLedger = filteredEntries.slice((ledgerPage - 1) * TABLE_PAGE_SIZE, ledgerPage * TABLE_PAGE_SIZE);
 
@@ -549,17 +567,35 @@ export default function LedgerApprovalsPage() {
             <div>
              <div className="flex items-center gap-2">
                <h1 className="text-2xl font-semibold text-gray-900">Ledger Entries Center</h1>
-               {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) ? (
-                      <Badge className="bg-red-100 text-red-700 rounded-lg">
-                        <XCircle className="w-3 h-3 mr-1" />Tampered Alert
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-green-100 text-green-700 rounded-lg">
-                        <Shield className="w-3 h-3 mr-1" />Verified
-                      </Badge>
-                    )}
+               { hasTamperAlert ? (
+                 <Badge className="bg-red-100 text-red-700 rounded-lg">
+                   <AlertCircle className="w-3 h-3 mr-1" />
+                   {integrityBadgeLabel}
+                 </Badge>
+               ) : (
+                 <Badge className="bg-green-100 text-green-700 rounded-lg">
+                   <Shield className="w-3 h-3 mr-1" />
+                   {integrityBadgeLabel}
+                 </Badge>
+               )}
              </div>
               <p className="text-gray-500 mt-1">Review and verify financial ledger entries</p>
+
+              {hasTamperAlert && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-red-800">
+                        {tamperedEntriesCount > 0 ? 'Security Alert.' : 'Budget Alert.'}
+                        <span className="text-xs text-red-600 ml-2">
+                          {integrityAlertMessage}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <button
               type="button"
@@ -697,18 +733,6 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
             <div className="rounded-[20px] border-0 shadow-sm bg-white overflow-hidden">
               <div>
                 <div className="overflow-x-auto space-y-4 p-6">
-                  {/* <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-semibold text-gray-900">Ledger Entries</h2>
-                    {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) ? (
-                      <Badge className="bg-red-100 text-red-700 rounded-lg">
-                        <XCircle className="w-3 h-3 mr-1" />Tampered Alert
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-purple-100 text-purple-700 rounded-lg">
-                        <Shield className="w-3 h-3 mr-1" />Verified
-                      </Badge>
-                    )}
-                  </div> */}
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
@@ -913,16 +937,12 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                     </span>
                   </div>
                 </div>
-                {/* <div>
-                  <p className="text-xs text-gray-500">Category</p>
-                  <p className="text-sm">{selectedEntry.category}</p>
-                </div> */}
                 <div>
                   <p className="text-xs text-gray-500">Description</p>
                   <p className="text-sm text-gray-700">{selectedEntry.description}</p>
                 </div>
                 
-                {/* Budget Breakdown Section - Added Here */}
+                {/* Budget Breakdown Section */}
                 {(selectedEntry.budgetBreakdown || selectedEntry.budget_breakdown) && (
                   <div>
                     <p className="text-xs text-gray-500 mb-2">Budget Breakdown Details</p>

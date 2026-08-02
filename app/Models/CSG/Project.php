@@ -34,6 +34,7 @@ class Project extends Model
         'objective', // Add this
         'venue',     // Add this
         'project_proof', // Add this
+        'file_content_hash',
     ];
 
     /**

@@ -107,6 +107,8 @@ public function uploadProof(Request $request, $id)
     if ($entryData['updated_by']) {
         $entryData['updated_by'] = $this->getUserName($entryData['updated_by']);
     }
+
+                $entryData['ledger_proof'] = $entry->resolveLedgerProof();
                 
                 return $entryData;
             });
@@ -186,6 +188,8 @@ public function uploadProof(Request $request, $id)
                 if ($entryData['approved_by']) {
                     $entryData['approved_by'] = $this->getUserName($entryData['approved_by']);
                 }
+
+                $entryData['ledger_proof'] = $entry->resolveLedgerProof();
 
                 return $entryData;
             });

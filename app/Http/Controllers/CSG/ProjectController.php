@@ -19,7 +19,16 @@ class ProjectController extends Controller
 {
     public function index()
     {
-        return response()->json(Project::where('archive', 0)->get());
+        $projects = Project::where('archive', 0)->get()->map(function (Project $project) {
+            $projectData = $project->toArray();
+            $proofPath = $this->getProjectProofPath($project);
+            $projectData['project_proof'] = $proofPath;
+            $projectData['project_proof_url'] = $proofPath ? $this->storageUrlForPath($proofPath) : null;
+
+            return $projectData;
+        });
+
+        return response()->json($projects);
     }
 
     public function show($id)
@@ -39,6 +48,9 @@ class ProjectController extends Controller
             }
 
             $projectData = $project->toArray();
+            $proofPath = $this->getProjectProofPath($project);
+            $projectData['project_proof'] = $proofPath;
+            $projectData['project_proof_url'] = $proofPath ? $this->storageUrlForPath($proofPath) : null;
             $projectData['tamperedAlerts'] = $tamperedCount;
             $projectData['approveBy'] = $project->approver?->name ?? null;
             $projectData['createdBy'] = $project->creator?->name ?? null;
@@ -137,29 +149,6 @@ class ProjectController extends Controller
             $project->created_by = Auth::id();
             $project->updated_by = Auth::id();
             
-            // Handle file upload
-            if ($request->hasFile('project_proof')) {
-                try {
-                    $file = $request->file('project_proof');
-                    $fileName = time() . '_' . Str::random(10) . '_' . $file->getClientOriginalName();
-                    
-                    // Store the file
-                    $filePath = Storage::disk('public')->putFileAs('project_proofs', $file, $fileName);
-                    $project->project_proof = 'storage/project_proofs/' . $fileName;
-                    
-                    Log::info('✅ Project proof file uploaded', [
-                        'project_id' => $project->id,
-                        'file_name' => $fileName,
-                        'file_path' => $filePath,
-                    ]);
-                } catch (\Exception $fileError) {
-                    Log::warning('⚠️ Failed to upload project proof file', [
-                        'error' => $fileError->getMessage(),
-                    ]);
-                    // Don't fail the project creation if file upload fails
-                }
-            }
-            
             $project->created_at = now();
             $project->updated_at = now();
             
@@ -205,7 +194,8 @@ class ProjectController extends Controller
                     LedgerEntry::create([
                         'id' => (string) Str::uuid(),
                         'project_id' => $sourceProject->id,
-                        'type' => 'Expense',
+                        // 'type' => 'Expense',
+                        'type' => 'Transfer',
                         'amount' => $transferAmount,
                         'budget_breakdown' => null,
                         'description' => 'Transferred to project "' . $project->title . '"',
@@ -222,7 +212,7 @@ class ProjectController extends Controller
                     LedgerEntry::create([
                         'id' => (string) Str::uuid(),
                         'project_id' => $project->id,
-                        'type' => 'Initial',
+                        'type' => 'Initial Transfer',
                         'amount' => $transferAmount,
                         'budget_breakdown' => null,
                         'description' => 'Transferred from completed project "' . $sourceProject->title . '"',
@@ -269,13 +259,28 @@ class ProjectController extends Controller
                     // Don't fail the project creation if ledger creation fails
                 }
             }
+
+            if ($request->hasFile('project_proof')) {
+                try {
+                    $initialLedger = $this->storeProjectProofOnInitialLedger($project, $request->file('project_proof'), $initialLedger);
+                    Log::info('✅ Project proof stored on ledger entry', [
+                        'project_id' => $project->id,
+                        'ledger_id' => $initialLedger->id,
+                    ]);
+                } catch (\Exception $fileError) {
+                    Log::warning('⚠️ Failed to upload project proof file', [
+                        'error' => $fileError->getMessage(),
+                    ]);
+                }
+            }
             
             DB::commit();
 
-            // Return the project with the file URL and initial ledger
-            $project->project_proof_url = $project->project_proof ? Storage::url($project->project_proof) : null;
+            $proofPath = $this->getProjectProofPath($project);
+            $project->project_proof_url = $proofPath ? $this->storageUrlForPath($proofPath) : null;
             
             $responseData = $project->toArray();
+            $responseData['project_proof'] = $proofPath;
             if ($initialLedger) {
                 $responseData['initial_ledger'] = [
                     'id' => $initialLedger->id,
@@ -493,24 +498,13 @@ class ProjectController extends Controller
             
             // Handle file upload if new file is provided
             if ($request->hasFile('project_proof')) {
-                // Delete old file if exists - extract actual path from storage prefix
-                if ($project->project_proof) {
-                    $actualPath = str_replace('storage/', '', $project->project_proof);
-                    if (Storage::disk('public')->exists($actualPath)) {
-                        Storage::disk('public')->delete($actualPath);
-                    }
-                }
-                
-                $file = $request->file('project_proof');
-                $fileName = time() . '_' . $file->getClientOriginalName();
-                $filePath = $file->storeAs('project_proofs', $fileName, 'public');
-                $project->project_proof = 'storage/project_proofs/' . $fileName;
+                $this->storeProjectProofOnInitialLedger($project, $request->file('project_proof'));
             }
             
             $project->save();
             
-            // Add file URL to response
-            $project->project_proof_url = $project->project_proof ? Storage::url($project->project_proof) : null;
+            $proofPath = $this->getProjectProofPath($project);
+            $project->project_proof_url = $proofPath ? $this->storageUrlForPath($proofPath) : null;
             
             // Include the Initial ledger entry in response to show updated budget immediately
             $initialLedger = LedgerEntry::where('project_id', $project->id)
@@ -519,6 +513,8 @@ class ProjectController extends Controller
                 ->first();
             
             $responseData = $project->toArray();
+            $responseData['project_proof'] = $proofPath;
+            $responseData['project_proof'] = $proofPath;
             if ($initialLedger) {
                 $responseData['initial_ledger'] = [
                     'id' => $initialLedger->id,
@@ -635,16 +631,25 @@ class ProjectController extends Controller
                 return response()->json(['message' => 'Project not found'], 404);
             }
             
-            $transferEntries = LedgerEntry::where('project_id', $project->id)
-                ->where('category', 'Transfer')
-                ->where('archive', 0)
-                ->get();
-
             // Submitting a project for approval must always wait for adviser approval.
             // Transfer-linked projects should not become approved immediately.
             $project->approval_status = 'Pending Adviser Approval';
             $project->updated_at = now();
             $project->save();
+
+            LedgerEntry::query()
+                ->where('category', 'Transfer')
+                ->where('archive', 0)
+                ->where(function ($query) use ($project) {
+                    $query->where('project_id', $project->id)
+                        ->orWhere('note', 'like', '%' . $project->id . '%');
+                })
+                ->whereIn('approval_status', ['Draft', 'Rejected'])
+                ->update([
+                    'approval_status' => 'Pending Adviser Approval',
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
 
 
             // Create approval record (no teacher/adviser table dependency)
@@ -719,18 +724,19 @@ class ProjectController extends Controller
     {
         try {
             $project = Project::find($id);
+            $proofPath = $this->getProjectProofPath($project);
             
-            if (!$project || !$project->project_proof) {
+            if (!$project || !$proofPath) {
                 return response()->json(['message' => 'File not found'], 404);
             }
             
-            if (!Storage::disk('public')->exists($project->project_proof)) {
+            if (!$this->storageExists($proofPath)) {
                 return response()->json(['message' => 'File not found on disk'], 404);
             }
             
             return response()->json([
-                'url' => Storage::url($project->project_proof),
-                'filename' => basename($project->project_proof)
+                'url' => $this->storageUrlForPath($proofPath),
+                'filename' => basename($proofPath)
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -745,14 +751,20 @@ class ProjectController extends Controller
     {
         try {
             $project = Project::find($id);
+            $proofPath = $this->getProjectProofPath($project);
             
-            if ($project && $project->project_proof) {
+            if ($project && $proofPath) {
                 // Delete the file from storage
-                if (Storage::disk('public')->exists($project->project_proof)) {
-                    Storage::disk('public')->delete($project->project_proof);
+                if ($this->storageExists($proofPath)) {
+                    Storage::disk('public')->delete($this->normalizeStoragePath($proofPath));
                 }
-                $project->project_proof = null;
-                $project->save();
+
+                $initialLedger = $this->getInitialLedgerEntry($project);
+                if ($initialLedger) {
+                    $initialLedger->ledger_proof = null;
+                    $initialLedger->file_content_hash = null;
+                    $initialLedger->save();
+                }
                 
                 return response()->json(['message' => 'File deleted successfully'], 200);
             }
@@ -764,6 +776,113 @@ class ProjectController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    private function storeProjectProofOnInitialLedger(Project $project, $file, ?LedgerEntry $initialLedger = null): LedgerEntry
+    {
+        $initialLedger = $initialLedger ?: $this->getInitialLedgerEntry($project);
+
+        if (!$initialLedger) {
+            $initialLedger = LedgerEntry::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $project->id,
+                'type' => 'Initial',
+                'amount' => (float) ($project->budget ?? 0),
+                'budget_breakdown' => null,
+                'description' => 'Initial project budget baseline',
+                'category' => 'Project Budget Baseline',
+                'approval_status' => 'Draft',
+                'note' => 'Auto-generated baseline on project creation',
+                'created_by' => Auth::id(),
+                'updated_by' => Auth::id(),
+                'archive' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $fileHash = hash_file('sha256', $file->getRealPath());
+        $extension = $file->getClientOriginalExtension();
+        $fileName = $fileHash . ($extension ? '.' . $extension : '');
+        Storage::disk('public')->putFileAs('ledger_proofs', $file, $fileName);
+
+        $initialLedger->ledger_proof = 'storage/ledger_proofs/' . $fileName;
+        $initialLedger->file_content_hash = $fileHash;
+        $initialLedger->save();
+
+        $this->syncTransferProofToPairedEntry($initialLedger);
+
+        return $initialLedger;
+    }
+
+    private function syncTransferProofToPairedEntry(LedgerEntry $entry): void
+    {
+        if (empty($entry->ledger_proof)) {
+            return;
+        }
+
+        if ($entry->category !== 'Transfer' || $entry->type !== 'Initial') {
+            return;
+        }
+
+        $sourceEntry = $this->findTransferSourceEntry($entry->project_id);
+        if (! $sourceEntry) {
+            return;
+        }
+
+        $sourceEntry->update([
+            'ledger_proof' => $entry->ledger_proof,
+            'file_content_hash' => $entry->file_content_hash,
+            'updated_by' => Auth::id(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function getProjectProofPath(?Project $project): ?string
+    {
+        if (!$project) {
+            return null;
+        }
+
+        $initialLedger = $this->getInitialLedgerEntry($project);
+
+        return $initialLedger?->ledger_proof ?: null;
+    }
+
+    private function getInitialLedgerEntry(Project $project): ?LedgerEntry
+    {
+        return LedgerEntry::where('project_id', $project->id)
+            ->where('type', 'Initial')
+            ->where('archive', 0)
+            ->orderBy('created_at', 'asc')
+            ->first();
+    }
+
+    private function storageUrlForPath(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        return Storage::url($path);
+    }
+
+    private function storageExists(?string $path): bool
+    {
+        if (!$path) {
+            return false;
+        }
+
+        return Storage::disk('public')->exists($this->normalizeStoragePath($path));
+    }
+
+    private function normalizeStoragePath(?string $path): string
+    {
+        if (!$path) {
+            return '';
+        }
+
+        return str_starts_with($path, 'storage/') ? substr($path, strlen('storage/')) : $path;
     }
 
     public function getRatings($id)
@@ -992,7 +1111,8 @@ class ProjectController extends Controller
     protected function findTransferSourceEntry(string $destinationProjectId): ?LedgerEntry
     {
         return LedgerEntry::where('category', 'Transfer')
-            ->where('type', 'Expense')
+            // ->where('type', 'Expense') 
+            ->where('type', 'Transfer') 
             ->where('archive', 0)
             ->get()
             ->first(function (LedgerEntry $entry) use ($destinationProjectId) {
@@ -1152,7 +1272,8 @@ class ProjectController extends Controller
         LedgerEntry::create([
             'id' => (string) Str::uuid(),
             'project_id' => $sourceProject->id,
-            'type' => 'Expense',
+            // 'type' => 'Expense',
+            'type' => 'Transfer',
             'amount' => $transferAmount,
             'budget_breakdown' => null,
             'description' => 'Transferred to project "' . $project->title . '"',
@@ -1169,7 +1290,7 @@ class ProjectController extends Controller
         LedgerEntry::create([
             'id' => (string) Str::uuid(),
             'project_id' => $project->id,
-            'type' => 'Initial',
+            'type' => 'Initial Transfer',
             'amount' => $transferAmount,
             'budget_breakdown' => null,
             'description' => 'Transferred from completed project "' . $sourceProject->title . '"',

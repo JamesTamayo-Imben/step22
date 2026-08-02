@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
+import { computeBudgetFromEntries, computeOrgBudgetFromLedger, projectBudgetMismatch } from '@/utils/projectBudget';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -174,6 +175,7 @@ function LedgerPageInner() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const [ledgerEntries, setLedgerEntries] = useState([]);
   const [allProjects, setAllProjects] = useState([]);
@@ -182,7 +184,7 @@ function LedgerPageInner() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const fetchLedgerEntries = () => {
-    fetch('/api/ledger-entries')
+    return fetch('/api/ledger-entries')
       .then((response) => response.json())
       .then((data) => {
         const processedData = data.map((entry) => ({
@@ -206,33 +208,33 @@ function LedgerPageInner() {
         }));
         console.log('Processed ledger entries:', processedData);
         setLedgerEntries(processedData);
+        return processedData;
       })
       .catch((err) => {
         console.error('Failed to fetch ledger entries', err);
         showToast('Unable to load ledger entries', 'error');
+        throw err;
       });
   };
 
   //computation of total budget in all prjects getting it from the project table budget column
   const totalBudget = allProjects.reduce((sum, project) => sum + (Number(project.budget) || 0), 0);
 
-  // Compute ledger-derived budget (sum of approved entries)
-  const computedBudgetFromLedger = ledgerEntries
-    .filter((e) => e && (e.approval_status === 'Approved' || e.status === 'Approved'))
-    .reduce((sum, e) => {
-      const amount = Number(e.amount) || 0;
-      const type = (e.type || '').toLowerCase();
-      if (type === 'expense') return sum - amount;
-      if (type === 'initial' || ['income', 'donation', 'sponsorship'].includes(type)) return sum + amount;
-      return sum;
-    }, 0);
+  // Compute ledger-derived budget (sum of APPROVED entries only).
+  // Draft/Pending/Rejected entries must not count toward the org total,
+  // otherwise this drifts from `totalBudget` (which only sums approved
+  // projects) and falsely triggers the tampered/mismatch alert.
+  const approvedLedgerEntries = ledgerEntries.filter((e) => (e.status || e.approval_status) === 'Approved');
+  const computedBudgetFromLedger = computeOrgBudgetFromLedger(approvedLedgerEntries);
 
   const budgetDifference = (Number(totalBudget) || 0) - computedBudgetFromLedger;
-  const isBudgetTampered = ledgerEntries.length > 0 && Math.abs(budgetDifference) > 0.01;
+  const isBudgetTampered = isDataLoaded && approvedLedgerEntries.length > 0 && Math.abs(budgetDifference) > 0.01;
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchProjects = () => {
-      fetch('/api/projects', {
+      return fetch('/api/projects', {
         headers: {
           Accept: 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
@@ -240,20 +242,36 @@ function LedgerPageInner() {
       })
         .then((response) => response.json())
         .then((data) => {
-          if (Array.isArray(data)) {
+          if (Array.isArray(data) && isMounted) {
             setAllProjects(
               data.filter((p) => ((p.approval_status || p.status || '').toString().toLowerCase() === 'approved'))
             );
           }
+          return data;
         })
         .catch((err) => {
           console.error('Failed to fetch projects', err);
           showToast('Unable to load projects', 'error');
+          throw err;
         });
     };
 
-    fetchLedgerEntries();
-    fetchProjects();
+    const loadInitialData = async () => {
+      setIsDataLoaded(false);
+      try {
+        await Promise.all([fetchLedgerEntries(), fetchProjects()]);
+      } finally {
+        if (isMounted) {
+          setIsDataLoaded(true);
+        }
+      }
+    };
+
+    loadInitialData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const projectStats = ledgerEntries
@@ -315,53 +333,58 @@ function LedgerPageInner() {
     return items;
   })();
 
-  // Check if project has budget mismatch
+  // Check if project has budget mismatch (same rules as Adviser ledger / ProjectBudgetCalculator)
   const getProjectBudgetStatus = (projectId) => {
-    const projectLedgers = ledgerEntries
-      .filter((entry) => String(entry?.project_id || '') === String(projectId || '') && entry?.approval_status === 'Approved');
+    const projectLedgers = ledgerEntries.filter(
+      (entry) =>
+        String(entry?.project_id || entry?.projectId || '') === String(projectId || '') &&
+        (entry?.status || entry?.approval_status) === 'Approved'
+    );
 
-    const project = allProjects.find(p => p.id === projectId);
+    const project = allProjects.find((p) => p.id === projectId);
     if (!project) return { isMismatched: false };
 
-    // Don't mark as mismatched if there are no ledger entries yet - wait for data to load
     if (ledgerEntries.length > 0 && projectLedgers.length === 0) {
       return { isMismatched: false };
     }
 
     const displayBudget = parseFloat(project.budget) || 0;
-
-    // Compute the ledger entries sum for the project
-    // - Add amounts for Income, Donation, Sponsorship, Initial types
-    // - Subtract amounts for Expense type
-    const computedBudgetFromLedger = projectLedgers.reduce((sum, entry) => {
-      const amount = parseFloat(entry.amount) || 0;
-      const entryType = (entry.type || '').toLowerCase();
-
-      if (['income', 'donation', 'sponsorship', 'initial'].includes(entryType)) {
-        return sum + amount;
-      } else if (entryType === 'expense') {
-        return sum - amount;
-      }
-      return sum;
-    }, 0);
-
-    const budgetDifference = displayBudget - computedBudgetFromLedger;
-    const isMismatched = ledgerEntries.length > 0 && displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
+    const computedFromLedger = computeBudgetFromEntries(projectLedgers);
+    const isMismatched = projectBudgetMismatch(displayBudget, computedFromLedger, projectLedgers.length > 0);
 
     return { isMismatched };
   };
 
-  const tamperedProjectIds = new Set([
-    ...ledgerEntries
+  const tamperedProjectIds = new Set(
+    ledgerEntries
       .filter((entry) => entry?.verificationState?.tampered)
       .map((entry) => String(entry?.project_id || ''))
-      .filter(Boolean),
-    ...allProjects
-      .filter(p => getProjectBudgetStatus(p.id).isMismatched)
-      .map(p => String(p.id || ''))
       .filter(Boolean)
-  ]);
+  );
+  const mismatchedProjectIds = new Set(
+    allProjects
+      .filter((p) => getProjectBudgetStatus(p.id).isMismatched)
+      .map((p) => String(p.id || ''))
+      .filter(Boolean)
+  );
+  const hasTamperedEntries = isDataLoaded && tamperedProjectIds.size > 0;
+  const hasBudgetMismatchAlert = isDataLoaded && (mismatchedProjectIds.size > 0 || isBudgetTampered);
   const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
+  const hasSecurityAlert = hasTamperedEntries || hasBudgetMismatchAlert;
+  const integrityBadgeLabel = hasTamperedEntries
+    ? 'Tampered Alert'
+    : hasBudgetMismatchAlert
+      ? 'Budget Alert'
+      : isDataLoaded
+        ? 'Verified'
+        : 'Checking Integrity';
+  const integrityAlertMessage = hasTamperedEntries
+    ? 'A ledger entry has been tampered with. Please review the affected entries and contact system administrators immediately.'
+    : hasBudgetMismatchAlert
+      ? 'A budget mismatch was detected between the project budgets and approved ledger entries. Please review the data before assuming tampering.'
+      : isDataLoaded
+        ? 'All ledger records appear verified.'
+        : 'Loading ledger integrity data...';
 
   // Pagination logic
   const totalPages = Math.ceil(filteredEntries.length / itemsPerPage);
@@ -775,6 +798,7 @@ const handleSaveUpload = async () => {
     case 'Donation': return 'bg-blue-100 text-blue-700';
     case 'Sponsorship': return 'bg-purple-100 text-purple-700';
     case 'Canvas': return 'bg-gray-100 text-gray-700';
+    case 'Transfer': return 'bg-yellow-100 text-yellow-700';
     default: return 'bg-gray-100 text-gray-700';
   }
 };
@@ -787,6 +811,7 @@ const getTypeAmountColor = (type) => {
     case 'Donation': return 'text-green-700';
     case 'Sponsorship': return 'text-green-700';
     case 'Canvas': return ' text-gray-700';
+    case 'Transfer': return 'text-yellow-700';
     default: return 'text-gray-700';
   }
 };
@@ -890,37 +915,37 @@ const getTypeAmountColor = (type) => {
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold text-gray-900">Ledger Management</h1>
          
-    {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) ? (
+    {hasSecurityAlert ? (
       <Badge className="bg-red-100 text-red-700 rounded-lg">
         <AlertCircle className="w-3 h-3 mr-1" />
-        Tampered Alert
+        {integrityBadgeLabel}
       </Badge>
     ) : (
       <Badge className="bg-green-100 text-green-700 rounded-lg">
         <Shield className="w-3 h-3 mr-1" />
-        Verified
+        {integrityBadgeLabel}
       </Badge>
     )}
   </div>
 
-  {filteredEntries.some(e => e && e.verificationState && e.verificationState.tampered) && (
+         
+          <p className="text-gray-500">Track all financial transactions across projects</p>
+
+          {hasSecurityAlert && (
     <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
       <div className="flex items-start gap-2">
         <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
         <div>
           <p className="text-sm font-medium text-red-800">
-            Security Alert.
+            {hasTamperedEntries ? 'Security Alert.' : 'Budget Alert.'}
             <span className="text-xs text-red-600 ml-2">
-              A Ledger Entry has been Tampered. Please review the affected entries and contact system administrators immediately.
+              {integrityAlertMessage}
             </span>
           </p>
         </div>
       </div>
     </div>
   )}
-
-         
-          <p className="text-gray-500">Track all financial transactions across projects</p>
         </div>
       
           <Button
@@ -1013,12 +1038,15 @@ const getTypeAmountColor = (type) => {
 
           {/* Type Filter */}
           <Select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-            <option value="all">Select Type</option>
+            <option value="all" disabled>Select Type</option>
+             <option value="all">All</option>
             <option value="Income">Income</option>
             <option value="Expense">Expense</option>
             <option value="Donation">Donation</option>
             <option value="Sponsorship">Sponsorship</option>
             <option value="Canvas">Canvas</option>
+            <option value="Initial">Initial</option>
+            <option value="Initial Transfer">Initial Transfer</option>
           </Select>
 
           {/* Status Filter */}
@@ -1052,8 +1080,9 @@ const getTypeAmountColor = (type) => {
       {/* Ledger Cards Grid - Fixed Layout  */}
        <div className="space-y-3">
         {currentItems.map((entry) => {
-          const entryLocked = isProjectLocked(entry.project_id);
-          const isInitialEntry = (entry.type || '').toLowerCase() === 'initial';
+          // const entryLocked = isProjectLocked(entry.project_id);
+          const isInitialEntry = ['Initial', 'initial transfer'].includes((entry.type || '').toLowerCase()) || (entry.type || '').toLowerCase() === 'transfer';
+         const entryLocked = isProjectLocked(entry.project_id) && !isInitialEntry;
           return (
          <Card key={entry.id} className={`rounded-xl border-0 shadow-sm transition-all duration-200 overflow-x-auto ${
            entry.verificationState?.tampered ? 'ring-2 ring-red-200 bg-red-50' : ''
@@ -1073,12 +1102,18 @@ const getTypeAmountColor = (type) => {
               <div className="grid grid-cols-[180px_120px_200px_140px_120px_auto] gap-4 items-center">
                 {/* ID and Type Section */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="truncate text-[11px] font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded whitespace-nowrap">
+                  {/* <span className="truncate text-[11px] font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded whitespace-nowrap">
                     {entry.id}
-                  </span>
-                  <Badge className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap shrink-0 ${getTypeColor(entry.type)}`}>
+                  </span> */}
+                  {/* <Badge className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap shrink-0 ${getTypeColor(entry.type)}`}>
                     {entry.type}
-                  </Badge>
+                  </Badge> */}
+
+                   {/* Category Section */}
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Project Title</p>
+                  <p className="text-xs text-gray-700 font-medium truncate">{entry.projectName || '—'}</p>
+                </div>
                 </div>
 
                 {/* Amount Section */}
@@ -1088,10 +1123,11 @@ const getTypeAmountColor = (type) => {
   </p>
 </div>
 
-                {/* Category Section */}
+                
                 <div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Project Title</p>
-                  <p className="text-xs text-gray-700 font-medium truncate">{entry.projectName || '—'}</p>
+                  <Badge className={`text-[11px] px-2 py-0.5 rounded-md whitespace-nowrap shrink-0 ${getTypeColor(entry.type)}`}>
+                    {entry.type}
+                  </Badge>
                 </div>
 
                 {/* Date Section */}

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
 use App\Support\AdviserLedgerFormatter;
+use App\Support\ProjectBudgetCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -39,74 +40,167 @@ class AdviserLedgerController extends Controller
         ]);
     }
 
+    // private function getLedgerEntriesData()
+    // {
+    //     $entries = LedgerEntry::query()
+    //         ->with('project')
+    //         ->with('creator.student')
+    //         ->orderBy('created_at', 'asc')
+    //         ->where('archive', false)
+    //         ->get();
+
+    //     // Build a map of project_id => chain block (latest block for each project)
+    //     $chainBlocks = [];
+    //     $projectVerifications = [];
+    //     $uniqueProjectIds = $entries->pluck('project_id')->unique();
+
+    //     foreach ($uniqueProjectIds as $projectId) {
+    //         // Get latest block for verification
+    //         $latestBlock = Chain::where('project_id', $projectId)
+    //             ->orderByDesc('block_index')
+    //             ->first();
+
+    //         if ($latestBlock) {
+    //             $chainBlocks[$projectId] = $latestBlock;
+    //             // Verify the entire chain for this project
+    //             $verification = \App\Support\BlockchainService::verifyChain($projectId);
+    //             $projectVerifications[$projectId] = $verification;
+    //         }
+    //     }
+
+    //     // Map chain blocks by entry ID for the formatter
+    //     $entryChainBlocks = [];
+    //     foreach ($entries as $entry) {
+    //         $entryChainBlocks[$entry->id] = $chainBlocks[$entry->project_id] ?? null;
+    //     }
+
+    //     $byId = $entries->keyBy('id');
+    //     $rows = [];
+    //     $prev = null;
+    //     $prevChain = null;
+    //     foreach ($entries as $entry) {
+    //         $name = $this->userName($entry->created_by);
+    //         $currentChain = $entryChainBlocks[$entry->id] ?? null;
+    //         $verification = $projectVerifications[$entry->project_id] ?? ['isValid' => false, 'status' => 'no_chain', 'tamperedBlocks' => []];
+            
+    //         // Check if THIS specific ledger is tampered
+    //         $isTampered = false;
+    //         foreach ($verification['tamperedBlocks'] ?? [] as $tamperedBlock) {
+    //             if ($tamperedBlock['ledgerId'] === $entry->id) {
+    //                 $isTampered = true;
+    //                 break;
+    //             }
+    //         }
+            
+    //         $rows[] = AdviserLedgerFormatter::toFrontendRow(
+    //             $entry,
+    //             $prev,
+    //             $name,
+    //             'CSG Officer',
+    //             $currentChain,
+    //             $prevChain,
+    //             $verification,
+    //             $isTampered
+    //         );
+    //         $prev = $entry;
+    //         $prevChain = $currentChain;
+    //     }
+
+    //     return collect($rows)->sortByDesc('date')->values()->all();
+    // }
+
     private function getLedgerEntriesData()
-    {
-        $entries = LedgerEntry::query()
-            ->with('project')
-            ->with('creator.student')
-            ->orderBy('created_at', 'asc')
-            ->where('archive', false)
-            ->get();
+{
+    $entries = LedgerEntry::query()
+        ->with('project')
+        ->with('creator.student')
+        ->orderBy('created_at', 'asc')
+        ->where('archive', false)
+        ->get();
 
-        // Build a map of project_id => chain block (latest block for each project)
-        $chainBlocks = [];
-        $projectVerifications = [];
-        $uniqueProjectIds = $entries->pluck('project_id')->unique();
+    $chainBlocks = [];
+    $projectVerifications = [];
+    $uniqueProjectIds = $entries->pluck('project_id')->unique();
 
-        foreach ($uniqueProjectIds as $projectId) {
-            // Get latest block for verification
-            $latestBlock = Chain::where('project_id', $projectId)
-                ->orderByDesc('block_index')
-                ->first();
+    foreach ($uniqueProjectIds as $projectId) {
+        $latestBlock = Chain::where('project_id', $projectId)
+            ->orderByDesc('block_index')
+            ->first();
 
-            if ($latestBlock) {
-                $chainBlocks[$projectId] = $latestBlock;
-                // Verify the entire chain for this project
-                $verification = \App\Support\BlockchainService::verifyChain($projectId);
-                $projectVerifications[$projectId] = $verification;
-            }
+        if ($latestBlock) {
+            $chainBlocks[$projectId] = $latestBlock;
+            $projectVerifications[$projectId] = \App\Support\BlockchainService::verifyChain($projectId);
         }
-
-        // Map chain blocks by entry ID for the formatter
-        $entryChainBlocks = [];
-        foreach ($entries as $entry) {
-            $entryChainBlocks[$entry->id] = $chainBlocks[$entry->project_id] ?? null;
-        }
-
-        $byId = $entries->keyBy('id');
-        $rows = [];
-        $prev = null;
-        $prevChain = null;
-        foreach ($entries as $entry) {
-            $name = $this->userName($entry->created_by);
-            $currentChain = $entryChainBlocks[$entry->id] ?? null;
-            $verification = $projectVerifications[$entry->project_id] ?? ['isValid' => false, 'status' => 'no_chain', 'tamperedBlocks' => []];
-            
-            // Check if THIS specific ledger is tampered
-            $isTampered = false;
-            foreach ($verification['tamperedBlocks'] ?? [] as $tamperedBlock) {
-                if ($tamperedBlock['ledgerId'] === $entry->id) {
-                    $isTampered = true;
-                    break;
-                }
-            }
-            
-            $rows[] = AdviserLedgerFormatter::toFrontendRow(
-                $entry,
-                $prev,
-                $name,
-                'CSG Officer',
-                $currentChain,
-                $prevChain,
-                $verification,
-                $isTampered
-            );
-            $prev = $entry;
-            $prevChain = $currentChain;
-        }
-
-        return collect($rows)->sortByDesc('date')->values()->all();
     }
+
+    $rows = [];
+    $prev = null;
+
+    foreach ($entries as $entry) {
+        $name = $this->userName($entry->created_by);
+        $verification = $projectVerifications[$entry->project_id]
+            ?? ['isValid' => false, 'status' => 'no_chain', 'tamperedBlocks' => []];
+
+        $isTampered = collect($verification['tamperedBlocks'] ?? [])
+            ->contains(fn ($b) => ($b['ledgerId'] ?? null) === $entry->id);
+
+        // ---- Proof handling (this is the part your jsx modal needs) ----
+        $proofAttached = (bool) $entry->ledger_proof;
+        $proofFiles = [];
+        if ($proofAttached) {
+            $proofFiles[] = [
+                'id' => $entry->id,
+                'name' => basename($entry->ledger_proof),
+                'filename' => basename($entry->ledger_proof),
+                'path' => $entry->ledger_proof, // e.g. storage/ledger_proofs/abc123.png
+                'hash' => $entry->file_content_hash,
+            ];
+        }
+
+        // ---- Verification timeline block ----
+        $verificationState = [
+            'submitted' => optional($entry->created_at)->format('Y-m-d h:i A') ?? '',
+            'blockchainStatus' => $verification['status'] ?? 'no_chain',
+            'blockchainValid' => ! $isTampered && ($verification['isValid'] ?? false),
+            'tampered' => $isTampered,
+        ];
+        if ($entry->approved_at) {
+            $verificationState['reviewed'] = $entry->approved_at->format('Y-m-d h:i A');
+            $verificationState['approvedRejected'] = $entry->approved_at->format('Y-m-d h:i A');
+        } elseif ($entry->rejected_at) {
+            $verificationState['reviewed'] = $entry->rejected_at->format('Y-m-d h:i A');
+            $verificationState['approvedRejected'] = $entry->rejected_at->format('Y-m-d h:i A');
+        }
+
+        $rows[] = [
+            'id' => $entry->id,
+            'projectName' => $entry->project->title ?? 'Unknown Project',
+            'projectId' => $entry->project_id,
+            'enteredBy' => $name,
+            'csg_position' => 'CSG Officer',
+            'amount' => (float) $entry->amount,
+            'transactionType' => $entry->type,
+            'date' => optional($entry->created_at)->toDateString(),
+            'status' => $entry->approval_status,
+            'allowAdviserActions' => $entry->approval_status === 'Pending Adviser Approval',
+            'description' => $entry->description,
+            'budgetBreakdown' => $entry->budget_breakdown
+                ? (is_string($entry->budget_breakdown) ? json_decode($entry->budget_breakdown, true) : $entry->budget_breakdown)
+                : [],
+            'ledgerHash' => $chainBlocks[$entry->project_id]->block_hash ?? null,
+            'predecessorHash' => $prev ? ($chainBlocks[$prev->project_id]->block_hash ?? null) : null,
+            'proofAttached' => $proofAttached,
+            'proofFiles' => $proofFiles,
+            'verificationState' => $verificationState,
+            'note' => $entry->note,
+            'correctionReason' => null, // set this if you track it separately
+        ];
+
+        $prev = $entry;
+    }
+
+    return collect($rows)->sortByDesc('date')->values()->all();
+}
 
     private function getAuditTrailData()
     {
@@ -152,10 +246,17 @@ class AdviserLedgerController extends Controller
         if (! $wasApproved && $entry->project) {
             $amount = (float) $entry->amount;
             if ($amount > 0) {
-                if ($entry->type === 'Expense') {
-                    $entry->project->budget = (float) $entry->project->budget - $amount;
-                } elseif (in_array($entry->type, ['Income', 'Canvas', 'Donation', 'Sponsorship'], true)) {
-                    $entry->project->budget = (float) $entry->project->budget + $amount;
+                if (($entry->category ?? '') === 'Transfer') {
+                    if ($entry->type === 'Expense') {
+                        $entry->project->budget = max(0, (float) $entry->project->budget - $amount);
+                    }
+                    // Transfer destination entries are type Initial and should not reapply budget changes.
+                } else {
+                    if ($entry->type === 'Expense') {
+                        $entry->project->budget = (float) $entry->project->budget - $amount;
+                    } elseif (in_array($entry->type, ['Income', 'Canvas', 'Donation', 'Sponsorship'], true)) {
+                        $entry->project->budget = (float) $entry->project->budget + $amount;
+                    }
                 }
                 $entry->project->save();
             }
@@ -289,6 +390,20 @@ class AdviserLedgerController extends Controller
 
         $entry->update($updateData);
 
+        if ($entry->project) {
+            $approvedEntries = LedgerEntry::query()
+                ->where('project_id', $entry->project_id)
+                ->where('archive', false)
+                ->where('approval_status', 'Approved')
+                ->orderBy('created_at')
+                ->get(['type', 'amount']);
+
+            if ($approvedEntries->isNotEmpty()) {
+                $entry->project->budget = ProjectBudgetCalculator::fromLedgerEntries($approvedEntries);
+                $entry->project->save();
+            }
+        }
+
         $this->writeAudit(
             'Ledger Entry Restored from Blockchain',
             $entry->id,
@@ -341,20 +456,13 @@ class AdviserLedgerController extends Controller
                 ->orderBy('created_at')
                 ->get(['type', 'amount']);
 
-            $computedBudget = 0.0;
-            foreach ($approvedEntries as $entry) {
-                $amount = (float) $entry->amount;
-                if ($entry->type === 'Expense') {
-                    $computedBudget = $computedBudget - $amount;
-                } elseif (
-                    $entry->type === 'Initial' ||
-                    in_array($entry->type, ['Income', 'Donation', 'Sponsorship'], true)
-                ) {
-                    $computedBudget += $amount;
-                }
+            if ($approvedEntries->isEmpty()) {
+                continue;
             }
 
-            if (abs(((float) $project->budget) - $computedBudget) > 0.01) {
+            $computedBudget = ProjectBudgetCalculator::fromLedgerEntries($approvedEntries);
+
+            if (ProjectBudgetCalculator::hasMismatch((float) $project->budget, $computedBudget, true)) {
                 $project->budget = $computedBudget;
                 $project->save();
                 $updatedCount++;

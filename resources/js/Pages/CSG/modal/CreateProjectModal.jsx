@@ -9,6 +9,7 @@ import {
   FileText,
   Plus,
 } from 'lucide-react';
+import { computeBudgetFromEntries, projectBudgetMismatch } from '@/utils/projectBudget';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ export function CreateProjectModal({
   const [isLoading, setIsLoading] = useState(false);
   const [completedProjects, setCompletedProjects] = useState([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [ledgerEntries, setLedgerEntries] = useState([]);
 
   useEffect(() => {
     if (!open) return;
@@ -118,18 +120,31 @@ export function CreateProjectModal({
     const loadCompletedProjects = async () => {
       try {
         setIsLoadingProjects(true);
-        const response = await fetch('/api/projects', {
-          headers: {
-            Accept: 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-          },
-        });
+        const [projectsResponse, ledgerResponse] = await Promise.all([
+          fetch('/api/projects', {
+            headers: {
+              Accept: 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+          }),
+          fetch('/api/ledger-entries', {
+            headers: {
+              Accept: 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+          }),
+        ]);
 
-        if (!response.ok) throw new Error('Failed to load completed projects');
+        if (!projectsResponse.ok) throw new Error('Failed to load completed projects');
+        if (!ledgerResponse.ok) throw new Error('Failed to load ledger entries');
 
-        const data = await response.json();
-        const normalized = Array.isArray(data) ? data : [];
-        const completed = normalized.filter((project) => {
+        const projectsData = await projectsResponse.json();
+        const ledgerData = await ledgerResponse.json();
+        const normalizedProjects = Array.isArray(projectsData) ? projectsData : [];
+        const normalizedLedgerEntries = Array.isArray(ledgerData) ? ledgerData : [];
+        setLedgerEntries(normalizedLedgerEntries);
+
+        const completed = normalizedProjects.filter((project) => {
           const status = String(project?.status || '').toLowerCase();
           const approvalStatus = String(project?.approval_status || '').toLowerCase();
           const endDate = project?.end_date || project?.endDate;
@@ -138,10 +153,27 @@ export function CreateProjectModal({
           return status === 'complete' || status === 'completed' || (approvalStatus === 'approved' && hasEnded);
         });
 
-        setCompletedProjects(completed);
+        const eligible = completed.filter((project) => {
+          const projectId = String(project?.id || '');
+          const projectLedgers = normalizedLedgerEntries.filter((entry) => {
+            const entryProjectId = String(entry?.project_id || entry?.projectId || '');
+            return entryProjectId === projectId && (entry?.approval_status || entry?.status) === 'Approved';
+          });
+
+          const displayBudget = Number(project?.budget || 0);
+          const computedFromLedger = computeBudgetFromEntries(projectLedgers);
+          const hasMismatch = displayBudget > 0 && projectLedgers.length > 0 && projectBudgetMismatch(displayBudget, computedFromLedger, projectLedgers.length > 0);
+          const hasTampered = projectLedgers.some((entry) => entry?.verificationState?.tampered || entry?.tampered || entry?.verification_state?.tampered);
+          const hasTamperedMetadata = Number(project?.tamperedAlerts || 0) > 0 || project?.isTampered === true;
+
+          return Number(project?.budget || 0) > 0 && !hasMismatch && !hasTampered && !hasTamperedMetadata;
+        });
+
+        setCompletedProjects(eligible);
       } catch (error) {
         console.error('Failed to load completed projects:', error);
         setCompletedProjects([]);
+        setLedgerEntries([]);
       } finally {
         setIsLoadingProjects(false);
       }
@@ -189,6 +221,7 @@ export function CreateProjectModal({
         return;
       }
 
+      //also dont add the tamper check for transfer amount exceeding remaining balance
       const selectedProject = completedProjects.find((project) => String(project.id) === String(newProject.transferFromProjectId));
       const remainingBalance = Number(selectedProject?.budget || 0);
       const transferAmount = Number(newProject.transferAmount || 0);
@@ -428,11 +461,15 @@ export function CreateProjectModal({
             {newProject.budgetSource === 'past_project' && (
               <div className="space-y-3">
                 {(() => {
-                  const eligibleProjects = (completedProjects || []).filter((project) => Number(project?.budget || 0) > 0);
+                  const eligibleProjects = (completedProjects || []).filter((project) => {
+                    const hasTamperedMetadata = Number(project?.tamperedAlerts || 0) > 0 || project?.isTampered === true;
+                    const hasMismatchMetadata = project?.isBudgetMismatch === true || project?.budgetMismatch === true;
+                    return Number(project?.budget || 0) > 0 && !hasTamperedMetadata && !hasMismatchMetadata;
+                  });
 
                   if (eligibleProjects.length === 0) {
                     return (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                      <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                         No completed projects with a remaining budget are available right now.
                       </div>
                     );

@@ -41,7 +41,7 @@ class AdviserApprovalController extends Controller
         $ledgerRows = $ledgerPending->map(fn (LedgerEntry $e) => $this->serializeLedgerCard($e));
 
         $proofRows = $ledgerPending
-            ->filter(fn (LedgerEntry $e) => ! empty($e->ledger_proof) || ($e->type === 'Initial' && ! empty($e->project?->project_proof)))
+            ->filter(fn (LedgerEntry $e) => ! empty($e->resolveLedgerProof()))
             ->map(fn (LedgerEntry $e) => $this->serializeProofCard($e))
             ->values();
 
@@ -413,17 +413,38 @@ class AdviserApprovalController extends Controller
         if (! $wasApproved && $entry->project) {
             $amount = (float) $entry->amount;
             if ($amount > 0) {
-                if ($entry->type === 'Expense') {
-                    $entry->project->budget = (float) $entry->project->budget - $amount;
-                } elseif (in_array($entry->type, ['Income', 'Donation', 'Sponsorship'], true)) {
-                    $entry->project->budget = (float) $entry->project->budget + $amount;
-                } elseif ($entry->type === 'Initial') {
-                    // Initial entries are baseline snapshots and should not re-apply budget changes.
-                    $entry->project->budget = (float) $entry->project->budget;
-                } elseif ($entry->type === 'Canvas') {
-                    // For Canvas entries, we can decide how to adjust the budget. Assuming it adds to the budget:
-                    $entry->project->budget = (float) $entry->project->budget;
+                // Transfer entries should be handled specially: the source entry (on the
+                // project the funds are taken from) must have its budget decreased when
+                // approved, while the destination entry should behave like an `Initial`
+                // (no additional budget adjustment).
+                if (($entry->category ?? '') === 'Transfer') {
+                    $meta = json_decode($entry->note, true);
+                    if (is_array($meta)) {
+                        $sourceProjectId = $meta['transfer_source_project_id'] ?? null;
+                        $destinationProjectId = $meta['transfer_destination_project_id'] ?? null;
+
+                        // If this ledger entry belongs to the source project, deduct budget
+                        if ($sourceProjectId && (string) $sourceProjectId === (string) $entry->project_id) {
+                            $entry->project->budget = max(0, (float) $entry->project->budget - $amount);
+                        }
+
+                        // If entry belongs to destination project, treat like Initial (no change)
+                    }
+                } else {
+                    // Non-transfer behaviour (legacy)
+                    if ($entry->type === 'Expense') {
+                        $entry->project->budget = (float) $entry->project->budget - $amount;
+                    } elseif (in_array($entry->type, ['Income', 'Donation', 'Sponsorship'], true)) {
+                        $entry->project->budget = (float) $entry->project->budget + $amount;
+                    } elseif ($entry->type === 'Initial') {
+                        // Initial entries are baseline snapshots and should not re-apply budget changes.
+                        $entry->project->budget = (float) $entry->project->budget;
+                    } elseif ($entry->type === 'Canvas') {
+                        // For Canvas entries, we can decide how to adjust the budget. Assuming it adds to the budget:
+                        $entry->project->budget = (float) $entry->project->budget;
+                    }
                 }
+
                 $entry->project->save();
             }
         }
@@ -572,6 +593,14 @@ class AdviserApprovalController extends Controller
         $submittedBy = $this->userName($p->created_by)
             ?: ($p->student?->user?->name ?? $p->proposed_by ?? 'Unknown');
 
+        $initialLedger = $p->ledgerEntries()
+            ->where('type', 'Initial')
+            ->where('archive', 0)
+            ->orderBy('created_at', 'asc') 
+            ->first();
+
+        $proofPath = $initialLedger?->ledger_proof ?? null;
+
         return [
             'id' => $p->id,
             'title' => $p->title ?? 'Untitled',
@@ -590,7 +619,7 @@ class AdviserApprovalController extends Controller
             'created_by' => $this->userName($p->created_by),
             'created_at' => optional($p->created_at)->format('Y-m-d H:i:s') ?? 'N/A',
             'proposed_by' => $p->proposed_by ?? 'Not specified',
-            'project_proof' => $p->project_proof ?? null,
+            'project_proof' => $proofPath,
         ];
     }
 
@@ -601,9 +630,10 @@ class AdviserApprovalController extends Controller
         $status = 'Rejected';
     }
 
-    $initialEntry = $e->project?->ledgerEntries()?->oldest()->first();
-    $projectProof = $initialEntry?->project?->project_proof ?? $e->project?->project_proof ?? null;
-    $ledgerProof = ($e->type === 'Initial') ? $e->project?->project_proof : $e->ledger_proof;
+    $initialEntry = $e->project?->ledgerEntries()?->where('type', 'Initial')->where('archive', 0)->orderBy('created_at', 'asc')->first();
+    $resolvedProof = $e->resolveLedgerProof();
+    $projectProof = $initialEntry?->resolveLedgerProof() ?? $resolvedProof;
+    $ledgerProof = $resolvedProof;
 
     // Decode budget_breakdown if it's a JSON string
     $budgetBreakdown = $e->budget_breakdown;
@@ -625,7 +655,7 @@ class AdviserApprovalController extends Controller
         'description' => $e->description ?? 'No description provided',
         'created_by' => $this->userName($e->created_by),
         'created_at' => optional($e->created_at)->format('Y-m-d H:i:s') ?? 'N/A',
-        'entry_type' => $e->type ?? 'Expense',
+        'entry_type' => $e->type ?? 'Expense', 
         'ledger_proof' => $ledgerProof,
         'project_proof' => $projectProof,
         'budget_breakdown' => $budgetBreakdown ?? [], // <-- ADD THIS
@@ -636,7 +666,7 @@ class AdviserApprovalController extends Controller
     {
         $card = $this->serializeLedgerCard($e);
         $card['type'] = 'proof';
-        $proofPath = ($e->type === 'Initial') ? $e->project?->project_proof : $e->ledger_proof;
+        $proofPath = $e->resolveLedgerProof();
         $card['title'] = basename($proofPath ?? 'proof');
 
         return $card;

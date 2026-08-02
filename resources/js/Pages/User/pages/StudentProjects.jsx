@@ -145,16 +145,16 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
     // - Add amounts for Income, Donation, Sponsorship, Initial types
     // - Subtract amounts for Expense type
     const computedBudgetFromLedger = projectLedgers.reduce((sum, entry) => {
-      const amount = parseFloat(entry.amount) || 0;
-      const entryType = (entry.type || '').toLowerCase();
-      
-      if (['income', 'donation', 'sponsorship', 'initial'].includes(entryType)) {
-        return sum + amount;
-      } else if (entryType === 'expense') {
-        return sum - amount;
-      }
-      return sum;
-    }, 0); 
+  const amount = parseFloat(entry.amount) || 0;
+  const entryType = (entry.type || '').toLowerCase();
+
+  const isCredit = entryType.includes('initial') || ['income', 'donation', 'sponsorship'].includes(entryType);
+  const isDebit = entryType === 'expense' || (entryType.includes('transfer') && !entryType.includes('initial'));
+
+  if (isCredit) return sum + amount;
+  if (isDebit) return sum - amount;
+  return sum;
+}, 0); 
     
     const budgetDifference = displayBudget - computedBudgetFromLedger;
     const isMismatched = ledgerEntries.length > 0 && displayBudget > 0 && Math.abs(budgetDifference) > 0.01;

@@ -7,6 +7,7 @@ use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Meeting;
 use App\Models\CSG\Project;
 use App\Models\User\Rating;
+use App\Support\ProjectBudgetCalculator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\DB;
@@ -194,24 +195,14 @@ class CSGDashboardController extends Controller
                 continue;
             }
 
-            $displayBudget = (float) ($project->budget ?? 0);
-            if ($displayBudget <= 0) {
+            if ($entries->isEmpty()) {
                 continue;
             }
 
-            $computedBudget = $entries->reduce(function ($sum, $entry) {
-                $amount = (float) ($entry->amount ?? 0);
-                $type = strtolower((string) ($entry->type ?? ''));
-                if (in_array($type, ['income', 'donation', 'sponsorship', 'initial'], true)) {
-                    return $sum + $amount;
-                }
-                if ($type === 'expense') {
-                    return $sum - $amount;
-                }
-                return $sum;
-            }, 0.0);
+            $displayBudget = (float) ($project->budget ?? 0);
+            $computedBudget = ProjectBudgetCalculator::fromLedgerEntries($entries);
 
-            if (abs($displayBudget - $computedBudget) > 0.01) {
+            if (ProjectBudgetCalculator::hasMismatch($displayBudget, $computedBudget, true)) {
                 $budgetMismatchCount++;
             }
         }

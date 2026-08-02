@@ -688,12 +688,12 @@ const formatDate = (dateString) => {
   // Calculate effective budget based on approved ledger entries
 const displayBudget = parseFloat(project.budget) || 0;
 const computedBudgetFromLedger = ledgerEntries
-  .filter((entry) => entry.approval_status === 'Approved' || entry.type === "Initial")
+.filter((entry) => entry.approval_status === 'Approved' || ['Initial', 'Initial Transfer'].includes(entry.type))
   .reduce((sum, entry) => {
     const amount = parseFloat(entry.amount) || 0;
     const type = (entry.type || '').toLowerCase();
     
-    if (type === 'expense') {
+    if (type === 'expense' || type === 'transfer') {
       // If amount is negative, it effectively adds to budget
       // If amount is positive, it subtracts from budget
       return sum - amount;

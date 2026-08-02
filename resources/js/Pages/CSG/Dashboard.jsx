@@ -261,16 +261,18 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
     // - Add amounts for Income, Donation, Sponsorship, Initial types
     // - Subtract amounts for Expense type
     const computedBudgetFromLedger = projectLedgers.reduce((sum, entry) => {
-      const amount = parseFloat(entry.amount) || 0;
-      const entryType = (entry.type || '').toLowerCase();
+  const amount = parseFloat(entry.amount) || 0;
+  const entryType = (entry.type || '').toLowerCase();
 
-      if (['income', 'donation', 'sponsorship', 'initial'].includes(entryType)) {
-        return sum + amount;
-      } else if (entryType === 'expense') {
-        return sum - amount;
-      }
-      return sum;
-    }, 0);
+  const isCredit = entryType.includes('initial') || ['income', 'donation', 'sponsorship'].includes(entryType);
+  const isDebit = entryType === 'expense' || (entryType.includes('transfer') && !entryType.includes('initial'));
+
+  if (isCredit) return sum + amount;
+  if (isDebit) return sum - amount;
+  return sum;
+}, 0);
+
+    
 
     const budgetDifference = displayBudget - computedBudgetFromLedger;
     const isMismatched = ledgerEntries.length > 0 && displayBudget > 0 && Math.abs(budgetDifference) > 0.01;
@@ -288,6 +290,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
       .map(p => String(p.id || ''))
       .filter(Boolean)
   ]);
+  
   const tamperedEntriesCount = (ledgerEntries || []).filter(e => e && (e.tampered || e.verificationState?.tampered || (e.verification_state && e.verification_state.tampered))).length;
   const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
   const unlockedDashboardProjects = dashboardProjects.filter((project) => !isProjectLocked(project.id));
@@ -1306,7 +1309,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
               </div>
             ))
           ) : (
-             <div className="text-center">
+             <div className="col-span-3 text-center">
         <FolderKanban className="w-12 h-12 text-gray-300 mx-auto mb-3" />
         <p className="text-sm text-gray-500">No active projects found</p>
         <p className="text-xs text-gray-400 mt-1">Add your first project to get started</p>

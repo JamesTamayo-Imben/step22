@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
 use App\Models\User\Rating;
+use App\Support\ProjectBudgetCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
@@ -94,24 +95,14 @@ class AdviserDashboardController extends Controller
                 continue;
             }
 
-            $displayBudget = (float) ($project->budget ?? 0);
-            if ($displayBudget <= 0) {
+            if ($entries->isEmpty()) {
                 continue;
             }
 
-            $computedBudget = $entries->reduce(function ($sum, $entry) {
-                $amount = (float) ($entry->amount ?? 0);
-                $type = strtolower((string) ($entry->type ?? ''));
-                if (in_array($type, ['income', 'donation', 'sponsorship', 'initial'], true)) {
-                    return $sum + $amount;
-                }
-                if ($type === 'expense') {
-                    return $sum - $amount;
-                }
-                return $sum;
-            }, 0.0);
+            $displayBudget = (float) ($project->budget ?? 0);
+            $computedBudget = ProjectBudgetCalculator::fromLedgerEntries($entries);
 
-            if (abs($displayBudget - $computedBudget) > 0.01) {
+            if (ProjectBudgetCalculator::hasMismatch($displayBudget, $computedBudget, true)) {
                 $budgetMismatchCount++;
             }
         }
