@@ -305,8 +305,8 @@ export default function AdviserApprovalsPage() {
         <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">{getTypeIcon(item.approvalType)}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-2">
-            <div>
-              <h3 className="text-gray-900 mb-1">{item.title}</h3>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-gray-900 mb-1 truncate">{item.title}</h3>
               <p className="text-xs text-gray-500">ID: {item.id}</p>
             </div>
             <div className={`text-xs px-3 py-1 rounded-full ${getApprovalStatusColor(item.status)}`}>
@@ -570,7 +570,7 @@ export default function AdviserApprovalsPage() {
                   {selectedItem.status}
                 </Badge>
               </div>
-              <div>
+              <div className="]">
                 <p className="text-sm text-gray-500 mb-1">Project Title *</p>
                 <p className="text-gray-900">{selectedItem.project || 'N/A'}</p>
               </div>
@@ -594,11 +594,9 @@ export default function AdviserApprovalsPage() {
 
             <div className="mt-4">
               <p className="text-sm font-medium text-gray-900">Reason why it was changed:</p>
+              <p className="text-sm text-purple-600 ">{selectedItem.reason || 'No reason provided'}</p>
             </div>
 
-            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-              <p className="text-sm text-purple-600 mt-2 italic">{selectedItem.reason || 'No reason provided'}</p>
-            </div>
           </div>
           
         )}
@@ -608,11 +606,11 @@ export default function AdviserApprovalsPage() {
                   Cancel
                 </Button>
                 <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }} >
-                   <XCircle className="w-4 h-4 text-red-600" />
+                   {/* <XCircle className="w-4 h-4 text-red-600" /> */}
                   Reject
                 </Button>
                 <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
-                  <CheckCircle className="w-4 h-4 text-white-600" />
+                  {/* <CheckCircle className="w-4 h-4 text-white-600" /> */}
                   Approve
                 </Button>
               </div>
@@ -835,16 +833,16 @@ export default function AdviserApprovalsPage() {
 
               <div className="col-span-2">
                 <p className="text-sm text-gray-500 mb-1">Proof Document *</p>
-                {selectedItem.ledger_proof || selectedItem.project_proof ? (
+                {selectedItem?.ledger_proof ? (
                    <div className="flex items-center justify-between">
                                      <div className="flex items-center gap-3">
                                        <FileText className="w-8 h-8 text-blue-600" />
                                        <div>
                                          <p className="text-sm font-medium text-gray-900">
-                                           {(selectedItem.ledger_proof || selectedItem.project_proof).split('/').pop()}
+                                           {selectedItem.ledger_proof.split('/').pop()}
                                          </p>
                                          <p className="text-xs text-gray-500">
-                                           {(selectedItem.ledger_proof || selectedItem.project_proof).split('.').pop().toUpperCase()} file
+                                           {selectedItem.ledger_proof.split('.').pop().toUpperCase()} file
                                          </p>
                                        </div>
                                      </div>
@@ -959,11 +957,11 @@ export default function AdviserApprovalsPage() {
 
 {/* Modal for Proof Document Viewer - Project or Ledger */}
             <Modal open={showLedgerProofViewer} onClose={() => { setShowLedgerProofViewer(false); }} title="Proof Document">
-              {selectedItem && (selectedItem?.ledger_proof || selectedItem?.project_proof) && (
+              {selectedItem && (selectedItem?.approvalType === 'ledger' ? selectedItem?.ledger_proof : selectedItem?.project_proof) && (
                 <div className="space-y-4 pt-6">
                   <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
                     {(() => {
-                      const proofPath = selectedItem.ledger_proof || selectedItem.project_proof;
+                      const proofPath = selectedItem?.approvalType === 'ledger' ? selectedItem?.ledger_proof : selectedItem?.project_proof;
                       const proofUrl = proofPath.startsWith('/') 
                         ? proofPath 
                         : `/${proofPath}`;
@@ -1018,7 +1016,7 @@ export default function AdviserApprovalsPage() {
                     <Button 
                       className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
                       onClick={() => {
-                        const proofPath = selectedItem.ledger_proof || selectedItem.project_proof;
+                        const proofPath = selectedItem?.approvalType === 'ledger' ? selectedItem?.ledger_proof : selectedItem?.project_proof;
                         const proofUrl = proofPath.startsWith('/') 
                           ? proofPath 
                           : `/${proofPath}`;
@@ -1035,20 +1033,16 @@ export default function AdviserApprovalsPage() {
 
      {/* Reject Confirmation Modal */}
 <Modal open={showConfirmReject} onClose={() => setShowConfirmReject(false)} title="Confirm Rejection">
-  <div className="space-y-4 pt-4">
-    <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-lg p-4">
-      <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-      <div>
-        <p className="font-semibold text-red-900">Are you sure?</p>
-        <p className="text-sm text-red-700 mt-1">
+  <div className="pt-4">
+    <p className="font-semibold text-gray-900">Are you sure?</p>
+    
+    <p className="text-sm text-gray-700">
           This submission will be rejected with the reason: 
-          <span className="font-medium block mt-1 p-2 bg-white rounded border border-red-200">
+          <span className="font-medium block mt-1 p-2 bg-white rounded border border-red-200 mt-2 text-red-600">
             "{rejectReason}"
           </span>
         </p>
-      </div>
-    </div>
-    <div className="flex gap-3">
+    <div className="flex gap-3 mt-4">
       <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowConfirmReject(false)}>
         Cancel
       </Button>

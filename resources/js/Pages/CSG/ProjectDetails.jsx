@@ -55,6 +55,19 @@ function renderStars(value) {
   ));
 }
 
+function getMinimumStartDate() {
+  const today = new Date();
+  const nextMonth = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 21);
+  return nextMonth.toISOString().split('T')[0];
+}
+
+function getMinimumEndDate(startDate) {
+  if (!startDate) return null;
+  const start = new Date(startDate);
+  const minEndDate = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+  return minEndDate.toISOString().split('T')[0];
+}
+
 import {
   EditProjectModal,
   AddLedgerModal,
@@ -231,6 +244,8 @@ const getTypeColor = (type) => {
     case 'Expense': return 'bg-red-100 text-red-700';
     case 'Income': return 'bg-green-100 text-green-700';
     case 'Initial': return 'bg-indigo-100 text-indigo-700';
+     case 'Initial Transfer': return 'bg-indigo-100 text-indigo-700';
+      case 'Transfer': return 'bg-yellow-100 text-yellow-700';
     case 'Donation': return 'bg-blue-100 text-blue-700';
     case 'Sponsorship': return 'bg-purple-100 text-purple-700';
     case 'Canvas': return 'bg-gray-100 text-gray-700';
@@ -243,6 +258,8 @@ const getTypeAmountColor = (type) => {
     case 'Expense': return 'text-red-700';
     case 'Income': return 'text-green-700';
     case 'Initial': return 'text-indigo-700';
+    case 'Initial Transfer': return 'text-indigo-700';
+      case 'Transfer': return 'text-yellow-700';
     case 'Donation': return 'text-green-700';
     case 'Sponsorship': return 'text-green-700';
     case 'Canvas': return ' text-gray-700';
@@ -259,18 +276,39 @@ const canChangeDatesRequest = (project) => {
   return now < startDate;
 };
 
-// Check if the change date button should be disabled
-const isChangeDateButtonDisabled = () => {
-  if (!project.startDate) return true;
+//dont show the change date button if the project is completed or ongoing also if it is not approved or pending adviser approval
+const shouldShowChangeDateButton = (project) => {
+  const status = getCalculatedStatus(project);
+  const isApprovedOrPending = ['Approved'].includes(project.approvalStatus);
+  const now = new Date();
+  const startDate = new Date(project.startDate);
+
+  return now < startDate && isApprovedOrPending && (status === 'Upcoming' || status === 'Draft');
+};
+
+// Helper function outside component
+const formatDateRange = (startDate, endDate) => {
+  const formatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+  // Or use date-fns:
+  // return `${format(new Date(startDate), 'MMM d, yyyy')} to ${format(new Date(endDate), 'MMM d, yyyy')}`;
   
+  return new Date(startDate).toLocaleDateString('en-US', formatOptions) + 
+         ' to ' + 
+         new Date(endDate).toLocaleDateString('en-US', formatOptions);
+};
+
+// Check if the change date button should be disabled
+const isChangeDateButtonDisabled = (project, dateChangeRequests) => {
+  if (!project?.startDate) return true;
+
   // Disable if there's a pending date change request
-  if (dateChangeRequests.length > 0) {
+  if (Array.isArray(dateChangeRequests) && dateChangeRequests.length > 0) {
     const latestRequest = dateChangeRequests[0];
-    if (latestRequest.status === 'pending') {
+    if (latestRequest?.status === 'pending') {
       return true;
     }
   }
-  
+
   // Disable if start date has already passed
   const now = new Date();
   const startDate = new Date(project.startDate);
@@ -281,6 +319,7 @@ const getStatusIcon = (status) => {
   switch (status) {
     case 'Approved': return <CheckCircle className="w-4 h-4 text-green-600" />;
     case 'Pending Adviser Approval': return <Clock className="w-4 h-4 text-yellow-600" />;
+    case 'Rejected': return <AlertCircle className="w-4 h-4 text-red-600" />;
     case 'Draft': return <Clock className="w-4 h-4 text-gray-600" />;
     default: return null;
   }
@@ -446,6 +485,10 @@ export function CSGProjectDetailsPage({
   const isApproved = project.approvalStatus === 'Approved';
   const shouldShowNotes = isApprovedOrPending || project.approvalStatus === 'Rejected';
 
+  const latestDateChangeRequest = Array.isArray(dateChangeRequests) && dateChangeRequests.length > 0 ? dateChangeRequests[0] : null;
+  const isDateChangePending = latestDateChangeRequest?.status === 'pending';
+  const dateChangeButtonDisabled = isChangeDateButtonDisabled(project, dateChangeRequests);
+
 //when the use request for change date shows the proposed date change if the request is pending or approved
 const getDateChangeBadgeClass = (status) => {
   switch (status) {
@@ -476,7 +519,7 @@ const getDateChangeStatusBadge = () => {
       label = 'Date Change Pending';
       break;
     case 'approved':
-      badgeClass = 'bg-green-100 text-green-700';
+      badgeClass = 'bg-blue-100 text-blue-700';
       label = 'Date Change Approved';
       break;
     case 'rejected':
@@ -500,7 +543,7 @@ const getDateTextClass = () => {
     case 'pending':
       return 'text-yellow-600';
     case 'approved':
-      return 'text-green-600';
+      return 'text-blue-600';
     case 'rejected':
       return 'text-red-600';
     default:
@@ -1196,6 +1239,8 @@ function maskUserName(fullName) {
         throw new Error(error.message || 'Failed to submit date change request');
       }
 
+      const responseData = await response.json();
+      setDateChangeRequests((prev) => [responseData.data, ...(Array.isArray(prev) ? prev : [])]);
       showToastMessage('Date change request submitted successfully. It will appear in the Adviser\'s approval center.', 'success');
       setShowChangeDatesModal(false);
       setProposedStartDate('');
@@ -1529,29 +1574,35 @@ function maskUserName(fullName) {
              <div className="flex items-center mb-2">
                 <Calendar className="w-5 h-5 text-blue-600 mr-2" />
                 {/* disable the button when there is already a pending date change request */}
-                 {canChangeDatesRequest(project) && (
-                <Button onClick={() => setShowChangeDatesModal(true)} variant="outline" size="sm" className="bg-blue-600 text-white hover:bg-blue-700"
-                  disabled={!!getDateChangeStatusBadge()}
-                >
-                  Change Dates
-                </Button>
+                 {shouldShowChangeDateButton(project) && (
+                <Button 
+  onClick={() => setShowChangeDatesModal(true)} 
+  variant="outline" 
+  size="sm" 
+  className={`${
+    dateChangeButtonDisabled 
+      ? 'bg-gray-400' 
+      : 'bg-blue-600 hover:bg-blue-700'
+  } text-white`}
+  disabled={dateChangeButtonDisabled}
+>
+  {isDateChangePending ? 'Date Change Pending' : 'Change Date'}
+</Button>
                  )}
              </div> 
            
               <p className="text-sm text-gray-500">Timeline 
                 
               </p>
-              {getDateTextClass(getCalculatedStatus(project)) ? (
-                <p className={`text-sm font-semibold ${getDateTextClass(getCalculatedStatus(project))}`}>
-                  {formatDate(project.startDate)} to {formatDate(project.endDate)}
-                </p>
-              ) : (
-                <p className="text-sm font-semibold text-blue-700">
-                  {formatDate(project.startDate)} to {formatDate(project.endDate)}
-                </p>
-               )
-
-              }
+             {getDateTextClass(getCalculatedStatus(project)) ? (
+  <p className={`text-sm font-semibold ${getDateTextClass(getCalculatedStatus(project))}`}>
+    {formatDateRange(project.startDate, project.endDate)}
+  </p>
+) : (
+  <p className="text-sm font-semibold text-blue-700">
+    {formatDateRange(project.startDate, project.endDate)}
+  </p>
+)}
             </div>
           </div>
         </div>
@@ -1679,11 +1730,11 @@ function maskUserName(fullName) {
       <div className="border-t pt-4 mb-6">
         <div className="mb-3">
           <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-purple-600" />
+            {/* <Calendar className="w-4 h-4 text-purple-600" /> */}
             Pending Date Change
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-purple-50 p-3 rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg">
           <div>
             <p className="text-xs text-gray-600 mb-1">Current Dates</p>
             <p className="text-sm text-gray-900">{formatDate(getDateChangeStatusBadge().request.current_start_date)} to {formatDate(getDateChangeStatusBadge().request.current_end_date)}</p>
@@ -1695,15 +1746,11 @@ function maskUserName(fullName) {
         </div>
         {getDateChangeStatusBadge().request.reason && (
           <div className="mt-3">
-            <p className="text-xs text-gray-600 mb-1">Reason</p>
+            <p className="text-xs text-gray-600 ">Reason</p>
             <p className="text-sm text-gray-700">{getDateChangeStatusBadge().request.reason}</p>
           </div>
         )}
-        <div className="mt-2">
-          <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getDateChangeStatusBadge().badgeClass}`}>
-            {getDateChangeStatusBadge().label}
-          </span>
-        </div>
+       
       </div>
     )}
 
@@ -1800,10 +1847,10 @@ function maskUserName(fullName) {
                     ? 'bg-red-100 text-red-700' 
                     : verificationStatus.status === 'error'
                     ? 'bg-yellow-100 text-yellow-700'
-                    : 'bg-purple-100 text-purple-700'
+                    : 'bg-green-100 text-green-700'
                 }`}>
                   <Shield className={`w-3 h-3 mr-1 ${
-                    verificationStatus.status === 'tampering_detected' ? 'text-red-500' : 'text-purple-500'
+                    verificationStatus.status === 'tampering_detected' ? 'text-red-500' : 'text-green-500'
                   }`} />
                   {verificationStatus.status === 'tampering_detected' ? 'Tampered Alert' : 'Verified'}
                 </Badge>
@@ -1882,7 +1929,7 @@ function maskUserName(fullName) {
         const entryIsTampered = tamperedLedgerIds.has(entry.id);
         const isInitialEntry = (entry.type || '').toLowerCase() === 'initial';
         const isTransferEntry = (entry.category || '').toLowerCase() === 'transfer';
-        const canManageEntry = entry.approval_status === 'Draft' && !isLedgerDisabled && !isInitialEntry && !isTransferEntry;
+        const canManageEntry = (entry.approval_status === 'Draft' || entry.approval_status === 'Rejected') && !isLedgerDisabled && !isInitialEntry && !isTransferEntry;
         return (
           <tr
             key={entry.id}
@@ -1920,7 +1967,7 @@ function maskUserName(fullName) {
                 </Button>
                 {canManageEntry && (
                   <>
-                    <Button variant="ghost" size="sm" onClick={() => { console.log('🖱️ Desktop edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
+                    <Button variant="ghost" size="sm" onClick={() => { console.log(' Desktop edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
                       <Edit className="w-4 h-4" />
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => { setLedgerToSubmit(entry); setShowSubmitLedgerModal(true); }} className="rounded-lg">
@@ -1958,7 +2005,7 @@ function maskUserName(fullName) {
     const entryIsTampered = tamperedLedgerIds.has(entry.id);
     const isInitialEntry = (entry.type || '').toLowerCase() === 'initial';
     const isTransferEntry = (entry.category || '').toLowerCase() === 'transfer';
-    const canManageEntry = entry.approval_status === 'Draft' && !isLedgerDisabled && !isInitialEntry && !isTransferEntry;
+    const canManageEntry = (entry.approval_status === 'Draft' || entry.approval_status === 'Rejected') && !isLedgerDisabled && !isInitialEntry && !isTransferEntry;
     return (
       <Card
         key={entry.id}
@@ -2416,7 +2463,7 @@ function maskUserName(fullName) {
         <div className="flex items-center gap-3">
           <FileText className="w-8 h-8 text-blue-600" />
           <div>
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900 truncate max-w-[200px] md:max-w-[400px]">
               {selectedLedger.ledger_proof.split('/').pop()}
             </p>
             <p className="text-xs text-gray-500">
@@ -2645,7 +2692,10 @@ function maskUserName(fullName) {
               <input 
                 type="date"
                 value={proposedStartDate}
-                onChange={(e) => setProposedStartDate(e.target.value)}
+                min={getMinimumStartDate()}
+                onChange={(e) => setProposedStartDate(e.target.value
+                  
+                )}
                 className="w-full px-3 py-2 rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 border"
               />
             </div>
@@ -2653,6 +2703,7 @@ function maskUserName(fullName) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Proposed End Date</label>
               <input 
                 type="date"
+                min={getMinimumEndDate(proposedStartDate)}
                 value={proposedEndDate}
                 onChange={(e) => setProposedEndDate(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 border"

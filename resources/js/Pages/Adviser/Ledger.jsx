@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Hash,
   Clock,
+  CheckCircle,
   RotateCcw,
   Search,
   TrendingUp,
@@ -467,11 +468,11 @@ export default function LedgerApprovalsPage() {
   const getStatusBadge = (status) => {
     const baseClasses = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium';
     switch (status) {
-      case 'Approved': return <span className={`${baseClasses} bg-green-100 text-green-700`}>Approved</span>;
-      case 'Pending Adviser Approval': return <span className={`${baseClasses} bg-yellow-100 text-yellow-700`}>Pending Adviser Approval</span>;
-      case 'Rejected': return <span className={`${baseClasses} bg-red-100 text-red-700`}>Rejected</span>;
-      case 'Corrected': return <span className={`${baseClasses} bg-purple-100 text-purple-700`}>Corrected</span>;
-      case 'Draft': return <span className={`${baseClasses} bg-gray-100 text-gray-700`}>Draft</span>;
+      case 'Approved': return <span className={`${baseClasses} bg-green-100 text-green-700 gap-2`}> <CheckCircle className="w-4 h-4 text-green-600"/> Approved</span>;
+      case 'Pending Adviser Approval': return <span className={`${baseClasses} bg-yellow-100 text-yellow-700 gap-2`}> <Clock className="w-4 h-4 text-yellow-600" /> Pending Adviser Approval</span>;
+      case 'Rejected': return <span className={`${baseClasses} bg-red-100 text-red-700 gap-2`}> <AlertCircle className="w-4 h-4 text-red-600" /> Rejected</span>;
+      // case 'Corrected': return <span className={`${baseClasses} bg-purple-100 text-purple-700`}> <Pencil className="w-4 h-4 text-purple-600" /> Corrected</span>;
+      case 'Draft': return <span className={`${baseClasses} bg-gray-100 text-gray-700 gap-2`}> <Clock className="w-4 h-4 text-gray-600" /> Draft</span>;
       default: return <span className={`${baseClasses} bg-gray-100 text-gray-600`}>{status || '—'}</span>;
     }
   };
@@ -932,15 +933,13 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-gray-500">Amount</p>
-                    <p className={`text-xl ${selectedEntry.transactionType === 'Income' ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className={`text-xl ${getTypeAmountColor(selectedEntry.transactionType)}`}>
                       ₱{formatLimitedNumber(Number(selectedEntry.amount))}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Type</p>
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      selectedEntry.transactionType === 'Income' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                    }`}>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getTypeColor(selectedEntry.transactionType)}`}>
                       {selectedEntry.transactionType}
                     </span>
                   </div>

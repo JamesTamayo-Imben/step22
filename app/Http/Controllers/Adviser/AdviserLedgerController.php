@@ -369,38 +369,113 @@ class AdviserLedgerController extends Controller
             }
         }
 
+        // If no per-ledger snapshot found, handle baseline/project snapshots
         if (!$chainBlock) {
-            return back()->withErrors(['error' => 'No blockchain snapshot found for this entry']);
+            // Baseline entries (Initial / Initial Transfer) are stored in the project genesis snapshot
+            if (in_array($entry->type, ['Initial', 'Initial Transfer'], true)) {
+                foreach ($chainBlocks as $block) {
+                    $snapshot = json_decode($block->data_snapshot, true);
+                    if (is_array($snapshot) && isset($snapshot['type']) && $snapshot['type'] === 'project') {
+                        $chainBlock = $block;
+                        break;
+                    }
+                }
+            }
+
+            if (!$chainBlock) {
+                return back()->withErrors(['error' => 'No blockchain snapshot found for this entry']);
+            }
         }
 
         $snapshot = json_decode($chainBlock->data_snapshot, true);
 
-        // Update the entry with snapshot data, including budget_breakdown if tampered
-        $updateData = [
-            'description' => $snapshot['description'] ?? $entry->description,
-            'amount' => $snapshot['amount'] ?? $entry->amount,
-            'type' => $snapshot['entry_type'] ?? $entry->type,
-            'updated_by' => auth()->id(),
-        ];
-
-        // Include budget_breakdown if it exists in the snapshot
-        if (isset($snapshot['budget_breakdown'])) {
-            $updateData['budget_breakdown'] = $snapshot['budget_breakdown'];
-        }
-
-        $entry->update($updateData);
-
-        if ($entry->project) {
-            $approvedEntries = LedgerEntry::query()
+        // If the snapshot is a project-type (genesis) snapshot, restore baseline ledger + project budget
+        if (is_array($snapshot) && isset($snapshot['type']) && $snapshot['type'] === 'project') {
+            // Compute current budget from approved ledger entries for this project
+            $approvedEntries = \App\Models\User\LedgerEntry::query()
                 ->where('project_id', $entry->project_id)
                 ->where('archive', false)
                 ->where('approval_status', 'Approved')
                 ->orderBy('created_at')
                 ->get(['type', 'amount']);
 
-            if ($approvedEntries->isNotEmpty()) {
-                $entry->project->budget = ProjectBudgetCalculator::fromLedgerEntries($approvedEntries);
+            $computedBudget = \App\Support\ProjectBudgetCalculator::fromLedgerEntries($approvedEntries);
+
+            $snapshotAmount = isset($snapshot['amount']) ? (float) $snapshot['amount'] : null;
+
+            // If there's a budget mismatch between snapshot and computed budget, prefer computed budget as the fix
+            $useComputedBudget = false;
+            if ($snapshotAmount !== null) {
+                $useComputedBudget = \App\Support\ProjectBudgetCalculator::hasMismatch($snapshotAmount, $computedBudget, $approvedEntries->isNotEmpty());
+            }
+
+            if ($entry->project) {
+                if ($useComputedBudget) {
+                    $entry->project->budget = $computedBudget;
+                } elseif ($snapshotAmount !== null) {
+                    $entry->project->budget = $snapshotAmount;
+                }
                 $entry->project->save();
+            }
+
+            // Update the baseline ledger entry for the project (if present)
+            $baselineEntry = \App\Models\User\LedgerEntry::query()
+                ->where('project_id', $entry->project_id)
+                ->where('archive', 0)
+                ->where(function ($query) {
+                    $query->where('type', 'Initial')
+                        ->orWhere(function ($subQuery) {
+                            $subQuery->where('type', 'Initial Transfer')
+                                ->where('category', 'Transfer');
+                        });
+                })
+                ->orderByRaw("CASE WHEN type = 'Initial' THEN 0 ELSE 1 END")
+                ->orderBy('created_at', 'asc')
+                ->first();
+
+            if ($baselineEntry) {
+                // If using computed budget, update baseline to match computed budget so project totals align
+                $baselineAmountToUse = $useComputedBudget ? $computedBudget : ($snapshotAmount ?? $baselineEntry->amount);
+
+                $baselineUpdate = [
+                    'description' => $snapshot['description'] ?? $baselineEntry->description,
+                    'amount' => $baselineAmountToUse,
+                    'type' => $snapshot['entry_type'] ?? $baselineEntry->type,
+                    'updated_by' => auth()->id(),
+                ];
+                if (isset($snapshot['budget_breakdown'])) {
+                    $baselineUpdate['budget_breakdown'] = $snapshot['budget_breakdown'];
+                }
+                $baselineEntry->update($baselineUpdate);
+            }
+        } else {
+            // Update the entry with snapshot data, including budget_breakdown if tampered
+            $updateData = [
+                'description' => $snapshot['description'] ?? $entry->description,
+                'amount' => $snapshot['amount'] ?? $entry->amount,
+                'type' => $snapshot['entry_type'] ?? $entry->type,
+                'updated_by' => auth()->id(),
+            ];
+
+            // Include budget_breakdown if it exists in the snapshot
+            if (isset($snapshot['budget_breakdown'])) {
+                $updateData['budget_breakdown'] = $snapshot['budget_breakdown'];
+            }
+
+            $entry->update($updateData);
+
+            if ($entry->project) {
+                $approvedEntries = LedgerEntry::query()
+                    ->where('project_id', $entry->project_id)
+                    ->where('archive', false)
+                    ->where('approval_status', 'Approved')
+                    ->orderBy('created_at')
+                    ->get(['type', 'amount']);
+
+                if ($approvedEntries->isNotEmpty()) {
+                    $entry->project->budget = ProjectBudgetCalculator::fromLedgerEntries($approvedEntries);
+                    $entry->project->save();
+                }
             }
         }
 

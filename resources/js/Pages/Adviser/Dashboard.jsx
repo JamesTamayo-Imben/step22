@@ -182,6 +182,15 @@ export function AdminAdviserDashboard({
         />
       </div>
 
+       <Card className="p-6 bg-blue-50 border border-blue-500 p-4 rounded-xlshadow-sm ">
+        <div className="">
+          
+            <h1 className="text-blue-700">Project Recommendations</h1>
+            <p className="text-base text-gray-700">There are no recommended projects as of now because the cycle has not begun yet.</p>
+          
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-6 rounded-2xl border-0 shadow-sm bg-white">
           <div className="flex items-center justify-between mb-4">
@@ -238,15 +247,6 @@ export function AdminAdviserDashboard({
         </Card>
       </div>
 
-
-      <Card className="p-6 bg-blue-50 border border-blue-500 p-4 rounded-xlshadow-sm ">
-        <div className="">
-          
-            <h1 className="text-blue-700">Project Recommendations</h1>
-            <p className="text-base text-gray-700">There are no recommended projects as of now because the cycle has not begun yet.</p>
-          
-        </div>
-      </Card>
     </div>
 
     

@@ -226,8 +226,6 @@ class AdviserApprovalController extends Controller
             'note' => $notes,
         ]);
 
-        $this->syncProjectLedgerApprovalStatus($project, 'Approved', $userId);
-
         // Create genesis block in blockchain for this project
         try {
             BlockchainService::createGenesisBlock($project->id, [
@@ -239,19 +237,13 @@ class AdviserApprovalController extends Controller
             Log::error('Failed to create genesis block for project: ' . $e->getMessage());
         }
 
-        // Approve and chain the initial baseline ledger when project is first approved.
+        // Chain baseline and transfer ledger entries before syncing approval status.
+        // syncProjectLedgerApprovalStatus marks Initial/Transfer rows as Approved first,
+        // which previously prevented them from ever being added to the chain.
         if (! $wasApproved) {
             $initialLedger = $this->getInitialLedgerEntry($project);
 
-            if ($initialLedger && $initialLedger->approval_status !== 'Approved') {
-                $initialLedger->update([
-                    'approval_status' => 'Approved',
-                    'approved_by' => $userId,
-                    'approved_at' => now(),
-                    'updated_by' => $userId,
-                    'note' => $initialLedger->note ?: 'Auto-approved with project approval',
-                ]);
-
+            if ($initialLedger && ! BlockchainService::ledgerHasChainBlock($initialLedger->id, $project->id)) {
                 try {
                     BlockchainService::addBlockToChain($initialLedger->id, $project->id, [
                         'description' => $initialLedger->description,
@@ -263,7 +255,6 @@ class AdviserApprovalController extends Controller
                 }
             }
 
-            // Also automatically approve connected transfer ledger entries when the project is approved.
             $transferEntries = LedgerEntry::query()
                 ->where('category', 'Transfer')
                 ->where('archive', false)
@@ -274,18 +265,7 @@ class AdviserApprovalController extends Controller
                 ->get();
 
             foreach ($transferEntries as $transferEntry) {
-                $shouldUpdateApproval = $transferEntry->approval_status !== 'Approved';
-
-                if ($shouldUpdateApproval) {
-                    $transferEntry->update([
-                        'approval_status' => 'Approved',
-                        'approved_by' => $userId,
-                        'approved_at' => now(),
-                        'updated_by' => $userId,
-                        'rejected_at' => null,
-                        'note' => 'Auto-approved with project approval',
-                    ]);
-
+                if (! BlockchainService::ledgerHasChainBlock($transferEntry->id, $transferEntry->project_id)) {
                     try {
                         BlockchainService::addBlockToChain($transferEntry->id, $transferEntry->project_id, [
                             'description' => $transferEntry->description,
@@ -316,6 +296,8 @@ class AdviserApprovalController extends Controller
                 }
             }
         }
+
+        $this->syncProjectLedgerApprovalStatus($project, 'Approved', $userId);
 
         $this->writeAudit(
             'Project Approved',
@@ -371,6 +353,7 @@ class AdviserApprovalController extends Controller
     private function approveDateChangeRequest(string $id, $userId, string $notes = ''): void
     {
         $request = DateChangeRequest::where('id', $id)->firstOrFail();
+
         $request->update([
             'status' => 'approved',
             'approved_by' => $userId,
@@ -378,6 +361,15 @@ class AdviserApprovalController extends Controller
             'updated_by' => $userId,
             'rejection_reason' => $notes,
         ]);
+
+        $project = $request->project;
+        if ($project) {
+            $project->update([
+                'start_date' => $request->proposed_start_date,
+                'end_date' => $request->proposed_end_date,
+                'updated_by' => $userId,
+            ]);
+        }
 
         $this->writeAudit(
             'Date Change Request Approved',
@@ -736,6 +728,10 @@ class AdviserApprovalController extends Controller
     {
         if (! $project) {
             return null;
+        }
+
+        if (! empty($project->project_proof)) {
+            return $project->project_proof;
         }
 
         $initialLedger = $this->getInitialLedgerEntry($project);

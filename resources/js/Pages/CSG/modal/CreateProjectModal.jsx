@@ -84,9 +84,10 @@ function Select({ className = '', children, value, onValueChange, ...props }) {
 
 // ─── Helper Functions ───────────────────────────────────────────────────────
 
+//the start date will be at least 3 weeks from today
 function getMinimumStartDate() {
   const today = new Date();
-  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  const nextMonth = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 21);
   return nextMonth.toISOString().split('T')[0];
 }
 
@@ -561,7 +562,7 @@ export function CreateProjectModal({
           </div>
         </div>
 
-        {/* Proposed By */}
+        {/* Proposed By */} 
         <div>
           <FieldLabel>Proposed by *</FieldLabel>
           <Input

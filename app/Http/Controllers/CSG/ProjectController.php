@@ -191,7 +191,7 @@ class ProjectController extends Controller
                     $transferApprovalStatus = $project->approval_status === 'Approved' ? 'Approved' : 'Draft';
                     //transferNote
 
-                    LedgerEntry::create([
+                    $sourceTransferEntry = LedgerEntry::create([
                         'id' => (string) Str::uuid(),
                         'project_id' => $sourceProject->id,
                         // 'type' => 'Expense',
@@ -209,7 +209,17 @@ class ProjectController extends Controller
                         'updated_at' => now(),
                     ]);
 
-                    LedgerEntry::create([
+                    try {
+                        \App\Support\BlockchainService::addBlockToChain($sourceTransferEntry->id, $sourceTransferEntry->project_id, [
+                            'description' => $sourceTransferEntry->description,
+                            'amount' => $sourceTransferEntry->amount,
+                            'type' => $sourceTransferEntry->type,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to add blockchain block for source transfer entry: ' . $e->getMessage(), ['ledger_id' => $sourceTransferEntry->id]);
+                    }
+
+                    $destInitialTransferEntry = LedgerEntry::create([
                         'id' => (string) Str::uuid(),
                         'project_id' => $project->id,
                         'type' => 'Initial Transfer',
@@ -225,6 +235,16 @@ class ProjectController extends Controller
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+
+                    try {
+                        \App\Support\BlockchainService::addBlockToChain($destInitialTransferEntry->id, $destInitialTransferEntry->project_id, [
+                            'description' => $destInitialTransferEntry->description,
+                            'amount' => $destInitialTransferEntry->amount,
+                            'type' => $destInitialTransferEntry->type,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to add blockchain block for destination initial transfer entry: ' . $e->getMessage(), ['ledger_id' => $destInitialTransferEntry->id]);
+                    }
                 }
             }
 
@@ -281,6 +301,7 @@ class ProjectController extends Controller
             
             $responseData = $project->toArray();
             $responseData['project_proof'] = $proofPath;
+            $responseData['project_proof_url'] = $project->project_proof_url;
             if ($initialLedger) {
                 $responseData['initial_ledger'] = [
                     'id' => $initialLedger->id,
@@ -810,9 +831,16 @@ class ProjectController extends Controller
         $fileName = $fileHash . ($extension ? '.' . $extension : '');
         Storage::disk('public')->putFileAs('ledger_proofs', $file, $fileName);
 
-        $initialLedger->ledger_proof = 'storage/ledger_proofs/' . $fileName;
+        $proofPath = 'storage/ledger_proofs/' . $fileName;
+
+        $initialLedger->ledger_proof = $proofPath;
         $initialLedger->file_content_hash = $fileHash;
         $initialLedger->save();
+
+        // Also store the proof metadata on the project so advisers can see it directly.
+        $project->project_proof = $proofPath;
+        $project->file_content_hash = $fileHash;
+        $project->save();
 
         $this->syncTransferProofToPairedEntry($initialLedger);
 
@@ -846,6 +874,10 @@ class ProjectController extends Controller
     {
         if (!$project) {
             return null;
+        }
+
+        if (!empty($project->project_proof)) {
+            return $project->project_proof;
         }
 
         $initialLedger = $this->getInitialLedgerEntry($project);
@@ -1162,9 +1194,17 @@ class ProjectController extends Controller
 
     protected function findProjectBaselineEntry(string $projectId): ?LedgerEntry
     {
-        return LedgerEntry::where('project_id', $projectId)
-            ->where('type', 'Initial')
+        return LedgerEntry::query()
+            ->where('project_id', $projectId)
             ->where('archive', 0)
+            ->where(function ($query) {
+                $query->where('type', 'Initial')
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('type', 'Initial Transfer')
+                            ->where('category', 'Transfer');
+                    });
+            })
+            ->orderByRaw("CASE WHEN type = 'Initial' THEN 0 ELSE 1 END")
             ->orderBy('created_at')
             ->first();
     }

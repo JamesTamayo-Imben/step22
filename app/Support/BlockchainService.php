@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Chain;
 use App\Models\User\LedgerEntry;
+use App\Models\User\Project;
 use Illuminate\Support\Str;
 
 class BlockchainService
@@ -111,6 +112,42 @@ class BlockchainService
     }
 
     /**
+     * Check whether a ledger entry already has a block in the project chain.
+     */
+    public static function ledgerHasChainBlock(string $ledgerId, string $projectId): bool
+    {
+        return Chain::where('project_id', $projectId)
+            ->get()
+            ->contains(function ($block) use ($ledgerId) {
+                $snapshot = json_decode($block->data_snapshot, true);
+
+                return is_array($snapshot)
+                    && ($snapshot['type'] ?? '') === 'ledger'
+                    && ($snapshot['ledger_id'] ?? '') === $ledgerId;
+            });
+    }
+
+    /**
+     * Resolve the baseline Initial or Initial Transfer entry for a project.
+     */
+    private static function getBaselineLedgerEntry(string $projectId): ?LedgerEntry
+    {
+        return LedgerEntry::query()
+            ->where('project_id', $projectId)
+            ->where('archive', 0)
+            ->where(function ($query) {
+                $query->where('type', 'Initial')
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('type', 'Initial Transfer')
+                            ->where('category', 'Transfer');
+                    });
+            })
+            ->orderByRaw("CASE WHEN type = 'Initial' THEN 0 ELSE 1 END")
+            ->orderBy('created_at', 'asc')
+            ->first();
+    }
+
+    /**
      * Verify the integrity of the blockchain for a project
      * Returns detailed verification result
      */
@@ -166,9 +203,30 @@ class BlockchainService
                 }
             }
 
-            // Verify snapshot matches current ledger data (for ledger blocks)
+            // Verify snapshot matches current project/ledger data
             $snapshot = json_decode($block->data_snapshot, true);
-            if (is_array($snapshot) && isset($snapshot['type']) && $snapshot['type'] === 'ledger') {
+            $tamperedLedgerId = null;
+
+            if (is_array($snapshot) && isset($snapshot['type']) && $snapshot['type'] === 'project') {
+                $project = Project::find($snapshot['project_id'] ?? $projectId);
+                $baselineEntry = self::getBaselineLedgerEntry($projectId);
+                $snapshotAmount = (float) ($snapshot['amount'] ?? 0);
+
+                if ($baselineEntry) {
+                    $tamperedLedgerId = $baselineEntry->id;
+                }
+
+                if ($project && (float) $project->budget !== $snapshotAmount) {
+                    $issues[] = "Project budget tampered: snapshot {$snapshotAmount}, current {$project->budget}";
+                    $chainBroken = true;
+                }
+
+                if ($baselineEntry && (float) $baselineEntry->amount !== $snapshotAmount) {
+                    $issues[] = "Initial budget tampered: snapshot {$snapshotAmount}, current {$baselineEntry->amount}";
+                    $chainBroken = true;
+                }
+            } elseif (is_array($snapshot) && isset($snapshot['type']) && $snapshot['type'] === 'ledger') {
+                $tamperedLedgerId = $snapshot['ledger_id'] ?? null;
                 $currentEntry = LedgerEntry::where('id', $snapshot['ledger_id'])->first();
                 if (!$currentEntry) {
                     $issues[] = 'Ledger entry deleted';
@@ -221,7 +279,7 @@ class BlockchainService
                 $tamperedBlocks[] = [
                     'blockIndex' => $block->block_index,
                     'blockId' => $block->id,
-                    'ledgerId' => $snapshot['ledger_id'] ?? null,
+                    'ledgerId' => $tamperedLedgerId,
                     'issues' => $issues,
                 ];
             }

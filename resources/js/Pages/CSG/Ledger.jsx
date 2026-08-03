@@ -230,6 +230,11 @@ function LedgerPageInner() {
   const budgetDifference = (Number(totalBudget) || 0) - computedBudgetFromLedger;
   const isBudgetTampered = isDataLoaded && approvedLedgerEntries.length > 0 && Math.abs(budgetDifference) > 0.01;
 
+  //if the ledger entry is a initial, initial transfer or transfer it should not be edited directly in the ledger entry
+  const isEditable = (entry) => {
+    return !['Initial', 'Initial Transfer', 'Transfer'].includes(entry.type);
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -890,7 +895,7 @@ const getTypeAmountColor = (type) => {
             <Button
             onClick={() => setShowAddModal(true)}
             className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={allProjects.length === 0}
+            disabled={allProjects.length === 0 || hasTamperedEntries}
             title={allProjects.length === 0 ? 'No projects available. Create a project first.' : undefined}
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -1046,7 +1051,7 @@ const getTypeAmountColor = (type) => {
        <div className="space-y-3">
         {currentItems.map((entry) => {
           // const entryLocked = isProjectLocked(entry.project_id);
-          const isInitialEntry = ['Initial', 'initial transfer'].includes((entry.type || '').toLowerCase()) || (entry.type || '').toLowerCase() === 'transfer';
+          const isInitialEntry = ['initial', 'initial transfer'].includes((entry.type || '').toLowerCase()) || (entry.type || '').toLowerCase() === 'transfer';
          const entryLocked = isProjectLocked(entry.project_id) && !isInitialEntry;
           return (
          <Card key={entry.id} className={`rounded-xl border-0 shadow-sm transition-all duration-200 overflow-x-auto ${
@@ -1075,7 +1080,7 @@ const getTypeAmountColor = (type) => {
                   </Badge> */}
 
                    {/* Category Section */}
-                <div>
+                <div className="flex flex-col min-w-0">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Project Title</p>
                   <p className="text-xs text-gray-700 font-medium truncate">{entry.projectName || '—'}</p>
                 </div>
@@ -1126,30 +1131,22 @@ const getTypeAmountColor = (type) => {
                   
                   {(entry.status === 'Draft' || entry.status === 'Rejected') && !isInitialEntry && (
                     <>
+                     {isEditable(entry) && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => {
                           setSelectedEntry(entry);
                           setLedgerForm({
-                            id: entry.id,
                             type: entry.type,
-                            amount: entry.amount?.toString() || '',
-                            description: entry.description || '',
+                            amount: entry.amount,
+                            description: entry.description,
                             category: entry.category || '',
-                            project_id: entry.project_id || entry.project_id || '',
-                            project: entry.project || entry.projectName || '',
+                            project_id: entry.project_id,
                             referenceNumber: entry.referenceNumber || '',
-                            requiresProof: entry.requiresProof ?? true,
-                            existingProof: entry.ledger_proof || (entry.documents && entry.documents.length > 0),
+                            requiresProof: entry.requiresProof || false,
                           });
-                          setEditBudgetItems(entry.budgetBreakdown && entry.budgetBreakdown.length ? entry.budgetBreakdown.map((item, idx) => ({
-                            id: item.id ?? idx + 1,
-                            item: item.item || item.name || '',
-                            qty: parseFloat(item.qty || item.quantity || 1),
-                            unitPrice: parseFloat(item.unitPrice || item.rate || 0),
-                            amount: parseFloat(item.amount || 0),
-                          })) : [{ id: 1, item: '', qty: 1, unitPrice: 0, amount: 0 }]);
+                          setEditBudgetItems(entry.budgetBreakdown || [{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
                           setShowEditModal(true);
                         }}
                         className="h-7 text-xs rounded-md hover:bg-gray-100 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1157,6 +1154,8 @@ const getTypeAmountColor = (type) => {
                       >
                         <Edit className="w-3.5 h-3.5 mr-1" /> 
                       </Button>
+                    )
+                     }
                       <Button
                         variant="ghost"
                         size="sm"
@@ -1784,7 +1783,7 @@ const getTypeAmountColor = (type) => {
                    <div className="flex items-center gap-3">
                      <FileText className="w-8 h-8 text-blue-600" />
                      <div>
-                       <p className="text-sm font-medium text-gray-900">
+                       <p className="text-sm font-medium text-gray-900 truncate max-w-[200px] md:max-w-[400px">
                          {selectedEntry.ledger_proof.split('/').pop()}
                        </p>
                        <p className="text-xs text-gray-500">
