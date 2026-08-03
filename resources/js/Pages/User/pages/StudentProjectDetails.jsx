@@ -20,6 +20,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [activeRatingTab, setActiveRatingTab] = useState('satisfaction');
   const [selectedLedgerEntry, setSelectedLedgerEntry] = useState(null);
   const [selectedProofDocument, setSelectedProofDocument] = useState(null);
+  const [selectedApprovalCopy, setSelectedApprovalCopy] = useState(null);
   const [showAllComments, setShowAllComments] = useState(false);
 
   // Check if user has already rated this project
@@ -43,6 +44,43 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
     if (!path) return '#';
     if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/')) return path;
     return `/${path}`;
+  };
+
+  const renderProofPreview = (proofPath, altText = 'Proof Document') => {
+    if (!proofPath) return null;
+
+    const proofUrl = getProofUrl(proofPath);
+    const fileExtension = (proofPath.split('.').pop() || '').toLowerCase();
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+    if (imageExtensions.includes(fileExtension)) {
+      return <img src={proofUrl} alt={altText} className="w-full h-auto max-h-[420px] object-contain rounded-lg" />;
+    }
+
+    if (fileExtension === 'pdf') {
+      return (
+        <div className="space-y-3">
+          <iframe src={proofUrl} className="w-full h-[420px] rounded-lg border-0" title={altText} />
+          <a href={proofUrl} target="_blank" rel="noreferrer" className="inline-flex items-center bg-blue-600 text-white rounded-lg border border-blue-300 px-3 py-2 text-sm font-medium hover:bg-blue-700">
+            Open PDF in new tab
+          </a>
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center">
+        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+        <p className="text-sm font-medium text-gray-700">Preview unavailable</p>
+        <p className="text-xs text-gray-500 mt-1">This file type cannot be previewed inline.</p>
+      </div>
+    );
+  };
+
+  const getProjectApprovalProof = () => {
+    const candidate = currentProject?.project_proof || currentProject?.projectProof || currentProject?.approval_copy || currentProject?.approvalCopy || null;
+    if (!candidate) return null;
+    return typeof candidate === 'string' ? candidate : null;
   };
 
   // Calculate project status based on approval status and dates
@@ -342,7 +380,7 @@ function maskUserName(fullName) {
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-blue-50">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Overview</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
           <div className="rounded-2xl border border-blue-100 bg-white p-4 md:p-5">
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className='col-span-2 mb-4'>
@@ -368,21 +406,40 @@ function maskUserName(fullName) {
             </div>
           </div>
 
-           <div className="">
-                        <p className="text-lg font-semibold text-gray-900">Project Approval Copy</p>
-                        <div>
-                          {/* //display the image attached to the project approval copy */}
-                          {project.approvalCopy ? (
-                            <img src={project.approvalCopy} alt="Project Approval Copy" className="w-full h-auto rounded-lg mt-2" />
+           <div className="col-span-full">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-lg font-semibold text-gray-900">Project Approval Copy</p>
+                          {/* {getProjectApprovalProof() && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedApprovalCopy({
+                                path: getProjectApprovalProof(),
+                                fileName: 'Project Approval Copy',
+                                description: 'Approved proposal copy uploaded by the adviser.'
+                              })}
+                              className="text-sm font-medium text-blue-700 hover:text-blue-800"
+                            >
+                              View in modal
+                            </button>
+                          )} */}
+                        </div>
+                        <div className="mt-3">
+                          {getProjectApprovalProof() ? (
+                            <div className="rounded-xl border border-blue-100 bg-white p-4">
+                              {(() => {
+                                const proofPath = getProjectApprovalProof();
+                                return renderProofPreview(proofPath, 'Project Approval Copy');
+                              })()}
+                            </div>
                           ) : (
                             <div className="text-center mt-6">
                       <FolderKanban className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <p className="text-sm text-gray-500">No approval copy available</p>
                       <p className="text-xs text-gray-400 mt-1 mb-4">
-                        Please upload the approval copy to view it here.
+                        The approved proposal copy has not been uploaded yet.
                       </p>
                     </div>
-                          )}  
+                          )}
                         </div>
                       </div>
           </div>
@@ -450,17 +507,17 @@ function maskUserName(fullName) {
       )}
 
       {activeTab === 'proof' && (
-        <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-indigo-50">
+        <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-blue-50">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Project Transaction Proof</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(currentProject.proofDocuments || []).map((proof) => (
               <button
                 key={proof.id}
                 onClick={() => setSelectedProofDocument(proof)}
-                className="border border-indigo-100 bg-white rounded-xl p-4 text-left hover:shadow-md transition-shadow"
+                className="border border-blue-100 bg-white rounded-xl p-4 text-left hover:shadow-md transition-shadow"
               >
                <div className="flex items-center gap-2 mb-3">
-  <FileText className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+  <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
   <div className="min-w-0 flex-1">
     <p className="font-medium text-gray-900 truncate">{proof.fileName}</p>
     <p className="text-xs text-gray-500 truncate">Linked: {proof.linkedTransaction}</p>
@@ -469,15 +526,16 @@ function maskUserName(fullName) {
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-500">{proof.uploadDate}</p>
                   <div className="flex items-center gap-2">
-                    <a
-                      href={getProofUrl(proof.ledgerProof)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs px-2 py-1 rounded-md border border-indigo-300 text-indigo-700 hover:bg-indigo-50"
-                      onClick={(e) => e.stopPropagation()}
+                    <button
+                      type="button"
+                      className="text-xs px-2 py-1 rounded-md border border-blue-300 text-white bg-blue-600 hover:bg-blue-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedProofDocument(proof);
+                      }}
                     >
                       View Proof
-                    </a>
+                    </button>
                     <Badge className="bg-green-100 text-green-700">{proof.status}</Badge>
                   </div>
                 </div>
@@ -704,19 +762,58 @@ function maskUserName(fullName) {
       </StudentModal>
 
       <StudentModal
+        isOpen={!!selectedApprovalCopy}
+        onClose={() => setSelectedApprovalCopy(null)}
+        title="Project Approval Copy"
+      >
+        {selectedApprovalCopy && (
+          <div className="space-y-4 pt-2">
+            <div className="rounded-2xl bg-blue-50 border border-blue-200 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-gray-900">{selectedApprovalCopy.fileName || 'Project Approval Copy'}</p>
+                  <p className="text-xs text-gray-600 mt-1">Approved proposal copy uploaded by the adviser.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-blue-100 bg-white p-3">
+              {renderProofPreview(selectedApprovalCopy.path, 'Project Approval Copy')}
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl bg-blue-50 border border-blue-100 p-3">
+              <p className="text-sm text-blue-800">Open uploaded approval copy</p>
+              <a
+                href={getProofUrl(selectedApprovalCopy.path)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs px-3 py-1.5 rounded-md border border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                View File
+              </a>
+            </div>
+          </div>
+        )}
+      </StudentModal>
+
+      <StudentModal
         isOpen={!!selectedProofDocument}
         onClose={() => setSelectedProofDocument(null)}
         title="Proof Document Details"
       >
         {selectedProofDocument && (
           <div className="space-y-4 pt-2">
-            <div className="rounded-2xl bg-indigo-50 border border-indigo-200 p-4">
+            <div className="rounded-2xl bg-blue-50 border border-blue-200 p-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-gray-900">{selectedProofDocument.fileName || 'Proof Document'}</p>
-                  <p className="text-xs text-gray-600 mt-1 truncate">Document ID: {selectedProofDocument.id}</p>
+                <div className="">
+                  <div className="flex flex-col max-w-48">
+                    <p className="font-semibold text-gray-900 truncate">{selectedProofDocument.fileName || 'Proof Document'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 mt-1">Document ID: {selectedProofDocument.id}</p>
+                  </div>
                 </div>
-                <Badge className="bg-indigo-100 text-indigo-700">{selectedProofDocument.status || '-'}</Badge>
+                <Badge className="bg-blue-100 text-blue-700">{selectedProofDocument.status || '-'}</Badge>
               </div>
             </div>
 
@@ -730,17 +827,21 @@ function maskUserName(fullName) {
               <p className="text-sm text-gray-800">{selectedProofDocument.description || 'Supporting document attached to this transaction.'}</p>
             </div>
 
-            <div className="flex items-center justify-between rounded-xl bg-indigo-50 border border-indigo-100 p-3">
+            <div className="rounded-xl border border-indigo-100 bg-white p-3">
+              {renderProofPreview(selectedProofDocument.ledgerProof || selectedProofDocument.filePath || selectedProofDocument.ledgerProof, 'Proof Document')}
+            </div>
+
+            {/* <div className="flex items-center justify-between rounded-xl bg-indigo-50 border border-indigo-100 p-3">
               <p className="text-sm text-indigo-800">Open uploaded proof</p>
               <a
-                href={getProofUrl(selectedProofDocument.ledgerProof)}
+                href={getProofUrl(selectedProofDocument.ledgerProof || selectedProofDocument.filePath)}
                 target="_blank"
                 rel="noreferrer"
                 className="text-xs px-3 py-1.5 rounded-md border border-indigo-300 text-indigo-700 hover:bg-indigo-100"
               >
                 View File
               </a>
-            </div>
+            </div> */}
           </div>
         )}
       </StudentModal>

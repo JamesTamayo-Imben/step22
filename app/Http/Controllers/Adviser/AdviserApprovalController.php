@@ -13,8 +13,13 @@ use App\Models\User\Project;
 use App\Support\BlockchainService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+
+//what line the ledger entry block the showing of initial, initial transfer, and transfer entries in the pending approval list for advisers
+//in line 50, the ledger entries are filtered to exclude 'Initial' and 'Initial Transfer' types, and only include transfer entries that are either not in the 'Transfer' category or are of type 'Transfer'. This is done to ensure that advisers only see relevant ledger entries that require their approval, while excluding baseline and initial transfer entries that do not require action.
 
 class AdviserApprovalController extends Controller
 {
@@ -32,8 +37,14 @@ class AdviserApprovalController extends Controller
 
         $projects = $projectQuery->get()->map(fn (Project $p) => $this->serializeProject($p, 'Pending Approval'));
 
+        //this is for fetching all ledger entries that are pending adviser approval, excluding 'Initial' and 'Initial Transfer' types, and including transfer entries that are either not in the 'Transfer' category or are of type 'Transfer'
         $ledgerPending = LedgerEntry::query()
             ->where('approval_status', 'Pending Adviser Approval')
+            ->whereNotIn('type', ['Initial', 'Initial Transfer', 'Transfer'])
+            // ->where(function ($query) {
+            //     $query->where('category', '!=', 'Transfer') //the catehory is not transfer, or the type is transfer, then include it in the results
+            //         ->orWhere('type', 'Transfer');
+            // })
             ->with('project')
             ->orderByDesc('updated_at')
             ->get();
@@ -55,8 +66,14 @@ class AdviserApprovalController extends Controller
             ->get()
             ->map(fn (Project $p) => $this->serializeProject($p, 'Rejected'));
 
+            //this is a helper function to fetch all rejected ledger entries that are not of type Initial or Initial Transfer, and also include transfer entries that are either not in the Transfer category or are of type Transfer
         $rejectedLedger = LedgerEntry::query()
             ->where('approval_status', 'Rejected')
+            ->whereNotIn('type', ['Initial', 'Initial Transfer', 'Transfer'])
+            // ->where(function ($query) {
+            //     $query->where('category', '!=', 'Transfer')
+            //         ->orWhere('type', 'Transfer');
+            // })
             ->with('project')
             ->orderByDesc('updated_at')
             ->get()
@@ -83,8 +100,14 @@ class AdviserApprovalController extends Controller
             ->get()
             ->map(fn (Project $p) => $this->serializeProject($p, 'Approved'));
 
+            //this is a helper function to fetch all approved ledger entries that are not of type Initial or Initial Transfer, and also include transfer entries that are either not in the Transfer category or are of type Transfer
         $approvedLedger = LedgerEntry::query()
             ->where('approval_status', 'Approved')
+            ->whereNotIn('type', ['Initial', 'Initial Transfer', 'Transfer'])
+            // ->where(function ($query) {
+            //     $query->where('category', '!=', 'Transfer')
+            //         ->orWhere('type', 'Transfer');
+            // })
             ->with('project')
             ->orderByDesc('updated_at')
             ->get()
@@ -143,13 +166,14 @@ class AdviserApprovalController extends Controller
             'type' => 'required|in:project,ledger,proof,meeting,change_date,date_change',
             'id' => 'required|string',
             'notes' => 'nullable|string|max:2000',
+            'approval_copy' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
         $userId = Auth::id();
         $type = $data['type'] === 'date_change' ? 'change_date' : $data['type'];
 
         match ($type) {
-            'project' => $this->approveProject($data['id'], $userId, $data['notes'] ?? ''),
+            'project' => $this->approveProject($data['id'], $userId, $data['notes'] ?? '', $request->file('approval_copy')),
             'ledger', 'proof' => $this->approveLedger($data['id'], $userId, $data['notes'] ?? ''),
             'meeting' => $this->approveMeeting($data['id'], $data['notes'] ?? ''),
             'change_date' => $this->approveDateChangeRequest($data['id'], $userId, $data['notes'] ?? ''),
@@ -178,10 +202,22 @@ class AdviserApprovalController extends Controller
         return back();
     }
 
-    private function approveProject(string $id, $userId, string $notes = ''): void
+    private function approveProject(string $id, $userId, string $notes = '', $approvalCopy = null): void
     {
         $project = Project::where('id', $id)->where('archive', false)->firstOrFail();
         $wasApproved = $project->approval_status === 'Approved';
+        $existingProofPath = $this->getProjectProofPath($project);
+
+        if (! $approvalCopy && ! $existingProofPath) {
+            throw ValidationException::withMessages([
+                'approval_copy' => ['Please upload a PDF copy of the approved proposal before confirming approval.'],
+            ]);
+        }
+
+        if ($approvalCopy) {
+            $this->storeProjectProofOnInitialLedger($project, $approvalCopy);
+        }
+
         $project->update([
             'approval_status' => 'Approved',
             'approve_by' => (string) $userId,
@@ -189,6 +225,8 @@ class AdviserApprovalController extends Controller
             'updated_by' => $userId,
             'note' => $notes,
         ]);
+
+        $this->syncProjectLedgerApprovalStatus($project, 'Approved', $userId);
 
         // Create genesis block in blockchain for this project
         try {
@@ -203,12 +241,7 @@ class AdviserApprovalController extends Controller
 
         // Approve and chain the initial baseline ledger when project is first approved.
         if (! $wasApproved) {
-            $initialLedger = LedgerEntry::query()
-                ->where('project_id', $project->id)
-                ->where('type', 'Initial')
-                ->where('archive', false)
-                ->orderBy('created_at')
-                ->first();
+            $initialLedger = $this->getInitialLedgerEntry($project);
 
             if ($initialLedger && $initialLedger->approval_status !== 'Approved') {
                 $initialLedger->update([
@@ -241,30 +274,30 @@ class AdviserApprovalController extends Controller
                 ->get();
 
             foreach ($transferEntries as $transferEntry) {
-                if ($transferEntry->approval_status === 'Approved') {
-                    continue;
+                $shouldUpdateApproval = $transferEntry->approval_status !== 'Approved';
+
+                if ($shouldUpdateApproval) {
+                    $transferEntry->update([
+                        'approval_status' => 'Approved',
+                        'approved_by' => $userId,
+                        'approved_at' => now(),
+                        'updated_by' => $userId,
+                        'rejected_at' => null,
+                        'note' => 'Auto-approved with project approval',
+                    ]);
+
+                    try {
+                        BlockchainService::addBlockToChain($transferEntry->id, $transferEntry->project_id, [
+                            'description' => $transferEntry->description,
+                            'amount' => $transferEntry->amount,
+                            'type' => $transferEntry->type,
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to add transfer ledger block to chain: ' . $e->getMessage());
+                    }
                 }
 
                 $transferMetadata = json_decode($transferEntry->note, true);
-
-                $transferEntry->update([
-                    'approval_status' => 'Approved',
-                    'approved_by' => $userId,
-                    'approved_at' => now(),
-                    'updated_by' => $userId,
-                    'rejected_at' => null,
-                    'note' => 'Auto-approved with project approval',
-                ]);
-
-                try {
-                    BlockchainService::addBlockToChain($transferEntry->id, $transferEntry->project_id, [
-                        'description' => $transferEntry->description,
-                        'amount' => $transferEntry->amount,
-                        'type' => $transferEntry->type,
-                    ]);
-                } catch (\Exception $e) {
-                    Log::error('Failed to add transfer ledger block to chain: ' . $e->getMessage());
-                }
 
                 if (is_array($transferMetadata)) {
                     $sourceProjectId = $transferMetadata['transfer_source_project_id'] ?? null;
@@ -311,6 +344,8 @@ class AdviserApprovalController extends Controller
             'note' => $reason,
             'updated_by' => Auth::id(),
         ]);
+
+        $this->syncProjectLedgerApprovalStatus($project, 'Rejected', Auth::id());
 
         $this->writeAudit(
             'Project Rejected',
@@ -480,6 +515,56 @@ class AdviserApprovalController extends Controller
         );
     }
 
+    //this is a helper function to sync the approval status of all related ledger entries for a project when the project is approved or rejected
+    private function syncProjectLedgerApprovalStatus(Project $project, string $approvalStatus, ?string $userId = null): void
+    {
+        $userId = $userId ?? Auth::id();
+        $updatedAt = now();
+        $payload = [
+            'approval_status' => $approvalStatus,
+            'updated_by' => $userId,
+            'updated_at' => $updatedAt,
+        ];
+
+        if ($approvalStatus === 'Approved') {
+            $payload['approved_by'] = $userId;
+            $payload['approved_at'] = $updatedAt;
+            $payload['rejected_at'] = null;
+        } elseif ($approvalStatus === 'Rejected') {
+            $payload['approved_by'] = null;
+            $payload['approved_at'] = null;
+            $payload['rejected_at'] = $updatedAt;
+        } else {
+            $payload['approved_by'] = null;
+            $payload['approved_at'] = null;
+            $payload['rejected_at'] = null;
+        }
+
+        $relatedEntries = LedgerEntry::query()
+            ->where('archive', 0)
+            ->where(function ($query) {
+                $query->where('type', 'Initial')
+                    ->orWhere('category', 'Transfer');
+            })
+            ->get();
+
+        $relatedEntries->each(function (LedgerEntry $entry) use ($project, $payload): void {
+            $noteData = json_decode((string) $entry->note, true);
+            $isProjectMatch = (string) $entry->project_id === (string) $project->id;
+            $isTransferMatch = is_array($noteData)
+                && (
+                    (string) ($noteData['transfer_source_project_id'] ?? '') === (string) $project->id
+                    || (string) ($noteData['transfer_destination_project_id'] ?? '') === (string) $project->id
+                );
+            $isNoteMatch = str_contains((string) $entry->note, (string) $project->id);
+
+            if ($isProjectMatch || $isTransferMatch || $isNoteMatch) {
+                $entry->fill($payload);
+                $entry->save();
+            }
+        });
+    }
+
     private function rejectLedger(string $id, string $reason): void
     {
         $entry = LedgerEntry::where('id', $id)->firstOrFail();
@@ -588,6 +673,76 @@ class AdviserApprovalController extends Controller
         return $u?->name ?? 'Unknown';
     }
 
+    //this function stores the project proof file on the initial ledger entry and updates the project with the proof path and file hash
+    private function storeProjectProofOnInitialLedger(Project $project, $file, ?LedgerEntry $initialLedger = null): LedgerEntry
+    {
+        $initialLedger = $initialLedger ?: $this->getInitialLedgerEntry($project);
+
+        if (! $initialLedger) {
+            $initialLedger = LedgerEntry::create([
+                'id' => (string) Str::uuid(),
+                'project_id' => $project->id,
+                'type' => 'Initial',
+                'amount' => (float) ($project->budget ?? 0),
+                'budget_breakdown' => null,
+                'description' => 'Initial project budget baseline',
+                'category' => 'Project Budget Baseline',
+                'approval_status' => 'Draft',
+                'note' => 'Auto-generated baseline on project approval',
+                'created_by' => Auth::id(),
+                'updated_by' => Auth::id(),
+                'archive' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $fileHash = hash_file('sha256', $file->getRealPath());
+        $extension = $file->getClientOriginalExtension();
+        $fileName = $fileHash . ($extension ? '.' . $extension : '');
+        Storage::disk('public')->putFileAs('ledger_proofs', $file, $fileName);
+
+        $proofPath = 'storage/ledger_proofs/' . $fileName;
+        $initialLedger->ledger_proof = $proofPath;
+        $initialLedger->file_content_hash = $fileHash;
+        $initialLedger->save();
+
+        $project->forceFill([
+            'project_proof' => $proofPath,
+            'file_content_hash' => $fileHash,
+        ])->save();
+
+        return $initialLedger;
+    }
+
+    private function getInitialLedgerEntry(Project $project): ?LedgerEntry
+    {
+        return LedgerEntry::query()
+            ->where('project_id', $project->id)
+            ->where('archive', 0)
+            ->where(function ($query) {
+                $query->where('type', 'Initial')
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('type', 'Initial Transfer')
+                            ->where('category', 'Transfer');
+                    });
+            })
+            ->orderByRaw("CASE WHEN type = 'Initial' THEN 0 ELSE 1 END")
+            ->orderBy('created_at', 'asc')
+            ->first();
+    }
+
+    private function getProjectProofPath(?Project $project): ?string
+    {
+        if (! $project) {
+            return null;
+        }
+
+        $initialLedger = $this->getInitialLedgerEntry($project);
+
+        return $initialLedger?->ledger_proof ?: null;
+    }
+
     protected function serializeProject(Project $p, string $status): array
     {
         $submittedBy = $this->userName($p->created_by)
@@ -599,7 +754,7 @@ class AdviserApprovalController extends Controller
             ->orderBy('created_at', 'asc') 
             ->first();
 
-        $proofPath = $initialLedger?->ledger_proof ?? null;
+        $proofPath = $p->project_proof ?: ($initialLedger?->ledger_proof ?? null);
 
         return [
             'id' => $p->id,

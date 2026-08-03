@@ -1622,134 +1622,170 @@ function maskUserName(fullName) {
       
       {/* Tab Content - Overview */}
       {activeTab === 'overview' && (
-        <div className="space-y-6">
-          <Card className="rounded-[20px] border-0 shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Project Details</h2>
-            
-            {project.objective && (
-              <div className="">
-                <p className="text-sm text-gray-500 mb-1">Project Objective</p>
-                <p className="text-gray-900">{project.objective}</p>
-              </div>
-            )}
+       <div className="space-y-6">
+  <Card className="rounded-[20px] border-0 shadow-sm p-6">
+    <h2 className="text-lg font-semibold text-gray-900 mb-4">Project Details</h2>
+    
+    {/* {project.objective && (
+      <div className="mb-6">
+        <p className="text-sm text-gray-500 mb-1">Project Objective</p>
+        <p className="text-gray-900">{project.objective}</p>
+      </div>
+    )} */}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {project.venue && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Venue</p>
-                  <p className="text-gray-900">{project.venue}</p>
-                </div>
-              )}
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Category</p>
-                <p className="text-gray-900">{project.category || 'Not specified'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Created On</p>
-                <p className="text-gray-900">{formatDate(project.createdAt)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Start Date</p>
-                <p className="text-gray-900">{formatDate(project.startDate)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">End Date</p>
-                <p className="text-gray-900">{formatDate(project.endDate)}</p>
-              </div>
-              {getDateChangeStatusBadge() && (
-                <div className="col-span-full border-t pt-4">
-                  <div className="mb-3">
-                    <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-purple-600" />
-                      Pending Date Change
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 bg-purple-50 p-3 rounded-lg">
-                    <div>
-                      <p className="text-xs text-gray-600 mb-1">Current Dates</p>
-                      <p className="text-sm text-gray-900">{formatDate(getDateChangeStatusBadge().request.current_start_date)} to {formatDate(getDateChangeStatusBadge().request.current_end_date)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-600 mb-1">Proposed Dates</p>
-                      <p className="text-sm text-gray-900">{formatDate(getDateChangeStatusBadge().request.proposed_start_date)} to {formatDate(getDateChangeStatusBadge().request.proposed_end_date)}</p>
-                    </div>
-                  </div>
-                  {getDateChangeStatusBadge().request.reason && (
-                    <div className="mt-3">
-                      <p className="text-xs text-gray-600 mb-1">Reason</p>
-                      <p className="text-sm text-gray-700">{getDateChangeStatusBadge().request.reason}</p>
-                    </div>
-                  )}
-                  <div className="mt-2">
-                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getDateChangeStatusBadge().badgeClass}`}>
-                      {getDateChangeStatusBadge().label}
-                    </span>
-                  </div>
-                </div>
-              )}
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Created by:</p>
-                <p className="text-gray-900">{project.createdBy || 'Not specified'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Proposed by:</p>
-                <p className="text-gray-900">{project.proposedBy || 'Not specified'}</p>
-              </div>
-            </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
 
-            <div className="">
-              <p className="text-lg font-semibold text-gray-900">Project Approval Copy</p>
-              <div>
-                {/* //display the image attached to the project approval copy */}
-                {project.approvalCopy ? (
-                  <img src={project.approvalCopy} alt="Project Approval Copy" className="w-full h-auto rounded-lg mt-2" />
-                ) : (
-                  <div className="text-center mt-6">
+      {project.objective && (
+      <div className="col-span-2">
+        <p className="text-sm text-gray-500 mb-1">Project Objective</p>
+        <p className="text-gray-900">{project.objective}</p>
+      </div>
+    )}
+
+
+      {project.venue && (
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Venue</p>
+          <p className="text-gray-900">{project.venue}</p>
+        </div>
+      )}
+      <div>
+        <p className="text-sm text-gray-500 mb-1">Category</p>
+        <p className="text-gray-900">{project.category || 'Not specified'}</p>
+      </div>
+      <div>
+        <p className="text-sm text-gray-500 mb-1">Created On</p>
+        <p className="text-gray-900">{formatDate(project.createdAt)}</p>
+      </div>
+      <div>
+        <p className="text-sm text-gray-500 mb-1">Start Date</p>
+        <p className="text-gray-900">{formatDate(project.startDate)}</p>
+      </div>
+      <div>
+        <p className="text-sm text-gray-500 mb-1">End Date</p>
+        <p className="text-gray-900">{formatDate(project.endDate)}</p>
+      </div>
+      <div>
+        <p className="text-sm text-gray-500 mb-1">Created by:</p>
+        <p className="text-gray-900">{project.createdBy || 'Not specified'}</p>
+      </div>
+      <div>
+        <p className="text-sm text-gray-500 mb-1">Proposed by:</p>
+        <p className="text-gray-900">{project.proposedBy || 'Not specified'}</p>
+      </div>
+    </div>
+
+    {getDateChangeStatusBadge() && (
+      <div className="border-t pt-4 mb-6">
+        <div className="mb-3">
+          <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-purple-600" />
+            Pending Date Change
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-purple-50 p-3 rounded-lg">
+          <div>
+            <p className="text-xs text-gray-600 mb-1">Current Dates</p>
+            <p className="text-sm text-gray-900">{formatDate(getDateChangeStatusBadge().request.current_start_date)} to {formatDate(getDateChangeStatusBadge().request.current_end_date)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-600 mb-1">Proposed Dates</p>
+            <p className="text-sm text-gray-900">{formatDate(getDateChangeStatusBadge().request.proposed_start_date)} to {formatDate(getDateChangeStatusBadge().request.proposed_end_date)}</p>
+          </div>
+        </div>
+        {getDateChangeStatusBadge().request.reason && (
+          <div className="mt-3">
+            <p className="text-xs text-gray-600 mb-1">Reason</p>
+            <p className="text-sm text-gray-700">{getDateChangeStatusBadge().request.reason}</p>
+          </div>
+        )}
+        <div className="mt-2">
+          <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getDateChangeStatusBadge().badgeClass}`}>
+            {getDateChangeStatusBadge().label}
+          </span>
+        </div>
+      </div>
+    )}
+
+    <div className="border-t pt-4">
+      <p className="text-lg font-semibold text-gray-900 mb-3">Project Approval Copy</p>
+      <div>
+        {project.projectProof ? (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+            {(() => {
+              const proofPath = project.projectProof;
+              const proofUrl = proofPath.startsWith('/') ? proofPath : `/${proofPath}`;
+              const fileExtension = (proofPath.split('.').pop() || '').toLowerCase();
+              const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+              if (imageExtensions.includes(fileExtension)) {
+                return <img src={proofUrl} alt="Project Approval Copy" className="w-full h-auto rounded-lg" />;
+              }
+
+              if (fileExtension === 'pdf') {
+                return (
+                  <div className="space-y-3">
+                    <iframe src={proofUrl} className="w-full h-96 rounded-lg border-0" title="Project Approval Copy" />
+                    <Button onClick={() => window.open(proofUrl, '_blank')} className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+                      Open PDF in New Tab
+                    </Button>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="text-center py-6">
+                  <FileText className="w-12 h-12 text-blue-500 mx-auto mb-3" />
+                  <p className="text-sm text-gray-700 font-medium">Approval copy available</p>
+                  <p className="text-xs text-gray-500 mt-1">Open the file from the project proof path</p>
+                </div>
+              );
+            })()}
+          </div>
+        ) : (
+          <div className="text-center py-6">
             <FolderKanban className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-sm text-gray-500">No approval copy available</p>
-            <p className="text-xs text-gray-400 mt-1 mb-4">
-              Please upload the approval copy to view it here.
+            <p className="text-sm text-gray-500">No approval copy available</p>
+            <p className="text-xs text-gray-400 mt-1">
+              The approved proposal copy has not been uploaded yet.
             </p>
           </div>
-                )}  
-              </div>
-            </div>
-            </div>
-            
-
-            
-          </Card>
-          
-          {shouldShowNotes && (
-            <Card className="rounded-[20px] border-0 shadow-sm p-6 mt-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {project.approvalStatus === 'Rejected' ? 'Rejection Notes' : 'Adviser Notes'}
-              </h2>
-              <div className={`rounded-xl p-4 ${
-                project.approvalStatus === 'Rejected' ? 'bg-red-50' : 'bg-blue-50'
-              }`}>
-                <p className={`text-sm ${
-                  project.approvalStatus === 'Rejected' ? 'text-red-900' : 'text-blue-900'
-                }`}>
-                  {project.note || (project.approvalStatus === 'Rejected' 
-                    ? 'No rejection reason provided.' 
-                    : 'No notes available.')}
-                </p>
-                <p className={`text-xs mt-2 ${
-                  project.approvalStatus === 'Rejected' ? 'text-red-600' : 'text-blue-600'
-                }`}>
-                  - {project.approveBy || 'Not assigned'}
-                </p>
-                <p className={`text-xs mt-2 ${
-                  project.approvalStatus === 'Rejected' ? 'text-red-600' : 'text-blue-600'
-                }`}>
-                  - {project.approvedAt ? `Approved on ${new Date(project.approvedAt).toLocaleDateString()}` : 'Not yet approved'}
-                </p>
-              </div>
-            </Card>
-          )}
+        )}
+      </div>
+    </div>
+  </Card>
+  
+  {shouldShowNotes && (
+    <Card className="rounded-[20px] border-0 shadow-sm p-6">
+      <h2 className="text-lg font-semibold text-gray-900">
+        {project.approvalStatus === 'Rejected' ? 'Rejection Notes' : 'Adviser Notes'}
+      </h2>
+      <div className={`rounded-xl p-4 ${
+        project.approvalStatus === 'Rejected' ? 'bg-red-50' : 'bg-blue-50'
+      }`}>
+        <p className={`text-sm ${
+          project.approvalStatus === 'Rejected' ? 'text-red-900' : 'text-blue-900'
+        }`}>
+          {project.note || (project.approvalStatus === 'Rejected' 
+            ? 'No rejection reason provided.' 
+            : 'No notes available.')}
+        </p>
+        <div className="mt-2 space-y-1">
+          <p className={`text-xs ${
+            project.approvalStatus === 'Rejected' ? 'text-red-600' : 'text-blue-600'
+          }`}>
+            - {project.approveBy || 'Not assigned'}
+          </p>
+          <p className={`text-xs ${
+            project.approvalStatus === 'Rejected' ? 'text-red-600' : 'text-blue-600'
+          }`}>
+            - {project.approvedAt ? `Approved on ${new Date(project.approvedAt).toLocaleDateString()}` : 'Not yet approved'}
+          </p>
         </div>
+      </div>
+    </Card>
+  )}
+</div>
       )}
       
       {/* Tab Content - Ledger */}

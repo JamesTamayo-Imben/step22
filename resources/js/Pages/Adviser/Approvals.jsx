@@ -87,6 +87,7 @@ export default function AdviserApprovalsPage() {
   const [showConfirmReject, setShowConfirmReject] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
+  const [approvalFile, setApprovalFile] = useState(null);
   const [showLedgerProofViewer, setShowLedgerProofViewer] = useState(false);
 
 
@@ -139,11 +140,21 @@ export default function AdviserApprovalsPage() {
   const runApprove = (item, notes = '') => {
     if (!item) return showToast('No item selected', 'error');
 
-    router.post(route('adviser.approvals.approve'), {
-      type: item.approvalType,
-      id: item.id,
-      notes: notes.trim(),
-    }, {
+    if (item.approvalType === 'project' && !approvalFile && !item.project_proof) {
+      showToast('Please upload the approved proposal PDF before confirming', 'error');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('type', item.approvalType);
+    formData.append('id', item.id);
+    formData.append('notes', notes.trim());
+
+    if (item.approvalType === 'project' && approvalFile) {
+      formData.append('approval_copy', approvalFile);
+    }
+
+    router.post(route('adviser.approvals.approve'), formData, {
       preserveScroll: true,
       onSuccess: () => {
         showToast('Approved successfully');
@@ -151,6 +162,7 @@ export default function AdviserApprovalsPage() {
         setShowApprove(false);
         setSelectedItem(null);
         setApprovalNotes('');
+        setApprovalFile(null);
       },
       onError: () => showToast('Could not approve', 'error'),
     });
@@ -161,6 +173,7 @@ export default function AdviserApprovalsPage() {
     showToast('No item selected', 'error');
     return;
   }
+  setApprovalFile(null);
   setShowReview(false);
   setShowApprove(true);
 };
@@ -898,15 +911,30 @@ export default function AdviserApprovalsPage() {
         placeholder="Enter approval notes (required)..."
         className={`w-full rounded-xl border ${!approvalNotes.trim() ? 'border-gray-300 bg-gray-50' : 'border-gray-300 bg-gray-50'} focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none transition`}
       />
-      <p className="text-sm text-gray-600 mb-2">Upload the approval copy</p>
-      <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center">
-        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-        <p className="text-sm text-gray-500">Drag and drop your file here</p>
-        <p className="text-xs text-gray-400">or</p>
-        <Button variant="outline" className="mt-2">
-          Browse Files
-        </Button>
-      </div>
+      {selectedItem?.approvalType === 'project' && (
+        <>
+          <p className="text-sm text-gray-600 mb-2">Upload the final approved proposal PDF <span className="text-red-500">*</span></p>
+          <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center">
+            <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-sm text-gray-500">Select the final approved proposal PDF</p>
+            <p className="text-xs text-gray-400">PDF only · max 10MB</p>
+            <label className="mt-3 inline-flex cursor-pointer rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100">
+              <input
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={(e) => setApprovalFile(e.target.files?.[0] || null)}
+              />
+              Browse Files
+            </label>
+            {approvalFile ? (
+              <p className="mt-2 text-sm text-green-700">Selected: {approvalFile.name}</p>
+            ) : (
+              <p className="mt-2 text-sm text-gray-500">No file selected yet</p>
+            )}
+          </div>
+        </>
+      )}
     </div>
     <div className="flex gap-3">
       <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowApprove(false); setApprovalNotes(''); }}>

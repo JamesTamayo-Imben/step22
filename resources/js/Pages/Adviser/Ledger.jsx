@@ -354,6 +354,7 @@ export default function LedgerApprovalsPage() {
       case 'Expense': return 'bg-red-100 text-red-700';
       case 'Income': return 'bg-green-100 text-green-700';
       case 'Initial': return 'bg-indigo-100 text-indigo-700';
+      case 'Initial Transfer': return 'bg-indigo-100 text-indigo-700';
       case 'Donation': return 'bg-blue-100 text-blue-700';
       case 'Sponsorship': return 'bg-purple-100 text-purple-700';
       case 'Canvas': return 'bg-gray-100 text-gray-700';
@@ -367,6 +368,7 @@ export default function LedgerApprovalsPage() {
       case 'Expense': return 'text-red-700';
       case 'Income': return 'text-green-700';
       case 'Initial': return 'text-indigo-700';
+      case 'Initial Transfer': return 'text-indigo-700';
       case 'Donation': return 'text-green-700';
       case 'Sponsorship': return 'text-green-700';
       case 'Canvas': return 'text-gray-700';
@@ -466,7 +468,7 @@ export default function LedgerApprovalsPage() {
     const baseClasses = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium';
     switch (status) {
       case 'Approved': return <span className={`${baseClasses} bg-green-100 text-green-700`}>Approved</span>;
-      case 'Pending': return <span className={`${baseClasses} bg-yellow-100 text-yellow-700`}>Pending</span>;
+      case 'Pending Adviser Approval': return <span className={`${baseClasses} bg-yellow-100 text-yellow-700`}>Pending Adviser Approval</span>;
       case 'Rejected': return <span className={`${baseClasses} bg-red-100 text-red-700`}>Rejected</span>;
       case 'Corrected': return <span className={`${baseClasses} bg-purple-100 text-purple-700`}>Corrected</span>;
       case 'Draft': return <span className={`${baseClasses} bg-gray-100 text-gray-700`}>Draft</span>;
@@ -693,15 +695,21 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                   />
                 </div>
 
-                <select
-                  value={filterProject}
-                  onChange={(e) => setFilterProject(e.target.value)}
+                    <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
                   className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                 >
-                  <option value="all">All Projects</option>
-                  {projectFilterOptions.map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
+                  <option value="all" disabled>Select Type</option>
+             <option value="all">All</option>
+            <option value="Income">Income</option>
+            <option value="Expense">Expense</option>
+            <option value="Donation">Donation</option>
+            <option value="Sponsorship">Sponsorship</option>
+            <option value="Canvas">Canvas</option>
+            <option value="Initial">Initial</option>
+            <option value="Initial Transfer">Initial Transfer</option>
+             <option value="Transfer">Transfer</option>
                 </select>
 
                 <select
@@ -709,24 +717,24 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                 >
-                  <option value="all">All Status</option>
-                  <option value="Pending">Pending</option>
+                  <option value="all" disabled>Select Status</option>
+                  <option value="all">All</option>
+                  <option value="Pending Adviser Approval">Pending Adviser Approval</option>
                   <option value="Approved">Approved</option>
                   <option value="Rejected">Rejected</option>
                 </select>
 
-                <select
-                  value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
+   <select
+                  value={filterProject}
+                  onChange={(e) => setFilterProject(e.target.value)}
                   className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                 >
-                  <option value="all">All Types</option>
-                  <option value="Expense">Expense</option>
-                  <option value="Income">Income</option>
-                  <option value="Canvas">Canvas</option>
-                  <option value="Donation">Donation</option>
-                  <option value="Sponsorship">Sponsorship</option>
+                  <option value="all" disabled>Select Projects</option>
+                  {projectFilterOptions.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
                 </select>
+              
               </div>
             </div>
 

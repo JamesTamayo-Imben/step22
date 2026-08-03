@@ -428,29 +428,32 @@ class ProjectController extends Controller
             if ($request->has('approval_status')) {
                 $project->approval_status = $request->approval_status;
 
-                if ($project->approval_status === 'Approved') {
-                    $transferEntries = LedgerEntry::where('project_id', $project->id)
-                        ->where('category', 'Transfer')
-                        ->where('archive', 0)
-                        ->where('note', 'like', '%' . $project->id . '%')
-                        ->get();
+                $transferEntries = LedgerEntry::query()
+                    ->where('archive', 0)
+                    ->where('category', 'Transfer')
+                    ->where(function ($query) use ($project) {
+                        $query->where('project_id', $project->id)
+                            ->orWhere('note', 'like', '%' . $project->id . '%');
+                    })
+                    ->get();
 
-                    foreach ($transferEntries as $transferEntry) {
-                        $noteData = json_decode($transferEntry->note, true);
-                        if (!is_array($noteData)) {
-                            continue;
-                        }
+                foreach ($transferEntries as $transferEntry) {
+                    $noteData = json_decode($transferEntry->note, true);
+                    if (!is_array($noteData)) {
+                        continue;
+                    }
 
-                        $sourceProjectId = $noteData['transfer_source_project_id'] ?? null;
-                        if (!$sourceProjectId) {
-                            continue;
-                        }
+                    $sourceProjectId = $noteData['transfer_source_project_id'] ?? null;
+                    if (!$sourceProjectId) {
+                        continue;
+                    }
 
-                        $sourceProject = Project::where('archive', 0)->find($sourceProjectId);
-                        if (!$sourceProject) {
-                            continue;
-                        }
+                    $sourceProject = Project::where('archive', 0)->find($sourceProjectId);
+                    if (!$sourceProject) {
+                        continue;
+                    }
 
+                    if ($project->approval_status === 'Approved') {
                         $remainingBudget = (float) $sourceProject->budget;
                         $transferAmount = (float) $transferEntry->amount;
                         if ($remainingBudget >= $transferAmount) {
@@ -460,34 +463,47 @@ class ProjectController extends Controller
                             $sourceProject->save();
                         }
                     }
+                }
 
-                    $transferProjectEntries = LedgerEntry::where('category', 'Transfer')
-                        ->where('archive', 0)
-                        ->where('note', 'like', '%' . $project->id . '%')
-                        ->where('project_id', '!=', $project->id)
-                        ->get();
+                $transferProjectEntries = LedgerEntry::where('category', 'Transfer')
+                    ->where('archive', 0)
+                    ->where(function ($query) use ($project) {
+                        $query->where('project_id', $project->id)
+                            ->orWhere('note', 'like', '%' . $project->id . '%');
+                    })
+                    ->get();
 
-                    foreach ($transferProjectEntries as $transferProjectEntry) {
-                        $destinationProject = Project::where('archive', 0)->find($transferProjectEntry->project_id);
-                        if ($destinationProject && $destinationProject->id !== $project->id) {
-                            $destinationProject->approval_status = 'Approved';
-                            $destinationProject->updated_by = Auth::id();
-                            $destinationProject->updated_at = now();
-                            $destinationProject->save();
-                        }
+                foreach ($transferProjectEntries as $transferProjectEntry) {
+                    $noteData = json_decode($transferProjectEntry->note, true);
+                    if (!is_array($noteData)) {
+                        continue;
+                    }
+
+                    $relatedProjectId = null;
+                    if ((string) ($noteData['transfer_destination_project_id'] ?? '') !== '') {
+                        $relatedProjectId = $noteData['transfer_destination_project_id'];
+                    } elseif ((string) ($noteData['transfer_source_project_id'] ?? '') !== '') {
+                        $relatedProjectId = $noteData['transfer_source_project_id'];
+                    }
+
+                    if (!$relatedProjectId) {
+                        continue;
+                    }
+
+                    if ((string) $relatedProjectId === (string) $project->id) {
+                        continue;
+                    }
+
+                    $relatedProject = Project::where('archive', 0)->find($relatedProjectId);
+                    if ($relatedProject) {
+                        $relatedProject->approval_status = $project->approval_status;
+                        $relatedProject->updated_by = Auth::id();
+                        $relatedProject->updated_at = now();
+                        $relatedProject->save();
                     }
                 }
 
-                $transferApprovalStatus = in_array($project->approval_status, ['Approved']) ? 'Approved' : 'Draft';
-                LedgerEntry::where('project_id', $project->id)
-                    ->where('category', 'Transfer')
-                    ->where('archive', 0)
-                    ->where('note', 'like', '%' . $project->id . '%')
-                    ->update([
-                        'approval_status' => $transferApprovalStatus,
-                        'updated_by' => Auth::id(),
-                        'updated_at' => now(),
-                    ]);
+                $this->syncProjectLedgerApprovalStatus($project, $project->approval_status, Auth::id());
             }
             if ($request->has('archive')) $project->archive = $request->archive;
             if ($request->has('note')) $project->note = $request->note;
@@ -637,19 +653,7 @@ class ProjectController extends Controller
             $project->updated_at = now();
             $project->save();
 
-            LedgerEntry::query()
-                ->where('category', 'Transfer')
-                ->where('archive', 0)
-                ->where(function ($query) use ($project) {
-                    $query->where('project_id', $project->id)
-                        ->orWhere('note', 'like', '%' . $project->id . '%');
-                })
-                ->whereIn('approval_status', ['Draft', 'Rejected'])
-                ->update([
-                    'approval_status' => 'Pending Adviser Approval',
-                    'updated_by' => Auth::id(),
-                    'updated_at' => now(),
-                ]);
+            $this->syncProjectLedgerApprovalStatus($project, 'Pending Adviser Approval', Auth::id());
 
 
             // Create approval record (no teacher/adviser table dependency)
@@ -821,7 +825,7 @@ class ProjectController extends Controller
             return;
         }
 
-        if ($entry->category !== 'Transfer' || $entry->type !== 'Initial') {
+        if ($entry->category !== 'Transfer' || ! in_array($entry->type, ['Initial', 'Initial Transfer'], true)) {
             return;
         }
 
@@ -851,9 +855,17 @@ class ProjectController extends Controller
 
     private function getInitialLedgerEntry(Project $project): ?LedgerEntry
     {
-        return LedgerEntry::where('project_id', $project->id)
-            ->where('type', 'Initial')
+        return LedgerEntry::query()
+            ->where('project_id', $project->id)
             ->where('archive', 0)
+            ->where(function ($query) {
+                $query->where('type', 'Initial')
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('type', 'Initial Transfer')
+                            ->where('category', 'Transfer');
+                    });
+            })
+            ->orderByRaw("CASE WHEN type = 'Initial' THEN 0 ELSE 1 END")
             ->orderBy('created_at', 'asc')
             ->first();
     }
@@ -1070,6 +1082,55 @@ class ProjectController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    protected function syncProjectLedgerApprovalStatus(Project $project, string $approvalStatus, ?string $userId = null): void
+    {
+        $userId = $userId ?? Auth::id();
+        $updatedAt = now();
+        $payload = [
+            'approval_status' => $approvalStatus,
+            'updated_by' => $userId,
+            'updated_at' => $updatedAt,
+        ];
+
+        if ($approvalStatus === 'Approved') {
+            $payload['approved_by'] = $userId;
+            $payload['approved_at'] = $updatedAt;
+            $payload['rejected_at'] = null;
+        } elseif ($approvalStatus === 'Rejected') {
+            $payload['approved_by'] = null;
+            $payload['approved_at'] = null;
+            $payload['rejected_at'] = $updatedAt;
+        } else {
+            $payload['approved_by'] = null;
+            $payload['approved_at'] = null;
+            $payload['rejected_at'] = null;
+        }
+
+        $relatedEntries = LedgerEntry::query()
+            ->where('archive', 0)
+            ->where(function ($query) {
+                $query->where('type', 'Initial')
+                    ->orWhere('category', 'Transfer');
+            })
+            ->get();
+
+        $relatedEntries->each(function (LedgerEntry $entry) use ($project, $payload): void {
+            $noteData = json_decode((string) $entry->note, true);
+            $isProjectMatch = (string) $entry->project_id === (string) $project->id;
+            $isTransferMatch = is_array($noteData)
+                && (
+                    (string) ($noteData['transfer_source_project_id'] ?? '') === (string) $project->id
+                    || (string) ($noteData['transfer_destination_project_id'] ?? '') === (string) $project->id
+                );
+            $isNoteMatch = str_contains((string) $entry->note, (string) $project->id);
+
+            if ($isProjectMatch || $isTransferMatch || $isNoteMatch) {
+                $entry->fill($payload);
+                $entry->save();
+            }
+        });
     }
 
     protected function resolveBudgetUpdateContext(

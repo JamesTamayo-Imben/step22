@@ -88,10 +88,10 @@ class LedgerEntry extends Model
             }
         }
 
-        if ($this->type === 'Initial') {
+        if (in_array($this->type, ['Initial', 'Initial Transfer'], true)) {
             return static::query()
                 ->where('project_id', $this->project_id)
-                ->where('type', 'Initial')
+                ->whereIn('type', ['Initial', 'Initial Transfer'])
                 ->where('archive', 0)
                 ->orderBy('created_at')
                 ->value('ledger_proof');

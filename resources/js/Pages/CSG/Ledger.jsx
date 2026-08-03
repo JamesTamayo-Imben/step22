@@ -496,28 +496,10 @@ setIsLoading(true);
       throw new Error(errorData.message || JSON.stringify(errorData.errors) || 'Failed to create ledger entry');
     }
 
-    const newEntry = await response.json();
+    await response.json();
     
-    // Get the project name from the projects list
-    const selectedProject = projects.find(p => p.id === projectId);
-    const projectName = selectedProject?.title || 'Unknown Project';
-
-    //locked the add ledger button if there is no projects to select from;
-
-
-    // Add the new entry to the state
-    setLedgerEntries([
-      {
-        ...newEntry,
-        projectName: projectName,
-        project: projectName,
-        amount: totalAmount,
-        createdAt: new Date().toISOString().split('T')[0],
-        status: 'Draft',
-        hasDocument: !!selectedFile, // Track if document was uploaded
-      },
-      ...ledgerEntries
-    ]);
+    // Refresh the ledger list so the newly created entry has complete details
+    await fetchLedgerEntries();
 
     // Reset form
     setShowAddModal(false);
@@ -595,26 +577,7 @@ const handleEditEntry = async () => {
 
     const updatedEntry = await response.json();
 
-    const selectedProject = projects.find((p) => p.id === ledgerForm.project_id);
-    const projectName = selectedProject?.title || ledgerForm.project || 'Unknown Project';
-
-    const updatedEntries = ledgerEntries.map((entry) =>
-      entry.id === selectedEntry.id
-        ? {
-            ...entry,
-            ...updatedEntry,
-            type: ledgerForm.type,
-            amount: totalAmount,
-            description: ledgerForm.description,
-            projectName,
-            project: projectName,
-            budgetBreakdown: editBudgetItems,
-            status: updatedEntry.status || entry.status,
-          }
-        : entry
-    );
-
-    setLedgerEntries(updatedEntries);
+    await fetchLedgerEntries();
     setShowEditModal(false);
     setSelectedEntry(null);
     setFilePreview(null);
@@ -729,19 +692,7 @@ const handleSaveUpload = async () => {
 
     const updatedEntry = await response.json();
 
-    const updatedEntries = ledgerEntries.map(entry => {
-      if (entry.id === selectedEntry.id) {
-        return {
-          ...entry,
-          documents: [...(entry.documents || []), filePreview],
-          ledger_proof: updatedEntry.ledger_proof,
-          hasDocument: true,
-        };
-      }
-      return entry;
-    });
-
-    setLedgerEntries(updatedEntries);
+    await fetchLedgerEntries();
     setShowUploadModal(false);
     setFilePreview(null);
     setSelectedFile(null);
@@ -795,6 +746,7 @@ const handleSaveUpload = async () => {
     case 'Expense': return 'bg-red-100 text-red-700';
     case 'Income': return 'bg-green-100 text-green-700';
     case 'Initial': return 'bg-indigo-100 text-indigo-700';
+    case 'Initial Transfer': return 'bg-indigo-100 text-indigo-700';
     case 'Donation': return 'bg-blue-100 text-blue-700';
     case 'Sponsorship': return 'bg-purple-100 text-purple-700';
     case 'Canvas': return 'bg-gray-100 text-gray-700';
@@ -808,6 +760,7 @@ const getTypeAmountColor = (type) => {
     case 'Expense': return 'text-red-700';
     case 'Income': return 'text-green-700';
     case 'Initial': return 'text-indigo-700';
+    case 'Initial Transfer': return 'text-indigo-700';
     case 'Donation': return 'text-green-700';
     case 'Sponsorship': return 'text-green-700';
     case 'Canvas': return ' text-gray-700';
@@ -930,23 +883,8 @@ const getTypeAmountColor = (type) => {
 
          
           <p className="text-gray-500">Track all financial transactions across projects</p>
-
-          {hasSecurityAlert && (
-    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-      <div className="flex items-start gap-2">
-        <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-        <div>
-          <p className="text-sm font-medium text-red-800">
-            {hasTamperedEntries ? 'Security Alert.' : 'Budget Alert.'}
-            <span className="text-xs text-red-600 ml-2">
-              {integrityAlertMessage}
-            </span>
-          </p>
         </div>
-      </div>
-    </div>
-  )}
-        </div>
+        
       
           <div className="flex flex-col md:flex-row gap-2">
             <Button
@@ -968,6 +906,22 @@ const getTypeAmountColor = (type) => {
           </div>
         {/* </div> */}
       </div>
+
+      {hasSecurityAlert && (
+    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+      <div className="flex items-start gap-2">
+        <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-red-800">
+            {hasTamperedEntries ? 'Security Alert.' : 'Budget Alert.'}
+            <span className="text-xs text-red-600 ml-2">
+              {integrityAlertMessage}
+            </span>
+          </p>
+        </div>
+      </div>
+    </div>
+  )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -1056,11 +1010,13 @@ const getTypeAmountColor = (type) => {
             <option value="Canvas">Canvas</option>
             <option value="Initial">Initial</option>
             <option value="Initial Transfer">Initial Transfer</option>
+             <option value="Transfer">Transfer</option>
           </Select>
 
           {/* Status Filter */}
           <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="all">All Status</option>
+            <option value="all" disabled>Select Status</option>
+             <option value="all">All</option>
             <option value="Draft">Draft</option>
             <option value="Pending Adviser Approval">Pending</option>
             <option value="Approved">Approved</option>
@@ -1069,7 +1025,7 @@ const getTypeAmountColor = (type) => {
 
           {/* Project Filter */}
           <Select value={filterProject} onChange={(e) => setFilterProject(e.target.value)}>
-            <option value="all">All Projects</option>
+            <option value="all" disabled>Select Projects</option>
             {projects.map((p) => (
               <option key={p.id} value={p.title || p.name || p.id}>
                 {p.title || p.name || p.id}

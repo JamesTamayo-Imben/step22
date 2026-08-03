@@ -206,9 +206,11 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
       formData.append('date', ledgerForm.date || new Date().toISOString().split('T')[0]);
       formData.append('approval_status', 'Draft');
 
-      // 2. IMPORTANT: Use 'proof_file' to match your Laravel Controller
+      // 2. Attach the proof file using both supported field names so the Laravel
+      // controller can persist it into the ledger entry's ledger_proof column.
       if (selectedFile) {
         formData.append('proof_file', selectedFile);
+        formData.append('ledger_proof', selectedFile);
       }
 
       console.log('📤 Sending ledger entry to /api/ledger-entries...');

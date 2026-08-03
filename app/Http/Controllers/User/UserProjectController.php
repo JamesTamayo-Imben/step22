@@ -154,6 +154,13 @@ class UserProjectController extends Controller
                 ];
             })->values();
 
+        $projectProofPath = $project->project_proof
+            ?: $project->ledgerEntries
+                ->first(function ($entry) {
+                    return ($entry->type ?? '') === 'Initial' && !empty($entry->ledger_proof);
+                })?->ledger_proof
+            ?: null;
+
         $statusTimeline = collect([
             [
                 'id' => 'project-created',
@@ -226,6 +233,10 @@ class UserProjectController extends Controller
                 'objective' => $project->objective ?: 'No objective available.',
                 'proposeBy' => $project->proposed_by ?: 'Not specified',
                 'approvedBy' => $project->approver?->name ?? 'CSG Adviser',
+                'project_proof' => $projectProofPath,
+                'projectProof' => $projectProofPath,
+                'approval_copy' => $projectProofPath,
+                'approvalCopy' => $projectProofPath,
                 'ratingsCount' => (int) ($project->ratings_count ?? 0),
                 'tamperedAlerts' => $tamperedCount,
                 'ratings' => $project->ratings->map(function ($rating) 
