@@ -948,7 +948,8 @@ const getTypeAmountColor = (type) => {
   )}
         </div>
       
-          <Button
+          <div className="flex flex-col md:flex-row gap-2">
+            <Button
             onClick={() => setShowAddModal(true)}
             className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={allProjects.length === 0}
@@ -957,6 +958,14 @@ const getTypeAmountColor = (type) => {
             <Plus className="w-4 h-4 mr-2" />
             Add Ledger Entry
           </Button>
+          <Button
+          // onClick={() => setShowCreateModal(true)}
+          className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Proof Template
+        </Button> 
+          </div>
         {/* </div> */}
       </div>
 

@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Trash2,
   Upload,
+  Download,
   ChevronLeft,
   ChevronRight,
   FolderKanban,
@@ -644,13 +645,22 @@ function CSGProjectsPageInner() {
           <h1 className="text-2xl font-semibold text-gray-900">Projects</h1>
           <p className="text-gray-500">Create and manage CSG projects</p>
         </div>
-        <Button
+        <div className="flex flex-col md:flex-row gap-2">
+          <Button
           onClick={() => setShowCreateModal(true)}
           className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create New Project
         </Button>
+        {/* <Button
+          // onClick={() => setShowCreateModal(true)}
+          className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Proof Template
+        </Button> */}
+        </div>
       </div> 
 
       {/* Stats Cards */}

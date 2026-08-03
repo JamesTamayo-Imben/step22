@@ -757,7 +757,7 @@ const renderAttendees = (attendees) => {
           <h1 className="text-2xl font-semibold text-gray-900">Meetings</h1>
           <p className="text-gray-500">Schedule and manage CSG meetings</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row gap-2">
           {/* <Input
             placeholder="Search meetings..."
             value={searchQuery}
@@ -771,6 +771,13 @@ const renderAttendees = (attendees) => {
             <Plus className="w-4 h-4 mr-2" />
             Create Meeting
           </Button>
+          <Button
+          // onClick={() => setShowCreateModal(true)}
+          className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Proof Template
+        </Button> 
         </div>
       </div>
 
