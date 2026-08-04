@@ -167,7 +167,7 @@ function LedgerPageInner() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');

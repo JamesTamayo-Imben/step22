@@ -259,7 +259,7 @@ const getTypeAmountColor = (type) => {
     case 'Income': return 'text-green-700';
     case 'Initial': return 'text-indigo-700';
     case 'Initial Transfer': return 'text-indigo-700';
-      case 'Transfer': return 'text-yellow-700';
+    case 'Transfer': return 'text-yellow-700';
     case 'Donation': return 'text-green-700';
     case 'Sponsorship': return 'text-green-700';
     case 'Canvas': return ' text-gray-700';
@@ -2387,7 +2387,7 @@ function maskUserName(fullName) {
         </div>
         <div>
           <p className="text-sm text-gray-500 mb-1">Type *</p>
-          <Badge className={`rounded-lg ${selectedLedger.type === 'Income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+          <Badge className={`rounded-lg ${getTypeColor(selectedLedger.type)}`}>
             {selectedLedger.type}
           </Badge>
         </div>

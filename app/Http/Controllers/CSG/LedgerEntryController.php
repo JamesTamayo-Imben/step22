@@ -1,5 +1,7 @@
 <?php
 // app/Http/Controllers/LedgerEntryController.php
+//the edit proof in ledger entry is in line 100
+
 
 namespace App\Http\Controllers\CSG;
 
@@ -307,56 +309,128 @@ public function uploadProof(Request $request, $id)
     /**
      * Update an existing ledger entry
      */
-    public function update(Request $request, $id)
-    {
-        try {
-            $entry = LedgerEntry::findOrFail($id);
+    // public function update(Request $request, $id)
+    // {
+    //     try {
+    //         $entry = LedgerEntry::findOrFail($id);
 
-            if ($entry->type === 'Initial') {
-                return response()->json([
-                    'message' => 'Initial baseline entries cannot be edited.',
-                ], 403);
-            }
+    //         if ($entry->type === 'Initial') {
+    //             return response()->json([
+    //                 'message' => 'Initial baseline entries cannot be edited.',
+    //             ], 403);
+    //         }
             
-            // Validate the request
-            $validated = $request->validate([
-                'type' => 'required|in:Income,Expense,Canvas,Donation,Sponsorship',
-                'description' => 'required|string|max:1000',
-                'amount' => 'required|numeric|min:0',
-                'budget_breakdown' => 'nullable|json',
-                'updated_by' => 'nullable|exists:users,id',
-            ]);
+    //         // Validate the request
+    //         $validated = $request->validate([
+    //             'type' => 'required|in:Income,Expense,Canvas,Donation,Sponsorship',
+    //             'description' => 'required|string|max:1000',
+    //             'amount' => 'required|numeric|min:0',
+    //             'budget_breakdown' => 'nullable|json',
+    //             'updated_by' => 'nullable|exists:users,id',
+    //             'ledger_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+    //         ]);
             
-            // Update the entry
-            $entry->type = $request->type;
-            $entry->description = $request->description;
-            $entry->amount = $request->amount;
-            $entry->updated_by = $request->updated_by;
+    //         // Update the entry
+    //         $entry->type = $request->type;
+    //         $entry->description = $request->description;
+    //         $entry->amount = $request->amount;
+    //         $entry->updated_by = $request->updated_by;
+    //         $entry->ledger_proof = $request->ledger_proof;
             
-            // Handle budget breakdown
-            if ($request->has('budget_breakdown')) {
-                $entry->budget_breakdown = $request->budget_breakdown;
-            }
+    //         // Handle budget breakdown
+    //         if ($request->has('budget_breakdown')) {
+    //             $entry->budget_breakdown = $request->budget_breakdown;
+    //         }
             
-            $entry->updated_at = now();
-            $entry->save();
+    //         $entry->updated_at = now();
+    //         $entry->save();
             
-            return response()->json($entry);
+    //         return response()->json($entry);
             
-        } catch (ValidationException $e) {
-            Log::warning('Ledger entry update validation failed: ' . json_encode($e->errors()));
+    //     } catch (ValidationException $e) {
+    //         Log::warning('Ledger entry update validation failed: ' . json_encode($e->errors()));
+    //         return response()->json([
+    //             'message' => 'Validation failed',
+    //             'errors' => $e->errors(),
+    //         ], 422);
+    //     } catch (\Exception $e) {
+    //         Log::error('Ledger entry update failed: ' . $e->getMessage());
+    //         return response()->json([
+    //             'message' => 'Failed to update ledger entry',
+    //             'error' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+    public function update(Request $request, $id)
+{
+    try {
+        $entry = LedgerEntry::findOrFail($id);
+
+        if ($entry->type === 'Initial') {
             return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Exception $e) {
-            Log::error('Ledger entry update failed: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Failed to update ledger entry',
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => 'Initial baseline entries cannot be edited.',
+            ], 403);
         }
+
+        // Validate the request
+        $validated = $request->validate([
+            'type' => 'required|in:Income,Expense,Canvas,Donation,Sponsorship',
+            'description' => 'required|string|max:1000',
+            'amount' => 'required|numeric|min:0',
+            'budget_breakdown' => 'nullable|json',
+            'updated_by' => 'nullable|exists:users,id',
+            'ledger_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ]);
+
+        // Update the entry
+        $entry->type = $request->type;
+        $entry->description = $request->description;
+        $entry->amount = $request->amount;
+        $entry->updated_by = $request->updated_by;
+
+        // Handle new proof file upload (same hashing scheme as store())
+        if ($request->hasFile('ledger_proof')) {
+            $file = $request->file('ledger_proof');
+
+            $fileHash = hash_file('sha256', $file->getRealPath());
+            $extension = $file->getClientOriginalExtension();
+            $fileName = $fileHash . '.' . $extension;
+
+            $filePath = $file->storeAs('ledger_proofs', $fileName, 'public');
+
+            if ($filePath) {
+                $entry->ledger_proof = 'storage/ledger_proofs/' . $fileName;
+                $entry->file_content_hash = $fileHash;
+                Log::info('Ledger entry ' . $entry->id . ' proof updated: ' . $filePath . ' hash: ' . $fileHash);
+            }
+        }
+        // if no new file is sent, leave the existing ledger_proof / file_content_hash untouched
+
+        // Handle budget breakdown
+        if ($request->has('budget_breakdown')) {
+            $entry->budget_breakdown = $request->budget_breakdown;
+        }
+
+        $entry->updated_at = now();
+        $entry->save();
+
+        return response()->json($entry);
+
+    } catch (ValidationException $e) {
+        Log::warning('Ledger entry update validation failed: ' . json_encode($e->errors()));
+        return response()->json([
+            'message' => 'Validation failed',
+            'errors' => $e->errors(),
+        ], 422);
+    } catch (\Exception $e) {
+        Log::error('Ledger entry update failed: ' . $e->getMessage());
+        return response()->json([
+            'message' => 'Failed to update ledger entry',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Submit ledger entry for approval
