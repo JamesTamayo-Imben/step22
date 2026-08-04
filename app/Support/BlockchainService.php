@@ -216,10 +216,10 @@ class BlockchainService
                     $tamperedLedgerId = $baselineEntry->id;
                 }
 
-                if ($project && (float) $project->budget !== $snapshotAmount) {
-                    $issues[] = "Project budget tampered: snapshot {$snapshotAmount}, current {$project->budget}";
-                    $chainBroken = true;
-                }
+                // if ($project && (float) $project->budget !== $snapshotAmount) {
+                //     $issues[] = "Project budget tampered: snapshot {$snapshotAmount}, current {$project->budget}";
+                //     $chainBroken = true;
+                // }
 
                 if ($baselineEntry && (float) $baselineEntry->amount !== $snapshotAmount) {
                     $issues[] = "Initial budget tampered: snapshot {$snapshotAmount}, current {$baselineEntry->amount}";

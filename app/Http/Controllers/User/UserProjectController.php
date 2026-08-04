@@ -132,7 +132,7 @@ class UserProjectController extends Controller
                     'category' => $entry->category,
                     'ledgerProof' => $entry->ledger_proof,
                     'approvalStatus' => $entry->approval_status ?: 'Draft',
-                    'note' => $entry->note,
+                    'note' => $entry->getDisplayNote(),
                     'approvedBy' => $entry->approver?->name ?? 'Unknown',
                     'createdAt' => optional($entry->created_at)->format('Y-m-d H:i'),
                     'approvedAt' => optional($entry->approved_at)->format('Y-m-d H:i'),

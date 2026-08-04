@@ -75,6 +75,18 @@ class ProjectCreationTransferTest extends TestCase
             });
         }
 
+        if (!Schema::hasTable('chain')) {
+            Schema::create('chain', function ($table) {
+                $table->string('id')->primary();
+                $table->string('project_id');
+                $table->unsignedInteger('block_index');
+                $table->string('prev_hash')->nullable();
+                $table->string('hash');
+                $table->text('data_snapshot');
+                $table->timestamp('created_at')->nullable();
+            });
+        }
+
         if (!Schema::hasTable('audit_logs')) {
             Schema::create('audit_logs', function ($table) {
                 $table->string('id')->primary();

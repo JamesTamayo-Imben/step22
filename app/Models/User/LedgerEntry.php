@@ -61,6 +61,37 @@ class LedgerEntry extends Model
         return $this->belongsTo(\App\Models\User::class, 'updated_by', 'id');
     }
 
+    public function getDisplayNote(): string
+    {
+        $note = (string) ($this->note ?? '');
+
+        if ($note === '') {
+            return '';
+        }
+
+        $decoded = json_decode($note, true);
+        if (! is_array($decoded)) {
+            return $note;
+        }
+
+        $sourceTitle = trim((string) ($decoded['transfer_source_project_title'] ?? ''));
+        $destinationTitle = trim((string) ($decoded['transfer_destination_project_title'] ?? ''));
+
+        if ($sourceTitle !== '' && $destinationTitle !== '') {
+            return 'Transferred from completed project "' . $sourceTitle . '" to project "' . $destinationTitle . '"';
+        }
+
+        if ($destinationTitle !== '') {
+            return 'Transferred to project "' . $destinationTitle . '"';
+        }
+
+        if ($sourceTitle !== '') {
+            return 'Transferred from completed project "' . $sourceTitle . '"';
+        }
+
+        return $note;
+    }
+
     /**
      * Resolve the proof path for this entry, including linked transfer-pair entries.
      */

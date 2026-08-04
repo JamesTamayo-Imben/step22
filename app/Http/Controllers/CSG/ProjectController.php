@@ -209,16 +209,6 @@ class ProjectController extends Controller
                         'updated_at' => now(),
                     ]);
 
-                    try {
-                        \App\Support\BlockchainService::addBlockToChain($sourceTransferEntry->id, $sourceTransferEntry->project_id, [
-                            'description' => $sourceTransferEntry->description,
-                            'amount' => $sourceTransferEntry->amount,
-                            'type' => $sourceTransferEntry->type,
-                        ]);
-                    } catch (\Exception $e) {
-                        Log::error('Failed to add blockchain block for source transfer entry: ' . $e->getMessage(), ['ledger_id' => $sourceTransferEntry->id]);
-                    }
-
                     $destInitialTransferEntry = LedgerEntry::create([
                         'id' => (string) Str::uuid(),
                         'project_id' => $project->id,
@@ -235,16 +225,6 @@ class ProjectController extends Controller
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
-
-                    try {
-                        \App\Support\BlockchainService::addBlockToChain($destInitialTransferEntry->id, $destInitialTransferEntry->project_id, [
-                            'description' => $destInitialTransferEntry->description,
-                            'amount' => $destInitialTransferEntry->amount,
-                            'type' => $destInitialTransferEntry->type,
-                        ]);
-                    } catch (\Exception $e) {
-                        Log::error('Failed to add blockchain block for destination initial transfer entry: ' . $e->getMessage(), ['ledger_id' => $destInitialTransferEntry->id]);
-                    }
                 }
             }
 
@@ -1330,9 +1310,11 @@ class ProjectController extends Controller
         float $newBudget
     ): void {
         $transferApprovalStatus = $project->approval_status === 'Approved' ? 'Approved' : 'Draft';
+        $destinationNote = 'Transferred from completed project "' . $sourceProject->title . '" to project "' . $project->title . '"';
         $destinationBaseline->update([
             'amount' => $newBudget,
-            'description' => 'Transferred from completed project "' . $sourceProject->title . '"',
+            'description' => $destinationNote,
+            'note' => $destinationNote,
             'approval_status' => $transferApprovalStatus,
             'updated_by' => Auth::id(),
             'updated_at' => now(),

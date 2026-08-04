@@ -168,6 +168,17 @@ export default function AdviserApprovalsPage() {
     });
   };
 
+  const formatDateRange = (startDate, endDate) => {
+  const formatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+  // Or use date-fns:
+  // return `${format(new Date(startDate), 'MMM d, yyyy')} to ${format(new Date(endDate), 'MMM d, yyyy')}`;
+  
+  return new Date(startDate).toLocaleDateString('en-US', formatOptions) + 
+         ' to ' + 
+         new Date(endDate).toLocaleDateString('en-US', formatOptions);
+};
+
+
  const handleApproveClick = () => {
   if (!selectedItem) {
     showToast('No item selected', 'error');
@@ -584,17 +595,17 @@ export default function AdviserApprovalsPage() {
               </div>
                <div>
                 <p className="text-sm text-gray-500 mb-1">Current Date *</p>
-               <p className="text-sm text-purple-700">Current: {selectedItem.currentStartDate} to {selectedItem.currentEndDate}</p>
+               <p className="text-sm text-blue-700">{formatDateRange(selectedItem.currentStartDate, selectedItem.currentEndDate)}</p>
               </div>
                <div>
                 <p className="text-sm text-gray-500 mb-1">Proposed Date Change*</p>
-               <p className="text-sm text-purple-700">Proposed: {selectedItem.proposedStartDate} to {selectedItem.proposedEndDate}</p>
+               <p className="text-sm text-blue-700">{formatDateRange(selectedItem.proposedStartDate, selectedItem.proposedEndDate)}</p>
               </div>
             </div>
 
             <div className="mt-4">
               <p className="text-sm font-medium text-gray-900">Reason why it was changed:</p>
-              <p className="text-sm text-purple-600 ">{selectedItem.reason || 'No reason provided'}</p>
+              <p className="text-sm text-blue-600 ">{selectedItem.reason || 'No reason provided'}</p>
             </div>
 
           </div>

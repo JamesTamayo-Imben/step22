@@ -109,6 +109,7 @@ public function uploadProof(Request $request, $id)
     }
 
                 $entryData['ledger_proof'] = $entry->resolveLedgerProof();
+                $entryData['note'] = $entry->getDisplayNote();
                 
                 return $entryData;
             });
@@ -190,6 +191,7 @@ public function uploadProof(Request $request, $id)
                 }
 
                 $entryData['ledger_proof'] = $entry->resolveLedgerProof();
+                $entryData['note'] = $entry->getDisplayNote();
 
                 return $entryData;
             });

@@ -192,7 +192,7 @@ class AdviserLedgerController extends Controller
             'proofAttached' => $proofAttached,
             'proofFiles' => $proofFiles,
             'verificationState' => $verificationState,
-            'note' => $entry->note,
+            'note' => $entry->getDisplayNote(),
             'correctionReason' => null, // set this if you track it separately
         ];
 

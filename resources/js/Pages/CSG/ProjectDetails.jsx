@@ -297,6 +297,9 @@ const formatDateRange = (startDate, endDate) => {
          new Date(endDate).toLocaleDateString('en-US', formatOptions);
 };
 
+//dont show when the approval status is pending
+// const shouldShowProjectApprovalCopy = 
+
 // Check if the change date button should be disabled
 const isChangeDateButtonDisabled = (project, dateChangeRequests) => {
   if (!project?.startDate) return true;
@@ -1754,7 +1757,8 @@ function maskUserName(fullName) {
       </div>
     )}
 
-    <div className="border-t pt-4">
+    {isApproved && (
+      <div className="border-t pt-4">
       <p className="text-lg font-semibold text-gray-900 mb-3">Project Approval Copy</p>
       <div>
         {project.projectProof ? (
@@ -1800,6 +1804,8 @@ function maskUserName(fullName) {
         )}
       </div>
     </div>
+    )
+    }
   </Card>
   
   {shouldShowNotes && (

@@ -218,6 +218,7 @@ class AdviserApprovalController extends Controller
             $this->storeProjectProofOnInitialLedger($project, $approvalCopy);
         }
 
+        
         $project->update([
             'approval_status' => 'Approved',
             'approve_by' => (string) $userId,
@@ -666,46 +667,92 @@ class AdviserApprovalController extends Controller
     }
 
     //this function stores the project proof file on the initial ledger entry and updates the project with the proof path and file hash
+    // private function storeProjectProofOnInitialLedger(Project $project, $file, ?LedgerEntry $initialLedger = null): LedgerEntry
+    // {
+    //     $initialLedger = $initialLedger ?: $this->getInitialLedgerEntry($project);
+
+    //     if (! $initialLedger) {
+    //         $initialLedger = LedgerEntry::create([
+    //             'id' => (string) Str::uuid(),
+    //             'project_id' => $project->id,
+    //             'type' => 'Initial',
+    //             'amount' => (float) ($project->budget ?? 0),
+    //             'budget_breakdown' => null,
+    //             'description' => 'Initial project budget baseline',
+    //             'category' => 'Project Budget Baseline',
+    //             'approval_status' => 'Draft',
+    //             'note' => 'Auto-generated baseline on project approval',
+    //             'created_by' => Auth::id(),
+    //             'updated_by' => Auth::id(),
+    //             'archive' => 0,
+    //             'created_at' => now(),
+    //             'updated_at' => now(),
+    //         ]);
+    //     }
+
+    //     $fileHash = hash_file('sha256', $file->getRealPath());
+    //     $extension = $file->getClientOriginalExtension();
+    //     $fileName = $fileHash . ($extension ? '.' . $extension : '');
+    //     Storage::disk('public')->putFileAs('ledger_proofs', $file, $fileName);
+
+    //     $proofPath = 'storage/ledger_proofs/' . $fileName;
+    //     $initialLedger->ledger_proof = $proofPath;
+    //     $initialLedger->file_content_hash = $fileHash;
+    //     $initialLedger->save();
+
+    //     $project->forceFill([
+    //         'project_proof' => $proofPath,
+    //         'file_content_hash' => $fileHash,
+    //     ])->save();
+
+    //     return $initialLedger;
+    // }
+
     private function storeProjectProofOnInitialLedger(Project $project, $file, ?LedgerEntry $initialLedger = null): LedgerEntry
-    {
-        $initialLedger = $initialLedger ?: $this->getInitialLedgerEntry($project);
+{
+    $initialLedger = $initialLedger ?: $this->getInitialLedgerEntry($project);
 
-        if (! $initialLedger) {
-            $initialLedger = LedgerEntry::create([
-                'id' => (string) Str::uuid(),
-                'project_id' => $project->id,
-                'type' => 'Initial',
-                'amount' => (float) ($project->budget ?? 0),
-                'budget_breakdown' => null,
-                'description' => 'Initial project budget baseline',
-                'category' => 'Project Budget Baseline',
-                'approval_status' => 'Draft',
-                'note' => 'Auto-generated baseline on project approval',
-                'created_by' => Auth::id(),
-                'updated_by' => Auth::id(),
-                'archive' => 0,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
+    if (! $initialLedger) {
+        $initialLedger = LedgerEntry::create([
+            'id' => (string) Str::uuid(),
+            'project_id' => $project->id,
+            'type' => 'Initial',
+            'amount' => (float) ($project->budget ?? 0),
+            'budget_breakdown' => null,
+            'description' => 'Initial project budget baseline',
+            'category' => 'Project Budget Baseline',
+            'approval_status' => 'Draft',
+            'note' => 'Auto-generated baseline on project approval',
+            'created_by' => Auth::id(),
+            'updated_by' => Auth::id(),
+            'archive' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
 
-        $fileHash = hash_file('sha256', $file->getRealPath());
-        $extension = $file->getClientOriginalExtension();
-        $fileName = $fileHash . ($extension ? '.' . $extension : '');
-        Storage::disk('public')->putFileAs('ledger_proofs', $file, $fileName);
+    $fileHash = hash_file('sha256', $file->getRealPath());
+    $extension = $file->getClientOriginalExtension();
+    $fileName = $fileHash . ($extension ? '.' . $extension : '');
+    Storage::disk('public')->putFileAs('ledger_proofs', $file, $fileName);
 
-        $proofPath = 'storage/ledger_proofs/' . $fileName;
+    $proofPath = 'storage/ledger_proofs/' . $fileName;
+
+    // Only backfill ledger_proof if the baseline entry doesn't already have one
+    // (covers the freshly-created case above). Never overwrite an existing one.
+    if (empty($initialLedger->ledger_proof)) {
         $initialLedger->ledger_proof = $proofPath;
         $initialLedger->file_content_hash = $fileHash;
         $initialLedger->save();
-
-        $project->forceFill([
-            'project_proof' => $proofPath,
-            'file_content_hash' => $fileHash,
-        ])->save();
-
-        return $initialLedger;
     }
+
+    $project->forceFill([
+        'project_proof' => $proofPath,
+        'file_content_hash' => $fileHash,
+    ])->save();
+
+    return $initialLedger;
+}
 
     private function getInitialLedgerEntry(Project $project): ?LedgerEntry
     {
