@@ -135,11 +135,12 @@ class MeetingController extends Controller
 
             // Handle file upload
             $meeting_proof = null;
+            $meetingProofHash = null;
             if ($request->hasFile('meeting_proof')) {
                 $file = $request->file('meeting_proof');
-                $fileName = time() . '_' . $file->getClientOriginalName();
-                $filePath = $file->storeAs('meeting_proofs', $fileName, 'public');
-                $meeting_proof = $filePath;
+                $uploadedProof = $this->storeMeetingProofFile($file);
+                $meeting_proof = $uploadedProof['path'];
+                $meetingProofHash = $uploadedProof['hash'];
             }
 
             // Handle attendees properly - convert comma-separated string to array for JSON storage
@@ -159,6 +160,7 @@ class MeetingController extends Controller
                 'expected_attendees' => $request->input('expected_attendees'),
                 'attendees' => $attendeesArray,
                 'meeting_proof' => $meeting_proof,
+                'file_content_hash' => $meetingProofHash,
                 'is_done' => false,
                 'archive' => false,
             ]);
@@ -228,6 +230,8 @@ public function update(Request $request, $id)
             'minutes_content' => $request->input('minutes_content'),
         ];
 
+        $meetingProofHash = $meeting->file_content_hash;
+
         // Handle attendees properly - convert comma-separated string to array for JSON storage
         if ($request->has('attendees') && !empty($request->input('attendees'))) {
             $attendeesString = $request->input('attendees');
@@ -243,14 +247,18 @@ public function update(Request $request, $id)
         // Handle proof file upload
         if ($request->hasFile('proof')) {
             $file = $request->file('proof');
-            $fileName = time() . '_proof_' . $file->getClientOriginalName();
-            $filePath = $file->storeAs('meeting_proofs', $fileName, 'public');
-            $updateData['meeting_proof'] = $filePath;
+            $uploadedProof = $this->storeMeetingProofFile($file);
+            $updateData['meeting_proof'] = $uploadedProof['path'];
+            $meetingProofHash = $uploadedProof['hash'];
         } elseif ($request->hasFile('meeting_proof')) {
             $file = $request->file('meeting_proof');
-            $fileName = time() . '_' . $file->getClientOriginalName();
-            $filePath = $file->storeAs('meeting_proofs', $fileName, 'public');
-            $updateData['meeting_proof'] = $filePath;
+            $uploadedProof = $this->storeMeetingProofFile($file);
+            $updateData['meeting_proof'] = $uploadedProof['path'];
+            $meetingProofHash = $uploadedProof['hash'];
+        }
+
+        if ($meetingProofHash) {
+            $updateData['file_content_hash'] = $meetingProofHash;
         }
 
         $meeting->update($updateData);
@@ -286,6 +294,19 @@ public function update(Request $request, $id)
         ], 500);
     }
 }
+
+    private function storeMeetingProofFile($file): array
+    {
+        $fileHash = hash_file('sha256', $file->getRealPath());
+        $extension = $file->getClientOriginalExtension();
+        $fileName = $fileHash . ($extension ? '.' . $extension : '');
+        $filePath = $file->storeAs('meeting_proofs', $fileName, 'public');
+
+        return [
+            'path' => $filePath,
+            'hash' => $fileHash,
+        ];
+    }
 
     /**
      * Delete a meeting (soft delete via archive)
@@ -374,9 +395,9 @@ public function update(Request $request, $id)
             // Handle file upload for minutes
             if ($request->hasFile('minutes_content')) {
                 $file = $request->file('minutes_content');
-                $fileName = time() . '_minutes_' . $file->getClientOriginalName();
-                $filePath = $file->storeAs('meeting_minutes', $fileName, 'public');
-                $updateData['meeting_proof'] = $filePath;
+                $uploadedProof = $this->storeMeetingProofFile($file);
+                $updateData['meeting_proof'] = $uploadedProof['path'];
+                $updateData['file_content_hash'] = $uploadedProof['hash'];
             } elseif ($request->input('minutes_content')) {
                 $updateData['minutes_content'] = $request->input('minutes_content');
             }

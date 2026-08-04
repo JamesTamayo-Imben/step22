@@ -41,7 +41,7 @@ function showToast(message, type = 'success') {
   }, 2200);
 }
 
-function Modal({ open, onClose, title, description, children }) {
+function Modal({ open, onClose, title, description, children, maxWidthClassName = 'max-w-2xl' }) {
   useEffect(() => {
     if (!open) return undefined;
     const originalStyle = window.getComputedStyle(document.body).overflow;
@@ -61,7 +61,7 @@ function Modal({ open, onClose, title, description, children }) {
       aria-modal="true"
     >
       <div
-        className="relative w-full max-w-2xl bg-white rounded-2xl shadow-lg flex flex-col max-h-[90vh]"
+        className={`relative w-full ${maxWidthClassName} bg-white rounded-2xl shadow-lg flex flex-col max-h-[90vh]`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between p-6 border-b">
@@ -152,8 +152,11 @@ function CSGMeetingsPageInner() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showUploadMinutesModal, setShowUploadMinutesModal] = useState(false);
   const [showViewMinutesModal, setShowViewMinutesModal] = useState(false);
+  const [showDocumentPreviewModal, setShowDocumentPreviewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
+  const [documentPreviewUrl, setDocumentPreviewUrl] = useState('');
+  const [documentPreviewName, setDocumentPreviewName] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('all');
@@ -413,24 +416,25 @@ const renderAttendees = (attendees) => {
     try {
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
       
-      const payload = {
-        title: meetingForm.title,
-        scheduled_date: meetingForm.scheduled_date,
-        description: meetingForm.description,
-        expected_attendees: meetingForm.expected_attendees ? parseInt(meetingForm.expected_attendees) : 0,
-        attendees: meetingForm.attendees,
-      };
+      const formData = new FormData();
+      formData.append('title', meetingForm.title);
+      formData.append('scheduled_date', meetingForm.scheduled_date);
+      formData.append('description', meetingForm.description);
+      formData.append('expected_attendees', meetingForm.expected_attendees ? parseInt(meetingForm.expected_attendees) : 0);
+      formData.append('attendees', meetingForm.attendees || '');
+      if (meetingForm.proof && meetingForm.proof instanceof File) {
+        formData.append('meeting_proof', meetingForm.proof);
+      }
       
-      console.log('Sending payload:', payload);
+      console.log('Sending create meeting payload with proof');
       
       const response = await fetch('/api/meetings', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'X-CSRF-TOKEN': csrfToken || '',
           'Accept': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       console.log('Response Status:', response.status);
@@ -638,6 +642,19 @@ const renderAttendees = (attendees) => {
     setMinutesFile('');
     setSelectedMeeting(null);
     showToast('Meeting minutes uploaded successfully', 'success');
+  };
+
+  const openDocumentPreview = (meeting) => {
+    const documentUrl = meeting?.minutes_file_url || (meeting?.meeting_proof ? `/storage/${meeting.meeting_proof}` : null);
+
+    if (!documentUrl) {
+      showToast('No document is available for this meeting yet', 'error');
+      return;
+    }
+
+    setDocumentPreviewUrl(documentUrl);
+    setDocumentPreviewName(meeting?.minutes_file_name || meeting?.meeting_proof?.split('/').pop() || 'Meeting Document');
+    setShowDocumentPreviewModal(true);
   };
 
   const handleEditFileUpload = (e) => {
@@ -1279,6 +1296,48 @@ const renderAttendees = (attendees) => {
             />
           </div>
 
+          {/* <div>
+            <FieldLabel>Meeting Proof or Meeting Minutes File (Optional)</FieldLabel>
+            <div className="flex flex-col gap-3">
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                <div className="flex flex-col items-center justify-center py-3">
+                  <Upload className="w-5 h-5 mb-2 text-gray-400" />
+                  <p className="text-xs text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                  <p className="text-xs text-gray-400">PDF, JPG, PNG, DOC, DOCX (MAX. 10MB)</p>
+                </div>
+                <input
+                  ref={proofFileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setProofFilePreview(file.name);
+                      setMeetingForm({ ...meetingForm, proof: file });
+                    }
+                  }}
+                />
+              </label>
+              {proofFilePreview && (
+                <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm text-gray-600 flex-1 truncate">{proofFilePreview}</span>
+                  <button
+                    onClick={() => {
+                      setProofFilePreview(null);
+                      setMeetingForm({ ...meetingForm, proof: null });
+                      if (proofFileInputRef.current) proofFileInputRef.current.value = '';
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+          </div> */}
+
           <div className="flex gap-3 pt-4">
             <Button
               variant="outline"
@@ -1585,19 +1644,19 @@ const renderAttendees = (attendees) => {
             <div className="flex gap-3 pt-4">
               {selectedMeeting.minutes_file_url ? (
                 <Button
-                  onClick={() => window.open(selectedMeeting.minutes_file_url, '_blank')}
+                  onClick={() => openDocumentPreview(selectedMeeting)}
                   className="flex-1 rounded-xl text-white bg-blue-600 hover:bg-blue-700"
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Document
+                  <Eye className="w-4 h-4 mr-2" />
+                  View Document
                 </Button>
               ) : (
                 <Button
                   disabled
                   className="flex-1 rounded-xl bg-gray-200 text-gray-500 cursor-not-allowed"
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Document
+                  <Eye className="w-4 h-4 mr-2" />
+                  View Document
                 </Button>
               )}
               <Button
@@ -1610,6 +1669,64 @@ const renderAttendees = (attendees) => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Document Preview Modal */}
+      <Modal
+        open={showDocumentPreviewModal}
+        onClose={() => {
+          setShowDocumentPreviewModal(false);
+          setDocumentPreviewUrl('');
+          setDocumentPreviewName('');
+        }}
+        title={documentPreviewName || 'Document Preview'}
+        description="Preview the uploaded meeting document"
+        maxWidthClassName="max-w-5xl"
+      >
+        <div className="pt-4">
+          {documentPreviewUrl ? (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-2">
+              {documentPreviewUrl.toLowerCase().match(/\.(png|jpe?g|gif|webp|bmp)$/i) ? (
+                <img
+                  src={documentPreviewUrl}
+                  alt={documentPreviewName || 'Meeting document'}
+                  className="max-h-[70vh] w-full rounded-lg object-contain"
+                />
+              ) : documentPreviewUrl.toLowerCase().match(/\.pdf$/i) ? (
+                <iframe
+                  src={documentPreviewUrl}
+                  title={documentPreviewName || 'Meeting document'}
+                  className="h-[70vh] w-full rounded-lg border-0"
+                />
+              ) : (
+                <div className="flex min-h-[240px] flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center">
+                  <FileText className="mb-3 h-10 w-10 text-blue-500" />
+                  <p className="mb-2 text-sm font-medium text-gray-700">This file type cannot be previewed inline.</p>
+                  <p className="mb-4 text-sm text-gray-500">Open it in a new tab to view the document.</p>
+                  <Button onClick={() => window.open(documentPreviewUrl, '_blank')} className="rounded-xl bg-blue-600 text-white hover:bg-blue-700">
+                    Open in new tab
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+              No document selected.
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button
+              onClick={() => window.open(documentPreviewUrl, '_blank')}
+              disabled={!documentPreviewUrl}
+              className="rounded-xl bg-blue-600 text-white hover:bg-blue-700"
+            >
+              
+              Open in New Tab
+            </Button>
+          
+          </div>
+        </div>
       </Modal>
 
       {/* Delete Confirmation Modal */}

@@ -24,6 +24,7 @@ class Meeting extends Model
         'expected_attendees',
         'attendees',
         'meeting_proof',
+        'file_content_hash',
         'archive',
         'created_at',
         'updated_at',

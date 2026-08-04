@@ -3,10 +3,11 @@ import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { Input } from '@/Components/ui/input';
 import { StudentModal } from '@/Components/ui/StudentModal';
-import { Calendar, Clock, MapPin, Users, FileText, CheckCircle2, Search } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Eye, FileText, CheckCircle2, Search } from 'lucide-react';
 
 export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [], meetingsPast = [] }) {
   const [selectedMeeting, setSelectedMeeting] = useState(null);
+  const [documentPreview, setDocumentPreview] = useState(null);
   const [activeTab, setActiveTab] = useState('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('all');
@@ -87,6 +88,19 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
   };
 
   const normalize = (s) => (s || '').toString().toLowerCase();
+
+  const openDocumentPreview = (meeting) => {
+    const documentUrl = meeting?.minutes_file_url || (meeting?.meeting_proof ? `/storage/${meeting.meeting_proof}` : null);
+
+    if (!documentUrl) {
+      return;
+    }
+
+    setDocumentPreview({
+      url: documentUrl,
+      name: meeting?.minutes_file_name || meeting?.meeting_proof?.split('/').pop() || 'Meeting Document',
+    });
+  };
 
   const meetingsUpcomingFiltered = meetingsUpcoming.filter(m => inTimeRange(m, timeFilter)).filter(m => {
     const q = (searchQuery || '').trim().toLowerCase();
@@ -411,19 +425,19 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
                 </div>
                 <h3 className="text-gray-900 font-semibold mb-3">Meeting Documentation</h3>
                 {selectedMeeting.minutes_file_url ? (
-                  <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="">
                     <p className="text-sm text-gray-600 mb-2">Uploaded documentation</p>
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-gray-900">{selectedMeeting.minutes_file_name || selectedMeeting.meeting_proof?.split('/').pop() || 'Document'}</p>
-                        <p className="text-xs text-gray-500">Click the button below to view or download</p>
+                    <div className="flex items-center justify-between gap-3 bg-blue-100 rounded-xl p-3 border border-blue-400">
+                      <div className="w-0 flex-1">
+                        <p className="font-medium text-gray-900 truncate">{selectedMeeting.minutes_file_name || selectedMeeting.meeting_proof?.split('/').pop() || 'Document'}</p>
+                     
                       </div>
                       <button
-                        onClick={() => window.open(selectedMeeting.minutes_file_url, '_blank')}
+                        onClick={() => openDocumentPreview(selectedMeeting)}
                         className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
                       >
-                        <FileText className="w-4 h-4" />
-                        View Document
+                        <Eye className="w-4 h-4" />
+                        View
                       </button>
                     </div>
                   </div>
@@ -437,17 +451,57 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
 
             {/* Actions */}
             <div className="flex gap-3 pt-2 border-t">
-              {selectedMeeting.minutesAvailable && (
-                <button className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors font-medium flex items-center justify-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Download Minutes
-                </button>
-              )}
+             
               <button
                 onClick={() => setSelectedMeeting(null)}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl transition-colors font-medium"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        )}
+      </StudentModal>
+
+      <StudentModal
+        isOpen={!!documentPreview}
+        onClose={() => setDocumentPreview(null)}
+        title={'Document Preview'}
+      >
+        {documentPreview && (
+          <div className="space-y-4 pt-2">
+            {documentPreview.url.toLowerCase().match(/\.(png|jpe?g|gif|webp|bmp)$/i) ? (
+              <img
+                src={documentPreview.url}
+                alt={documentPreview.name}
+                className="max-h-[70vh] w-full rounded-lg object-contain"
+              />
+            ) : documentPreview.url.toLowerCase().match(/\.pdf$/i) ? (
+              <iframe
+                src={documentPreview.url}
+                title={documentPreview.name}
+                className="h-[70vh] w-full rounded-lg border-0"
+              />
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
+                <p className="mb-2 font-medium text-gray-700">This file type cannot be previewed inline.</p>
+                <p className="mb-4">Open it in a new tab to view it.</p>
+                <button
+                  onClick={() => window.open(documentPreview.url, '_blank')}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                >
+                  Open in new tab
+                </button>
+              </div>
+            )}
+
+            <div className="">
+              <button
+                onClick={() => window.open(documentPreview.url, '_blank')}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                {/* <Eye className="w-4 h-4" /> */}
+                Open in new tab
               </button>
             </div>
           </div>
