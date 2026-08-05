@@ -169,8 +169,21 @@ class AdviserApprovalController extends Controller
             'approval_copy' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
-        $userId = Auth::id();
+        $user = Auth::user();
         $type = $data['type'] === 'date_change' ? 'change_date' : $data['type'];
+        $required = match ($type) {
+            'project', 'change_date' => 'projects.approve',
+            'ledger' => 'ledger.approve',
+            'proof' => 'proof-documents.approve',
+            'meeting' => 'meetings.approve-minutes',
+            default => null,
+        };
+
+        if ($required && !$user?->hasPermission($required)) {
+            abort(403, 'You do not have permission to approve this item.');
+        }
+
+        $userId = Auth::id();
 
         match ($type) {
             'project' => $this->approveProject($data['id'], $userId, $data['notes'] ?? '', $request->file('approval_copy')),

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Role extends Model
@@ -32,10 +33,16 @@ class Role extends Model
      * CRITICAL: Added 'id' here so UUIDs can be saved.
      */
     protected $fillable = [
-        'id', 
+        'id',
         'name',
         'slug',
         'description',
+        'permission_id',
+        'archive',
+    ];
+
+    protected $casts = [
+        'archive' => 'boolean',
     ];
 
     /**
@@ -45,5 +52,15 @@ class Role extends Model
     {
         // Links roles.id to users.role_id
         return $this->hasMany(User::class, 'role_id', 'id');
+    }
+
+    /**
+     * Role-level permissions (role_permission rows with no user_id).
+     */
+    public function permissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'role_permission', 'role_id', 'permission_id')
+            ->withPivot('id', 'user_id', 'created_at')
+            ->wherePivotNull('user_id');
     }
 }

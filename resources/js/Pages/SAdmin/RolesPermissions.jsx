@@ -18,7 +18,18 @@ import {
   CheckCircle,
   Repeat,
   Calendar,
+  ClipboardList,
+  ChevronDown,
 } from 'lucide-react';
+import RolePermissionEditor from '@/Components/RolePermissionEditor';
+
+const ROLE_OPTIONS = [
+  { key: 'superadmin', label: 'Super Admin' },
+  { key: 'admin', label: 'Council Adviser' },
+  { key: 'admin-sadu', label: 'SADU Admin' },
+  { key: 'csg', label: 'CSG' },
+  { key: 'student', label: 'Ordinary Students' },
+];
 
 function showToast(message, type = 'success') {
   const text = typeof message === 'string'
@@ -142,7 +153,22 @@ function AvatarFallback({ className = '', children, name }) {
 }
 
 export function RolePermissionsPage() {
-  const { users = [], csgOfficerCandidates = [], adviserCandidates = [], councilOfficers: initialCouncilOfficers = [], councilAdviser: initialCouncilAdviser = [], councilSaduAdviser: initialCouncilSaduAdviser = [] } = usePage().props;
+  const {
+    users = [],
+    csgOfficerCandidates = [],
+    adviserCandidates = [],
+    councilOfficers: initialCouncilOfficers = [],
+    councilAdviser: initialCouncilAdviser = [],
+    councilSaduAdviser: initialCouncilSaduAdviser = [],
+    rolePermissionMatrix: initialMatrix = [],
+    superAdmins = [],
+    studentCount = 0,
+  } = usePage().props;
+
+  const [selectedRoleKey, setSelectedRoleKey] = useState('admin');
+  const [viewMode, setViewMode] = useState('assign'); // 'assign' | 'permissions'
+  const [roleMatrix, setRoleMatrix] = useState(initialMatrix);
+  const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
 
   const [isSetOfficerModalOpen, setIsSetOfficerModalOpen] = useState(false);
   const [isSetAdviserModalOpen, setIsSetAdviserModalOpen] = useState(false);
@@ -161,7 +187,8 @@ export function RolePermissionsPage() {
   const [isDeletingPositionId, setIsDeletingPositionId] = useState(null);
   const [councilStartDate, setCouncilStartDate] = useState('');
   const [councilEndDate, setCouncilEndDate] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [positionSearchQuery, setPositionSearchQuery] = useState('');
+  const [modalUserSearchQuery, setModalUserSearchQuery] = useState('');
   const [adviserSearchQuery, setAdviserSearchQuery] = useState('');
   const [saduAdviserSearchQuery, setSaduAdviserSearchQuery] = useState('');
   const [selectedPosition, setSelectedPosition] = useState('');
@@ -180,6 +207,21 @@ export function RolePermissionsPage() {
   const [councilOfficers, setCouncilOfficers] = useState(initialCouncilOfficers);
   const [councilAdviser, setCouncilAdviser] = useState(initialCouncilAdviser);
   const [councilSaduAdviser, setCouncilSaduAdviser] = useState(initialCouncilSaduAdviser);
+
+  useEffect(() => {
+    setRoleMatrix(initialMatrix);
+  }, [initialMatrix]);
+
+  useEffect(() => {
+    const onDocClick = () => setRoleDropdownOpen(false);
+    if (roleDropdownOpen) {
+      document.addEventListener('click', onDocClick);
+      return () => document.removeEventListener('click', onDocClick);
+    }
+  }, [roleDropdownOpen]);
+
+  const selectedRoleOption = ROLE_OPTIONS.find((r) => r.key === selectedRoleKey) || ROLE_OPTIONS[0];
+  const currentPermissionRole = roleMatrix.find((r) => r.key === selectedRoleKey) || null;
 
   useEffect(() => {
     const fetchCouncilTerm = async () => {
@@ -288,14 +330,14 @@ const positionHierarchy = {
   };
 
   const filteredUsers = useMemo(() => {
-    const q = (searchQuery || '').toLowerCase();
+    const q = (modalUserSearchQuery || '').toLowerCase();
     if (!q) return csgOfficerCandidates;
     return csgOfficerCandidates.filter(user =>
       user.name.toLowerCase().includes(q) 
       ||
       String(user.studentId).toLowerCase().includes(q)
     );
-  }, [csgOfficerCandidates, searchQuery]);
+  }, [csgOfficerCandidates, modalUserSearchQuery]);
 
   const filteredAdviserUsers = useMemo(() => {
     const q = (adviserSearchQuery || '').toLowerCase();
@@ -319,15 +361,15 @@ const positionHierarchy = {
 
   //search position
 const searchPosition = useMemo(() => {
-  const q = (searchQuery || '').toLowerCase();
+  const q = (positionSearchQuery || '').toLowerCase();
   return allPositions.filter(pos =>
     pos.name.toLowerCase().includes(q)
   );
-}, [allPositions, searchQuery]);
+}, [allPositions, positionSearchQuery]);
 
 // Add this new memo
 const filteredCouncilOfficers = useMemo(() => {
-  const q = (searchQuery || '').toLowerCase();
+  const q = (positionSearchQuery || '').toLowerCase();
   let filtered = councilOfficers;
   
   if (q) {
@@ -342,7 +384,7 @@ const filteredCouncilOfficers = useMemo(() => {
     const posB = positionHierarchy[b.position] ?? 999;
     return posA - posB;
   });
-}, [councilOfficers, searchQuery]);
+}, [councilOfficers, positionSearchQuery]);
   
 
   const selectedPositionName = selectedPosition || '';
@@ -351,7 +393,7 @@ const filteredCouncilOfficers = useMemo(() => {
     setSelectedOfficer(officer);
     setSelectedPosition(officer.position);
     setSelectedUser(null);
-    setSearchQuery('');
+    setModalUserSearchQuery('');
     setIsSetOfficerModalOpen(true);
   };
 
@@ -372,8 +414,6 @@ const filteredCouncilOfficers = useMemo(() => {
   };
 
   const openCouncilTermModal = () => {
-    setCouncilStartDate('');
-    setCouncilEndDate('');
     setIsCouncilTermModalOpen(true);
   };
 
@@ -412,7 +452,7 @@ const filteredCouncilOfficers = useMemo(() => {
         setSelectedOfficer(null);
         setSelectedUser(null);
         setSelectedPosition('');
-        setSearchQuery('');
+        setModalUserSearchQuery('');
         setIsSetOfficerModalOpen(false);
         setIsRemoving(false);
       },
@@ -801,19 +841,131 @@ const handleSetSaduAdviser = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Roles & Permissions</h1>
           <p className="text-gray-500">Configure role-based access control</p>
         </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setRoleDropdownOpen((open) => !open);
+              }}
+              className="inline-flex items-center gap-2 min-w-[200px] justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 shadow-sm hover:border-blue-300"
+            >
+              <span className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-[#2563EB]" />
+                {selectedRoleOption.label}
+              </span>
+              <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${roleDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {roleDropdownOpen && (
+              <div
+                className="absolute right-0 mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-lg z-20 overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {ROLE_OPTIONS.map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => {
+                      setSelectedRoleKey(option.key);
+                      setRoleDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                      selectedRoleKey === option.key
+                        ? 'bg-blue-50 text-[#2563EB]'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Button
+            type="button"
+            onClick={() => setViewMode((mode) => (mode === 'permissions' ? 'assign' : 'permissions'))}
+            className={`${
+              viewMode === 'permissions'
+                ? 'bg-gray-900 hover:bg-gray-800 text-white'
+                : 'bg-[#2563EB] hover:bg-blue-700 text-white'
+            }`}
+          >
+            {viewMode === 'permissions' ? (
+              <>
+                <Users className="w-4 h-4 mr-2" />
+                Assignments
+              </>
+            ) : (
+              <>
+                <ClipboardList className="w-4 h-4 mr-2" />
+                Permissions
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
-      {/* Advisers Card */}
+      {viewMode === 'permissions' && (
+        <RolePermissionEditor
+          key={selectedRoleKey}
+          roleEntry={currentPermissionRole}
+          saveUrl="/admin/role-permissions/save-permissions"
+          onSaved={(matrix) => setRoleMatrix(matrix)}
+        />
+      )}
+
+      {viewMode === 'assign' && selectedRoleKey === 'superadmin' && (
+        <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-gray-900 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-[#2563EB]" />
+                Super Admin
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">Full system access accounts</p>
+            </div>
+            <Badge className="bg-purple-100 text-purple-700">{superAdmins.length} account(s)</Badge>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {superAdmins.length === 0 ? (
+              <div className="col-span-full text-center py-8 text-sm text-gray-500">
+                No Super Admin accounts found.
+              </div>
+            ) : (
+              superAdmins.map((admin) => (
+                <div key={admin.id} className="p-4 rounded-xl border-2 border-blue-200 bg-blue-50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Avatar className="w-10 h-10">
+                      <AvatarFallback className="bg-[#0065FF] text-white text-xs" name={admin.name} />
+                    </Avatar>
+                    <div>
+                      <h3 className="text-sm text-gray-900">{admin.name}</h3>
+                      <Badge className="text-xs bg-green-100 text-green-700">{admin.status || 'Active'}</Badge>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500">{admin.email}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+      )}
+
+      {viewMode === 'assign' && selectedRoleKey === 'admin' && (
+      /* Advisers Card — Council Adviser only */
       <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-gray-900 flex items-center">STEP Administrators</h2>
-            <p className="text-sm text-gray-500 mt-1">Manage and assign adviser roles</p>
+            <h2 className="text-gray-900 flex items-center">Council Adviser</h2>
+            <p className="text-sm text-gray-500 mt-1">Manage and assign council adviser role</p>
           </div>
         </div>
 
@@ -896,8 +1048,20 @@ const handleSetSaduAdviser = () => {
               </div>
             );
           })}
+        </div>
+      </Card>
+      )}
 
-          {/* SADU adviser */}
+      {viewMode === 'assign' && selectedRoleKey === 'admin-sadu' && (
+      <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-gray-900 flex items-center">SADU Admin</h2>
+            <p className="text-sm text-gray-500 mt-1">Manage and assign SADU Admin role</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
            {councilSaduAdviser.map((adviser) => {
             const isVacant = !adviser.name;
 
@@ -977,8 +1141,31 @@ const handleSetSaduAdviser = () => {
           })}
         </div>
       </Card>
+      )}
 
-      {/* CSG Council Officers Card */}
+      {viewMode === 'assign' && selectedRoleKey === 'student' && (
+        <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-gray-900 flex items-center gap-2">
+                <Users className="w-5 h-5 text-[#2563EB]" />
+                Ordinary Students
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Students have engagement access. Use Permissions to configure what they can do.
+              </p>
+            </div>
+            <Badge className="bg-blue-100 text-blue-700">{studentCount} student(s)</Badge>
+          </div>
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-gray-700">
+            Ordinary students can view projects, submit ratings, and receive notifications by default.
+            Click <strong>Permissions</strong> to adjust their module access.
+          </div>
+        </Card>
+      )}
+
+      {viewMode === 'assign' && selectedRoleKey === 'csg' && (
+      /* CSG Council Officers Card */
       <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
         <div className="flex items-start justify-between mb-4">
           <div>
@@ -1008,8 +1195,8 @@ const handleSetSaduAdviser = () => {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
                     placeholder="Search position..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    value={positionSearchQuery}
+                    onChange={(e) => setPositionSearchQuery(e.target.value)}
                     className="pl-10 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-blue-200"
                   />
                 </div>
@@ -1106,6 +1293,7 @@ const handleSetSaduAdviser = () => {
   )}
 </div>
       </Card>
+      )}
 
       {/* Add Council Position Modal */}
         <Modal
@@ -1254,7 +1442,7 @@ const handleSetSaduAdviser = () => {
           setSelectedOfficer(null);
           setSelectedPosition('');
           setSelectedUser(null);
-          setSearchQuery('');
+          setModalUserSearchQuery('');
         }}
         title={selectedPositionName ? `Assign ${selectedPositionName}` : 'Set CSG Officer'}
         description="Assign a student as a CSG officer position."
@@ -1275,8 +1463,8 @@ const handleSetSaduAdviser = () => {
               <label className="text-sm text-gray-700 mb-2 block">Search User</label>
               <input 
                 className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                value={searchQuery} 
-                onChange={(e) => setSearchQuery(e.target.value)} 
+                value={modalUserSearchQuery} 
+                onChange={(e) => setModalUserSearchQuery(e.target.value)} 
                 placeholder="Name or Student ID" 
                 disabled={!selectedPosition}
               />
@@ -1330,7 +1518,7 @@ const handleSetSaduAdviser = () => {
               setSelectedOfficer(null);
               setSelectedPosition(null);
               setSelectedUser(null);
-              setSearchQuery('');
+              setModalUserSearchQuery('');
             }}
             variant="outline"
             className="border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -1552,11 +1740,7 @@ const handleSetSaduAdviser = () => {
       {/* Council Term Modal */}
       <Modal
         open={isCouncilTermModalOpen}
-        onClose={() => {
-          setIsCouncilTermModalOpen(false);
-          setCouncilStartDate('');
-          setCouncilEndDate('');
-        }}
+        onClose={() => setIsCouncilTermModalOpen(false)}
         title="Set Council Term"
         description="Set the start and end dates for the CSG council term."
       >
@@ -1589,11 +1773,7 @@ const handleSetSaduAdviser = () => {
         </div>
         <div className="mt-6 flex justify-end gap-3">
           <Button
-            onClick={() => {
-              setIsCouncilTermModalOpen(false);
-              setCouncilStartDate('');
-              setCouncilEndDate('');
-            }}
+            onClick={() => setIsCouncilTermModalOpen(false)}
             variant="outline"
             className="border-gray-300 text-gray-700 hover:bg-gray-50"
           >

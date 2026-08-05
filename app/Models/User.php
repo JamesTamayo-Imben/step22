@@ -106,6 +106,23 @@ class User extends Authenticatable
     }
 
     /**
+     * Check a module.action permission slug (e.g. projects.create).
+     * CSG officers are evaluated against their council position grants.
+     */
+    public function hasPermission(string $permissionSlug): bool
+    {
+        return app(\App\Services\RolePermissionService::class)->userCan($this, $permissionSlug);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function permissionSlugs(): array
+    {
+        return app(\App\Services\RolePermissionService::class)->permissionSlugsForUser($this);
+    }
+
+    /**
      * Generate a new invitation token (64 character random hash)
      * Valid for 3 days (259200 seconds)
      */

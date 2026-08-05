@@ -29,6 +29,10 @@ class CSGProjectController extends Controller
 
     public function store(Request $request)
     {
+        if (!Auth::user()?->hasPermission('projects.create')) {
+            abort(403, 'You do not have permission to create projects.');
+        }
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],

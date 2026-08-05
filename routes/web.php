@@ -123,6 +123,9 @@ Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function ()  {
     Route::post('/admin/role-permissions/add-council-position', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'addCouncilPosition'])->name('admin.role-permissions.add-council-position');
     Route::put('/admin/role-permissions/edit-council-position/{id}', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'editCouncilPosition'])->name('admin.role-permissions.edit-council-position');
     Route::delete('/admin/role-permissions/delete-council-position/{id}', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'deleteCouncilPosition'])->name('admin.role-permissions.delete-council-position');
+    Route::post('/admin/role-permissions/update-permission', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'updateRolePermission'])->name('admin.role-permissions.update-permission');
+    Route::post('/admin/role-permissions/save-permissions', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'saveRolePermissions'])->name('admin.role-permissions.save-permissions');
+    Route::post('/admin/role-permissions/restore-defaults', [\App\Http\Controllers\SAdmin\SAdminDashboardController::class, 'restoreRolePermissions'])->name('admin.role-permissions.restore-defaults');
 
     // Super Admin governance pages
     Route::get('/sadmin/archived-projects', [SAdminArchivedItemsController::class, 'index'])->name('sadmin.archived-projects');
@@ -224,6 +227,7 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
     Route::post('/adviser/role-permissions/assign-officer', [AdviserPermissionController::class, 'assignOfficer'])->name('adviser.role-permissions.assign-officer');
     Route::post('/adviser/role-permissions/remove-officer', [AdviserPermissionController::class, 'removeOfficer'])->name('adviser.role-permissions.remove-officer');
     Route::post('/adviser/role-permissions/update', [AdviserPermissionController::class, 'updatePermissions'])->name('adviser.role-permissions.update');
+    Route::post('/adviser/role-permissions/save-permissions', [AdviserPermissionController::class, 'savePermissions'])->name('adviser.role-permissions.save-permissions');
     Route::post('/adviser/role-permissions/set-council-term', [AdviserPermissionController::class, 'setCouncilTerm'])->name('adviser.role-permissions.set-council-term');
     Route::get('/adviser/role-permissions/get-council-term', [AdviserPermissionController::class, 'getCouncilTerm'])->name('adviser.role-permissions.get-council-term');
 

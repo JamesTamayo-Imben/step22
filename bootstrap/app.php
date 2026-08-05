@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register middleware that prevents logged-in users from accessing login/welcome pages
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
+            'permission' => \App\Http\Middleware\CheckPermission::class,
             'prevent_logged_in' => \App\Http\Middleware\PreventLoggedInUsers::class,
             'csg.online' => \App\Http\Middleware\TrackCsgOnlineStatus::class,
         ]);

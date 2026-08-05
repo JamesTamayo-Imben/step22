@@ -3,10 +3,11 @@ import ReactDOM from 'react-dom';
 import { Input } from '@/Components/ui/input';  
 import { Textarea } from '@/Components/ui/textarea'; 
 import { Button } from '@/Components/ui/button';  
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
+import { canPermission } from '@/lib/permissions';
 
 import { 
   FolderKanban,
@@ -190,6 +191,9 @@ function PerformancePage() { return <Card className="p-8">Performance Panel (pla
 function ProfilePage() { return <Card className="p-8">Profile (placeholder)</Card>; }
 
 export function CSGOfficerDashboard({ currentView, statistics = {}, projects: initialProjects = [], recentLedgerEntries = [], upcomingMeetings: initialMeetings = [] }) {
+  const { auth } = usePage().props;
+  const canCreateProject = canPermission(auth?.permissions, 'projects.create');
+  const canCreateLedger = canPermission(auth?.permissions, 'ledger.create');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showStatCardPointer, setShowStatCardPointer] = useState(false);
   const [highlightedStatCard, setHighlightedStatCard] = useState(null);
@@ -783,12 +787,15 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
           <p className="text-gray-500">Manage projects, ledger, and student engagement</p>
         </div>
         <div className="hidden md:flex gap-3">
+          {canCreateProject && (
           <Button onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-xl transition-colors">
             <Plus className="w-4 h-4" />
             Create New Project
           </Button>
+          )}
 
+          {canCreateLedger && (
           <Button
             onClick={() => setShowLedgerModal(true)}
             className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -798,6 +805,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
             <Plus className="w-4 h-4 mr-2" />
             Add Ledger Entry
           </Button>
+          )}
         </div>
       </div>
 

@@ -123,6 +123,12 @@ class MeetingController extends Controller
     public function store(Request $request)
     {
         try {
+            if (!Auth::user()?->hasPermission('meetings.create')) {
+                return response()->json([
+                    'message' => 'You do not have permission to create meetings.',
+                ], 403);
+            }
+
             $validated = $request->validate([
                 'student_id' => 'nullable|string',
                 'title' => 'required|string|max:255',

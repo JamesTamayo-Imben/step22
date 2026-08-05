@@ -87,6 +87,12 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         try {
+            if (!Auth::user()?->hasPermission('projects.create')) {
+                return response()->json([
+                    'message' => 'You do not have permission to create projects.',
+                ], 403);
+            }
+
             // Validate required fields
             $validated = $request->validate([
                 'title' => 'required|string|max:255',
@@ -319,6 +325,12 @@ class ProjectController extends Controller
     public function update(Request $request, $id)
     {
         try {
+            if (!Auth::user()?->hasPermission('projects.edit')) {
+                return response()->json([
+                    'message' => 'You do not have permission to edit projects.',
+                ], 403);
+            }
+
             $project = Project::find($id);
             
             if (!$project) {
@@ -554,6 +566,12 @@ class ProjectController extends Controller
     public function destroy($id)
     {
         try {
+            if (!Auth::user()?->hasPermission('projects.delete')) {
+                return response()->json([
+                    'message' => 'You do not have permission to delete projects.',
+                ], 403);
+            }
+
             $project = Project::find($id);
             
             if (!$project) {
@@ -602,6 +620,12 @@ class ProjectController extends Controller
     public function archive($id)
     {
         try {
+            if (!Auth::user()?->hasPermission('projects.delete') && !Auth::user()?->hasPermission('projects.edit')) {
+                return response()->json([
+                    'message' => 'You do not have permission to archive projects.',
+                ], 403);
+            }
+
             $project = Project::find($id);
             
             if (!$project) {

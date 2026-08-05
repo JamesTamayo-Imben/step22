@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Inertia\Middleware;
 use App\Models\User\Notification;
 use App\Services\CsgOnlineStatusService;
+use App\Services\RolePermissionService;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -24,11 +25,21 @@ class HandleInertiaRequests extends Middleware
         if ($user) {
             $user->load('role', 'student', 'teacher');
         }
+
+        $permissions = [];
+        if ($user) {
+            try {
+                $permissions = app(RolePermissionService::class)->permissionSlugsForUser($user);
+            } catch (\Throwable $e) {
+                $permissions = [];
+            }
+        }
         
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $user,
+                'permissions' => $permissions,
                 'notifications' => $user 
                     ? Notification::where('archive', 0)
                         ->orderBy('created_at', 'desc')

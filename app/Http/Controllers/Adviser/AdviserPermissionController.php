@@ -7,6 +7,7 @@ use App\Models\CsgPosition;
 use App\Models\Role;
 use App\Models\StudentCsgOfficer;
 use App\Models\User;
+use App\Services\RolePermissionService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -24,7 +25,7 @@ class AdviserPermissionController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'studentId' => $user->id, // Using id as studentId for now
+                    'studentId' => $user->id,
                     'avatar' => strtoupper(substr($user->name, 0, 2)),
                     'currentRole' => $user->role?->name ?? 'Student',
                 ];
@@ -34,7 +35,6 @@ class AdviserPermissionController extends Controller
         $csgOfficers = StudentCsgOfficer::with('user')
             ->where('archive', false)
             ->where('csg_is_active', true)
-            // ->where('csg_position', '!=', 'member')
             ->get()
             ->groupBy('csg_position')
             ->map(function ($officers, $position) {
@@ -71,126 +71,72 @@ class AdviserPermissionController extends Controller
             ->where('archive', false)
             ->get()
             ->filter(fn ($officer) => $officer->user)
-           
-->map(function ($officer) {
-    return [
-        'id' => $officer->user_id,  // User ID for React key
-        'studentId' => $officer->id,  // Actual student ID (primary key of student_csg_officers)
-        'name' => $officer->user->name,
-        'email' => $officer->user->email,
-        'avatar' => strtoupper(substr($officer->user->name, 0, 2)),
-        'position' => $officer->csg_position,
-        'isCsg' => $officer->is_csg,
-        'isActive' => $officer->csg_is_active,
-    ];
-})
+            ->map(function ($officer) {
+                return [
+                    'id' => $officer->user_id,
+                    'studentId' => $officer->id,
+                    'name' => $officer->user->name,
+                    'email' => $officer->user->email,
+                    'avatar' => strtoupper(substr($officer->user->name, 0, 2)),
+                    'position' => $officer->csg_position,
+                    'isCsg' => $officer->is_csg,
+                    'isActive' => $officer->csg_is_active,
+                ];
+            })
             ->unique('id')
             ->values()
             ->toArray();
 
-        // Get CSG positions from database
         $csgPositions = CsgPosition::orderBy('position_name')
             ->get()
             ->map(function ($position) {
                 return [
-                    'id' => $position->position_name,
+                    'id' => $position->id,
                     'name' => $position->position_name,
-                    'sections' => [],
                 ];
             })
             ->toArray();
 
-        $roles = [
-            [
-                'name' => 'Superadmin',
-                'description' => 'Full system access with all permissions',
-                'totalPermissions' => 43,
-                'isEditable' => false,
-                'sections' => [
-                    [
-                        'category' => 'System',
-                        'permissions' => [
-                            ['id' => 'sys_view', 'label' => 'View', 'enabled' => true],
-                            ['id' => 'sys_create', 'label' => 'Create', 'enabled' => true],
-                            ['id' => 'sys_edit', 'label' => 'Edit', 'enabled' => true],
-                            ['id' => 'sys_delete', 'label' => 'Delete', 'enabled' => true],
-                            ['id' => 'sys_manage', 'label' => 'Manage Users', 'enabled' => true],
-                        ],
-                    ],
-                    [
-                        'category' => 'All Modules',
-                        'permissions' => [['id' => 'all_access', 'label' => 'Full Access', 'enabled' => true]],
-                    ],
-                ],
-            ],
-            [
-                'name' => 'Admin/Adviser',
-                'description' => 'Approval authority and oversight capabilities',
-                'totalPermissions' => 14,
-                'isEditable' => false,
-                'sections' => [
-                    [
-                        'category' => 'Projects',
-                        'permissions' => [
-                            ['id' => 'proj_view', 'label' => 'View', 'enabled' => true],
-                            ['id' => 'proj_approve', 'label' => 'Approve', 'enabled' => true],
-                        ],
-                    ],
-                    [
-                        'category' => 'Ledger',
-                        'permissions' => [
-                            ['id' => 'ledger_view', 'label' => 'View', 'enabled' => true],
-                            ['id' => 'ledger_approve', 'label' => 'Approve', 'enabled' => true],
-                            ['id' => 'ledger_verify', 'label' => 'Verify', 'enabled' => true],
-                        ],
-                    ],
-                    [
-                        'category' => 'Permissions',
-                        'permissions' => [
-                            ['id' => 'perm_manage', 'label' => 'Manage CSG Permissions', 'enabled' => true],
-                            ['id' => 'perm_delegate', 'label' => 'Delegate Authority', 'enabled' => true],
-                        ],
-                    ],
-                ],
-            ],
-            [
-                'name' => 'CSG Officer',
-                'description' => 'Create projects, manage ledger, and upload proofs',
-                'totalPermissions' => 234, // 13 positions × 18 permissions each
-                'isEditable' => true,
-                'sections' => [],
-            ],
-            [
-                'name' => 'Student',
-                'description' => 'Read-only access with engagement features',
-                'totalPermissions' => 8,
-                'isEditable' => true,
-                'sections' => [
-                    [
-                        'category' => 'Projects',
-                        'permissions' => [
-                            ['id' => 'proj_view', 'label' => 'View', 'enabled' => true],
-                            ['id' => 'proj_rate', 'label' => 'Rate', 'enabled' => true],
-                        ],
-                    ],
-                    [
-                        'category' => 'Engagement',
-                        'permissions' => [
-                            ['id' => 'engage_view', 'label' => 'View Points', 'enabled' => true],
-                            ['id' => 'engage_badges', 'label' => 'View Badges', 'enabled' => true],
-                            ['id' => 'engage_leaderboard', 'label' => 'View Leaderboard', 'enabled' => true],
-                        ],
-                    ],
-                ],
-            ],
-        ];
+        $service = new RolePermissionService();
+        $matrix = $service->buildMatrix();
+        $csgPermissionRole = collect($matrix)->firstWhere('key', 'csg');
 
         return Inertia::render('Adviser/Permission', [
             'users' => $users,
             'csgOfficerCandidates' => $csgOfficerCandidates,
             'councilOfficers' => $councilOfficers,
             'csgPositions' => $csgPositions,
-            'roles' => $roles,
+            'csgPermissionRole' => $csgPermissionRole,
+        ]);
+    }
+
+    public function savePermissions(Request $request)
+    {
+        $validated = $request->validate([
+            'roleId' => 'required|exists:roles,id',
+            'permissionIds' => 'array',
+            'permissionIds.*' => 'exists:permission,id',
+            'positionId' => 'nullable|exists:position,id',
+        ]);
+
+        $role = Role::findOrFail($validated['roleId']);
+        if ($role->slug !== 'csg') {
+            abort(403, 'Advisers can only manage CSG permissions.');
+        }
+
+        $service = new RolePermissionService();
+        $service->syncRolePermissions(
+            $validated['roleId'],
+            $validated['permissionIds'] ?? [],
+            $validated['positionId'] ?? null
+        );
+
+        $matrix = $service->buildMatrix();
+
+        return response()->json([
+            'message' => 'Permissions saved successfully',
+            'matrix' => $matrix,
+            'csgPermissionRole' => collect($matrix)->firstWhere('key', 'csg'),
         ]);
     }
 

@@ -21,6 +21,7 @@ import {
   Calendar,
   ClipboardList,
 } from 'lucide-react';
+import RolePermissionEditor from '@/Components/RolePermissionEditor';
 
 function showToast(message, type = 'success') {
   const text = typeof message === 'string'
@@ -144,29 +145,28 @@ function AvatarFallback({ className = '', children, name }) {
 }
 
 export function RolePermissionsPage() {
-  const { users = [], csgOfficerCandidates = [], councilOfficers: initialCouncilOfficers = [], csgPositions: initialCsgPositions = [], roles: initialRoles = [] } = usePage().props;
+  const { users = [], csgOfficerCandidates = [], councilOfficers: initialCouncilOfficers = [], csgPermissionRole: initialCsgPermissionRole = null } = usePage().props;
 
   const [activeTab, setActiveTab] = useState('assign'); // 'assign' | 'permissions'
-
-  const [selectedRole, setSelectedRole] = useState('CSG Officer');
-  const [activeDelegation, setActiveDelegation] = useState({
-    to: 'John Doe',
-    until: 'March 15, 2026',
-  });
+  const [csgPermissionRole, setCsgPermissionRole] = useState(initialCsgPermissionRole);
 
   const [isSetOfficerModalOpen, setIsSetOfficerModalOpen] = useState(false);
   const [isCouncilTermModalOpen, setIsCouncilTermModalOpen] = useState(false);
   const [councilStartDate, setCouncilStartDate] = useState('');
   const [councilEndDate, setCouncilEndDate] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [positionSearchQuery, setPositionSearchQuery] = useState('');
+  const [modalUserSearchQuery, setModalUserSearchQuery] = useState('');
   const [selectedPosition, setSelectedPosition] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedCSGFilter, setSelectedCSGFilter] = useState('');
   const [selectedOfficer, setSelectedOfficer] = useState(null);
   const [isLoadingTerm, setIsLoadingTerm] = useState(true);
   const [isRemoveOfficerModalOpen, setIsRemoveOfficerModalOpen] = useState(false);
   const [officerToRemove, setOfficerToRemove] = useState(null);
   const [isRemoving, setIsRemoving] = useState(false);
+
+  useEffect(() => {
+    setCsgPermissionRole(initialCsgPermissionRole);
+  }, [initialCsgPermissionRole]);
 
   useEffect(() => {
   const fetchCouncilTerm = async () => {
@@ -176,11 +176,9 @@ export function RolePermissionsPage() {
       const data = await response.json();
       
       if (response.ok) {
-        console.log('Fetched term dates:', data); // Debug log
         setCouncilStartDate(data.startDate || '');
         setCouncilEndDate(data.endDate || '');
       } else {
-        console.error('Failed to fetch term:', data);
         setCouncilStartDate('');
         setCouncilEndDate('');
       }
@@ -198,8 +196,6 @@ export function RolePermissionsPage() {
 
 
   const [councilOfficers, setCouncilOfficers] = useState(initialCouncilOfficers);
-  const [csgPositions, setCSGPositions] = useState(initialCsgPositions);
-  const [rolePermissions, setRolePermissions] = useState(initialRoles);
 
 const formatDate = (dateString) => {
   if (!dateString) return '';
@@ -210,16 +206,6 @@ const formatDate = (dateString) => {
   });
 };
 
- //search position
-const searchPosition = useMemo(() => {
-  const q = (searchQuery || '').toLowerCase();
-  if (!q) return csgPositions;
-  return csgPositions.filter(pos =>
-    pos.name.toLowerCase().includes(q)
-  );
-}, [csgPositions, searchQuery]);
-
-// Define position hierarchy to maintain consistent order
 const positionHierarchy = {
   'President': 1,
   'Vice President for External Affairs': 2,
@@ -231,9 +217,8 @@ const positionHierarchy = {
   'Business Manager': 8,
 };
 
-// Add this new memo
 const filteredCouncilOfficers = useMemo(() => {
-  const q = (searchQuery || '').toLowerCase();
+  const q = (positionSearchQuery || '').toLowerCase();
   let filtered = councilOfficers;
   
   if (q) {
@@ -242,143 +227,35 @@ const filteredCouncilOfficers = useMemo(() => {
     );
   }
   
-  // Sort by position hierarchy
   return [...filtered].sort((a, b) => {
     const posA = positionHierarchy[a.position] ?? 999;
     const posB = positionHierarchy[b.position] ?? 999;
     return posA - posB;
   });
-}, [councilOfficers, searchQuery]);
+}, [councilOfficers, positionSearchQuery]);
 
-// Check if a user is already assigned to a CSG officer position
 const isUserInCSG = (userId) => {
   return councilOfficers.some(officer => officer.userId === userId);
 };
 
 
   const filteredUsers = useMemo(() => {
-    const q = (searchQuery || '').toLowerCase();
+    const q = (modalUserSearchQuery || '').toLowerCase();
     if (!q) return csgOfficerCandidates;
     return csgOfficerCandidates.filter(user =>
       user.name.toLowerCase().includes(q) 
       ||
       String(user.studentId).toLowerCase().includes(q)
     );
-  }, [csgOfficerCandidates, searchQuery]);
+  }, [csgOfficerCandidates, modalUserSearchQuery]);
 
-  useEffect(() => {
-    if (!selectedCSGFilter && csgPositions.length > 0) {
-      setSelectedCSGFilter(csgPositions[0].id);
-    }
-  }, [csgPositions, selectedCSGFilter]);
-
-  const selectedCsgPosition = csgPositions.find(pos => String(pos.id) === String(selectedCSGFilter));
-
-  const getCurrentRoleData = () => {
-    if (selectedRole === 'CSG Officer') {
-      return {
-        sections: selectedCsgPosition?.sections || [],
-        name: `CSG Officer - ${selectedCsgPosition?.name || 'Position'}`,
-      };
-    }
-
-    const role = rolePermissions.find(r => r.name === selectedRole);
-    return { sections: role?.sections || [], name: selectedRole };
-  };
-
-  const currentData = getCurrentRoleData();
-  const currentRole = rolePermissions.find(r => r.name === selectedRole);
-  const selectedPositionName = csgPositions.find(pos => String(pos.id) === String(selectedPosition))?.name || '';
-
-  const enabledCount = selectedRole === 'CSG Officer'
-    ? selectedCsgPosition?.sections.reduce((sum, section) => sum + section.permissions.filter(p => p.enabled).length, 0) || 0
-    : currentData.sections.reduce((sum, section) => sum + section.permissions.filter(p => p.enabled).length, 0);
-  const totalCount = selectedRole === 'CSG Officer'
-    ? selectedCsgPosition?.sections.reduce((sum, section) => sum + section.permissions.length, 0) || 0
-    : currentRole?.totalPermissions || 0;
-
-  const handleTogglePermission = (positionId, sectionIndex, permissionId) => {
-    if (!currentRole?.isEditable) {
-      showToast('This role cannot be modified', 'error');
-      return;
-    }
-
-    if (selectedRole === 'CSG Officer') {
-      const newPositions = csgPositions.map(position => {
-        if (position.id !== positionId) return position;
-        return {
-          ...position,
-          sections: position.sections.map((section, idx) => {
-            if (idx !== sectionIndex) return section;
-            return {
-              ...section,
-              permissions: section.permissions.map(p =>
-                p.id === permissionId ? { ...p, enabled: !p.enabled } : p
-              ),
-            };
-          }),
-        };
-      });
-      
-      setCSGPositions(newPositions);
-      
-      // Save changes immediately for CSG positions
-      router.post('/adviser/role-permissions/update', {
-        csgPositions: newPositions,
-        rolePermissions,
-      }, {
-        onSuccess: () => {
-          // Optional: show success toast
-        },
-        onError: (error) => {
-          showToast(error?.message || 'Failed to save permission change', 'error');
-        }
-      });
-      return;
-    }
-
-    setRolePermissions(prevRoles =>
-      prevRoles.map(role => {
-        if (role.name !== selectedRole) return role;
-        return {
-          ...role,
-          sections: role.sections.map((section, idx) => {
-            if (idx !== sectionIndex) return section;
-            return {
-              ...section,
-              permissions: section.permissions.map(p =>
-                p.id === permissionId ? { ...p, enabled: !p.enabled } : p
-              ),
-            };
-          }),
-        };
-      })
-    );
-  };
-
-  const handleReset = () => {
-    showToast('Permissions reset to default');
-  };
-
-  const handleSave = () => {
-    router.post('/adviser/role-permissions/update', {
-      csgPositions,
-      rolePermissions,
-    }, {
-      onSuccess: () => {
-        showToast('Permissions saved successfully');
-      },
-      onError: (error) => {
-        showToast(error?.message || 'Failed to save permissions', 'error');
-      }
-    });
-  };
+  const selectedPositionName = selectedPosition || '';
 
   const openOfficerModal = (officer) => {
     setSelectedOfficer(officer);
     setSelectedPosition(officer.position);
     setSelectedUser(null);
-    setSearchQuery('');
+    setModalUserSearchQuery('');
     setIsSetOfficerModalOpen(true);
   };
 
@@ -445,7 +322,7 @@ const handleSetCouncilTerm = async () => {
         setSelectedOfficer(null);
         setSelectedUser(null);
         setSelectedPosition('');
-        setSearchQuery('');
+        setModalUserSearchQuery('');
         setIsSetOfficerModalOpen(false);
       },
       onError: (error) => {
@@ -489,7 +366,7 @@ const handleSetCouncilTerm = async () => {
 
   const tabs = [
     { id: 'assign', label: 'Assign Officers', icon: Users, description: 'Assign students to council positions' },
-    { id: 'permissions', label: 'Role Permissions', icon: ClipboardList, description: 'Configure what each role can do' },
+    { id: 'permissions', label: 'CSG Permissions', icon: ClipboardList, description: 'Configure what each CSG position can do' },
   ];
 
   return (
@@ -549,8 +426,8 @@ const handleSetCouncilTerm = async () => {
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                           <Input
                             placeholder="Search position..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            value={positionSearchQuery}
+                            onChange={(e) => setPositionSearchQuery(e.target.value)}
                             className="pl-10 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-blue-200"
                           />
                         </div>
@@ -558,12 +435,11 @@ const handleSetCouncilTerm = async () => {
   {filteredCouncilOfficers.length === 0 ? (
     <div className="col-span-full text-center py-8">
       <Search className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-      <p className="text-sm text-gray-500">No positions found matching "{searchQuery}"</p>
+      <p className="text-sm text-gray-500">No positions found matching "{positionSearchQuery}"</p>
       <p className="text-xs text-gray-400 mt-1">Try a different search term</p>
     </div>
   ) : (
     filteredCouncilOfficers.map((officer) => {
-      const position = csgPositions.find(p => p.id === officer.position);
       const isVacant = !officer.name;
 
       return (
@@ -587,7 +463,7 @@ const handleSetCouncilTerm = async () => {
                 </Avatar>
               )}
               <div>
-                <h3 className={`text-sm ${isVacant ? 'text-gray-400' : 'text-gray-900'}`}>{position?.name}</h3>
+                <h3 className={`text-sm ${isVacant ? 'text-gray-400' : 'text-gray-900'}`}>{officer.position}</h3>
                 <Badge className={`text-xs ${isVacant ? 'bg-gray-200 text-gray-600' : 'bg-green-100 text-green-700'}`}>
                   {isVacant ? 'Vacant' : 'Assigned'}
                 </Badge>
@@ -648,199 +524,35 @@ const handleSetCouncilTerm = async () => {
       )}
 
       {activeTab === 'permissions' && (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-3">
-          {rolePermissions.map((role) => {
-            const isSelected = selectedRole === role.name;
-            return (
-              <Card
-                key={role.name}
-                onClick={() => {
-                  setSelectedRole(role.name);
-                }}
-                className={`p-4 rounded-[20px] border-2 cursor-pointer transition-all ${
-                  isSelected ? 'border-[#2563EB] bg-blue-50 shadow-md' : 'border-gray-200 bg-white hover:border-blue-300'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-[#2563EB]' : 'bg-gray-200'}`}>
-                      {isSelected ? (
-                        <Check className="w-5 h-5 text-white" />
-                      ) : role.isEditable ? (
-                        <Users className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-gray-500'}`} />
-                      ) : (
-                        <Lock className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-gray-500'}`} />
-                      )}
-                    </div>
-                    <h3 className={`text-sm ${isSelected ? 'text-[#2563EB]' : 'text-gray-900'}`}>{role.name}</h3>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <Badge className={`${isSelected ? 'bg-[#2563EB] text-white' : 'bg-gray-100 text-gray-700'}`}>
-                      {role.totalPermissions}
-                    </Badge>
-                    {!role.isEditable && (
-                      <Badge className="bg-gray-200 text-gray-600 text-xs">
-                        <Lock className="w-3 h-3 mr-1" />
-                        Locked
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <p className="text-xs text-gray-600 leading-relaxed">{role.description}</p>
-              </Card>
-            );
-          })}
-        </div>
-
-        <div className="lg:col-span-2">
-          <Card className="rounded-[20px] border-0 shadow-sm bg-white p-6">
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-              <div className="flex-1">
-                <h2 className="text-gray-900 flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-[#2563EB]" />
-                  {currentData.name} Permissions
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  {currentRole?.isEditable ? 'Configure what this role can do' : 'This role has fixed permissions and cannot be modified'}
+        <div className="space-y-4">
+          <Card className="rounded-[20px] border-0 shadow-sm bg-white p-4">
+            <div className="flex items-center gap-3">
+              <Shield className="w-5 h-5 text-[#2563EB]" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">CSG Role Permissions</p>
+                <p className="text-xs text-gray-500">
+                  Same permission controls as Super Admin — advisers can configure CSG position access only.
                 </p>
-              </div>
-              <div className="text-right">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl text-[#2563EB]">{enabledCount}</span>
-                  <span className="text-gray-400">/</span>
-                  <span className="text-lg text-gray-500">{totalCount}</span>
-                </div>
-                <p className="text-xs text-gray-500">Active Permissions</p>
-              </div>
-            </div>
-
-            {selectedRole === 'CSG Officer' && (
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5 text-[#2563EB] flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-700">
-                      Configure permissions for each CSG officer position. Each position has different access levels based on their responsibilities.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-6">
-              {selectedRole === 'CSG Officer' ? (
-              <div className="space-y-6">
-                <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                    <Users className="w-5 h-5 text-[#2563EB] flex-shrink-0" />
-                    <div className="flex-1">
-                      <label className="text-sm text-gray-700 mb-2 block">Filter by CSG Position</label>
-                      <Select value={selectedCSGFilter} onValueChange={setSelectedCSGFilter} className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition">
-                        {csgPositions.map(position => (
-                          <SelectItem key={position.id} value={position.id}>
-                            {position.name}
-                          </SelectItem>
-                        ))}
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {selectedCsgPosition ? (
-                  <Card className="p-4 rounded-xl border-0 shadow-sm bg-gray-50">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900">{selectedCsgPosition.name}</h3>
-                    <div className="space-y-4">
-                      {selectedCsgPosition.sections.map((section, sectionIndex) => (
-                        <div key={section.category}>
-                          <h4 className="text-sm text-gray-700 mb-2 font-medium">{section.category}</h4>
-                          <div className="space-y-2">
-                            {section.permissions.map((permission) => (
-                              <div
-                                key={permission.id}
-                                className="flex items-center justify-between p-2 rounded-lg bg-white"
-                              >
-                                <span className={`text-sm ${permission.enabled ? 'text-gray-900' : 'text-gray-500'}`}>{permission.label}</span>
-                                <Switch
-                                  checked={permission.enabled}
-                                  onCheckedChange={() => handleTogglePermission(selectedCsgPosition.id, sectionIndex, permission.id)}
-                                  disabled={!currentRole?.isEditable}
-                                  className="data-[state=checked]:bg-[#2563EB]"
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                ) : (
-                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
-                    Select a CSG position to view permissions.
-                  </div>
-                )}
-              </div>
-            ) : (
-                currentData.sections.map((section, sectionIndex) => (
-                  <div key={section.category}>
-                    <h3 className="text-sm text-gray-900 mb-3 flex items-center gap-2">
-                      <div className="w-1 h-4 bg-[#2563EB] rounded"></div>
-                      {section.category}
-                    </h3>
-                    <div className="space-y-3 ml-3">
-                      {section.permissions.map((permission) => (
-                        <div
-                          key={permission.id}
-                          className={`flex items-center justify-between p-3 rounded-xl transition-colors ${
-                            currentRole?.isEditable ? 'hover:bg-gray-50' : 'bg-gray-50 opacity-75'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${permission.enabled ? 'bg-green-100' : 'bg-gray-100'}`}>
-                              {permission.enabled ? <Check className="w-4 h-4 text-green-600" /> : <span className="text-gray-400 text-sm">✕</span>}
-                            </div>
-                            <span className={`text-sm ${permission.enabled ? 'text-gray-900' : 'text-gray-500'}`}>{permission.label}</span>
-                            {!currentRole?.isEditable && <Lock className="w-3 h-3 text-gray-400" />}
-                          </div>
-                          <Switch
-                            checked={permission.enabled}
-                            onCheckedChange={() => handleTogglePermission(null, sectionIndex, permission.id)}
-                            disabled={!currentRole?.isEditable}
-                            className="data-[state=checked]:bg-[#2563EB]"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <Button onClick={handleSave} className="inline-flex items-center justify-center px-4 py-2 border bg-blue-600 border-blue-300 rounded-xl text-sm text-white hover:bg-blue-700">
-              <Save className="w-4 h-4 mr-2" />
-              Save changes
-            </Button>
-
-            <div className={`mt-6 p-4 rounded-xl border ${currentRole?.isEditable ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
-              <div className="flex items-start gap-3">
-                {currentRole?.isEditable ? (
-                  <AlertCircle className="w-5 h-5 text-[#2563EB] flex-shrink-0 mt-0.5" />
-                ) : (
-                  <Lock className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
-                )}
-                <div>
-                  <p className="text-sm text-gray-900 mb-1">{currentRole?.isEditable ? 'Permission Changes' : 'Protected Role'}</p>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    {currentRole?.isEditable
-                      ? 'Changes to permissions will take effect immediately after saving. Users currently logged in will need to refresh their session to see the updates.'
-                      : 'This role has system-level permissions that are fixed and cannot be modified to ensure system security and proper governance structure.'}
-                  </p>
-                </div>
               </div>
             </div>
           </Card>
+          {csgPermissionRole ? (
+            <RolePermissionEditor
+              roleEntry={csgPermissionRole}
+              saveUrl="/adviser/role-permissions/save-permissions"
+              onSaved={(matrix) => {
+                const next = Array.isArray(matrix)
+                  ? matrix.find((r) => r.key === 'csg')
+                  : matrix?.csgPermissionRole;
+                if (next) setCsgPermissionRole(next);
+              }}
+            />
+          ) : (
+            <Card className="rounded-[20px] border-0 shadow-sm bg-white p-6 text-sm text-gray-500 text-center">
+              CSG permission data is not available. Please contact the system administrator.
+            </Card>
+          )}
         </div>
-      </div>
       )}
 
      <Modal
@@ -850,7 +562,7 @@ const handleSetCouncilTerm = async () => {
     setSelectedOfficer(null);
     setSelectedPosition('');
     setSelectedUser(null);
-    setSearchQuery('');
+    setModalUserSearchQuery('');
   }}
   title={selectedPositionName ? `Assign ${selectedPositionName}` : 'Set CSG Officer'}
   description="Assign a student as a CSG officer position."
@@ -871,8 +583,8 @@ const handleSetCouncilTerm = async () => {
         <label className="text-sm text-gray-700 mb-2 block">Search User</label>
         <input 
           className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-          value={searchQuery} 
-          onChange={(e) => setSearchQuery(e.target.value)} 
+          value={modalUserSearchQuery} 
+          onChange={(e) => setModalUserSearchQuery(e.target.value)} 
           placeholder="Name or Student ID" 
           disabled={!selectedPosition}
         />
@@ -928,7 +640,7 @@ const handleSetCouncilTerm = async () => {
         setSelectedOfficer(null);
         setSelectedPosition(null);
         setSelectedUser(null);
-        setSearchQuery('');
+        setModalUserSearchQuery('');
       }}
       variant="outline"
       className="border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -947,11 +659,7 @@ const handleSetCouncilTerm = async () => {
 
       <Modal
         open={isCouncilTermModalOpen}
-        onClose={() => {
-          setIsCouncilTermModalOpen(false);
-          setCouncilStartDate('');
-          setCouncilEndDate('');
-        }}
+        onClose={() => setIsCouncilTermModalOpen(false)}
         title="Set Council Term"
         description="Set the start and end dates for the CSG council term. This will update all current CSG officers' term dates."
       >
@@ -989,11 +697,7 @@ const handleSetCouncilTerm = async () => {
         </div>
         <div className="mt-6 flex justify-end gap-3">
           <Button
-            onClick={() => {
-              setIsCouncilTermModalOpen(false);
-              setCouncilStartDate('');
-              setCouncilEndDate('');
-            }}
+            onClick={() => setIsCouncilTermModalOpen(false)}
             variant="outline"
             className="border-gray-300 text-gray-700 hover:bg-gray-50"
           >

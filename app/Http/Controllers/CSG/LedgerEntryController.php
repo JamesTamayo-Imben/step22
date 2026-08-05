@@ -213,6 +213,12 @@ public function uploadProof(Request $request, $id)
     public function store(Request $request)
     {
         try {
+            if (!Auth::user()?->hasPermission('ledger.create')) {
+                return response()->json([
+                    'message' => 'You do not have permission to create ledger entries.',
+                ], 403);
+            }
+
             // Validate the request
             $validated = $request->validate([
                 'project_id' => 'required|exists:projects,id',
@@ -363,8 +369,13 @@ public function uploadProof(Request $request, $id)
     // }
 
     public function update(Request $request, $id)
-{
-    try {
+    {
+        try {
+            if (!Auth::user()?->hasPermission('ledger.edit')) {
+                return response()->json([
+                    'message' => 'You do not have permission to edit ledger entries.',
+                ], 403);
+            }
         $entry = LedgerEntry::findOrFail($id);
 
         if ($entry->type === 'Initial') {
@@ -501,6 +512,11 @@ public function uploadProof(Request $request, $id)
     public function destroy($id)
     {
         try {
+            if (!Auth::user()?->hasPermission('ledger.delete')) {
+                return response()->json([
+                    'message' => 'You do not have permission to delete ledger entries.',
+                ], 403);
+            }
             $entry = LedgerEntry::findOrFail($id);
 
             if ($entry->type === 'Initial') {

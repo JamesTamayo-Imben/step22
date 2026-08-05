@@ -11,6 +11,8 @@ use App\Models\TeacherAdviser;
 use App\Models\User;
 use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
+use App\Services\RolePermissionService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Str;
@@ -296,6 +298,29 @@ class SAdminDashboardController extends Controller
             ->values()
             ->toArray();
 
+        $permissionService = new RolePermissionService();
+        $rolePermissionMatrix = $permissionService->buildMatrix();
+
+        $superAdmins = User::with('role')
+            ->where('archive', false)
+            ->whereHas('role', fn ($q) => $q->where('slug', 'superadmin'))
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'status' => $user->status,
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        $studentCount = User::query()
+            ->where('archive', false)
+            ->whereHas('role', fn ($q) => $q->where('slug', 'student'))
+            ->count();
+
         return Inertia::render('SAdmin/RolesPermissions', [
             'users' => $users,
             'csgOfficerCandidates' => $csgOfficerCandidates,
@@ -303,6 +328,84 @@ class SAdminDashboardController extends Controller
             'adviserCandidates' => $adviserCandidates,
             'councilAdviser' => $councilAdviser,
             'councilSaduAdviser' => $councilSaduAdviser,
+            'rolePermissionMatrix' => $rolePermissionMatrix,
+            'roleOptions' => RolePermissionService::roleOptions(),
+            'superAdmins' => $superAdmins,
+            'studentCount' => $studentCount,
+        ]);
+    }
+
+    public function updateRolePermission(Request $request)
+    {
+        $validated = $request->validate([
+            'roleId' => 'required|exists:roles,id',
+            'permissionId' => 'required|exists:permission,id',
+            'enabled' => 'required|boolean',
+            'positionId' => 'nullable|exists:position,id',
+        ]);
+
+        $service = new RolePermissionService();
+        $service->updateRolePermission(
+            $validated['roleId'],
+            $validated['permissionId'],
+            (bool) $validated['enabled'],
+            $validated['positionId'] ?? null
+        );
+
+        return response()->json([
+            'message' => 'Permission updated successfully',
+            'matrix' => $service->buildMatrix(),
+        ]);
+    }
+
+    public function saveRolePermissions(Request $request)
+    {
+        $validated = $request->validate([
+            'roleId' => 'required|exists:roles,id',
+            'permissionIds' => 'array',
+            'permissionIds.*' => 'exists:permission,id',
+            'positionId' => 'nullable|exists:position,id',
+        ]);
+
+        $service = new RolePermissionService();
+        $service->syncRolePermissions(
+            $validated['roleId'],
+            $validated['permissionIds'] ?? [],
+            $validated['positionId'] ?? null
+        );
+
+        return response()->json([
+            'message' => 'Permissions saved successfully',
+            'matrix' => $service->buildMatrix(),
+        ]);
+    }
+
+    public function restoreRolePermissions(Request $request)
+    {
+        $validated = $request->validate([
+            'roleId' => 'required|exists:roles,id',
+            'positionId' => 'nullable|exists:position,id',
+            'apply' => 'nullable|boolean',
+        ]);
+
+        $service = new RolePermissionService();
+        $role = Role::findOrFail($validated['roleId']);
+        $defaultIds = $service->defaultPermissionIdsForSlug($role->slug);
+
+        // apply=true writes defaults to DB; otherwise return IDs for draft preview
+        if (!empty($validated['apply'])) {
+            $service->restoreDefaults(
+                $validated['roleId'],
+                $validated['positionId'] ?? null
+            );
+        }
+
+        return response()->json([
+            'message' => !empty($validated['apply'])
+                ? 'Defaults restored and saved'
+                : 'Defaults loaded for review',
+            'permissionIds' => $defaultIds,
+            'matrix' => $service->buildMatrix(),
         ]);
     }
 

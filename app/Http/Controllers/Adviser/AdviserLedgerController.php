@@ -227,6 +227,10 @@ class AdviserLedgerController extends Controller
 
     public function approve(Request $request, string $id)
     {
+        if (!auth()->user()?->hasPermission('ledger.approve')) {
+            abort(403, 'You do not have permission to approve ledger entries.');
+        }
+
         $entry = LedgerEntry::where('id', $id)->with('project')->firstOrFail();
 
         if ($entry->type === 'Initial') {

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { CSGProjectDetailsPage } from './ProjectDetails';
 import { CreateProjectModal } from './modal';
+import { canPermission } from '@/lib/permissions';
 
 function showToast(message, type = 'success') {
   const id = `simple-toast-${Date.now()}`;
@@ -99,6 +100,8 @@ function Select({ className = '', children, value, onValueChange, ...props }) {
 }
 
 function CSGProjectsPageInner() {
+  const { auth } = usePage().props;
+  const canCreateProject = canPermission(auth?.permissions, 'projects.create');
   const [projects, setProjects] = useState([]);
   const [ledgerEntries, setLedgerEntries] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -646,6 +649,7 @@ function CSGProjectsPageInner() {
           <p className="text-gray-500">Create and manage CSG projects</p>
         </div>
         <div className="flex flex-col md:flex-row gap-2">
+          {canCreateProject && (
           <Button
           onClick={() => setShowCreateModal(true)}
           className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
@@ -653,6 +657,7 @@ function CSGProjectsPageInner() {
           <Plus className="w-4 h-4 mr-2" />
           Create New Project
         </Button>
+          )}
         {/* <Button
           // onClick={() => setShowCreateModal(true)}
           className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
@@ -832,7 +837,7 @@ function CSGProjectsPageInner() {
                 ? 'Try adjusting your search or filter criteria'
                 : 'Add your first project to get started'}
             </p>
-            {!searchQuery && filterStatus === 'all' && (
+            {!searchQuery && filterStatus === 'all' && canCreateProject && (
               <Button
                 onClick={() => setShowCreateModal(true)}
                 className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
