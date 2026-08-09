@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
+import { usePage } from '@inertiajs/react';
 import ReactDOM from 'react-dom';
-import { Send, MessageSquare, X, ShieldCheck, ChartBarIcon, MessageCircleCheckIcon, Hash, Link, Database, FileCheck, ThumbsUp, Calendar, BookOpen, Search, Eye } from 'lucide-react';
+import { Send, MessageSquare, X, CircleQuestionMark, Info, ShieldCheck, ChartBarIcon, MessageCircleCheckIcon, Hash, Link, Database, FileCheck, ThumbsUp, Calendar, BookOpen, Search, Eye } from 'lucide-react';
 
 const defaultMessages = [
   {
@@ -42,6 +43,38 @@ const suggestedQuestions = [
     answer: 'Yes. STEP uses blockchain-inspired "Append-Only" logic. This means the Council cannot delete or secretly "edit" financial records. Any change creates a new visible version, and the SHA-256 hash chain ensures that if any past data is tampered with, the system will immediately flag it.'
   }
 ];
+
+const initialQuestionOption = {
+  id: 'question',
+  question: 'I have a question about the System',
+  icon: CircleQuestionMark,
+};
+
+const concernOption = {
+  id: 'concern',
+  question: 'I have a concern about the System',
+  icon: Info,
+};
+
+// The two concern-flow prompts that expect a free-text reply from the user,
+// followed by the automatic closing/thank-you message.
+const concernQuestions = [
+  {
+    id: 'user_concern',
+    question: 'Please tell in details what is your concern about the System',
+    icon: CircleQuestionMark,
+  },
+  {
+    id: 'user_id',
+    question: 'Do you want to be anonymous or you want to provide your ID for us to contact you? Y/N',
+    icon: CircleQuestionMark,
+  },
+  {
+    id: 'concern_end',
+    question: 'Thank you for your concern. We will review it and get back to you as soon as possible. Your feedback is valuable to us.',
+    icon: CircleQuestionMark,
+  },
+]
 
 const cannedResponses = [
   { 
@@ -104,11 +137,21 @@ function getReply(message) {
 }
 
 export function Chatbot({ title = 'STEPH: Member Assistant' }) {
+  const page = usePage();
+  const isAuthenticated = Boolean(page?.props?.auth?.user);
   const [messages, setMessages] = useState(defaultMessages);
   const [inputValue, setInputValue] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(true);
+
+  // 'initial'  -> show the "I have a question" / "I have a concern" choices
+  // 'question' -> show the list of suggested questions
+  // 'concern'  -> walking through the concern free-text flow
+  // 'chat'     -> free-form chat (after a question was picked, or concern flow finished)
+  const [stage, setStage] = useState('initial');
+  // 0 = waiting for the concern details, 1 = waiting for anonymous/ID choice
+  const [concernStep, setConcernStep] = useState(0);
+  const [concernDescription, setConcernDescription] = useState('');
 
   // Create a ref for the chat container
   const chatContainerRef = useRef(null);
@@ -118,23 +161,119 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, stage]);
 
-  const handleSuggestedQuestion = (question) => {
-    setShowSuggestions(false);
-    const userMessage = { id: Date.now(), role: 'user', text: question.question };
-    const botMessage = { id: Date.now() + 1, role: 'bot', text: question.answer };
-    setMessages([userMessage, botMessage]);
+  const firstMessage = useMemo(() => {
+    return isAuthenticated ? [initialQuestionOption, concernOption] : [initialQuestionOption];
+  }, [isAuthenticated]);
+
+  const resetChat = () => {
+    setMessages(defaultMessages);
+    setStage('initial');
+    setConcernStep(0);
+    setConcernDescription('');
+  };
+
+  const handleFirstChoice = (item) => {
+    const userMessage = { id: Date.now(), role: 'user', text: item.question };
+
+    if (item.id === 'question') {
+      setMessages((current) => [...current, userMessage]);
+      setStage('question');
+      return;
+    }
+
+    if (item.id === 'concern') {
+      if (!isAuthenticated) {
+        return;
+      }
+
+      const botMessage = { id: Date.now() + 1, role: 'bot', text: concernQuestions[0].question };
+      setMessages((current) => [...current, userMessage, botMessage]);
+      setStage('concern');
+      setConcernStep(0);
+    }
+  };
+
+  const handleSuggestedQuestion = (item) => {
+    const userMessage = { id: Date.now(), role: 'user', text: item.question };
+    const botMessage = { id: Date.now() + 1, role: 'bot', text: item.answer };
+    setMessages((current) => [...current, userMessage, botMessage]);
+    setStage('chat');
+  };
+
+  const handleConcernReply = async (trimmed) => {
+    const userMessage = { id: Date.now(), role: 'user', text: trimmed };
+
+    if (concernStep === 0) {
+      setConcernDescription(trimmed);
+      const botMessage = { id: Date.now() + 1, role: 'bot', text: concernQuestions[1].question };
+      setMessages((current) => [...current, userMessage, botMessage]);
+      setConcernStep(1);
+      return;
+    }
+
+    setIsLoading(true);
+    setMessages((current) => [...current, userMessage]);
+
+    try {
+      const normalizedContactAnswer = ['y', 'yes'].includes(trimmed.toLowerCase())
+        ? 'y'
+        : ['n', 'no'].includes(trimmed.toLowerCase())
+          ? 'n'
+          : trimmed;
+
+      const response = await fetch('/api/concerns', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          concern: concernDescription,
+          contact_answer: normalizedContactAnswer,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit concern');
+      }
+
+      const botMessage = { id: Date.now() + 1, role: 'bot', text: concernQuestions[2].question };
+      setMessages((current) => [...current, botMessage]);
+      setStage('chat');
+    } catch (error) {
+      const botMessage = {
+        id: Date.now() + 1,
+        role: 'bot',
+        text: 'Sorry, we could not save your concern right now. Please try again later.',
+      };
+      setMessages((current) => [...current, botMessage]);
+      setStage('chat');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSend = async () => {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
-    if (showSuggestions) setShowSuggestions(false);
+
+    setInputValue('');
+
+    if (stage === 'concern') {
+      await handleConcernReply(trimmed);
+      return;
+    }
+
+    if (stage === 'initial' || stage === 'question') {
+      setStage('chat');
+    }
 
     const userMessage = { id: Date.now(), role: 'user', text: trimmed };
     setMessages((current) => [...current, userMessage]);
-    setInputValue('');
     setIsLoading(true);
 
     setTimeout(() => {
@@ -156,7 +295,7 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
       {!isOpen ? (
         <button
           type="button"
-          onClick={() => { setIsOpen(true); setShowSuggestions(true); setMessages(defaultMessages); }}
+          onClick={() => { setIsOpen(true); resetChat(); }}
           className="fixed bottom-6 right-6 bg-[#2563EB] hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 ease-in-out hover:scale-110 z-40"
           aria-label="Open STEPH chat"
         >
@@ -178,11 +317,39 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
             </button>
           </div>
 
-          {/* Chat Area - Added ref here for scrolling */}
+          {/* Chat Area */}
           <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50">
-            {showSuggestions ? (
+            {/* Always show the conversation so far */}
+            {messages.map((m) => (
+              <div key={m.id} className={`flex ${m.role === 'bot' ? 'justify-start' : 'justify-end'}`}>
+                <div className={`max-w-full rounded-2xl px-4 py-2 text-sm ${m.role === 'bot' ? 'bg-white text-slate-800 border border-slate-200 shadow-sm' : 'bg-blue-700 text-white shadow-md'}`}>
+                  {m.text}
+                </div>
+              </div>
+            ))}
+
+            {/* Stage-specific quick options, shown below the conversation */}
+            {stage === 'initial' && (
               <div className="space-y-3">
-                <p className="text-xs font-semibold text-slate-500 uppercase px-1">Quick Verifications</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase px-1">How can I help?</p>
+                {firstMessage.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleFirstChoice(item)}
+                    className="w-full text-left p-3 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-blue-400 hover:bg-blue-50 transition-all flex items-center gap-3 group"
+                  >
+                    <div className="p-2 bg-slate-100 rounded-lg group-hover:bg-blue-100">
+                      <item.icon className="w-4 h-4 text-slate-600 group-hover:text-blue-600" />
+                    </div>
+                    <span className="text-sm text-slate-700 font-medium">{item.question}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {stage === 'question' && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-slate-500 uppercase px-1">Frequently Asked</p>
                 {suggestedQuestions.map((item) => (
                   <button
                     key={item.id}
@@ -196,15 +363,12 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
                   </button>
                 ))}
               </div>
-            ) : (
-              messages.map((m) => (
-                <div key={m.id} className={`flex ${m.role === 'bot' ? 'justify-start' : 'justify-end'}`}>
-                  <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${m.role === 'bot' ? 'bg-white text-slate-800 border border-slate-200 shadow-sm' : 'bg-blue-700 text-white shadow-md'}`}>
-                    {m.text}
-                  </div>
-                </div>
-              ))
             )}
+
+            {stage === 'concern' && (
+              <p className="text-xs text-slate-400 italic px-1">Type your reply below and click send.</p>
+            )}
+
             {isLoading && (
               <div className="flex items-center gap-2 text-xs text-blue-600 font-medium animate-pulse">
                 <Hash className="w-3 h-3" /> Verifying ledger integrity...
@@ -220,7 +384,7 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyPress}
-                placeholder="Ask about project transparency..."
+                placeholder={stage === 'concern' ? 'Type your response...' : 'Ask about project transparency...'}
                 className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 pl-4 pr-10 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
               <button

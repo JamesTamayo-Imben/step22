@@ -3,11 +3,24 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
-import { FolderKanban, Search } from 'lucide-react';
+import { CalendarDays, DollarSign, FolderKanban, Search, Star } from 'lucide-react';
 
 const STATUS_OPTIONS = ['Draft', 'Upcoming', 'Ongoing', 'Completed'];
-const APPROVAL_OPTIONS = ['Draft', 'Pending Adviser Approval', 'Approved'];
+const APPROVAL_OPTIONS = ['Draft', 'Pending Adviser Approval', 'Approved', 'Rejected'];
 const CATEGORY_OPTIONS = ['Social', 'Sports', 'Environmental', 'Technology', 'Cultural', 'Education', 'Health'];
+
+const statusBadgeClass = (status) => {
+  switch (status) {
+    case 'Ongoing':
+      return 'bg-yellow-100 text-yellow-700';
+    case 'Completed':
+      return 'bg-green-100 text-green-700';
+    case 'Upcoming':
+      return 'bg-blue-100 text-blue-700';
+    default:
+      return 'bg-gray-100 text-gray-700';
+  }
+};
 
 const approvalBadgeClass = (status) => {
   switch (status) {
@@ -15,9 +28,99 @@ const approvalBadgeClass = (status) => {
       return 'bg-green-100 text-green-700';
     case 'Pending Adviser Approval':
       return 'bg-yellow-100 text-yellow-700';
+    case 'Rejected':
+      return 'bg-red-100 text-red-700';
     default:
       return 'bg-gray-100 text-gray-700';
   }
+};
+
+const formatCurrency = (value) => {
+  const amount = Number(value ?? 0);
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+const formatTimeline = (project) => {
+  if (!project.start_date && !project.end_date) {
+    return 'Timeline not set';
+  }
+
+  const start = project.start_date
+    ? new Date(project.start_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
+  const end = project.end_date
+    ? new Date(project.end_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
+
+  if (start && end) return `${start} - ${end}`;
+  if (start) return `Starts ${start}`;
+  if (end) return `Ends ${end}`;
+  return 'Timeline not set';
+};
+
+const getCalculatedStatus = (project) => {
+  const approvalStatus = project.approval_status || project.approvalStatus || 'Draft';
+
+  if (approvalStatus !== 'Approved') {
+    return 'Draft';
+  }
+
+  if (!project.start_date && !project.end_date && !project.startDate && !project.endDate) {
+    return 'Draft';
+  }
+
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const startDate = new Date(project.start_date || project.startDate);
+    const endDate = new Date(project.end_date || project.endDate);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return 'Draft';
+    }
+
+    if (today < startDate) {
+      return 'Upcoming';
+    }
+
+    if (today > endDate) {
+      return 'Completed';
+    }
+
+    if (today >= startDate && today <= endDate) {
+      return 'Ongoing';
+    }
+
+    return 'Draft';
+  } catch (error) {
+    return 'Draft';
+  }
+};
+
+const getAverageRating = (project) => {
+  const ratings = Array.isArray(project.ratings) ? project.ratings : [];
+  if (!ratings.length) {
+    return null;
+  }
+
+  const average = ratings.reduce((sum, rating) => {
+    const ratingScore = rating?.rating_score != null
+      ? Number(rating.rating_score)
+      : ((Number(rating?.satisfaction_rating ?? rating?.satisfactionRating ?? 0) +
+          Number(rating?.engagement_rating ?? rating?.engagementRating ?? 0) +
+          Number(rating?.completeness_rating ?? rating?.completenessRating ?? 0)) / 3);
+
+    return sum + ratingScore;
+  }, 0) / ratings.length;
+
+  return { average: average.toFixed(1), count: ratings.length };
 };
 
 export default function AdviserProjectsPage() {
@@ -28,17 +131,25 @@ export default function AdviserProjectsPage() {
   const [approvalFilter, setApprovalFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
-  const stats = useMemo(() => ({
-    total: projects.length,
-    ongoing: projects.filter(p => p.status === 'Ongoing').length,
-    completed: projects.filter(p => p.status === 'Completed').length,
-    rejected: projects.filter(p => p.approval_status === 'Rejected').length,
-  }), [projects]);
+  const stats = useMemo(() => {
+    const computedProjects = projects.map((project) => ({
+      ...project,
+      computedStatus: getCalculatedStatus(project),
+    }));
+
+    return {
+      total: computedProjects.length,
+      ongoing: computedProjects.filter((project) => project.computedStatus === 'Ongoing').length,
+      completed: computedProjects.filter((project) => project.computedStatus === 'Completed').length,
+      rejected: computedProjects.filter((project) => project.approval_status === 'Rejected').length,
+    };
+  }, [projects]);
 
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
+      const computedStatus = getCalculatedStatus(p);
       const matchesSearch = p.title?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' || computedStatus === statusFilter;
       const matchesApproval = approvalFilter === 'all' || p.approval_status === approvalFilter;
       const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
       return matchesSearch && matchesStatus && matchesApproval && matchesCategory;
@@ -57,7 +168,7 @@ export default function AdviserProjectsPage() {
             </div>
           </div>
 
-          <p>weyt lang - nakalimutan ko ano gagawen dto</p>
+          {/* <p>weyt lang - nakalimutan ko ano gagawen dto</p> */}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="rounded-[20px] p-4 border-0 shadow-sm">
@@ -165,7 +276,7 @@ export default function AdviserProjectsPage() {
         </div>
 
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
             {filteredProjects.length === 0 ? (
              <Card className="col-span-full rounded-[20px] border-0 shadow-sm p-12">
           <div className="text-center">
@@ -176,39 +287,67 @@ export default function AdviserProjectsPage() {
           </div>
         </Card>
             ) : (
-              filteredProjects.map((project) => (
-                <Card key={project.id} className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all">
-                  <div className="mb-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-gray-900 flex-1 truncate">{project.title}</h3>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge className="bg-gray-100 text-gray-700 rounded-lg">{project.category}</Badge>
-                      <Badge className={`rounded-lg ${approvalBadgeClass(project.approval_status)}`}>
-                        {project.approval_status}
+              filteredProjects.map((project) => {
+                const averageRating = getAverageRating(project);
+                const computedStatus = getCalculatedStatus(project);
+
+                return (
+                  <Card key={project.id} className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all flex flex-col gap-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-gray-900 line-clamp-2">{project.title || 'Untitled Project'}</h3>
+                      </div>
+                      <Badge className={`rounded-full ${statusBadgeClass(computedStatus)}`}>
+                        {computedStatus}
                       </Badge>
                     </div>
-                  </div>
 
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className="bg-gray-100 text-gray-700 rounded-lg">{project.category || 'Uncategorized'}</Badge>
+                      <Badge className={`rounded-lg ${approvalBadgeClass(project.approval_status)}`}>
+                        {project.approval_status || 'Draft'}
+                      </Badge>
+                    </div>
 
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">Progress</span>
-                        <Badge className="rounded-lg bg-gray-100 text-gray-700">{project.status}</Badge>
+                    <p
+                      className="text-sm text-gray-600"
+                      style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                      title={project.description}
+                    >
+                      {project.description || 'No description provided for this project yet.'}
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-xl bg-gray-50 p-3">
+                        <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-wide">
+                          <CalendarDays className="w-3.5 h-3.5" />
+                          Timeline
+                        </div>
+                        <p className="mt-1 font-medium text-gray-900">{formatTimeline(project)}</p>
                       </div>
-                      <span className="text-xs font-medium text-gray-900">{project.progress ?? 0}%</span>
+                      <div className="rounded-xl bg-gray-50 p-3">
+                        <div className="flex items-center gap-2 text-gray-500 text-xs uppercase tracking-wide">
+                          <DollarSign className="w-3.5 h-3.5" />
+                          Budget
+                        </div>
+                        <p className="mt-1 font-medium text-gray-900">{formatCurrency(project.budget)}</p>
+                      </div>
                     </div>
-                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-600 rounded-full transition-all"
-                        style={{ width: `${project.progress ?? 0}%` }}
-                      />
+
+                    <div className="rounded-xl border border-gray-100 p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Star className="w-4 h-4 text-amber-500 fill-current" />
+                        <span>
+                          {averageRating ? `${averageRating.average}/5` : 'No ratings yet'}
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {averageRating ? `${averageRating.count} review${averageRating.count > 1 ? 's' : ''}` : 'Be the first to rate'}
+                      </span>
                     </div>
-                  </div>
-                </Card>
-              ))
+                  </Card>
+                );
+              })
             )}
           </div>
         </div>

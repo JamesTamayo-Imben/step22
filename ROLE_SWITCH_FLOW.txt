@@ -1,0 +1,40 @@
+Role Switch Flow
+================
+
+1. User clicks "Switch Role" in the UI.
+   - Frontend buttons exist in:
+     - resources/js/Components/CSGOfficerSidebar.jsx
+       - lines around 258-263 and 381-385
+     - resources/js/Components/StudentNavbar.jsx
+       - lines around 235-239 and 420-423 (currently commented out)
+
+2. Frontend callback handler is called.
+   - The stub handler is defined in:
+     - resources/js/Pages/User/Dashboard.jsx
+       - line 77: const handleSwitchRole = () => { /* your role switch logic */ };
+   - It is passed into the navbar component at line 86.
+
+3. Backend role routing on login.
+   - The login redirect uses the user's role slug in:
+     - app/Http/Controllers/Auth/AuthenticatedSessionController.php
+       - line 52: switch ($user->role->slug)
+     - This determines which dashboard route to show after login.
+
+4. Server-side role updates.
+   - Roles are changed by admin/controller actions that update users.role_id.
+   - Example in SAdmin dashboard controller:
+     - app/Http/Controllers/SAdmin/SAdminDashboardController.php
+       - line 349: update(['role_id' => $csgRole->id]);
+       - line 428: update(['role_id' => $adminRole->id]);
+       - line 461: update(['role_id' => $studentRole->id]);
+       - line 490: update(['role_id' => $teacherRole->id]);
+       - line 520: update(['role_id' => $saduAdminRole->id]);
+       - line 549: update(['role_id' => $teacherRole->id]);
+   - Example in Adviser permission controller:
+     - app/Http/Controllers/Adviser/AdviserPermissionController.php
+       - line 241: update(['role_id' => $csgRole->id]);
+       - line 280: update(['role_id' => $studentRole->id]);
+
+5. Summary.
+   - The actual switch action is a combination of frontend button click plus a backend role check or role_id update.
+   - Existing UI points show where to wire the switch, but the logic is currently stubbed in the student dashboard.

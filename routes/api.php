@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\ChatbotController;
+use App\Http\Controllers\Api\ConcernController;
 // Import your controllers here
 use App\Http\Controllers\CSG\LedgerEntryController;
 use App\Http\Controllers\CSG\ProjectController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Auth\OTPController;
 use App\Http\Controllers\Auth\OnboardingController;
 use App\Http\Controllers\Auth\BulkRegistrationController;
 use App\Http\Controllers\Auth\PasswordResetController;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +31,12 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::post('/chatbot', ChatbotController::class)->middleware('auth:sanctum');
+
+Route::middleware(EnsureFrontendRequestsAreStateful::class)->group(function () {
+    Route::post('/concerns', [ConcernController::class, 'store']);
+    Route::get('/concerns', [ConcernController::class, 'index']);
+    Route::patch('/concerns/{id}/favorite', [ConcernController::class, 'toggleFavorite']);
+});
 
 /**
  * AUTHENTICATION - OTP Routes (No auth required)

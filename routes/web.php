@@ -24,6 +24,9 @@ use App\Http\Controllers\SAdmin\SAdminSystemLogsController;
 use App\Http\Controllers\SAdmin\UserManagementController;
 use App\Http\Controllers\User\UserProjectController;
 use App\Models\AuditLog;
+use App\Models\Concern;
+use App\Models\User\Project;
+use App\Models\User\Rating;
 use App\Models\User\Notification;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -199,7 +202,15 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
 
    // Project list
     Route::get('/adviser/projects', function () {
-        return Inertia::render('Adviser/Projects');
+        $projects = Project::query()
+            ->where('archive', 0)
+            ->with('ratings')
+            ->latest('created_at')
+            ->get();
+
+        return Inertia::render('Adviser/Projects', [
+            'projects' => $projects,
+        ]);
     })->name('adviser.projects');
 
    
@@ -311,9 +322,15 @@ Route::middleware(['auth', 'verified', 'role:csg', 'csg.online'])->group(functio
     Route::patch('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'updateLedger'])->name('csg.projects.ledger.update');
     Route::delete('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'destroyLedger'])->name('csg.projects.ledger.destroy');
 
-    //Concers
+    // Concerns
     Route::get('/csg/concerns', function () {
-        return Inertia::render('CSG/Concerns');
+        return Inertia::render('CSG/Concerns', [
+            'concerns' => Inertia::defer(fn() => Concern::query()
+                ->orderByDesc('favorite')
+                ->orderByDesc('created_at')
+                ->get(['id', 'user_id', 'concern', 'favorite', 'created_at'])
+            ),
+        ]);
     })->name('csg.concerns');
 
     // Ledger & Proof
