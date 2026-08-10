@@ -29,6 +29,12 @@ export function AdminAdviserDashboard({
   stats = {},
   approvalQueue = [],
   recentActivity = [],
+  heatmapDays = [],
+  heatmapMonth,
+  heatmapLabel,
+  prevHeatmapMonth,
+  nextHeatmapMonth,
+  canNavigateNext,
 }) {
   const s = {
     pendingApprovals: stats.pendingApprovals ?? 0,
@@ -66,7 +72,28 @@ export function AdminAdviserDashboard({
         default: return <FileText className="w-5 h-5 text-gray-600" />;
       }
     };
-    
+
+  const heatmapDaysData = heatmapDays || [];
+
+  const getHeatmapCellStyles = (item) => {
+    if (item.tamperingCount > 0) {
+      return { bg: 'bg-red-600', text: 'text-white' };
+    }
+    if (item.activityCount > 0) {
+      return { bg: 'bg-emerald-500', text: 'text-white' };
+    }
+    return { bg: 'bg-slate-200', text: 'text-slate-700' };
+  };
+
+  const formatHeatmapTooltip = (item) => {
+    if (item.tamperingCount > 0) {
+      return `${item.tamperingCount} tampering event${item.tamperingCount > 1 ? 's' : ''}`;
+    }
+    if (item.activityCount > 0) {
+      return `${item.activityCount} CSG activity event${item.activityCount > 1 ? 's' : ''}`;
+    }
+    return 'No activity';
+  };
 
   function ApprovalItem({ item }) {
     const isLedgerOrProject = item.type === 'Ledger Entry' || item.type === 'Project';
@@ -181,6 +208,85 @@ export function AdminAdviserDashboard({
           iconColor="text-red-600" 
         />
       </div>
+
+      <Card className="p-6 rounded-2xl border-0 shadow-sm bg-white">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-gray-900">Integrity Heatmap</h2>
+              <p className="text-sm text-gray-500">View tampering and CSG activity by month.</p>
+            </div>
+            <div className="flex items-center gap-2">
+                <a
+                href={`/adviser?heatmap_month=${prevHeatmapMonth}`}
+                className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                ← Prev
+              </a>
+              <div className="rounded-md bg-slate-100 px-3 py-1 text-sm font-medium text-slate-800">
+                {heatmapLabel || heatmapMonth || 'This month'}
+              </div>
+              {canNavigateNext ? (
+                <a
+                  href={`/adviser?heatmap_month=${nextHeatmapMonth}`}
+                  className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  Next →
+                </a>
+              ) : (
+                <span className="rounded-md bg-slate-100 px-3 py-1 text-sm text-slate-400 cursor-not-allowed">
+                  Next →
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+            <span className="inline-flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm bg-red-600" /> Tampering
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm bg-emerald-500" /> CSG Activity
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm bg-slate-200 border border-slate-300" /> No activity
+            </span>
+          </div>
+
+          <div className="grid grid-cols-7 gap-2 text-[11px] text-center text-gray-600">
+            <div>Sun</div>
+            <div>Mon</div>
+            <div>Tue</div>
+            <div>Wed</div>
+            <div>Thu</div>
+            <div>Fri</div>
+            <div>Sat</div>
+          </div>
+
+          <div className="grid grid-cols-7 gap-2">
+            {(() => {
+              const firstWeekday = heatmapDaysData.length ? heatmapDaysData[0].weekday : 0;
+              return Array.from({ length: firstWeekday }, (_, index) => (
+                <div key={`blank-${index}`} className="h-20 rounded-xl bg-transparent" />
+              ));
+            })()}
+
+            {heatmapDaysData.map((item) => {
+              const styles = getHeatmapCellStyles(item);
+              return (
+                <div
+                  key={item.date}
+                  className={`${styles.bg} ${styles.text} rounded-xl p-2 h-20 flex flex-col justify-between transition-all`}
+                  title={`${item.label} ${item.date}: ${formatHeatmapTooltip(item)}`}
+                >
+                  <span className="text-[11px] uppercase tracking-[0.08em]">{item.label}</span>
+                  <span className="text-lg font-semibold">{item.day}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
 
        <Card className="p-6 bg-blue-50 border border-blue-500 p-4 rounded-xlshadow-sm ">
         <div className="">

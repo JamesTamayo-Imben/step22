@@ -14,6 +14,7 @@ use App\Support\ProjectBudgetCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Str;
 // use Illuminate\Support\Carbon;
 // use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -107,6 +108,56 @@ class AdviserDashboardController extends Controller
             }
         }
 
+        $totalTamperingAlerts = $tamperedCount + $budgetMismatchCount;
+        if ($totalTamperingAlerts > 0) {
+            $alertTitle = 'Tampering Alert Detected';
+            if ($tamperedCount === 0 && $budgetMismatchCount > 0) {
+                $alertTitle = 'Budget Mismatch Detected';
+            } elseif ($tamperedCount > 0 && $budgetMismatchCount > 0) {
+                $alertTitle = 'Tampering & Budget Mismatch Detected';
+            }
+
+            $recentTamperAlertExists = AuditLog::query()
+                ->where('user_id', Auth::id())
+                ->where('action', $alertTitle)
+                ->where('created_at', '>=', now()->subDay())
+                ->exists();
+
+            if (! $recentTamperAlertExists) {
+                $alertDetails = [];
+                if ($tamperedCount > 0) {
+                    $alertDetails[] = "{$tamperedCount} tampered block(s) detected";
+                }
+                if ($budgetMismatchCount > 0) {
+                    $alertDetails[] = "{$budgetMismatchCount} budget mismatch(es) detected";
+                }
+
+                $alertMessage = implode(' and ', $alertDetails) . ' across verified project chains. Review the dashboard for details.';
+
+                AuditLog::create([
+                    'id' => (string) Str::uuid(),
+                    'user_id' => Auth::id(),
+                    'actionable_id' => null,
+                    'actionable_type' => 'blockchain',
+                    'action' => $alertTitle,
+                    'module' => 'blockchain',
+                    'action_type' => 'alert',
+                    'status' => 'Warning',
+                    'details' => implode(' and ', $alertDetails) . ' across verified project chains.',
+                    'ip_address' => $request->ip(),
+                    'browser_info' => substr((string) $request->userAgent(), 0, 500),
+                    'archive' => 0,
+                ]);
+
+                $this->createNotification(
+                    $alertTitle,
+                    $alertMessage,
+                    'security',
+                    Auth::id()
+                );
+            }
+        }
+
         // $ratingAvg = Rating::query()->where('archive', false)->avg('rating_score');
         // $ratingAvg = Rating::query()->where('archive', false)->avg('satisfaction_rating');
         // $avgRating = $ratingAvg !== null ? round((float) $ratingAvg, 2) : 0.0;
@@ -135,6 +186,72 @@ $avgRating = $ratings->count() > 0
                     'status' => str_contains($action, 'reject') ? 'rejected' : 'approved',
                 ];
             });
+
+        $heatmapParam = $request->get('heatmap_month');
+        if ($heatmapParam) {
+            try {
+                $heatmapStart = \Illuminate\Support\Carbon::createFromFormat('Y-m', $heatmapParam)->startOfMonth();
+            } catch (\Exception $e) {
+                $heatmapStart = now()->startOfMonth();
+            }
+        } else {
+            $heatmapStart = now()->startOfMonth();
+        }
+
+        $heatmapEnd = $heatmapStart->copy()->endOfMonth();
+
+        $heatmapEntries = AuditLog::query()
+            ->where('archive', false)
+            ->whereBetween('created_at', [$heatmapStart->copy()->startOfDay(), $heatmapEnd->copy()->endOfDay()])
+            ->orderBy('created_at')
+            ->get();
+
+        $heatmapEventsByDate = [];
+        foreach ($heatmapEntries as $log) {
+            $dateKey = optional($log->created_at)->format('Y-m-d');
+            if (!$dateKey) {
+                continue;
+            }
+
+            if (!isset($heatmapEventsByDate[$dateKey])) {
+                $heatmapEventsByDate[$dateKey] = [
+                    'tampering' => 0,
+                    'activity' => 0,
+                ];
+            }
+
+            $action = (string) ($log->action ?? '');
+
+            if (preg_match('/tamper|tampered|tampering/i', $action)) {
+                $heatmapEventsByDate[$dateKey]['tampering']++;
+                continue;
+            }
+
+            if (preg_match('/Ledger Entry|Project|Meeting|Approval|Submitted|Created|Updated|Archived|Rejected|Approved/i', $action)) {
+                $heatmapEventsByDate[$dateKey]['activity']++;
+            }
+        }
+
+        $heatmapDays = [];
+        for ($date = $heatmapStart->copy(); $date->lte($heatmapEnd); $date->addDay()) {
+            $dateKey = $date->format('Y-m-d');
+            $events = $heatmapEventsByDate[$dateKey] ?? ['tampering' => 0, 'activity' => 0];
+
+            $heatmapDays[] = [
+                'date' => $dateKey,
+                'label' => $date->format('D'),
+                'day' => (int) $date->format('j'),
+                'weekday' => (int) $date->dayOfWeek,
+                'tamperingCount' => $events['tampering'],
+                'activityCount' => $events['activity'],
+            ];
+        }
+
+        $prevMonth = $heatmapStart->copy()->subMonth()->format('Y-m');
+        $nextMonth = $heatmapStart->copy()->addMonth()->format('Y-m');
+        $canNavigateNext = $heatmapStart->copy()->addMonth()->startOfMonth()->lte(now()->startOfMonth());
+
+        $heatmapLabel = $heatmapStart->format('F Y');
 
         $queue = collect();
 
@@ -177,6 +294,12 @@ $avgRating = $ratings->count() > 0
             ],
             'approvalQueue' => $queue->take(3)->values(),
             'recentActivity' => $recentActivity,
+            'heatmapDays' => $heatmapDays,
+            'heatmapMonth' => $heatmapStart->format('Y-m'),
+            'heatmapLabel' => $heatmapLabel,
+            'prevHeatmapMonth' => $prevMonth,
+            'nextHeatmapMonth' => $nextMonth,
+            'canNavigateNext' => $canNavigateNext,
         ]);
     }
 }
