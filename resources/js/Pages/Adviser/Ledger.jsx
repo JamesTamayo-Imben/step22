@@ -455,9 +455,9 @@ export default function LedgerApprovalsPage() {
   };
 
 //dont show the ledger entry if the status is pending, rejected or draft, only show approved and corrected entries
-const isVisibleEntry = (entry) => {
-  return entry.status === 'Approved' || entry.status === 'Corrected';
-};
+// const isVisibleEntry = (entry) => {
+//   return entry.status === 'Approved' || entry.status === 'Corrected';
+// };
 
   const handleFixBudgetMismatch = () => {
     router.post(route('adviser.ledger.fix-budget-mismatch'), {}, {
@@ -484,7 +484,7 @@ const isVisibleEntry = (entry) => {
 
   const filteredEntries = useMemo(() => {
     const items = ledgerEntries.filter((entry) => {
-      if (!isVisibleEntry(entry)) return false;
+      // if (!isVisibleEntry(entry)) return false;
       if (filterProject !== 'all' && entry.projectName !== filterProject) return false;
       if (filterStatus !== 'all') {
         if (filterStatus === 'Pending') {
@@ -802,13 +802,13 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                             <td className="px-6 py-4 whitespace-nowrap">
                               <p className="text-sm text-gray-600">{entry.date ? new Date(entry.date).toLocaleDateString() : '—'}</p>
                             </td>
-                           {isVisibleEntry(entry) && (
+                           {/* {isVisibleEntry(entry) && ( */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               {getStatusBadge(entry.status)}
                             </td>
-                           )
+                           {/* )
 
-        }
+        } */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center gap-1">
                                 {entry && entry.verificationState && entry.verificationState.tampered ? (
