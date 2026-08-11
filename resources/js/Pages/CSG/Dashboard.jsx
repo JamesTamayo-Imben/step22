@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';   
 import { Input } from '@/Components/ui/input';  
 import { Textarea } from '@/Components/ui/textarea'; 
@@ -191,7 +191,7 @@ function PerformancePage() { return <Card className="p-8">Performance Panel (pla
 function ProfilePage() { return <Card className="p-8">Profile (placeholder)</Card>; }
 
 export function CSGOfficerDashboard({ currentView, statistics = {}, projects: initialProjects = [], recentLedgerEntries = [], upcomingMeetings: initialMeetings = [] }) {
-  const { auth } = usePage().props;
+  const { auth, recommendedProjects = [] } = usePage().props;
   const canCreateProject = canPermission(auth?.permissions, 'projects.create');
   const canCreateLedger = canPermission(auth?.permissions, 'ledger.create');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -232,11 +232,14 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   });
   const [selectedLedgerFile, setSelectedLedgerFile] = useState(null);
 
-  // Filter projects to only show approved ones
+  const isApprovedOrActiveProject = (project) => {
+    const status = String(project.approval_status || project.status || '').trim().toLowerCase();
+    return ['approved', 'ongoing', 'complete', 'completed'].includes(status);
+  };
+
+  // Filter projects to only show approved/active projects
   const [dashboardProjects, setDashboardProjects] = useState(() => {
-    return initialProjects.filter(project => 
-      (project.approval_status || project.status || '').toLowerCase() === 'approved'
-    );
+    return initialProjects.filter(isApprovedOrActiveProject);
   });
 
   //filter meeting o only show upcomming
@@ -416,6 +419,95 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
       type: file.type,
     });
   };
+
+  const getAverageRating = (project) => {
+    const ratings = Array.isArray(project.ratings) ? project.ratings : [];
+    if (!ratings.length) {
+      return null;
+    }
+
+    const average = ratings.reduce((sum, rating) => {
+      const ratingScore = rating?.rating_score != null
+        ? Number(rating.rating_score)
+        : ((Number(rating?.satisfaction_rating ?? rating?.satisfactionRating ?? 0) +
+            Number(rating?.engagement_rating ?? rating?.engagementRating ?? 0) +
+            Number(rating?.completeness_rating ?? rating?.completenessRating ?? 0)) / 3);
+
+      return sum + ratingScore;
+    }, 0) / ratings.length;
+
+    return { average: average.toFixed(1), count: ratings.length };
+  };
+
+  const getAverageRatingValue = (project) => {
+    const rating = getAverageRating(project);
+    return rating ? Number(rating.average) : 0;
+  };
+
+const getProjectStartTimestamp = (project) => {
+  const dateValue = project.start_date || project.startDate;
+  const date = dateValue ? new Date(dateValue) : null;
+  return date && !isNaN(date.getTime()) ? date.getTime() : 0;
+};
+
+const getProjectIncome = (project) => {
+  const ledgerEntries = project.ledgerEntries || project.ledger_entries || [];
+  if (!Array.isArray(ledgerEntries)) {
+    return 0;
+  }
+
+  return ledgerEntries
+    .filter((entry) => (entry.type === 'Income' || entry.transactionType === 'Income') && (entry.approval_status === 'Approved' || entry.status === 'Approved'))
+    .reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+};
+
+const getProjectMonthDistance = (project, referenceDate = new Date()) => {
+  const dateValue = project.start_date || project.startDate || project.end_date || project.endDate;
+  const projectDate = dateValue ? new Date(dateValue) : null;
+  if (!projectDate || isNaN(projectDate.getTime())) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const projectMonth = projectDate.getMonth();
+  const referenceMonth = referenceDate.getMonth();
+  const diff = Math.abs(projectMonth - referenceMonth);
+  return Math.min(diff, 12 - diff);
+};
+
+const formatHeatmapTooltip = (item) => {
+    if (item.tamperingCount > 0) {
+      return `${item.tamperingCount} tampering event${item.tamperingCount > 1 ? 's' : ''}`;
+    }
+    if (item.activityCount > 0) {
+      return `${item.activityCount} CSG activity event${item.activityCount > 1 ? 's' : ''}`;
+    }
+    return 'No activity';
+  };
+
+  const formatTimeline = (project) => {
+  if (!project.start_date && !project.end_date) {
+    return 'Timeline not set';
+  }
+
+  const start = project.start_date
+    ? new Date(project.start_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
+  const end = project.end_date
+    ? new Date(project.end_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
+
+  if (start && end) return `${start} - ${end}`;
+  if (start) return `Starts ${start}`;
+  if (end) return `Ends ${end}`;
+  return 'Timeline not set';
+};
+
+
+  useEffect(() => {
+    console.log('dashboardProjects count:', Array.isArray(dashboardProjects) ? dashboardProjects.length : 0);
+    console.log('recommendedProjects count:', Array.isArray(recommendedProjects) ? recommendedProjects.length : 0, recommendedProjects.slice ? recommendedProjects.slice(0,3) : recommendedProjects);
+  }, [dashboardProjects, recommendedProjects]);
+
 
   // STEP 4.2: Handle add ledger entry
   const handleAddLedgerEntry = async () => {
@@ -1283,14 +1375,44 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
       )}
 
       {/* Project recommendations */}
-       <Card className="p-6 bg-blue-50 border border-blue-500 p-4 rounded-xlshadow-sm ">
-              <div className="">
-                
-                  <h1 className="text-blue-700">Project Recommendations</h1>
-                  <p className="text-base text-gray-700">There are no recommended projects as of now because the cycle has not begun yet.</p>
-                
+      <div className="">
+        <div className="bg-white border p-4 rounded-xl">
+          <h1 className="text-blue-700">Project Recommendations</h1>
+
+          {recommendedProjects.length === 0 ? (
+            <p className="text-base text-gray-700">There are no recommended projects as of now because the cycle has not begun yet.</p>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-base text-gray-700">Recommended from best-performing past projects near the current month.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {recommendedProjects.map((project) => (
+                  <Card key={project.id} className="rounded-[20px] border border-blue-500 bg-white p-4 shadow-sm">
+                    <div className="">
+                      <h2 className="text-sm font-semibold text-gray-900 line-clamp-2">{project.title || 'Untitled Project'}</h2>
+                      <p className="text-xs text-gray-500">{project.category || project.venue || 'Recommended project'}</p>
+                    </div>
+                    <div className="text-sm text-gray-600 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span>Average Rating</span>
+                        <span className="font-semibold text-blue-700">{project.averageRating.toFixed(1)}/5</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Income</span>
+                        <span className="font-semibold text-blue-700">₱{project.income.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Timeline</span>
+                        <span className="font-semibold text-blue-700">{formatTimeline(project)}</span>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
               </div>
-            </Card>
+            </div>
+          )}
+        </div>
+      </div>
+            
 
 
       {/* Active Projects - Now only shows approved projects */}

@@ -5,9 +5,12 @@ import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { CalendarDays, DollarSign, FolderKanban, Search, Star } from 'lucide-react';
 
-const STATUS_OPTIONS = ['Draft', 'Upcoming', 'Ongoing', 'Completed'];
-const APPROVAL_OPTIONS = ['Draft', 'Pending Adviser Approval', 'Approved', 'Rejected'];
-const CATEGORY_OPTIONS = ['Social', 'Sports', 'Environmental', 'Technology', 'Cultural', 'Education', 'Health'];
+const SORT_OPTIONS = [
+  { value: 'all', label: 'Default Sorting' },
+  { value: 'highest_rating', label: 'Highest Rated' },
+  { value: 'highest_income', label: 'Highest Income' },
+  { value: 'by_month', label: 'Projects by Month' },
+];
 
 const statusBadgeClass = (status) => {
   switch (status) {
@@ -123,13 +126,46 @@ const getAverageRating = (project) => {
   return { average: average.toFixed(1), count: ratings.length };
 };
 
+const getAverageRatingValue = (project) => {
+  const rating = getAverageRating(project);
+  return rating ? Number(rating.average) : 0;
+};
+
+const getProjectStartTimestamp = (project) => {
+  const dateValue = project.start_date || project.startDate;
+  const date = dateValue ? new Date(dateValue) : null;
+  return date && !isNaN(date.getTime()) ? date.getTime() : 0;
+};
+
+const getProjectIncome = (project) => {
+  const ledgerEntries = project.ledgerEntries || project.ledger_entries || [];
+  if (!Array.isArray(ledgerEntries)) {
+    return 0;
+  }
+
+  return ledgerEntries
+    .filter((entry) => (entry.type === 'Income' || entry.transactionType === 'Income') && (entry.approval_status === 'Approved' || entry.status === 'Approved'))
+    .reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+};
+
+const getProjectMonthDistance = (project, referenceDate = new Date()) => {
+  const dateValue = project.start_date || project.startDate || project.end_date || project.endDate;
+  const projectDate = dateValue ? new Date(dateValue) : null;
+  if (!projectDate || isNaN(projectDate.getTime())) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const projectMonth = projectDate.getMonth();
+  const referenceMonth = referenceDate.getMonth();
+  const diff = Math.abs(projectMonth - referenceMonth);
+  return Math.min(diff, 12 - diff);
+};
+
 export default function AdviserProjectsPage() {
   const { projects = [] } = usePage().props;
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [approvalFilter, setApprovalFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [sortOption, setSortOption] = useState('all');
 
   const stats = useMemo(() => {
     const computedProjects = projects.map((project) => ({
@@ -145,16 +181,45 @@ export default function AdviserProjectsPage() {
     };
   }, [projects]);
 
+  const recommendedProjects = useMemo(() => {
+    const now = new Date();
+    return projects
+      .filter((project) => project.approval_status === 'Approved')
+      .filter((project) => getCalculatedStatus(project) === 'Completed')
+      .filter((project) => getAverageRatingValue(project) > 0)
+      .filter((project) => getProjectMonthDistance(project, now) <= 1)
+      .map((project) => ({
+        ...project,
+        averageRating: getAverageRatingValue(project),
+        startTimestamp: getProjectStartTimestamp(project),
+      }))
+      .sort((a, b) => {
+        if (b.averageRating !== a.averageRating) {
+          return b.averageRating - a.averageRating;
+        }
+        return getProjectIncome(b) - getProjectIncome(a);
+      })
+      .slice(0, 3);
+  }, [projects]);
+
   const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
-      const computedStatus = getCalculatedStatus(p);
+    const filtered = projects.filter((p) => {
       const matchesSearch = p.title?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || computedStatus === statusFilter;
-      const matchesApproval = approvalFilter === 'all' || p.approval_status === approvalFilter;
-      const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
-      return matchesSearch && matchesStatus && matchesApproval && matchesCategory;
+      return matchesSearch;
     });
-  }, [projects, searchQuery, statusFilter, approvalFilter, categoryFilter]);
+
+    const sorted = [...filtered];
+
+    if (sortOption === 'highest_rating') {
+      sorted.sort((a, b) => getAverageRatingValue(b) - getAverageRatingValue(a));
+    } else if (sortOption === 'highest_income') {
+      sorted.sort((a, b) => getProjectIncome(b) - getProjectIncome(a));
+    } else if (sortOption === 'by_month') {
+      sorted.sort((a, b) => getProjectStartTimestamp(b) - getProjectStartTimestamp(a));
+    }
+
+    return sorted;
+  }, [projects, searchQuery, sortOption]);
 
   return (
     <AuthenticatedLayout>
@@ -218,7 +283,7 @@ export default function AdviserProjectsPage() {
           </div>
 
           <Card className="rounded-[20px] border-0 shadow-sm p-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <div className="relative md:col-span-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -228,39 +293,14 @@ export default function AdviserProjectsPage() {
                   className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                 />
               </div>
-              <div>
+              <div className="">
                 <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value)}
                   className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                 >
-                  <option value="all">All Project Status</option>
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <select
-                  value={approvalFilter}
-                  onChange={(e) => setApprovalFilter(e.target.value)}
-                  className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                >
-                  <option value="all">All Approval Status</option>
-                  {APPROVAL_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                >
-                  <option value="all">All Categories</option>
-                  {CATEGORY_OPTIONS.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </div>
@@ -269,9 +309,39 @@ export default function AdviserProjectsPage() {
         </div>
 
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6 mt-6">
-          <div className="bg-blue-50 border border-blue-500 p-4 rounded-xl">
+          <div className="bg-white border p-4 rounded-xl">
             <h1 className="text-blue-700">Project Recommendations</h1>
-            <p className="text-base text-gray-700">There are no recommended projects as of now because the cycle has not begun yet.</p>
+            {recommendedProjects.length === 0 ? (
+              <p className="text-base text-gray-700">There are no recommended projects as of now because the cycle has not begun yet.</p>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-base text-gray-700">Recommended from best-performing past projects near the current month.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                  {recommendedProjects.map((project) => (
+                    <Card key={project.id} className="rounded-[20px] border border-blue-500 bg-white p-4 shadow-sm">
+                      <div className="mb-3">
+                        <h2 className="text-sm font-semibold text-gray-900 line-clamp-2">{project.title || 'Untitled Project'}</h2>
+                        <p className="text-xs text-gray-500">{project.category || 'Uncategorized'}</p>
+                      </div>
+                      <div className="text-sm text-gray-600 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span>Average Rating</span>
+                          <span className="font-semibold text-blue-700">{project.averageRating.toFixed(1)}/5</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Income</span>
+                          <span className="font-semibold text-blue-700">{formatCurrency(project.income ?? getProjectIncome(project))}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Timeline</span>
+                          <span className="font-semibold text-blue-700">{formatTimeline(project)}</span>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

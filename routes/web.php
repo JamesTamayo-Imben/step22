@@ -26,7 +26,6 @@ use App\Http\Controllers\User\UserProjectController;
 use App\Models\AuditLog;
 use App\Models\Concern;
 use App\Models\User\Project;
-use App\Models\User\Rating;
 use App\Models\User\Notification;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -204,7 +203,7 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
     Route::get('/adviser/projects', function () {
         $projects = Project::query()
             ->where('archive', 0)
-            ->with('ratings')
+            ->with(['ratings', 'ledgerEntries'])
             ->latest('created_at')
             ->get();
 

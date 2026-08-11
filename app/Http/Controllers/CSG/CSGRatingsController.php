@@ -5,6 +5,7 @@ namespace App\Http\Controllers\CSG;
 use App\Http\Controllers\Controller;
 use App\Models\User\Project;
 use App\Models\User\Rating;
+use App\Support\RatingKpiCalculator;
 use Carbon\Carbon;
 use Inertia\Inertia;
 
@@ -179,16 +180,18 @@ class CSGRatingsController extends Controller
         );
 
         // CSAT per-row: average of three sub-ratings >= 3 = satisfied
-        $satisfied = $ratings->filter(
-            fn ($r) => round(
-                ((float) $r->satisfaction_rating +
-                 (float) $r->engagement_rating +
-                 (float) $r->completeness_rating) / 3
-            ) >= 3
-        )->count();
+        $satisfied = $ratings->filter(function ($r) {
+            $average = (
+                (float) $r->satisfaction_rating +
+                (float) $r->engagement_rating +
+                (float) $r->completeness_rating
+            ) / 3;
+
+            return round($average) >= 3;
+        })->count();
 
         $notSatisfied = $ratings->count() - $satisfied;
-        $csatRate     = (int) round(100 * $satisfied / $ratings->count());
+        $csatRate     = RatingKpiCalculator::calculateCsatRate($ratings);
 
         return [$overallAvg, $csatRate, $satisfied, $notSatisfied];
     }

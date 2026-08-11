@@ -263,7 +263,7 @@ export function RatingsAnalyticsPage() {
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Satisfaction Rate</p>
+              <p className="text-sm text-gray-500">Users Satisfaction Rate</p>
               <p className="text-3xl font-semibold text-gray-900 mt-2">{totalRatings ? `${satisfactionRate}%` : '0'}</p>
               <p className="text-xs text-green-600 mt-1">Satisfied (3-5 stars)</p>
             </div>

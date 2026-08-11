@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Adviser;
 use App\Http\Controllers\Controller;
 use App\Models\User\Project;
 use App\Models\User\Rating;
+use App\Support\RatingKpiCalculator;
 use Carbon\Carbon;
 use Inertia\Inertia;
 
@@ -122,12 +123,18 @@ class AdviserRatingsController extends Controller
              $ratings->avg('engagement_rating')) / 3, 2
         ) : 0.0;
 
-        // CSAT: 3-5 stars = satisfied (same logic as CSGRatingsController)
-        $satisfied      = $ratings->whereIn('satisfaction_rating', [3, 4, 5])->count();
-        $notSatisfied   = $ratings->whereIn('satisfaction_rating', [1, 2])->count();
-        $satisfactionRate = $ratings->count()
-            ? (int) round(100 * $satisfied / $ratings->count())
-            : 0;
+        // CSAT: average of the three sub-ratings >= 3 = satisfied
+        $satisfied      = $ratings->filter(function ($rating) {
+            $average = (
+                (float) $rating->satisfaction_rating +
+                (float) $rating->engagement_rating +
+                (float) $rating->completeness_rating
+            ) / 3;
+
+            return round($average) >= 3;
+        })->count();
+        $notSatisfied   = $ratings->count() - $satisfied;
+        $satisfactionRate = RatingKpiCalculator::calculateCsatRate($ratings);
 
         return Inertia::render('Adviser/Ratings', [
             'projectSummaries' => $projectSummaries,

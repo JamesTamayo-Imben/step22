@@ -39,6 +39,7 @@ class CSGDashboardController extends Controller
         return Inertia::render('CSG/Dashboard', [
             'statistics' => $stats['statistics'],
             'projects' => Inertia::defer(fn() => $this->getProjectsData()),
+            'recommendedProjects' => Inertia::defer(fn() => $this->getRecommendedProjects()),
             'recentLedgerEntries' => Inertia::defer(fn() => $this->getLedgerEntriesData()),
             'upcomingMeetings' => Inertia::defer(fn() => $this->getMeetingsData()),
         ]);
@@ -219,5 +220,114 @@ class CSGDashboardController extends Controller
                 'budgetMismatchCount' => $budgetMismatchCount,
             ],
         ];
+    }
+
+    private function getRecommendedProjects()
+    {
+        $projects = Project::where('archive', 0)
+            ->where('approval_status', 'Approved')
+            ->get();
+
+        if ($projects->isEmpty()) {
+            return [];
+        }
+
+        $projectIds = $projects->pluck('id');
+
+        $ratingsByProject = Rating::where('archive', false)
+            ->whereIn('project_id', $projectIds)
+            ->get()
+            ->groupBy('project_id');
+
+        $ledgerSums = LedgerEntry::select('project_id',
+                DB::raw("SUM(CASE WHEN type = 'Income' THEN amount ELSE 0 END) as income"),
+                DB::raw("SUM(CASE WHEN type = 'Expense' THEN amount ELSE 0 END) as expense")
+            )
+            ->whereIn('project_id', $projectIds)
+            ->where('approval_status', 'Approved')
+            ->groupBy('project_id')
+            ->get()
+            ->keyBy('project_id');
+
+        $now = now();
+
+        return $projects
+            ->filter(function ($project) use ($ratingsByProject, $now) {
+                return $this->isCompletedProject($project, $now)
+                    && $this->getAverageRatingValue($project, $ratingsByProject) > 0
+                    && $this->getProjectMonthDistance($project, $now) <= 1;
+            })
+            ->map(function ($project) use ($ratingsByProject, $ledgerSums) {
+                return [
+                    'id' => $project->id,
+                    'title' => $project->title,
+                    'category' => $project->category,
+                    'approval_status' => $project->approval_status,
+                    'start_date' => $project->start_date,
+                    'end_date' => $project->end_date,
+                    'averageRating' => $this->getAverageRatingValue($project, $ratingsByProject),
+                    'income' => (float) ($ledgerSums->get($project->id)->income ?? 0),
+                ];
+            })
+            ->sort(function ($a, $b) {
+                if ($b['averageRating'] !== $a['averageRating']) {
+                    return $b['averageRating'] <=> $a['averageRating'];
+                }
+                return $b['income'] <=> $a['income'];
+            })
+            ->values()
+            ->slice(0, 3)
+            ->toArray();
+    }
+
+    private function isCompletedProject($project, $referenceDate)
+    {
+        if (! $project->start_date || ! $project->end_date) {
+            return false;
+        }
+
+        try {
+            $endDate = \Carbon\Carbon::parse($project->end_date)->endOfDay();
+            return $referenceDate->gte($endDate);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    private function getAverageRatingValue($project, $ratingsByProject)
+    {
+        $ratings = $ratingsByProject->get($project->id, collect());
+
+        if ($ratings->isEmpty()) {
+            return 0;
+        }
+
+        $sum = $ratings->reduce(function ($carry, $rating) {
+            $score = ($rating->satisfaction_rating ?? 0)
+                + ($rating->completeness_rating ?? 0)
+                + ($rating->engagement_rating ?? 0);
+
+            return $carry + ($score / 3);
+        }, 0);
+
+        return round($sum / $ratings->count(), 1);
+    }
+
+    private function getProjectMonthDistance($project, $referenceDate)
+    {
+        $dateValue = $project->start_date ?? $project->end_date;
+
+        if (! $dateValue) {
+            return PHP_INT_MAX;
+        }
+
+        try {
+            $projectDate = \Carbon\Carbon::parse($dateValue);
+        } catch (\Exception $e) {
+            return PHP_INT_MAX;
+        }
+
+        $monthDiff = abs($projectDate->month - $referenceDate->month);
+        return min($monthDiff, 12 - $monthDiff);
     }
 }
