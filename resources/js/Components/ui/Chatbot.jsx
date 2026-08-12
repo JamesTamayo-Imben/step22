@@ -77,45 +77,45 @@ const concernQuestions = [
 ]
 
 const cannedResponses = [
-  { 
-    keywords: ['ledger', 'financial', 'money', 'budget', 'expense', 'see', 'view'], 
-    text: 'You can view all approved financial activities in the "Financial Ledger." While you cannot add entries, you can audit the Council’s spending by checking the attached receipts and approval timestamps.' 
+  {
+    keywords: ['ledger', 'financial', 'money', 'budget', 'expense', 'see', 'view'],
+    text: 'You can view all approved financial activities in the "Financial Ledger." While you cannot add entries, you can audit the Council’s spending by checking the attached receipts and approval timestamps.'
   },
-  { 
-    keywords: ['receipt', 'proof', 'document', 'evidence'], 
-    text: 'Every transaction is backed by a "Proof Document" (usually a scanned receipt). As a Member, you can view these documents in the transaction details to ensure the reported expenses are legitimate.' 
+  {
+    keywords: ['receipt', 'proof', 'document', 'evidence'],
+    text: 'Every transaction is backed by a "Proof Document" (usually a scanned receipt). As a Member, you can view these documents in the transaction details to ensure the reported expenses are legitimate.'
   },
-  { 
-    keywords: ['edit', 'delete', 'change', 'remove'], 
-    text: 'In the STEP system, records are immutable. Neither the Council nor the Admin can delete a record once it is finalized. If a mistake is made, a new "Version" must be created, leaving the original visible for full accountability.' 
+  {
+    keywords: ['edit', 'delete', 'change', 'remove'],
+    text: 'In the STEP system, records are immutable. Neither the Council nor the Admin can delete a record once it is finalized. If a mistake is made, a new "Version" must be created, leaving the original visible for full accountability.'
   },
-  { 
-    keywords: ['meeting', 'minutes', 'agenda', 'what happened'], 
-    text: 'Stay informed by visiting the "Meetings" section. You can read the minutes of the CSG sessions to understand how decisions regarding student projects and budgets were made.' 
+  {
+    keywords: ['meeting', 'minutes', 'agenda', 'what happened'],
+    text: 'Stay informed by visiting the "Meetings" section. You can read the minutes of the CSG sessions to understand how decisions regarding student projects and budgets were made.'
   },
-  { 
-    keywords: ['feedback', 'rating', 'suggest', 'complain'], 
-    text: 'You can submit feedback or a 1-5 star rating on any completed project. Your input is crucial for transparency and helps the CSG remain responsive to student needs.' 
+  {
+    keywords: ['feedback', 'rating', 'suggest', 'complain'],
+    text: 'You can submit feedback or a 1-5 star rating on any completed project. Your input is crucial for transparency and helps the CSG remain responsive to student needs.'
   },
-  { 
-    keywords: ['who', 'role', 'permissions', 'my access'], 
-    text: 'You are logged in as a "Member." This gives you "Read-Only" auditing privileges. You can view all approved data, projects, and meetings, but you cannot modify the ledger—ensuring the integrity of the records.' 
+  {
+    keywords: ['who', 'role', 'permissions', 'my access'],
+    text: 'You are logged in as a "Member." This gives you "Read-Only" auditing privileges. You can view all approved data, projects, and meetings, but you cannot modify the ledger—ensuring the integrity of the records.'
   },
-  { 
-    keywords: ['hash', 'sha', 'tamper', 'safe'], 
-    text: 'We use SHA-256 hashing to secure the data. Think of it as a "digital fingerprint." If anyone tried to change a record, the fingerprint would change, and the chain would break, alerting everyone to the tampering.' 
+  {
+    keywords: ['hash', 'sha', 'tamper', 'safe'],
+    text: 'We use SHA-256 hashing to secure the data. Think of it as a "digital fingerprint." If anyone tried to change a record, the fingerprint would change, and the chain would break, alerting everyone to the tampering.'
   },
-  { 
-    keywords: ['kld', 'school', 'csg', 'dasmarinas'], 
-    text: 'STEPH is the official transparency assistant for the KLD Central Student Government. Our goal is to bridge the gap between students and governance through verifiable data.' 
+  {
+    keywords: ['kld', 'school', 'csg', 'dasmarinas'],
+    text: 'STEPH is the official transparency assistant for the KLD Central Student Government. Our goal is to bridge the gap between students and governance through verifiable data.'
   },
-  { 
-    keywords: ['hello', 'hi', 'hey', 'greetings'], 
-    text: 'Greetings, Regals! I am STEPH. Ready to audit the ledger or check on project updates? Just let me know what you are looking for!' 
+  {
+    keywords: ['hello', 'hi', 'hey', 'greetings'],
+    text: 'Greetings, Regals! I am STEPH. Ready to audit the ledger or check on project updates? Just let me know what you are looking for!'
   },
-  { 
-    keywords: ['thank', 'thanks'], 
-    text: 'You’re welcome! Remember: Transparency is your right as a student. Feel free to explore the ledger anytime.' 
+  {
+    keywords: ['thank', 'thanks'],
+    text: 'You’re welcome! Remember: Transparency is your right as a student. Feel free to explore the ledger anytime.'
   }
 ];
 
@@ -300,13 +300,15 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
           aria-label="Open STEPH chat"
         >
           <MessageCircleCheckIcon className="w-5 h-5" />
+          {/* <img src="/images/chatbot.png" alt="STEPH Icon" className="w-5 h-5" /> */}
         </button>
       ) : (
         <div className="flex flex-col w-[calc(100vw-2rem)] max-w-sm sm:max-w-md h-[70vh] sm:h-[500px] rounded-[24px] border border-gray-100 shadow-2xl bg-white overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between bg-gradient-to-r from-blue-800 to-blue-600 px-4 py-4 text-white">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-blue-400" />
+              {/* <ShieldCheck className="w-5 h-5 text-blue-400" /> */}
+              <img src="/images/chatbot.png" alt="STEPH Icon" className="w-5 h-5" />
               <div>
                 <p className="text-sm font-bold leading-none">STEPH</p>
                 <p className="text-[10px] text-blue-300 mt-1 uppercase tracking-widest font-medium">School Transparency and Engagement Portal Helper</p>
