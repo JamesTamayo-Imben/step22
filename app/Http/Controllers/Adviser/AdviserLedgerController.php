@@ -32,11 +32,22 @@ class AdviserLedgerController extends Controller
             ->where('approval_status', 'Approved')
             ->sum('budget');
 
+        // Get user's permissions
+        $userPermissions = [];
+        $user = auth()->user();
+        if ($user && $user->role) {
+            $userPermissions = $user->role->permissions()
+                ->where('archive', false)
+                ->pluck('permission')
+                ->toArray();
+        }
+
         return Inertia::render('Adviser/Ledger', [
             'ledgerEntries' => Inertia::defer(fn() => $this->getLedgerEntriesData()),
             'auditTrail' => Inertia::defer(fn() => $this->getAuditTrailData()),
             'projectFilterOptions' => $projectNames,
             'totalProjectBudget' => (float) $totalProjectBudget,
+            'userPermissions' => $userPermissions,
         ]);
     }
 

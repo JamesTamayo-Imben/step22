@@ -841,461 +841,327 @@ const handleSetSaduAdviser = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Roles & Permissions</h1>
-          <p className="text-gray-500">Configure role-based access control</p>
+          <h1 className="text-[30px] font-semibold tracking-tight text-[#111827]">Roles & Permissions</h1>
+          <p className="mt-1 text-[15px] text-[#6b7280]">Configure role-based access control</p>
         </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
+        <div className="flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white p-1 shadow-sm">
+          {[
+            { key: 'permissions', label: 'Permissions' },
+            { key: 'assign', label: 'Assign Users' },
+          ].map((tab) => (
             <button
+              key={tab.key}
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setRoleDropdownOpen((open) => !open);
-              }}
-              className="inline-flex items-center gap-2 min-w-[200px] justify-between px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 shadow-sm hover:border-blue-300"
+              onClick={() => setViewMode(tab.key)}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                viewMode === tab.key
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-[#374151] hover:bg-[#f3f4f6]'
+              }`}
             >
-              <span className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#2563EB]" />
-                {selectedRoleOption.label}
-              </span>
-              <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${roleDropdownOpen ? 'rotate-180' : ''}`} />
+              {tab.label}
             </button>
-            {roleDropdownOpen && (
-              <div
-                className="absolute right-0 mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-lg z-20 overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {ROLE_OPTIONS.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => {
-                      setSelectedRoleKey(option.key);
-                      setRoleDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                      selectedRoleKey === option.key
-                        ? 'bg-blue-50 text-[#2563EB]'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <Button
-            type="button"
-            onClick={() => setViewMode((mode) => (mode === 'permissions' ? 'assign' : 'permissions'))}
-            className={`${
-              viewMode === 'permissions'
-                ? 'bg-gray-900 hover:bg-gray-800 text-white'
-                : 'bg-[#2563EB] hover:bg-blue-700 text-white'
-            }`}
-          >
-            {viewMode === 'permissions' ? (
-              <>
-                <Users className="w-4 h-4 mr-2" />
-                Assignments
-              </>
-            ) : (
-              <>
-                <ClipboardList className="w-4 h-4 mr-2" />
-                Permissions
-              </>
-            )}
-          </Button>
+          ))}
         </div>
       </div>
 
-      {viewMode === 'permissions' && (
-        <RolePermissionEditor
-          key={selectedRoleKey}
-          roleEntry={currentPermissionRole}
-          saveUrl="/admin/role-permissions/save-permissions"
-          onSaved={(matrix) => setRoleMatrix(matrix)}
-        />
-      )}
+      <div className="grid gap-6 lg:grid-cols-[290px_minmax(0,1fr)]">
+        <aside className="rounded-[18px] border border-[#e5e7eb] bg-[#f8fafc] p-3">
+          <div className="space-y-3">
+            {ROLE_OPTIONS.map((option) => {
+              const isSelected = selectedRoleKey === option.key;
+              const roleLabel = option.key === 'superadmin'
+                ? 'Full system access with all permissions'
+                : option.key === 'admin'
+                  ? 'Approval authority and oversight capabilities'
+                  : option.key === 'admin-sadu'
+                    ? 'Operational oversight and coordination'
+                    : option.key === 'csg'
+                      ? 'Project and financial management'
+                      : 'Student engagement and participation';
 
-      {viewMode === 'assign' && selectedRoleKey === 'superadmin' && (
-        <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-gray-900 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-[#2563EB]" />
-                Super Admin
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">Full system access accounts</p>
-            </div>
-            <Badge className="bg-purple-100 text-purple-700">{superAdmins.length} account(s)</Badge>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {superAdmins.length === 0 ? (
-              <div className="col-span-full text-center py-8 text-sm text-gray-500">
-                No Super Admin accounts found.
-              </div>
-            ) : (
-              superAdmins.map((admin) => (
-                <div key={admin.id} className="p-4 rounded-xl border-2 border-blue-200 bg-blue-50">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Avatar className="w-10 h-10">
-                      <AvatarFallback className="bg-[#0065FF] text-white text-xs" name={admin.name} />
-                    </Avatar>
-                    <div>
-                      <h3 className="text-sm text-gray-900">{admin.name}</h3>
-                      <Badge className="text-xs bg-green-100 text-green-700">{admin.status || 'Active'}</Badge>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500">{admin.email}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-      )}
+              const permissionCount = option.key === 'superadmin'
+                ? 27
+                : option.key === 'admin'
+                  ? 9
+                  : option.key === 'admin-sadu'
+                    ? 9
+                    : option.key === 'csg'
+                      ? 18
+                      : 6;
 
-      {viewMode === 'assign' && selectedRoleKey === 'admin' && (
-      /* Advisers Card — Council Adviser only */
-      <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-gray-900 flex items-center">Council Adviser</h2>
-            <p className="text-sm text-gray-500 mt-1">Manage and assign council adviser role</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-         {/* CSG Adviser */}
-         {councilAdviser.map((adviser) => {
-            const isVacant = !adviser.name;
-
-            return (
-              <div
-                key={adviser.position}
-                className={`p-4 rounded-xl border-2 transition-all ${
-                  isVacant ? 'border-dashed border-gray-300 bg-gray-50' : 'border-blue-200 bg-blue-50'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    {isVacant ? (
-                      <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
-                        <UserPlus className="w-5 h-5 text-gray-400" />
-                      </div>
-                    ) : (
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-[#0065FF] text-white text-xs" name={adviser.name} />
-                      </Avatar>
-                    )}
-                    <div>
-                      <h3 className={`text-sm ${isVacant ? 'text-gray-400' : 'text-gray-900'}`}>{adviser.position}</h3>
-                      <Badge className={`text-xs ${isVacant ? 'bg-gray-200 text-gray-600' : 'bg-green-100 text-green-700'}`}>
-                        {isVacant ? 'Vacant' : 'Assigned'}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-
-                {isVacant ? (
-                  <div className="py-2">
-                    <p className="text-xs text-gray-400">No adviser assigned</p>
-                    <p className="text-xs text-gray-400">No email available</p>
-                    <p className="text-xs text-gray-400">No Teacher ID available</p>
-                    <div className="mt-3 border-t border-gray-200">
-                      <Button
-                        onClick={() => openAdviserModal(adviser)}
-                        variant="outline"
-                        size="sm"
-                        className="mt-3 w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
-                      >
-                        <UserPlus className="w-3 h-3 mr-1" />
-                        Assign Adviser
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-sm text-gray-900 mb-1">{adviser.name}</p>
-                    <p className="text-xs text-gray-500">{adviser.email}</p>
-                    <p className="text-xs text-gray-500">Teacher ID: {adviser.id}</p>
-                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200">
-                      <Button
-                        onClick={() => openAdviserModal(adviser)}
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
-                      >
-                        <Repeat className="w-3 h-3 mr-1" />
-                        Reassign Adviser
-                      </Button>
-                      <Button
-                        onClick={() => handleRemoveAdviser(adviser)}
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs border-red-500 bg-red-500 text-white hover:bg-red-600 hover:text-white"
-                      >
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Remove Adviser
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-      )}
-
-      {viewMode === 'assign' && selectedRoleKey === 'admin-sadu' && (
-      <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-gray-900 flex items-center">SADU Admin</h2>
-            <p className="text-sm text-gray-500 mt-1">Manage and assign SADU Admin role</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-           {councilSaduAdviser.map((adviser) => {
-            const isVacant = !adviser.name;
-
-            return (
-              <div
-                key={adviser.position}
-                className={`p-4 rounded-xl border-2 transition-all ${
-                  isVacant ? 'border-dashed border-gray-300 bg-gray-50' : 'border-blue-200 bg-blue-50'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    {isVacant ? (
-                      <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
-                        <UserPlus className="w-5 h-5 text-gray-400" />
-                      </div>
-                    ) : (
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-[#0065FF] text-white text-xs" name={adviser.name} />
-                      </Avatar>
-                    )}
-                    <div>
-                      <h3 className={`text-sm ${isVacant ? 'text-gray-400' : 'text-gray-900'}`}>{adviser.position}</h3>
-                      <Badge className={`text-xs ${isVacant ? 'bg-gray-200 text-gray-600' : 'bg-green-100 text-green-700'}`}>
-                        {isVacant ? 'Vacant' : 'Assigned'}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-
-                {isVacant ? (
-                  <div className="py-2">
-                    <p className="text-xs text-gray-400">No SADU Admin assigned</p>
-                    <p className="text-xs text-gray-400">No email available</p>
-                    <p className="text-xs text-gray-400">No Teacher ID available</p>
-                    <div className="mt-3 border-t border-gray-200">
-                      <Button
-                        onClick={() => openSaduAdviserModal(adviser)}
-                        variant="outline"
-                        size="sm"
-                        className="mt-3 w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
-                      >
-                        <UserPlus className="w-3 h-3 mr-1" />
-                        Assign SADU 
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-sm text-gray-900 mb-1">{adviser.name}</p>
-                    <p className="text-xs text-gray-500">{adviser.email}</p>
-                    <p className="text-xs text-gray-500">Teacher ID: {adviser.id}</p>
-                    <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200">
-                      <Button
-                        onClick={() => openSaduAdviserModal(adviser)}
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
-                      >
-                        <Repeat className="w-3 h-3 mr-1" />
-                        Reassign SADU 
-                      </Button>
-                      <Button
-                        onClick={() => handleRemoveSaduAdviser(adviser)}
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs border-red-500 bg-red-500 text-white hover:bg-red-600 hover:text-white"
-                      >
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Remove SADU 
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-      )}
-
-      {viewMode === 'assign' && selectedRoleKey === 'student' && (
-        <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-gray-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#2563EB]" />
-                Ordinary Students
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Students have engagement access. Use Permissions to configure what they can do.
-              </p>
-            </div>
-            <Badge className="bg-blue-100 text-blue-700">{studentCount} student(s)</Badge>
-          </div>
-          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-gray-700">
-            Ordinary students can view projects, submit ratings, and receive notifications by default.
-            Click <strong>Permissions</strong> to adjust their module access.
-          </div>
-        </Card>
-      )}
-
-      {viewMode === 'assign' && selectedRoleKey === 'csg' && (
-      /* CSG Council Officers Card */
-      <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-          <div className="flex  items-start justify-between gap-2">
-            <h2 className="text-gray-900 flex items-center">
-              CSG Council Officers 
-              <span className='text-sm text-blue-600 font-medium ml-2'>
-                {formatDate(councilStartDate)} to {formatDate(councilEndDate)}
-              </span>
-            </h2>
-          </div>
-            <p className="text-sm text-gray-500 mt-1">Manage and assign council officer positions</p>
-          </div>
-           <div className="flex flex-col sm:flex-row gap-3">
-          <Button onClick={openCouncilTermModal} className="bg-[#2563EB] hover:bg-blue-700 text-white">
-            <Calendar className="w-4 h-4 mr-2" />
-            Council Term
-          </Button>
-          <Button onClick={openAddCouncilPositionModal} className="bg-[#2563EB] hover:bg-blue-700 text-white">
-            <Users className="w-4 h-4 mr-2" />
-            Council Position
-          </Button>
-        </div>
-        </div>
-
-         <div className="md:col-span-2 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    placeholder="Search position..."
-                    value={positionSearchQuery}
-                    onChange={(e) => setPositionSearchQuery(e.target.value)}
-                    className="pl-10 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-blue-200"
-                  />
-                </div>
-
-       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-  {isLoadingPositions && councilOfficers.length === 0 ? (
-    <div className="col-span-full text-center py-8">
-      <p className="text-sm text-gray-500">Loading council positions...</p>
-    </div>
-  ) : filteredCouncilOfficers.length === 0 ? (
-    <div className="col-span-full text-center py-8">
-      <Search className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-      <p className="text-sm text-gray-500">No positions found matching your search.</p>
-      <p className="text-xs text-gray-400 mt-1">Try a different search term</p>
-    </div>
-  ) : (
-    filteredCouncilOfficers.map((officer) => {
-      const isVacant = !officer.name;
-
-      return (
-        <div
-          key={officer.positionId || officer.position}
-          className={`p-4 rounded-xl border-2 transition-all ${
-            isVacant ? 'border-dashed border-gray-300 bg-gray-50' : 'border-blue-200 bg-blue-50'
-          }`}
-        >
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-2">
-              {isVacant ? (
-                <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
-                  <UserPlus className="w-5 h-5 text-gray-400" />
-                </div>
-              ) : (
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-[#0065FF] text-white text-xs" name={officer.name} />
-                </Avatar>
-              )}
-              <div>
-                <h3 className={`text-sm ${isVacant ? 'text-gray-400' : 'text-gray-900'}`}>{officer.position}</h3>
-                <Badge className={`text-xs ${isVacant ? 'bg-gray-200 text-gray-600' : 'bg-green-100 text-green-700'}`}>
-                  {isVacant ? 'Vacant' : 'Assigned'}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          {isVacant ? (
-            <div className="py-2">
-              <p className="text-xs text-gray-400">No officer assigned</p>
-              <p className="text-xs text-gray-400">No email available</p>
-              <p className="text-xs text-gray-400">No student ID available</p>
-              <div className="mt-3 border-t border-gray-200">
-                <Button
-                  onClick={() => openOfficerModal(officer)}
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setSelectedRoleKey(option.key)}
+                  className={`w-full rounded-[16px] border p-4 text-left transition-all ${
+                    isSelected
+                      ? 'border-blue-700 bg-white shadow-sm'
+                      : 'border-transparent bg-transparent hover:border-[#d1d5db] hover:bg-white/70'
+                  }`}
                 >
-                  <UserPlus className="w-3 h-3 mr-1" />
-                  Assign Officer
-                </Button>
-              </div>
-            </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={`text-[15px] font-semibold ${isSelected ? 'text-blue-700' : 'text-[#374151]'}`}>
+                      {option.label}
+                    </span>
+                    {isSelected && (
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#22c55e] bg-[#dcfce7] text-[11px] text-[#16a34a]">
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-[14px] leading-5 text-[#6b7280]">{roleLabel}</p>
+                  <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#f3eff] px-2.5 py-1 text-[12px] font-medium text-blue-600">
+                    <span>{permissionCount}</span>
+                    <span>permissions</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
+
+        <div className="rounded-[18px] border border-[#e5e7eb] bg-white shadow-sm">
+          {viewMode === 'permissions' ? (
+            <RolePermissionEditor
+              key={selectedRoleKey}
+              roleEntry={currentPermissionRole}
+              saveUrl="/admin/role-permissions/save-permissions"
+              onSaved={(matrix) => setRoleMatrix(matrix)}
+            />
           ) : (
-            <div>
-              <p className="text-sm text-gray-900 mb-1">{officer.name}</p>
-              <p className="text-xs text-gray-500">{officer.email}</p>
-              <p className="text-xs text-gray-500">Student ID: {officer.id}</p>
-              <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200">
-                <Button
-                  onClick={() => openOfficerModal(officer)}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB] hover:text-white"
-                >
-                  <Repeat className="w-3 h-3 mr-1" />
-                  Reassign Position
-                </Button>
-                <Button
-                  onClick={() => handleRemoveOfficer(officer)}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-xs border-red-500 bg-red-500 text-white hover:bg-red-600 hover:text-white"
-                >
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  Remove Officer
-                </Button>
-              </div>
+            <div className="p-6">
+              {selectedRoleKey === 'superadmin' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-[#111827]">Super Admin</h2>
+                      <p className="text-sm text-[#6b7280]">Full system access accounts</p>
+                    </div>
+                    <span className="rounded-full bg-[#eff6ff] px-3 py-1 text-sm font-medium text-blue-600">
+                      {superAdmins.length} account(s)
+                    </span>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {superAdmins.map((admin) => (
+                      <div key={admin.id} className="rounded-xl border border-[#dbeafe] bg-[#eff6ff] p-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10">
+                            <AvatarFallback className="bg-[#2563EB] text-white text-xs" name={admin.name} />
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-[#111827]">{admin.name}</p>
+                            <span className="rounded-full bg-[#dcfce7] px-2 py-0.5 text-[11px] font-medium text-[#15803d]">
+                              {admin.status || 'Active'}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="mt-3 text-sm text-[#6b7280]">{admin.email}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedRoleKey === 'admin' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-xl font-semibold text-[#111827]">Council Adviser</h2>
+                    <p className="text-sm text-[#6b7280]">Manage and assign council adviser role</p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {councilAdviser.map((adviser) => {
+                      const isVacant = !adviser.name;
+                      return (
+                        <div key={adviser.position} className={`rounded-xl border p-4 ${isVacant ? 'border-dashed border-[#d1d5db] bg-[#f9fafb]' : 'border-[#dbeafe] bg-[#eff6ff]'}`}>
+                          <div className="flex items-center gap-3">
+                            {isVacant ? (
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#e5e7eb] text-[#6b7280]">
+                                <UserPlus className="h-5 w-5" />
+                              </div>
+                            ) : (
+                              <Avatar className="w-10 h-10">
+                                <AvatarFallback className="bg-[#2563EB] text-white text-xs" name={adviser.name} />
+                              </Avatar>
+                            )}
+                            <div>
+                              <p className={`font-medium ${isVacant ? 'text-[#9ca3af]' : 'text-[#111827]'}`}>{adviser.position}</p>
+                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${isVacant ? 'bg-[#e5e7eb] text-[#6b7280]' : 'bg-[#dcfce7] text-[#15803d]'}`}>
+                                {isVacant ? 'Vacant' : 'Assigned'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-4 space-y-2 text-sm text-[#6b7280]">
+                            {isVacant ? (
+                              <>
+                                <p>No adviser assigned</p>
+                                <p>No email available</p>
+                              </>
+                            ) : (
+                              <>
+                                <p>{adviser.name}</p>
+                                <p>{adviser.email}</p>
+                                <p>Teacher ID: {adviser.id}</p>
+                              </>
+                            )}
+                          </div>
+                          <div className="mt-4">
+                            <Button
+                              onClick={() => openAdviserModal(adviser)}
+                              className="w-full bg-[#2563EB] hover:bg-blue-700 text-white"
+                            >
+                              {isVacant ? 'Assign Adviser' : 'Reassign Adviser'}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {selectedRoleKey === 'admin-sadu' && (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-xl font-semibold text-[#111827]">SADU Admin</h2>
+                    <p className="text-sm text-[#6b7280]">Manage and assign SADU Admin role</p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {councilSaduAdviser.map((adviser) => {
+                      const isVacant = !adviser.name;
+                      return (
+                        <div key={adviser.position} className={`rounded-xl border p-4 ${isVacant ? 'border-dashed border-[#d1d5db] bg-[#f9fafb]' : 'border-[#dbeafe] bg-[#eff6ff]'}`}>
+                          <div className="flex items-center gap-3">
+                            {isVacant ? (
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#e5e7eb] text-[#6b7280]">
+                                <UserPlus className="h-5 w-5" />
+                              </div>
+                            ) : (
+                              <Avatar className="w-10 h-10">
+                                <AvatarFallback className="bg-[#2563EB] text-white text-xs" name={adviser.name} />
+                              </Avatar>
+                            )}
+                            <div>
+                              <p className={`font-medium ${isVacant ? 'text-[#9ca3af]' : 'text-[#111827]'}`}>{adviser.position}</p>
+                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${isVacant ? 'bg-[#e5e7eb] text-[#6b7280]' : 'bg-[#dcfce7] text-[#15803d]'}`}>
+                                {isVacant ? 'Vacant' : 'Assigned'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-4 space-y-2 text-sm text-[#6b7280]">
+                            {isVacant ? (
+                              <>
+                                <p>No SADU Admin assigned</p>
+                                <p>No email available</p>
+                              </>
+                            ) : (
+                              <>
+                                <p>{adviser.name}</p>
+                                <p>{adviser.email}</p>
+                                <p>Teacher ID: {adviser.id}</p>
+                              </>
+                            )}
+                          </div>
+                          <div className="mt-4">
+                            <Button
+                              onClick={() => openSaduAdviserModal(adviser)}
+                              className="w-full bg-[#2563EB] hover:bg-blue-700 text-white"
+                            >
+                              {isVacant ? 'Assign SADU Admin' : 'Reassign SADU Admin'}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {selectedRoleKey === 'csg' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl font-semibold text-[#111827]">CSG Council Officers</h2>
+                      <p className="text-sm text-[#6b7280]">Manage and assign council officer positions</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button onClick={openCouncilTermModal} className="bg-[#2563EB] hover:bg-blue-700 text-white">
+                        Council Term
+                      </Button>
+                      <Button onClick={openAddCouncilPositionModal} className="bg-[#2563EB] hover:bg-blue-700 text-white">
+                        Council Position
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-1 xl:grid-cols-2">
+                    {filteredCouncilOfficers.map((officer) => {
+                      const isVacant = !officer.name;
+                      return (
+                        <div key={officer.positionId || officer.position} className={`rounded-xl border p-4 ${isVacant ? 'border-dashed border-[#d1d5db] bg-[#f9fafb]' : 'border-[#dbeafe] bg-[#eff6ff]'}`}>
+                          <div className="flex items-center gap-3">
+                            {isVacant ? (
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#e5e7eb] text-[#6b7280]">
+                                <UserPlus className="h-5 w-5" />
+                              </div>
+                            ) : (
+                              <Avatar className="w-10 h-10">
+                                <AvatarFallback className="bg-[#2563EB] text-white text-xs" name={officer.name} />
+                              </Avatar>
+                            )}
+                            <div>
+                              <p className={`font-medium ${isVacant ? 'text-[#9ca3af]' : 'text-[#111827]'}`}>{officer.position}</p>
+                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${isVacant ? 'bg-[#e5e7eb] text-[#6b7280]' : 'bg-[#dcfce7] text-[#15803d]'}`}>
+                                {isVacant ? 'Vacant' : 'Assigned'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-4 space-y-2 text-sm text-[#6b7280]">
+                            {isVacant ? (
+                              <>
+                                <p>No officer assigned</p>
+                                <p>No email available</p>
+                              </>
+                            ) : (
+                              <>
+                                <p>{officer.name}</p>
+                                <p>{officer.email}</p>
+                                <p>Student ID: {officer.id}</p>
+                              </>
+                            )}
+                          </div>
+                          <div className="mt-4">
+                            <Button
+                              onClick={() => openOfficerModal(officer)}
+                              className="w-full bg-[#2563EB] hover:bg-blue-700 text-white"
+                            >
+                              {isVacant ? 'Assign Officer' : 'Reassign Position'}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {selectedRoleKey === 'student' && (
+                <div className="rounded-xl border border-[#dbeafe] bg-[#eff6ff] p-6">
+                  <h2 className="text-xl font-semibold text-[#111827]">Ordinary Students</h2>
+                  <p className="mt-2 text-sm text-[#6b7280]">Students have engagement access. Use Permissions to configure what they can do.</p>
+                  <div className="mt-4 inline-flex rounded-full bg-[#dbeafe] px-3 py-1 text-sm font-medium text-[#1d4ed8]">
+                    {studentCount} student(s)
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
-      );
-    })
-  )}
-</div>
-      </Card>
-      )}
+      </div>
 
-      {/* Add Council Position Modal */}
+      {/* Add Council Position Modal */
         <Modal
           open={addCouncilPositionModalOpen}
           onClose={() => {
@@ -1433,7 +1299,7 @@ const handleSetSaduAdviser = () => {
           </Button>
         </div>
         </Modal>
-
+}
       {/* Assign Officer Modal */}
       <Modal
         open={isSetOfficerModalOpen}

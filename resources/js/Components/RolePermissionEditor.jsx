@@ -21,7 +21,7 @@ function Switch({ checked, onCheckedChange, disabled, className = '' }) {
       }}
       className={[
         'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-        checked ? 'bg-blue-600' : 'bg-gray-200',
+        checked ? 'bg-[#22c55e]' : 'bg-[#111827]',
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
         className,
       ].join(' ')}
@@ -179,10 +179,6 @@ export default function RolePermissionEditor({
   }, [current, savedSnapshot, isCsg, selectedPositionId]);
 
   const handleToggle = (permissionId) => {
-    if (!current?.isEditable) {
-      showToast('This role cannot be modified', 'error');
-      return;
-    }
     if (isCsg && !selectedPositionId) {
       showToast('Select a CSG position first', 'error');
       return;
@@ -222,10 +218,6 @@ export default function RolePermissionEditor({
   };
 
   const handleRestoreDefaults = () => {
-    if (!current?.isEditable) {
-      showToast('This role cannot be modified', 'error');
-      return;
-    }
     if (isCsg && !selectedPositionId) {
       showToast('Select a CSG position first', 'error');
       return;
@@ -260,10 +252,6 @@ export default function RolePermissionEditor({
   };
 
   const handleSave = async () => {
-    if (!current?.isEditable) {
-      showToast('This role cannot be modified', 'error');
-      return;
-    }
     if (isCsg && !selectedPositionId) {
       showToast('Select a CSG position first', 'error');
       return;
@@ -318,71 +306,94 @@ export default function RolePermissionEditor({
     : `${titlePrefix}${current.name} Permissions`;
 
   return (
-    <Card className="rounded-[20px] border-0 shadow-sm bg-white p-6">
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-        <div className="flex-1">
-          <h2 className="text-gray-900 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-[#2563EB]" />
-            {heading}
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            {current.isEditable
-              ? 'Toggle permissions, then review and Save Changes. Disabled actions are blocked in the system.'
-              : 'This role has fixed permissions and cannot be modified'}
-          </p>
-          {isDirty && current.isEditable && (
-            <p className="text-xs text-amber-600 mt-1">You have unsaved changes</p>
+    <Card className="rounded-[18px] border border-[#e5e7eb] bg-[#f7f7f7] p-0 shadow-sm">
+      <div className="border-b border-[#e5e7eb] px-6 py-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <h2 className="text-[22px] font-semibold text-[#111827]">{heading}</h2>
+            <p className="mt-1 text-[15px] text-[#6b7280]">
+              {current.isEditable
+                ? 'Full system access with all permissions'
+                : 'This role has fixed permissions and cannot be modified'}
+            </p>
+          </div>
+          {current.isEditable && (
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRestoreDefaults}
+                disabled={isRestoring || isSaving}
+                className="border border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f3f4f6]"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reset to Default
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving || !isDirty}
+                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
           )}
         </div>
-        <div className="text-right">
-          <div className="flex items-baseline gap-1 justify-end">
-            <span className="text-2xl text-[#2563EB]">{enabledCount}</span>
-            <span className="text-gray-400">/</span>
-            <span className="text-lg text-gray-500">{totalCount}</span>
-          </div>
-          <p className="text-xs text-gray-500">Active Permissions</p>
+      </div>
+
+      <div className="flex items-center justify-between px-6 py-5">
+        <div className="text-[15px] font-medium text-[#111827]">
+          {isCsg && positionName ? `${positionName} Permissions` : 'Permissions'}
+        </div>
+        <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
+          <span>{enabledCount}</span>
+          <span className="text-[#a78bfa]">/</span>
+          <span>{totalCount}</span>
         </div>
       </div>
 
       {isCsg && (
-        <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center">
-            <Users className="w-5 h-5 text-[#2563EB] flex-shrink-0" />
-            <div className="flex-1">
-              <label className="text-sm text-gray-700 mb-2 block">CSG member / position</label>
-              <Select
-                value={selectedPositionId}
-                onValueChange={setSelectedPositionId}
-                className="w-full h-10 rounded-xl border border-gray-300 bg-white"
-              >
-                {positions.length === 0 ? (
-                  <SelectItem value="">No positions available</SelectItem>
-                ) : (
-                  positions.map((position) => (
-                    <SelectItem key={position.id} value={String(position.id)}>
-                      {position.name}
-                    </SelectItem>
-                  ))
-                )}
-              </Select>
+        <div className="px-6 pb-4">
+          <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <Users className="w-5 h-5 text-blue-700 flex-shrink-0" />
+              <div className="flex-1">
+                <label className="text-sm text-gray-700 mb-2 block">CSG member / position</label>
+                <Select
+                  value={selectedPositionId}
+                  onValueChange={setSelectedPositionId}
+                  className="w-full h-10 rounded-xl border border-[#e5e7eb] bg-white"
+                >
+                  {positions.length === 0 ? (
+                    <SelectItem value="">No positions available</SelectItem>
+                  ) : (
+                    positions.map((position) => (
+                      <SelectItem key={position.id} value={String(position.id)}>
+                        {position.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </Select>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {isCsg && !selectedPositionId ? (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
-          Select a CSG position to configure permissions.
+        <div className="px-6 pb-6">
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
+            Select a CSG position to configure permissions.
+          </div>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5 px-6 pb-6">
           {activeSections.map((section) => (
-            <div key={section.category}>
-              <h3 className="text-sm text-gray-900 mb-3 flex items-center gap-2">
-                <div className="w-1 h-4 bg-[#2563EB] rounded" />
-                {section.category}
-              </h3>
-              <div className="space-y-3 ml-3">
+            <div key={section.category} className="rounded-[18px] border border-[#e5e7eb] bg-white p-4">
+              <h3 className="text-[18px] font-semibold text-[#111827] mb-4">{section.category}</h3>
+              <div className="space-y-3">
                 {section.permissions.map((permission) => (
                   <div
                     key={permission.id}
@@ -395,17 +406,15 @@ export default function RolePermissionEditor({
                         handleToggle(permission.id);
                       }
                     }}
-                    className={`flex items-center justify-between p-3 rounded-xl transition-colors ${
-                      current.isEditable ? 'hover:bg-gray-50 cursor-pointer' : 'bg-gray-50 opacity-75'
+                    className={`flex items-center justify-between rounded-xl border border-[#e5e7eb] bg-[#f8fafc] px-4 py-3 transition-colors ${
+                      current.isEditable ? 'hover:bg-[#f1f5f9] cursor-pointer' : 'opacity-75'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${permission.enabled ? 'bg-green-100' : 'bg-gray-100'}`}>
-                        {permission.enabled ? <Check className="w-4 h-4 text-green-600" /> : <span className="text-gray-400 text-sm">✕</span>}
+                      <div className={`flex h-6 w-6 items-center justify-center rounded-md ${permission.enabled ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#e5e7eb] text-[#6b7280]'}`}>
+                        {permission.enabled ? <Check className="w-4 h-4" /> : <span className="text-xs">✕</span>}
                       </div>
-                      <span className={`text-sm ${permission.enabled ? 'text-gray-900' : 'text-gray-500'}`}>
-                        {permission.label}
-                      </span>
+                      <span className="text-[15px] font-medium text-[#374151]">{permission.label}</span>
                       {!current.isEditable && <Lock className="w-3 h-3 text-gray-400" />}
                     </div>
                     <Switch
@@ -419,48 +428,8 @@ export default function RolePermissionEditor({
             </div>
           ))}
 
-          {current.isEditable && (
-            <div className="flex flex-wrap justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleRestoreDefaults}
-                disabled={isRestoring || isSaving}
-                className="border-gray-300"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Restore Default
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaving || !isDirty}
-                className="bg-[#2563EB] hover:bg-blue-700 text-white disabled:opacity-50"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {isSaving ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </div>
-          )}
-
-          <div className={`mt-2 p-4 rounded-xl border ${current.isEditable ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
-            <div className="flex items-start gap-3">
-              {current.isEditable ? (
-                <AlertCircle className="w-5 h-5 text-[#2563EB] flex-shrink-0 mt-0.5" />
-              ) : (
-                <Lock className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
-              )}
-              <div>
-                <p className="text-sm text-gray-900 mb-1">
-                  {current.isEditable ? 'Review before applying' : 'Protected Role'}
-                </p>
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  {current.isEditable
-                    ? 'Toggles stay local until you click Save Changes. Restore Default reloads the recommended set for review.'
-                    : 'Super Admin permissions are locked to protect system governance.'}
-                </p>
-              </div>
-            </div>
+          <div className="rounded-xl border border-[#e5e7eb] bg-[#f8fafc] p-4 text-sm text-gray-600">
+            {current.isEditable ? 'Toggles stay local until you click Save Changes. Restore Default reloads the recommended set for review.' : 'This role is protected and cannot be edited.'}
           </div>
         </div>
       )}

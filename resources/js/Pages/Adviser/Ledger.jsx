@@ -273,9 +273,12 @@ function csvEscape(val) {
 const TABLE_PAGE_SIZE = 10;
 
 export default function LedgerApprovalsPage() {
-  const { ledgerEntries = [], projectFilterOptions = [], totalProjectBudget = 0 } = usePage().props;
+  const { ledgerEntries = [], projectFilterOptions = [], totalProjectBudget = 0, userPermissions = [] } = usePage().props;
 
   const [selectedEntry, setSelectedEntry] = useState(null);
+
+  const canViewLedger = userPermissions.includes('ledger.view');
+  const canViewProof = userPermissions.includes('proof-documents.view');
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [isCorrectionDialogOpen, setIsCorrectionDialogOpen] = useState(false);
@@ -760,13 +763,15 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Verification</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Proof</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                        {canViewLedger && (
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {pagedLedger.length === 0 ? (
                         <tr>
-                          <td colSpan={10} className="px-6 py-4 text-center">
+                          <td colSpan={canViewLedger ? 10 : 9} className="px-6 py-4 text-center">
                              <div className="text-center py-4">
                                                              <Inbox className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                                                              <p className="text-sm text-gray-500">No recent activity found</p>
@@ -845,13 +850,15 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <button
-                                type="button"
-                                onClick={() => handleViewDetails(entry)}
-                                className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
-                              >
-                                <Eye className="w-4 h-4" /> View
-                              </button>
+                              {canViewLedger && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewDetails(entry)}
+                                  className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                                >
+                                  <Eye className="w-4 h-4" /> View
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -984,7 +991,8 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                             <p className="text-xs text-gray-500 mt-1">SHA-256: <code className="text-xs break-all">{file.hash}</code></p>
                           </div>
                         </div>
-                        <Button 
+                        {canViewProof && (
+                          <Button 
                                              variant="outline" 
                                              size="sm" 
                                              onClick={() => {
@@ -995,6 +1003,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                                            >
                                              <Eye className="w-4 h-4 mr-1" /> View
                                            </Button>
+                        )}
                       </div>
                     </div>
                   ))}
