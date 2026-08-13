@@ -104,17 +104,17 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+          <div className="w-20 h-20 rounded-lg flex items-center justify-center">
             {/* <span className="text-white text-sm">S</span> */}
             <img
-              src="/images/Logo.png" alt="Step Logo"
+              src="/images/steplogo.png" alt="Step Logo"
               className="w-full object-cover"/>
           </div>
-          <div className="w-10">
+          {/* <div className="w-10">
             <img
               src="/images/step_dark.png" alt="Step"
               className="w-full object-cover"/>
-          </div>
+          </div> */}
           
           
         </div>
@@ -144,10 +144,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
               className="w-full object-cover"/>
             </div>
             <div className="w-8">
-              <img
-              src="/images/step_dark.png" alt="Step"
-              className="w-full object-cover"/>
-              {/* <h1 className="text-[#2563EB]">STEP</h1> */}
+              <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
               <p className="text-xs text-gray-500">Admin/Adviser</p>
             </div>
           </div>
@@ -226,9 +223,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
             </div>
             <div className="w-full">
                 <div className="w-10">
-                    <img
-              src="/images/step_dark.png" alt="Step"
-              className="w-full object-cover"/>
+              <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
                 </div>
               
               <p className="text-xs text-gray-500">Admin/Adviser</p>

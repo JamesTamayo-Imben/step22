@@ -1,10 +1,10 @@
 import React from 'react';
 import { Head } from '@inertiajs/react';
-import Layout from '@/Layouts/Layout';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
 export default function Show({ project, chain, verification, integrity }) {
     return (
-        <Layout>
+        <AuthenticatedLayout>
             <Head title={`Blockchain - ${project.title}`} />
 
             <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
@@ -155,6 +155,6 @@ export default function Show({ project, chain, verification, integrity }) {
                     </div>
                 </div>
             </div>
-        </Layout>
+        </AuthenticatedLayout>
     );
 }

@@ -123,10 +123,10 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
         </button>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 overflow-hidden">
-            <img src="/images/Logo.png" alt="Step Logo" className="w-full h-full object-cover" />
+            <img src="/images/Logo.png" alt="Step Logo" className="w-full object-cover" />
           </div>
           <div className="w-10">
-            <img src="/images/step_dark.png" alt="STEP" className="w-full object-cover" />
+            <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
           </div>
         </div>
         <Avatar className="w-8 h-8">
@@ -169,11 +169,11 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 overflow-hidden">
-                <img src="/images/Logo.png" alt="Step Logo" className="w-full h-full object-cover" />
+                <img src="/images/Logo.png" alt="Step Logo" className="w-full object-cover" />
               </div>
               <div className="flex-1">
                 <div className="w-10">
-                  <img src="/images/step_dark.png" alt="STEP" className="w-full object-cover" />
+                  <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
                 </div>
                 <p className="text-xs text-gray-500">CSG Officer</p>
               </div>
@@ -293,7 +293,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
               </div>
               <div>
                 <div className="w-10">
-                  <img src="/images/step_dark.png" alt="STEP" className="w-full object-cover" />
+                  <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
                 </div>
                 <p className="text-xs text-gray-500">CSG Officer</p>
               </div>

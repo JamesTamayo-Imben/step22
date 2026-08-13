@@ -97,17 +97,15 @@ export function StudentNavbar({
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-8 rounded-xl flex items-center justify-center">
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center">
                 {/* <span className="text-white">S</span> */}
                 <img
-              src="/images/Logo.png" alt="Step Logo"
+              src="/images/steplogo.png" alt="Step Logo"
               className="w-full object-cover"/>
               </div>
               <div className='w-10'>
                 {/* <h1 className="text-blue-600">STEP</h1> */}
-                <img
-              src="/images/step_dark.png" alt="Step"
-              className="w-full object-cover"/>
+               
               </div>
             </div>
 
@@ -277,16 +275,12 @@ export function StudentNavbar({
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-8 rounded-lg flex items-center justify-center">
+          <div className="w-14 h-14 rounded-lg flex items-center justify-center">
             <img
-              src="/images/Logo.png" alt="Step Logo"
+              src="/images/steplogo.png" alt="Step Logo"
               className="w-full object-cover"/>
           </div>
-          <div className="w-10">
-            <img
-              src="/images/step_dark.png" alt="Step"
-              className="w-full object-cover"/>
-          </div>
+         
         </div>
         <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">
           ST
@@ -316,11 +310,7 @@ export function StudentNavbar({
                 className="w-full object-cover"/>
             </div>
             <div className="w-full">
-              <div className="w-8">
-                <img
-                  src="/images/step_dark.png" alt="Step"
-                  className="w-full object-cover"/>
-              </div>
+              <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
               <p className="text-xs text-gray-500">Super Admin</p>
             </div>
           </div>
