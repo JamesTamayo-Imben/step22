@@ -117,9 +117,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
               className="w-full object-cover"/>
           </div>
           <div className="w-10">
-            <img
-              src="/images/step_dark.png" alt="Step"
-              className="w-full object-cover"/>
+            <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
           </div>
         </div>
         <Avatar className="w-8 h-8">
@@ -147,9 +145,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
             </div>
             <div className="w-full">
                 <div className="w-8">
-                    <img
-              src="/images/step_dark.png" alt="Step"
-              className="w-full object-cover"/>
+                    <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
                 </div>
               
               <p className="text-xs text-gray-500">Super Admin</p>
@@ -206,9 +202,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
             </div>
             <div className="w-full">
                 <div className="w-10">
-                    <img
-              src="/images/step_dark.png" alt="Step"
-              className="w-full object-cover"/>
+                    <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
                 </div>
               
               <p className="text-xs text-gray-500">Super Admin</p>
