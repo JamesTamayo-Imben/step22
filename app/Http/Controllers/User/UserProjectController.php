@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use App\Support\ProjectBudgetCalculator;
+use App\Services\RolePermissionService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -63,6 +64,11 @@ class UserProjectController extends Controller
     public function index(Request $request)
     {
         $user = $this->resolveCurrentUser();
+
+        if (!$user || !app(RolePermissionService::class)->userCan($user, 'projects.view')) {
+            return Redirect::route('user.dashboard');
+        }
+
         $notificationPayload = $this->getNotificationPayload($user);
 
         $meetPayload = $this->getMeetingsPayload();
@@ -82,6 +88,11 @@ class UserProjectController extends Controller
     public function show(Request $request, string $id)
     {
         $user = $this->resolveCurrentUser();
+
+        if (!$user || !app(RolePermissionService::class)->userCan($user, 'projects.view')) {
+            return Redirect::route('user.dashboard');
+        }
+
         $notificationPayload = $this->getNotificationPayload($user);
 
         $project = Project::query()
@@ -386,6 +397,12 @@ class UserProjectController extends Controller
 
     public function meetings(Request $request)
     {
+        $user = $this->resolveCurrentUser();
+
+        if (!$user || !app(RolePermissionService::class)->userCan($user, 'meetings.view')) {
+            return Redirect::route('user.dashboard');
+        }
+
         return $this->renderUserSimplePage('meetings');
     }
 

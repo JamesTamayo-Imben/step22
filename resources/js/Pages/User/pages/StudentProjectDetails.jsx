@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { StudentModal } from '@/Components/ui/StudentModal';
@@ -6,6 +7,13 @@ import { Chatbot } from '@/Components/ui/Chatbot';
 import { ArrowLeft, FolderKanban, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shield, XCircle } from 'lucide-react';
 
 export default function StudentProjectDetails({ projectId, onBack, project }) {
+  const { props } = usePage();
+  const userPermissions = Array.isArray(props?.userPermissions)
+    ? props.userPermissions
+    : Array.isArray(props?.auth?.permissions)
+      ? props.auth.permissions
+      : [];
+
   const [currentProject, setCurrentProject] = useState(project);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [satisfactionRating, setSatisfactionRating] = useState(project?.currentUserRating?.satisfaction_rating || 0);
@@ -22,6 +30,19 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [selectedProofDocument, setSelectedProofDocument] = useState(null);
   const [selectedApprovalCopy, setSelectedApprovalCopy] = useState(null);
   const [showAllComments, setShowAllComments] = useState(false);
+
+  const currentRoleName = props?.auth?.user?.role?.name || props?.auth?.user?.role_name || props?.role?.name || '';
+  const isSuperAdmin = ['Super Admin', 'superadmin', 'Superadmin'].includes(currentRoleName);
+
+  // Check permissions
+  const canViewRatings = userPermissions.includes('ratings.view');
+  const canSubmitRatings = userPermissions.includes('ratings.submit') && !isSuperAdmin;
+
+  useEffect(() => {
+    if (!canViewRatings && activeTab === 'ratings') {
+      setActiveTab('overview');
+    }
+  }, [canViewRatings, activeTab]);
 
   // Check if user has already rated this project
   const hasUserRated = currentProject?.currentUserRating !== null && currentProject?.currentUserRating !== undefined;
@@ -198,6 +219,7 @@ function maskUserName(fullName) {
 };
 
   const handleSubmitRating = async () => {
+    if (!canSubmitRatings) return;
     if (!satisfactionRating) return;
 
     setIsSubmitting(true);
@@ -278,54 +300,58 @@ function maskUserName(fullName) {
       
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2">
-              <div className="flex items-center gap-3">
-                {(() => {
-                  const ratings = currentProject.ratings || [];
-                  const satisfactionAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.satisfaction_rating || 0), 0) / ratings.length) : 0;
-                  const completenessAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.completeness_rating || 0), 0) / ratings.length) : 0;
-                  const engagementAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.engagement_rating || 0), 0) / ratings.length) : 0;
-                  const overallAvg = ratings.length ? (satisfactionAvg + completenessAvg + engagementAvg) / 3 : 0;
-                  
-                  return (
-                    <>
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-5 h-5 ${
-                              i < Math.floor(overallAvg)
-                                ? 'fill-yellow-400 text-yellow-400' 
-                                : 'text-gray-300'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="font-semibold text-gray-900">{overallAvg.toFixed(2)}</span>
-                      <span className="text-sm text-gray-500">({ratings.length} ratings)</span>
-                    </>
-                  );
-                })()}
-              </div>
+              {canViewRatings ? (
+                <div className="flex items-center gap-3">
+                  {(() => {
+                    const ratings = currentProject.ratings || [];
+                    const satisfactionAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.satisfaction_rating || 0), 0) / ratings.length) : 0;
+                    const completenessAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.completeness_rating || 0), 0) / ratings.length) : 0;
+                    const engagementAvg = ratings.length ? (ratings.reduce((sum, r) => sum + (r.engagement_rating || 0), 0) / ratings.length) : 0;
+                    const overallAvg = ratings.length ? (satisfactionAvg + completenessAvg + engagementAvg) / 3 : 0;
+                    
+                    return (
+                      <>
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-5 h-5 ${
+                                i < Math.floor(overallAvg)
+                                  ? 'fill-yellow-400 text-yellow-400' 
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="font-semibold text-gray-900">{overallAvg.toFixed(2)}</span>
+                        <span className="text-sm text-gray-500">({ratings.length} ratings)</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : null}
 
               {/* Rating Button*/}
-                <div className="flex flex-col items-end gap-2">
-                <button
-                  onClick={() => setShowRatingModal(true)}
-                  disabled={isRatingDisabled}
-                  className={`flex items-center gap-2 px-4 py-2 
-                     disabled:bg-gray-400 disabled:hover:bg-gray-400 
-   disabled:text-gray-200
-                    rounded-xl transition-colors bg-blue-600 hover:bg-blue-700 text-white`}
-                >
-                  <Star className="w-4 h-4" />
-                  {isRatingDisabled ? 'Already Rated' : 'Rate this Project'}
-                </button>
-                {isRatingDisabled && (
-                  <p className="text-xs text-yellow-600">
-                    You have already rated this project. Thank you!
-                  </p>
-                )}
-              </div>
+                {canSubmitRatings ? (
+                  <div className="flex flex-col items-end gap-2">
+                    <button
+                      onClick={() => setShowRatingModal(true)}
+                      disabled={isRatingDisabled}
+                      className={`flex items-center gap-2 px-4 py-2 
+                         disabled:bg-gray-400 disabled:hover:bg-gray-400 
+       disabled:text-gray-200
+                        rounded-xl transition-colors bg-blue-600 hover:bg-blue-700 text-white`}
+                    >
+                      <Star className="w-4 h-4" />
+                      {isRatingDisabled ? 'Already Rated' : 'Rate this Project'}
+                    </button>
+                    {isRatingDisabled && (
+                      <p className="text-xs text-yellow-600">
+                        You have already rated this project. Thank you!
+                      </p>
+                    )}
+                  </div>
+                ) : null}
             
             </div>
           </div>
@@ -363,7 +389,7 @@ function maskUserName(fullName) {
       </Card>
 
       <div className="flex flex-wrap gap-2 bg-white rounded-xl p-2 shadow-sm border border-gray-100">
-        {['overview', 'ledger', 'proof', 'status timeline', 'ratings'].map((tab) => (
+        {['overview', 'ledger', 'proof', 'status timeline', canViewRatings && 'ratings'].filter(Boolean).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -848,7 +874,7 @@ function maskUserName(fullName) {
 
       {/* Rating Modal */}
       <StudentModal
-        isOpen={showRatingModal}
+        isOpen={canSubmitRatings && showRatingModal}
         onClose={() => {
           setShowRatingModal(false);
           setSatisfactionRating(0);
@@ -963,7 +989,7 @@ function maskUserName(fullName) {
           <div className="flex gap-3">
             <button
               onClick={handleSubmitRating}
-              disabled={satisfactionRating === 0 || isSubmitting}
+              disabled={!canSubmitRatings || satisfactionRating === 0 || isSubmitting}
               className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl transition-colors font-medium"
             >
               {isSubmitting ? 'Submitting...' : 'Submit Rating'}

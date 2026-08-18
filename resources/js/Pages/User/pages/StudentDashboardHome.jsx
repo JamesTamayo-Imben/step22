@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import { TrendingUp, Award, Trophy, FolderKanban, Calendar, Star, Target, Zap } from 'lucide-react';
 import { Chatbot } from '@/Components/ui/Chatbot';
 
@@ -10,6 +11,16 @@ export function StudentDashboardHome({
   upcomingMeetings = [],
   leaderboardSummary = null,
 }) {
+  const { props } = usePage();
+  const userPermissions = Array.isArray(props?.userPermissions)
+    ? props.userPermissions
+    : Array.isArray(props?.auth?.permissions)
+      ? props.auth.permissions
+      : [];
+  const canViewProjects = userPermissions.includes('projects.view');
+  const canViewMeetings = userPermissions.includes('meetings.view');
+  const canViewRatings = userPermissions.includes('ratings.view');
+  // const canViewNotifications = userPermissions.includes('notifications.view');
 
 const getStatusColor = (status) => {
   switch (status) { 
@@ -57,24 +68,28 @@ const getStatusColor = (status) => {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <button
-          onClick={() => onNavigate('projects')}
-          className="p-4 bg-white rounded-[20px] border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-left"
-        >
-          <FolderKanban className="w-8 h-8 text-blue-600 mb-2" />
-          <p className="text-sm text-gray-900">View Projects</p>
-          <p className="text-xs text-gray-500 mt-1">{stats.activeProjectsCount ?? activeProjects.length} active</p>
-        </button>
+      <div className={`grid grid-cols-1 gap-4 ${canViewProjects && canViewMeetings ? 'md:grid-cols-2' : ''}`}>
+        {canViewProjects && (
+          <button
+            onClick={() => onNavigate('projects')}
+            className="p-4 bg-white rounded-[20px] border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-left"
+          >
+            <FolderKanban className="w-8 h-8 text-blue-600 mb-2" />
+            <p className="text-sm text-gray-900">View Projects</p>
+            <p className="text-xs text-gray-500 mt-1">{stats.activeProjectsCount ?? activeProjects.length} active</p>
+          </button>
+        )}
 
-        <button
-          onClick={() => onNavigate('meetings')}
-          className="p-4 bg-white rounded-[20px] border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-left"
-        >
-          <Calendar className="w-8 h-8 text-blue-600 mb-2" />
-          <p className="text-sm text-gray-900">Meetings</p>
-          <p className="text-xs text-gray-500 mt-1">{stats.upcomingMeetingsCount ?? upcomingMeetings.length} upcoming</p>
-        </button>
+        {canViewMeetings && (
+          <button
+            onClick={() => onNavigate('meetings')}
+            className="p-4 bg-white rounded-[20px] border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all text-left"
+          >
+            <Calendar className="w-8 h-8 text-blue-600 mb-2" />
+            <p className="text-sm text-gray-900">Meetings</p>
+            <p className="text-xs text-gray-500 mt-1">{stats.upcomingMeetingsCount ?? upcomingMeetings.length} upcoming</p>
+          </button>
+        )}
 
         {/* <button
           onClick={() => onNavigate('points')}
@@ -87,6 +102,7 @@ const getStatusColor = (status) => {
       </div>
 
       {/* Active Projects */}
+      {canViewProjects && (
       <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-gray-900">Active Projects</h2>
@@ -143,6 +159,8 @@ const getStatusColor = (status) => {
   {project.status}
 </span>
                 </div>
+
+                 {canViewRatings ? (
               <div className="flex items-center gap-2 mb-2">
                 <div className="flex items-center gap-1">
                   {[...Array(5)].map((_, i) => (
@@ -156,6 +174,7 @@ const getStatusColor = (status) => {
                 </div>
                 <span className="text-xs text-gray-600">{project.rating}</span>
               </div>
+                 ) : null}
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
@@ -177,6 +196,7 @@ const getStatusColor = (status) => {
         {/* </div> */}
        </div>
       </div>
+      )}
 
       {/* Recent Badges & Upcoming Events */}
       <div className="grid grid-cols-1 gap-6">
@@ -202,16 +222,17 @@ const getStatusColor = (status) => {
           </div>
         </div> */}
 
-        <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-gray-900">Upcoming Meetings</h2>
-            <button
-              onClick={() => onNavigate('meetings')}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              View All
-            </button>
-          </div>
+        {canViewMeetings && (
+          <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-gray-900">Upcoming Meetings</h2>
+              <button
+                onClick={() => onNavigate('meetings')}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                View All
+              </button>
+            </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* <div className="space-y-3"> */}
@@ -237,6 +258,7 @@ const getStatusColor = (status) => {
           {/* </div> */}
         </div>
         </div>
+        )}
       </div>
 
       {/* Progress to Next Level */}

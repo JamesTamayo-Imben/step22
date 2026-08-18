@@ -50,7 +50,7 @@ class RolePermissionService
                 'Notifications' => ['view'],
             ],
             'student', 'teacher' => [
-                'Projects' => ['view', 'rate'],
+                'Projects' => ['view'],
                 'Meetings' => ['view'],
                 'Ratings' => ['view', 'submit'],
                 'Notifications' => ['view'],
@@ -95,6 +95,14 @@ class RolePermissionService
                 'label' => 'CSG',
                 'dbName' => 'CSG Officer',
                 'description' => 'Organization operations and submissions',
+                'isEditable' => true,
+            ],
+            [
+                'key' => 'teacher',
+                'slug' => 'teacher',
+                'label' => 'Teacher/Professor',
+                'dbName' => 'Ordinary Teacher',
+                'description' => 'Faculty members who can review and submit ratings',
                 'isEditable' => true,
             ],
             [

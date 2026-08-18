@@ -47,6 +47,14 @@ export function StudentNavbar({
   };
   
   const laravelUser = props.auth?.user || fallbackUser;
+  const userPermissions = Array.isArray(props?.userPermissions)
+    ? props.userPermissions
+    : Array.isArray(props?.auth?.permissions)
+      ? props.auth.permissions
+      : [];
+  const canViewProjects = userPermissions.includes('projects.view');
+  const canViewMeetings = userPermissions.includes('meetings.view'); 
+  const canNotifications = userPermissions.includes('notifications.view');
   
   // Fallback display name from Laravel user (name, email)
   const displayName = laravelUser?.name || 'Student';
@@ -81,8 +89,9 @@ export function StudentNavbar({
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'projects', label: 'Projects', icon: FolderKanban },
-    { id: 'meetings', label: 'Meetings', icon: Calendar },
+    ...(canViewProjects ? [{ id: 'projects', label: 'Projects', icon: FolderKanban }] : []),
+    ...(canViewMeetings ? [{ id: 'meetings', label: 'Meetings', icon: Calendar }] : []),
+    // ...(canNotifications ? [{ id: 'notifications', label: 'Notifications', icon: Bell }] : []),
     // { id: 'points', label: 'Points', icon: TrendingUp },
     // { id: 'badges', label: 'Badges', icon: Award },
     // { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
@@ -134,6 +143,7 @@ export function StudentNavbar({
             {/* Notifications & Profile */}
             <div className="flex items-center gap-3 relative">
               {/* Notifications Icon */}
+              {canNotifications && (
               <div className="relative" ref={notificationsMenuRef}>
                 <button
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
@@ -169,7 +179,7 @@ export function StudentNavbar({
                   </div>
                 )}
               </div>
-
+              )}
               {/* Profile Dropdown */}
               <div className="relative" ref={profileMenuRef}>
                 <button
@@ -223,6 +233,7 @@ export function StudentNavbar({
                       <User className="w-4 h-4" />
                       View Profile
                     </button>
+                    {canNotifications && (
                     <button
                       onClick={() => { onNavigate('notifications'); setIsProfileMenuOpen(false); }}
                       className="w-full flex items-center gap-2 px-4 py-3 hover:bg-gray-50 text-left"
@@ -230,6 +241,7 @@ export function StudentNavbar({
                       <Award className="w-4 h-4" />
                       Notifications
                     </button>
+                    )}
                    {/* {onSwitchRole && userData?.canSwitch && (
                       <>
                         <div className="border-t my-1"></div>

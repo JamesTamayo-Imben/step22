@@ -28,6 +28,7 @@ const ROLE_OPTIONS = [
   { key: 'admin', label: 'Council Adviser' },
   { key: 'admin-sadu', label: 'SADU Admin' },
   { key: 'csg', label: 'CSG' },
+  { key: 'teacher', label: 'Teacher/Professor' },
   { key: 'student', label: 'Ordinary Students' },
 ];
 

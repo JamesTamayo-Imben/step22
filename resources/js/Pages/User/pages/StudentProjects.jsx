@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -13,11 +14,13 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
   const [cardsPerPage, setCardsPerPage] = useState(6);
   const [ledgerEntries, setLedgerEntries] = useState([]);
 
-  // Check if user has already rated this project
-  // const hasUserRated = currentProject?.currentUserRating !== null && currentProject?.currentUserRating !== undefined;
-
-  // const isRatingDisabled = hasUserRated;
-
+    const { props } = usePage();
+    const userPermissions = Array.isArray(props?.userPermissions)
+      ? props.userPermissions
+      : Array.isArray(props?.auth?.permissions)
+        ? props.auth.permissions
+        : [];
+  
   useEffect(() => {
     const updateCardsPerPage = () => {
       const width = window.innerWidth;
@@ -29,6 +32,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
     updateCardsPerPage();
     window.addEventListener('resize', updateCardsPerPage);
     return () => window.removeEventListener('resize', updateCardsPerPage);
+
   }, []);
 
   useEffect(() => {
@@ -110,6 +114,8 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, selectedCategory, selectedStatus, cardsPerPage]);
+
+  const canViewRatings = userPermissions.includes('ratings.view');
 
   const totalPages = Math.max(1, Math.ceil(filteredProjects.length / cardsPerPage));
   const paginatedProjects = filteredProjects.slice((currentPage - 1) * cardsPerPage, currentPage * cardsPerPage);
@@ -304,6 +310,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
               </div>
 
               {/* Rating */}
+              {canViewRatings ? (
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1">
@@ -322,6 +329,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
                   <span className="text-xs text-gray-400">({project.ratingsCount})</span>
                 </div>
               </div>
+              ) : null}
 
               {/* Actions */}
               <div className="flex gap-2">
@@ -340,6 +348,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
                   View Details
                 </Button>
                 )}
+                {canViewRatings ? (
                 <Button
                   onClick={() => onViewDetails(project.id)}
                   variant="outline"
@@ -348,6 +357,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
                 >
                   <Star className={`w-4 h-4 ${userRatingMap[project.id] ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
                 </Button>
+                ) : null}
               </div>
             </div>
           </Card>

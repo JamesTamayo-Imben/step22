@@ -46,6 +46,7 @@ class HandleInertiaRequests extends Middleware
                         ->get()
                     : [],
             ],
+            'userPermissions' => $permissions,
             'onlineOfficers' => fn () => $user && $user->hasRole('CSG Officer')
                 ? app(CsgOnlineStatusService::class)->getOfficersStatus()
                 : [],

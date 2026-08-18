@@ -14,6 +14,14 @@ import StudentProfilePage from './pages/StudentProfile';
 
 export default function UserDashboard() {
   const { url, props } = usePage();
+  const userPermissions = Array.isArray(props?.userPermissions)
+    ? props.userPermissions
+    : Array.isArray(props?.auth?.permissions)
+      ? props.auth.permissions
+      : [];
+  const canViewProjects = userPermissions.includes('projects.view');
+  const canViewMeetings = userPermissions.includes('meetings.view');
+  const canViewNotifications = userPermissions.includes('notifications.view');
   const currentPage = props.page || 'dashboard';
   const projectId = props.projectId || null;
   const projects = props.projects || [];
@@ -48,7 +56,37 @@ export default function UserDashboard() {
 
   const currentView = getCurrentView();
 
+  if ((currentView === 'projects' || currentView === 'project-details') && !canViewProjects) {
+    window.location.href = '/user';
+    return null;
+  }
+
+  if (currentView === 'meetings' && !canViewMeetings) {
+    window.location.href = '/user';
+    return null;
+  }
+
+  if (currentView === 'notifications' && !canViewNotifications) {
+    window.location.href = '/user';
+    return null;
+  }
+
   const handleNavigate = (view) => {
+    if ((view === 'projects' || view === 'project-details') && !canViewProjects) {
+      window.location.href = '/user';
+      return;
+    }
+
+    if (view === 'meetings' && !canViewMeetings) {
+      window.location.href = '/user';
+      return;
+    }
+
+    if (view === 'notifications' && !canViewNotifications) {
+      window.location.href = '/user';
+      return;
+    }
+
     const routes = {
       dashboard: '/user',
       projects: '/user/projects',
