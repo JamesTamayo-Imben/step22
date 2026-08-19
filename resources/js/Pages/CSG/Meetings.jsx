@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
+import { usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
@@ -146,6 +147,7 @@ function TabsContent({ value, children, activeTab }) {
 }
 
 function CSGMeetingsPageInner() {
+  const page = usePage();
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -165,6 +167,19 @@ function CSGMeetingsPageInner() {
   const [currentPageUpcoming, setCurrentPageUpcoming] = useState(1);
   const [currentPagePast, setCurrentPagePast] = useState(1);
   const itemsPerPage = 6;
+
+  // Can Meeting
+  const userPermissions = Array.isArray(page.props.userPermissions)
+    ? page.props.userPermissions
+    : Array.isArray(page.props.auth?.permissions)
+      ? page.props.auth.permissions
+      : [];
+
+  const canCreateMeetings = userPermissions.includes('meetings.create');
+  const canEditMeetings = userPermissions.includes('meetings.edit');
+  const canViewMeetings = userPermissions.includes('meetings.view');
+  const canDeleteMeetings = userPermissions.includes('meetings.delete');
+  const canSubmitMeetings = userPermissions.includes('meetings.submit');
 
   // File upload states for edit modal
   const [editFilePreview, setEditFilePreview] = useState(null);
@@ -766,6 +781,7 @@ const renderAttendees = (attendees) => {
     );
   };
 
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -781,6 +797,8 @@ const renderAttendees = (attendees) => {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="min-w-[220px] rounded-xl border border-gray-200 bg-white"
           /> */}
+
+           {canCreateMeetings && (
           <Button
             onClick={() => setShowCreateModal(true)}
             className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
@@ -788,6 +806,8 @@ const renderAttendees = (attendees) => {
             <Plus className="w-4 h-4 mr-2" />
             Create Meeting
           </Button>
+           )}
+
           <Button
           // onClick={() => setShowCreateModal(true)}
           className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
@@ -944,49 +964,66 @@ const renderAttendees = (attendees) => {
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-4 mt-auto border-t border-gray-200">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              onClick={() => {
-                setSelectedMeeting(meeting);
-                setMeetingForm({
-                  title: meeting.title,
-                  scheduled_date: meeting.scheduled_date ? meeting.scheduled_date.substring(0, 16) : '',
-                  description: meeting.description,
-                  expected_attendees: meeting.expected_attendees || 0,
-                  attendees: Array.isArray(meeting.attendees) ? meeting.attendees.join(', ') : (meeting.attendees || ''),
-                  proof: null,
-                });
-                setProofFilePreview((meeting.minutes_file_name || meeting.meeting_proof) ? (meeting.minutes_file_name || meeting.meeting_proof.split('/').pop()) : null);
-                setShowEditModal(true);
-              }}
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-          <Button
-  variant="outline"
-  size="sm"
-  className="rounded-lg text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-  onClick={() => {
-    setSelectedMeeting(meeting);
-    handleMarkAsDone();
-  }}
->
-  <Send className="w-4 h-4" />
-</Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
-              onClick={() => {
-                setSelectedMeeting(meeting);
-                setShowDeleteModal(true);
-              }}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            {(() => {
+              const activeCount = [canEditMeetings, canSubmitMeetings, canDeleteMeetings].filter(Boolean).length;
+              const editWidthClass = activeCount === 3 ? 'flex-[7]' : 'flex-1';
+
+              return (
+                <>
+                  {canEditMeetings && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`${editWidthClass} bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors`}
+                      onClick={() => {
+                        setSelectedMeeting(meeting);
+                        setMeetingForm({
+                          title: meeting.title,
+                          scheduled_date: meeting.scheduled_date ? meeting.scheduled_date.substring(0, 16) : '',
+                          description: meeting.description,
+                          expected_attendees: meeting.expected_attendees || 0,
+                          attendees: Array.isArray(meeting.attendees) ? meeting.attendees.join(', ') : (meeting.attendees || ''),
+                          proof: null,
+                        });
+                        setProofFilePreview((meeting.minutes_file_name || meeting.meeting_proof) ? (meeting.minutes_file_name || meeting.meeting_proof.split('/').pop()) : null);
+                        setShowEditModal(true);
+                      }}
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                  )}
+
+                  {canSubmitMeetings && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 rounded-lg text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                      onClick={() => {
+                        setSelectedMeeting(meeting);
+                        handleMarkAsDone();
+                      }}
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  )}
+
+                  {canDeleteMeetings && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors"
+                      onClick={() => {
+                        setSelectedMeeting(meeting);
+                        setShowDeleteModal(true);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       </Card>
@@ -1001,6 +1038,8 @@ const renderAttendees = (attendees) => {
              <p className="text-xs text-gray-400 mt-1 mb-4">
               Create a new meeting to get started
              </p>
+
+             {canCreateMeetings && (
                <Button
                                          onClick={() => setShowCreateModal(true)}
                                          className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
@@ -1008,6 +1047,7 @@ const renderAttendees = (attendees) => {
                                          <Plus className="w-4 h-4 mr-2" />
                                          Create Meeting
                                        </Button>
+             )}
          </div>
       </Card>
     )}
@@ -1175,6 +1215,7 @@ const renderAttendees = (attendees) => {
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-4 mt-auto border-t border-gray-200">
+            {canViewMeetings && (
             <Button
               variant="outline"
               size="sm"
@@ -1187,13 +1228,15 @@ const renderAttendees = (attendees) => {
               <Eye className="w-4 h-4 mr-1" />
               View Minutes
             </Button>
+            )}
+
             
             {/* Optional Download Button if minutes file exists */}
             {meeting.meeting_proof && (
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-lg hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200"
+                className={`${canViewMeetings ? '' : 'flex-1'} rounded-lg hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200`}
                 onClick={() => {
                   if (meeting.minutes_file_url) {
                     window.open(meeting.minutes_file_url, '_blank');

@@ -191,6 +191,7 @@ function PerformancePage() { return <Card className="p-8">Performance Panel (pla
 function ProfilePage() { return <Card className="p-8">Profile (placeholder)</Card>; }
 
 export function CSGOfficerDashboard({ currentView, statistics = {}, projects: initialProjects = [], recentLedgerEntries = [], upcomingMeetings: initialMeetings = [] }) {
+  const page = usePage();
   const { auth, recommendedProjects = [] } = usePage().props;
   const canCreateProject = canPermission(auth?.permissions, 'projects.create');
   const canCreateLedger = canPermission(auth?.permissions, 'ledger.create');
@@ -221,6 +222,18 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   const fileInputRef = useRef(null);
   const [showLedgerModal, setShowLedgerModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+    // Can Ledger
+  const userPermissions = Array.isArray(page.props.userPermissions)
+    ? page.props.userPermissions
+    : Array.isArray(page.props.auth?.permissions)
+      ? page.props.auth.permissions
+      : [];
+
+  const canCreateLedgers = userPermissions.includes('ledger.create');
+  const canViewLedgers = userPermissions.includes('ledger.view');
+  const canViewMeetings = userPermissions.includes('meetings.view');
+  const canViewProjects = userPermissions.includes('projects.view');
 
   const [ledgerForm, setLedgerForm] = useState({
     type: 'Expense',
@@ -887,7 +900,7 @@ const formatHeatmapTooltip = (item) => {
           </Button>
           )}
 
-          {canCreateLedger && (
+          {canCreateLedgers && (
           <Button
             onClick={() => setShowLedgerModal(true)}
             className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1415,7 +1428,9 @@ const formatHeatmapTooltip = (item) => {
             
 
 
-      {/* Active Projects - Now only shows approved projects */}
+      {/* Active Projects  - Now only shows approved projects */}
+
+      {canViewProjects && (   
       <Card id="active-projects-card" className="p-6 rounded-2xl border-0 shadow-sm bg-white">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-gray-900">Active Projects</h2>
@@ -1458,101 +1473,111 @@ const formatHeatmapTooltip = (item) => {
           )}
         </div>
       </Card>
-
+      )}
       {/* Recent Ledger & Upcoming Meetings */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-       <Card id="recent-ledger-card" className="p-6 h-[300px] rounded-2xl border-0 shadow-sm bg-white">
-  <h2 className="text-gray-900 mb-4">Recent Ledger Entries</h2>
-  <div className="max-h-96 overflow-y-auto space-y-3">
-    {ledgerEntries && ledgerEntries.length > 0 ? (
-      ledgerEntries.slice(0, 10).map((entry, index) => {
-        // Normalize entry type to ensure consistent comparison
-        const entryType = (entry.type || '').toLowerCase();
-        const isIncome = entryType === 'income';
-        const isExpense = entryType === 'expense';
-        
-        // Get the amount safely
-        const amount = entry.amount || 0;
-        
-        return (
-          <div key={entry.id || index} onClick={() => router.visit('/csg/ledger')} className="flex items-center justify-between py-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-            <div className="flex items-center gap-3 flex-1">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isIncome ? 'bg-green-100' : isExpense ? 'bg-red-100' : 'bg-gray-100'}`}>
-                <Wallet className={`w-4 h-4 ${isIncome ? 'text-green-600' : isExpense ? 'text-red-600' : 'text-gray-600'}`} />
-              </div>
-             <div className="flex-1">
-  <p className="text-sm text-gray-900 font-medium">
-    {entry.description || entry.desc || 'No Description'}
-  </p>
-  <p className="text-xs text-gray-700 mt-0.5">
-    {getProjectName(entry)}
-  </p>
-  <div className="flex items-center gap-2 mt-1">
-    <p className="text-xs text-gray-500">
-      {entry.status || 'Draft'}
-    </p>
-    {entry.created_at && (
-      <p className="text-xs text-gray-400">
-        • {new Date(entry.created_at).toLocaleDateString()}
-      </p>
-    )}
-    {!entry.created_at && entry.createdAt && (
-      <p className="text-xs text-gray-400">
-        • {new Date(entry.createdAt).toLocaleDateString()}
-      </p>
-    )}
-  </div>
-</div>
-            </div>
-            <div className="text-right">
-              <p className={`text-sm font-semibold ${isIncome ? 'text-green-600' : isExpense ? 'text-red-600' : 'text-gray-600'}`}>
-                 {isIncome ? '+' : isExpense ? '-' : ''}₱{(entry.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              {entry.category && (
-                <p className="text-xs text-gray-400 mt-0.5">{entry.category}</p>
-              )}
-            </div>
-          </div>
-        );
-      })
-    ) : (
-      <div className="text-center py-8">
-        <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-        <p className="text-sm text-gray-500">No ledger entries found</p>
-        <p className="text-xs text-gray-400 mt-1">Add your first transaction to get started</p>
-      </div>
-    )}
-  </div>
-</Card>
 
-        <Card id="upcoming-meetings-card" className="p-6 h-[300px]  rounded-2xl border-0 shadow-sm bg-white">
-          <h2 className="text-gray-900 mb-4">Upcoming Meetings</h2>
-          <div className="max-h-96 overflow-y-auto space-y-3">
-            {upcomingMeetings && upcomingMeetings.length > 0 ? (
-              upcomingMeetings.slice(0, 5).map((meeting, index) => (
-                <div key={meeting.id || index} onClick={() => router.visit('/csg/meetings')} className="flex items-center justify-between py-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Calendar className="w-5 h-5 text-blue-600" />
+      {(() => {
+        const visibleCount = [canViewLedgers, canViewMeetings].filter(Boolean).length;
+        const fullWidthClass = visibleCount === 1 ? 'md:col-span-2' : '';
+
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {canViewLedgers && (
+              <Card id="recent-ledger-card" className={`${fullWidthClass} p-6 h-[300px] rounded-2xl border-0 shadow-sm bg-white`}>
+                <h2 className="text-gray-900 mb-4">Recent Ledger Entries</h2>
+                <div className="max-h-96 overflow-y-auto space-y-3">
+                  {ledgerEntries && ledgerEntries.length > 0 ? (
+                    ledgerEntries.slice(0, 10).map((entry, index) => {
+                      const entryType = (entry.type || '').toLowerCase();
+                      const isIncome = entryType === 'income';
+                      const isExpense = entryType === 'expense';
+                      const amount = entry.amount || 0;
+
+                      return (
+                        <div key={entry.id || index} onClick={() => router.visit('/csg/ledger')} className="flex items-center justify-between py-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isIncome ? 'bg-green-100' : isExpense ? 'bg-red-100' : 'bg-gray-100'}`}>
+                              <Wallet className={`w-4 h-4 ${isIncome ? 'text-green-600' : isExpense ? 'text-red-600' : 'text-gray-600'}`} />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm text-gray-900 font-medium">
+                                {entry.description || entry.desc || 'No Description'}
+                              </p>
+                              <p className="text-xs text-gray-700 mt-0.5">
+                                {getProjectName(entry)}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-xs text-gray-500">
+                                  {entry.status || 'Draft'}
+                                </p>
+                                {entry.created_at && (
+                                  <p className="text-xs text-gray-400">
+                                    • {new Date(entry.created_at).toLocaleDateString()}
+                                  </p>
+                                )}
+                                {!entry.created_at && entry.createdAt && (
+                                  <p className="text-xs text-gray-400">
+                                    • {new Date(entry.createdAt).toLocaleDateString()}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-sm font-semibold ${isIncome ? 'text-green-600' : isExpense ? 'text-red-600' : 'text-gray-600'}`}>
+                              {isIncome ? '+' : isExpense ? '-' : ''}₱{(entry.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                            {entry.category && (
+                              <p className="text-xs text-gray-400 mt-0.5">{entry.category}</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-8">
+                      <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-sm text-gray-500">No ledger entries found</p>
+                      <p className="text-xs text-gray-400 mt-1">Add your first transaction to get started</p>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900">{meeting.title}</p>
-                      <p className="text-xs text-gray-500">{meeting.date} • {meeting.time}</p>
-                      <p className="text-xs text-gray-400 mt-1">{meeting.attendees} expected attendees</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              ))
-            ) : (
-               <div className="text-center py-8">
-        <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-        <p className="text-sm text-gray-500">No upcoming meetings scheduled</p>
-        <p className="text-xs text-gray-400 mt-1">Add your first meeting to get started</p>
-      </div>
+              </Card>
+            )}
+
+            {canViewMeetings && (
+              <Card id="upcoming-meetings-card" className={`${fullWidthClass} p-6 h-[300px] rounded-2xl border-0 shadow-sm bg-white`}>
+                <h2 className="text-gray-900 mb-4">Upcoming Meetings</h2>
+                <div className="max-h-96 overflow-y-auto space-y-3">
+                  {upcomingMeetings && upcomingMeetings.length > 0 ? (
+                    upcomingMeetings.slice(0, 5).map((meeting, index) => (
+                      <div key={meeting.id || index} onClick={() => router.visit('/csg/meetings')} className="flex items-center justify-between py-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Calendar className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm text-gray-900">{meeting.title}</p>
+                            <p className="text-xs text-gray-500">{meeting.date} • {meeting.time}</p>
+                            <p className="text-xs text-gray-400 mt-1">{meeting.attendees} expected attendees</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-sm text-gray-500">No upcoming meetings scheduled</p>
+                      <p className="text-xs text-gray-400 mt-1">Add your first meeting to get started</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
             )}
           </div>
-        </Card>
-      </div>
+        );
+      })()}
+
     </div>
   );
 }

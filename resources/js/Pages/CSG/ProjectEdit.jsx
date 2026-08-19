@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import { usePage } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import { Input } from '@/Components/ui/input';
@@ -1122,17 +1123,34 @@ export function UploadProofModal({ open, onClose, proofForm, setProofForm, ledge
 // ─── Edit Action Buttons (used in ProjectDetails header) ─────────────────────
 
 export function EditActionButtons({ onSubmit, onEdit, onDelete }) {
+  const page = usePage();
+  const userPermissions = Array.isArray(page.props.userPermissions)
+    ? page.props.userPermissions
+    : Array.isArray(page.props.auth?.permissions)
+      ? page.props.auth.permissions
+      : [];
+
+  const canEditProjects = userPermissions.includes('projects.edit');
+  const canDeleteProjects = userPermissions.includes('projects.delete');
+  const canSubmitProjects = userPermissions.includes('projects.submit');
+
   return (
     <div className="flex flex-wrap gap-3">
+      {canSubmitProjects && (
       <Button onClick={onSubmit} className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
         <Send className="w-4 h-4 mr-2" />Submit for Adviser Approval
       </Button>
-      <Button onClick={onEdit} variant="outline" className="rounded-xl">
-        <Edit className="w-4 h-4 mr-2" />Edit Project
-      </Button>
-      <Button onClick={onDelete} variant="outline" className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50">
-        <Trash2 className="w-4 h-4 mr-2" />Delete Project
-      </Button>
+      )}
+      {canEditProjects && (
+        <Button onClick={onEdit} variant="outline" className="rounded-xl">
+          <Edit className="w-4 h-4 mr-2" />Edit Project
+        </Button>
+      )}
+      {canDeleteProjects && (
+        <Button onClick={onDelete} variant="outline" className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50">
+          <Trash2 className="w-4 h-4 mr-2" />Delete Project
+        </Button>
+      )}
     </div>
   );
 }

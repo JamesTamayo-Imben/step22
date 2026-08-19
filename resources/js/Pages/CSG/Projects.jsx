@@ -100,8 +100,8 @@ function Select({ className = '', children, value, onValueChange, ...props }) {
 }
 
 function CSGProjectsPageInner() {
+  const page = usePage();
   const { auth } = usePage().props;
-  const canCreateProject = canPermission(auth?.permissions, 'projects.create');
   const [projects, setProjects] = useState([]);
   const [ledgerEntries, setLedgerEntries] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -134,6 +134,17 @@ function CSGProjectsPageInner() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
+
+    // Can Project
+  const userPermissions = Array.isArray(page.props.userPermissions)
+    ? page.props.userPermissions
+    : Array.isArray(page.props.auth?.permissions)
+      ? page.props.auth.permissions
+      : [];
+
+  const canCreateProjects = userPermissions.includes('projects.create');
+  const canViewProjects = userPermissions.includes('projects.view');
+
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
@@ -609,37 +620,64 @@ function CSGProjectsPageInner() {
       );
     }
 
+    // Rejected projects bypass the view-permission gate entirely
+    if (project.approvalStatus === 'Rejected') {
+      return (
+        <Button
+          onClick={() => setSelectedProjectId(project.id)}
+          className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 text-white"
+        >
+          <FolderOpen className="w-4 h-4 mr-2" />
+          Open To Edit Project
+        </Button>
+      );
+    }
+
+    if (!canViewProjects) {
+      return (
+        <div className="w-full rounded-xl bg-gray-300 text-gray-500 flex items-center justify-center py-2">
+          <FolderOpen className="w-4 h-4 mr-2" />
+          Can't View Project
+        </div>
+      );
+    }
+
     switch (project.approvalStatus) {
       case 'Approved':
-        return <Button  
-          onClick={() => setSelectedProjectId(project.id)}
-          className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+        return (
+          <Button
+            onClick={() => setSelectedProjectId(project.id)}
+            className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+          >
             <FolderOpen className="w-4 h-4 mr-2" />
-            Open Project
-        </Button>;      case 'Pending Adviser Approval':
-        return <Button 
-          onClick={() => setSelectedProjectId(project.id)}
-          className="w-full rounded-xl bg-yellow-600 hover:bg-yellow-700 text-white">
+            View Project
+          </Button>
+        );
+
+      case 'Pending Adviser Approval':
+        return (
+          <Button
+            onClick={() => setSelectedProjectId(project.id)}
+            className="w-full rounded-xl bg-yellow-600 hover:bg-yellow-700 text-white"
+          >
             <FolderOpen className="w-4 h-4 mr-2" />
-            Open Project
-        </Button>;
-      case 'Rejected':
-        return <Button 
-          onClick={() => setSelectedProjectId(project.id)}
-          className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 text-white">
-            <FolderOpen className="w-4 h-4 mr-2" />
-            Edit Project
-        </Button>;
+            View Project
+          </Button>
+        );
+
       default:
-        return <Button 
-          onClick={() => setSelectedProjectId(project.id)}
-          className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 text-white">
+        return (
+          <Button
+            onClick={() => setSelectedProjectId(project.id)}
+            className="w-full rounded-xl bg-gray-600 hover:bg-gray-700 text-white"
+          >
             <FolderOpen className="w-4 h-4 mr-2" />
-            Edit Project
-        </Button>;
+            Open To Edit Project
+          </Button>
+        );
     }
   };
-
+  
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -649,7 +687,7 @@ function CSGProjectsPageInner() {
           <p className="text-gray-500">Create and manage CSG projects</p>
         </div>
         <div className="flex flex-col md:flex-row gap-2">
-          {canCreateProject && (
+          {canCreateProjects && (
           <Button
           onClick={() => setShowCreateModal(true)}
           className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
@@ -837,7 +875,7 @@ function CSGProjectsPageInner() {
                 ? 'Try adjusting your search or filter criteria'
                 : 'Add your first project to get started'}
             </p>
-            {!searchQuery && filterStatus === 'all' && canCreateProject && (
+            {!searchQuery && filterStatus === 'all' && canCreateProjects && (
               <Button
                 onClick={() => setShowCreateModal(true)}
                 className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"

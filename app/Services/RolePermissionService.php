@@ -18,10 +18,10 @@ class RolePermissionService
     public static function catalog(): array
     {
         return [
-            'Projects' => ['view', 'create', 'edit', 'delete', 'approve', 'rate'],
+            'Projects' => ['view', 'create', 'edit', 'delete', 'approve', 'rate', 'submit'],
             'Ledger' => ['view', 'create', 'edit', 'delete', 'approve', 'submit'],
             'Proof Documents' => ['view', 'upload', 'delete', 'approve'],
-            'Meetings' => ['view', 'create', 'edit', 'delete', 'upload minutes', 'approve minutes'],
+            'Meetings' => ['view', 'create', 'edit', 'delete', 'submit', 'upload minutes', 'approve minutes'],
             'Ratings' => ['view', 'submit', 'moderate'],
             'Notifications' => ['view', 'send'],
         ];
@@ -45,7 +45,7 @@ class RolePermissionService
                 'Projects' => ['view', 'create', 'edit', 'delete', 'submit'],
                 'Ledger' => ['view', 'create', 'edit', 'delete', 'submit'],
                 'Proof Documents' => ['view', 'edit'],
-                'Meetings' => ['view', 'create', 'edit', 'delete'],
+                'Meetings' => ['view', 'create', 'edit', 'delete', 'submit'],
                 'Ratings' => ['view'],
                 'Notifications' => ['view'],
             ],
@@ -144,7 +144,7 @@ class RolePermissionService
                 'projects.view', 'projects.create', 'projects.edit', 'projects.delete', 'projects.submit',
                 'ledger.view', 'ledger.create', 'ledger.edit', 'ledger.delete', 'ledger.submit',
                 'proof-documents.view', 'proof-documents.edit',
-                'meetings.view', 'meetings.create', 'meetings.edit', 'meetings.delete',
+                'meetings.view', 'meetings.create', 'meetings.edit', 'meetings.delete', 'meetings.submit',
                 'ratings.view',
                 'notifications.view',
             ],

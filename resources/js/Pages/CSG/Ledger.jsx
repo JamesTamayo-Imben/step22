@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { usePage } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
 import { computeBudgetFromEntries, computeOrgBudgetFromLedger, projectBudgetMismatch } from '@/utils/projectBudget';
 import { Card } from '@/Components/ui/card';
@@ -154,6 +155,7 @@ function Switch({ checked, onCheckedChange, label }) {
 }
 
 function LedgerPageInner() {
+  const page = usePage();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -164,6 +166,19 @@ function LedgerPageInner() {
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
   const [showLedgerProofViewer, setShowLedgerProofViewer] = useState(false);
+
+  // Can Ledger
+  const userPermissions = Array.isArray(page.props.userPermissions)
+    ? page.props.userPermissions
+    : Array.isArray(page.props.auth?.permissions)
+      ? page.props.auth.permissions
+      : [];
+
+  const canCreateLedgers = userPermissions.includes('ledger.create');
+  const canEditLedgers = userPermissions.includes('ledger.edit');
+  const canViewLedgers = userPermissions.includes('ledger.view');
+  const canDeleteLedgers = userPermissions.includes('ledger.delete');
+  const canSubmitLedgers = userPermissions.includes('ledger.submit');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -892,6 +907,8 @@ const getTypeAmountColor = (type) => {
         
       
           <div className="flex flex-col md:flex-row gap-2">
+
+          {canCreateLedgers && (
             <Button
             onClick={() => setShowAddModal(true)}
             className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -901,6 +918,7 @@ const getTypeAmountColor = (type) => {
             <Plus className="w-4 h-4 mr-2" />
             Add Ledger Entry
           </Button>
+          )}
           <Button
           // onClick={() => setShowCreateModal(true)}
           className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
@@ -1116,6 +1134,7 @@ const getTypeAmountColor = (type) => {
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-1 justify-end">
+                  {canViewLedgers && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1123,15 +1142,16 @@ const getTypeAmountColor = (type) => {
                       setSelectedEntry(entry);
                       setShowDetailsModal(true);
                     }}
-                    className="h-7 text-xs rounded-md hover:bg-gray-100 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={entryLocked}
+                    className="h-7 text-xs rounded-md hover:bg-gray-100 px-2"
                   >
                     <Eye className="w-3.5 h-3.5 mr-1" /> 
                   </Button>
+                  )}
                   
                   {(entry.status === 'Draft' || entry.status === 'Rejected') && !isInitialEntry && (
                     <>
-                     {isEditable(entry) && (
+                    
+                     {isEditable(entry) && canEditLedgers && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -1154,8 +1174,9 @@ const getTypeAmountColor = (type) => {
                       >
                         <Edit className="w-3.5 h-3.5 mr-1" /> 
                       </Button>
-                    )
-                     }
+                      )}
+                      
+                      {canDeleteLedgers && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -1168,6 +1189,9 @@ const getTypeAmountColor = (type) => {
                       >
                         <Trash2 className="w-3.5 h-3.5 mr-1" /> 
                       </Button>
+                      )}
+                      
+                      {canSubmitLedgers && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -1177,6 +1201,7 @@ const getTypeAmountColor = (type) => {
                       >
                         <Send className="w-3.5 h-3.5 mr-1" /> 
                       </Button>
+                      )}
                     </>
                   )}
                 </div>
