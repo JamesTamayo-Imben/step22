@@ -164,6 +164,7 @@ export function RolePermissionsPage() {
     rolePermissionMatrix: initialMatrix = [],
     superAdmins = [],
     studentCount = 0,
+    teacherCount = 0,
   } = usePage().props;
 
   const [selectedRoleKey, setSelectedRoleKey] = useState('admin');
@@ -1144,6 +1145,16 @@ const handleSetSaduAdviser = () => {
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {selectedRoleKey === 'teacher' && (
+                <div className="rounded-xl border border-[#dbeafe] bg-[#eff6ff] p-6">
+                  <h2 className="text-xl font-semibold text-[#111827]">Ordinary Teachers</h2>
+                  <p className="mt-2 text-sm text-[#6b7280]">Teachers have engagement access. Use Permissions to configure what they can do.</p>
+                  <div className="mt-4 inline-flex rounded-full bg-[#dbeafe] px-3 py-1 text-sm font-medium text-[#1d4ed8]">
+                    {teacherCount} teacher(s)
                   </div>
                 </div>
               )}

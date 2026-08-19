@@ -35,6 +35,11 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
   const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false);
   const page = usePage();
   const user = page.props.auth?.user;
+  const userPermissions = Array.isArray(page.props.userPermissions)
+    ? page.props.userPermissions
+    : Array.isArray(page.props.auth?.permissions)
+      ? page.props.auth.permissions
+      : [];
 
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   
@@ -56,6 +61,10 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
 
   const onlineCount = onlineOfficers.filter(isOfficerOnline).length;
 
+  const canNotifications = userPermissions.includes('notifications.view');
+  const canRatings = userPermissions.includes('ratings.view');
+  const canProof = userPermissions.includes('proof-documents.view');
+
   // Refresh officer status periodically while on CSG pages
   useEffect(() => {
     const interval = setInterval(() => {
@@ -69,10 +78,13 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
     { id: 'ledger', label: 'Ledger', icon: BookOpen },
-    { id: 'proof', label: 'Proof', icon: FileText },
+    // { id: 'proof', label: 'Proof', icon: FileText },
+    ...(canProof ? [{ id: 'proof', label: 'Proof', icon: FileText }] : []),
     { id: 'meetings', label: 'Meetings', icon: Calendar },
-    { id: 'ratings', label: 'Ratings', icon: Star },
-    { id: 'notification', label: 'Notification', icon: Bell },
+    ...(canRatings ? [{ id: 'ratings', label: 'Ratings', icon: Star }] : []),
+    // { id: 'ratings', label: 'Ratings', icon: Star },
+    ...(canNotifications ? [{ id: 'notifications', label: 'Notifications', icon: Bell }] : []),
+    // { id: 'notification', label: 'Notification', icon: Bell },
     { id: 'concerns', label: 'Concerns', icon: Info },
     { id: 'profile', label: 'Profile', icon: User },
   ];
@@ -86,7 +98,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
     if (p.startsWith('/csg/proof')) return 'proof';
     if (p.startsWith('/csg/meetings')) return 'meetings';
     if (p.startsWith('/csg/ratings')) return 'ratings';
-    if (p.startsWith('/csg/notification')) return 'notification';
+    if (p.startsWith('/csg/notification')) return 'notifications';
     if (p.startsWith('/csg/concerns')) return 'concerns';
     if (p.startsWith('/csg/profile')) return 'profile';
     if (p === '/csg' || p.startsWith('/csg')) return 'dashboard';
@@ -229,7 +241,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                         proof: '/csg/proof',
                         meetings: '/csg/meetings',
                         ratings: '/csg/ratings',
-                        'notification': '/csg/notification',
+                        notifications: '/csg/notification',
                         concerns: '/csg/concerns',
                         profile: '/csg/profile',
                       };
@@ -352,7 +364,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                         proof: '/csg/proof',
                         meetings: '/csg/meetings',
                         ratings: '/csg/ratings',
-                        'notification': '/csg/notification',
+                        notifications: '/csg/notification',
                         concerns: '/csg/concerns',
                         profile: '/csg/profile',
                       };

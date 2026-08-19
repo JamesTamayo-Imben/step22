@@ -321,6 +321,11 @@ class SAdminDashboardController extends Controller
             ->whereHas('role', fn ($q) => $q->where('slug', 'student'))
             ->count();
 
+        $teacherCount = User::query()
+            ->where('archive', false)
+            ->whereHas('role', fn ($q) => $q->where('slug', 'teacher'))
+            ->count();
+
         return Inertia::render('SAdmin/RolesPermissions', [
             'users' => $users,
             'csgOfficerCandidates' => $csgOfficerCandidates,
@@ -332,6 +337,7 @@ class SAdminDashboardController extends Controller
             'roleOptions' => RolePermissionService::roleOptions(),
             'superAdmins' => $superAdmins,
             'studentCount' => $studentCount,
+            'teacherCount' => $teacherCount,
         ]);
     }
 
