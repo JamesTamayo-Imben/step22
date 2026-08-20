@@ -683,7 +683,7 @@ function CSGProjectsPageInner() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Projects</h1>
+          <h1 className="text-2xl font-semibold text-blue-600">CSG Officer Projects</h1>
           <p className="text-gray-500">Create and manage CSG projects</p>
         </div>
         <div className="flex flex-col md:flex-row gap-2">

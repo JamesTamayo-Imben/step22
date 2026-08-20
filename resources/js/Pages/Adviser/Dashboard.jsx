@@ -142,7 +142,7 @@ export function AdminAdviserDashboard({
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-gray-900 text-2xl font-semibold">Admin/Adviser Dashboard</h1>
+        <h1 className="text-blue-600 text-2xl font-semibold">Admin Dashboard</h1>
         <p className="text-gray-500">Approvals, verification, and oversight</p>
       </div>
 

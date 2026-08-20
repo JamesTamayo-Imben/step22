@@ -324,7 +324,7 @@ const [profile, setProfile] = useState({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Profile</h1>
+        <h1 className="text-2xl font-semibold text-blue-600">My Profile</h1>
         <p className="text-gray-500">Manage your account information and settings</p>
       </div>
 
@@ -374,11 +374,11 @@ const [profile, setProfile] = useState({
                 <Key className="w-4 h-4 mr-2" />
                 Change Password
               </Button>
-              <Button onClick={() => setShowChangePasswordModal(true)} variant="outline"
+              {/* <Button onClick={() => setShowChangePasswordModal(true)} variant="outline"
                  className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
                 <Repeat className="w-4 h-4 mr-2" />
                 Switch Role
-              </Button>
+              </Button> */}
             </div>
           </div>
         </div>

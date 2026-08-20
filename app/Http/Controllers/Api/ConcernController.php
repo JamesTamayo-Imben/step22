@@ -14,9 +14,18 @@ class ConcernController extends Controller
     public function index(Request $request)
     {
         $concerns = Concern::query()
+            ->with('user:id,name')
             ->orderByDesc('favorite')
             ->orderByDesc('created_at')
-            ->get(['id', 'user_id', 'concern', 'favorite', 'created_at']);
+            ->get(['id', 'user_id', 'concern', 'favorite', 'created_at'])
+            ->map(fn (Concern $concern) => [
+                'id' => $concern->id,
+                'user_id' => $concern->user_id,
+                'name' => $concern->user?->name,
+                'concern' => $concern->concern,
+                'favorite' => $concern->favorite,
+                'created_at' => $concern->created_at,
+            ]);
 
         return response()->json(['success' => true, 'concerns' => $concerns]);
     }

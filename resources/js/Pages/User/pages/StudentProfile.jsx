@@ -424,7 +424,7 @@ const handleSavePhone = (phoneNumber) => {
     <div className="space-y-6 pb-6">
       {/* Header */}
       <div>
-        <h1 className="text-gray-900 text-2xl font-semibold mb-2">Profile</h1>
+        <h1 className="text-blue-600 text-2xl font-semibold">My Profile</h1>
         <p className="text-gray-500">Manage your account and view your progress</p>
       </div>
 
@@ -436,7 +436,7 @@ const handleSavePhone = (phoneNumber) => {
             <img 
               src={profileData.picture} 
               alt={profileData.fullName}
-              className="w-32 h-32 rounded-full border-4 border-white/30 shadow-xl flex-shrink-0 object-cover"
+              className="w-32 h-32 rounded-full border-4 border-white shadow-xl flex-shrink-0 object-cover"
             />
           ) : (
             <div className="w-32 h-32 rounded-full bg-white/20 border-4 border-white/30 shadow-xl flex items-center justify-center text-4xl font-semibold flex-shrink-0">

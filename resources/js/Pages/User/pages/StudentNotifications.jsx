@@ -87,7 +87,7 @@ export default function StudentNotificationsPage({ onNavigate, notificationsData
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-gray-900 text-2xl font-semibold mb-2">Notifications</h1>
+          <h1 className="text-blue-600 text-2xl font-semibold">Notifications</h1>
           <p className="text-gray-500">
             {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
           </p>

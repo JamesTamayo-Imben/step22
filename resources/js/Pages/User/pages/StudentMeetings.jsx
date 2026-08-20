@@ -118,7 +118,7 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
     <div className="space-y-6 pb-6">
       {/* Header */}
       <div>
-        <h1 className="text-gray-900 text-2xl font-semibold mb-2">Meetings</h1>
+        <h1 className="text-blue-600 text-2xl font-bold">CSG Meetings</h1>
         <p className="text-gray-500">View upcoming and past CSG meetings</p>
       </div>
 

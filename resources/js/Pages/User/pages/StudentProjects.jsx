@@ -205,7 +205,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
     <div className="space-y-6 pb-6">
       {/* Header */}
       <div>
-        <h1 className="text-gray-900 text-2xl font-semibold mb-2">Projects</h1>
+        <h1 className="text-blue-600 text-2xl font-semibold">CSG Projects</h1>
         <p className="text-gray-500">Explore and rate CSG projects</p>
       </div>
 

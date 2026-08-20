@@ -373,7 +373,7 @@ const handleSetCouncilTerm = async () => {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Roles & Permissions</h1>
+            <h1 className="text-2xl font-semibold text-blue-600">Admin Roles & Permissions</h1>
             <p className="text-gray-500">Configure role-based access control</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">

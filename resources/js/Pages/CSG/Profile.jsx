@@ -325,7 +325,7 @@ function CSGProfilePageInner({ user }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">My Profile</h1>
+        <h1 className="text-2xl font-semibold text-blue-600">My Profile</h1>
         <p className="text-gray-500">Manage your personal information and account settings</p>
       </div>
 
@@ -378,10 +378,10 @@ function CSGProfilePageInner({ user }) {
                 <Key className="w-4 h-4 mr-2" />
                 Change Password
               </Button>
-               <Button onClick={() => setShowChangePasswordModal(true)} variant="outline" className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+               {/* <Button onClick={() => setShowChangePasswordModal(true)} variant="outline" className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
                  <Repeat className="w-5 h-5" />
                 Switch Role
-              </Button>
+              </Button> */}
             </div>
           </div>
         </div>

@@ -578,7 +578,7 @@ export default function LedgerApprovalsPage() {
           <div className="flex justify-between items-center">
             <div>
              <div className="flex items-center gap-2">
-               <h1 className="text-2xl font-semibold text-gray-900">Ledger Entries Center</h1>
+               <h1 className="text-2xl font-semibold text-blue-600">Admin Ledger Entries Center</h1>
                { hasTamperAlert ? (
                  <Badge className="bg-red-100 text-red-700 rounded-lg">
                    <AlertCircle className="w-3 h-3 mr-1" />

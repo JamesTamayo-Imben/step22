@@ -219,7 +219,7 @@ export function RatingsAnalyticsPage() {
       {/* Header with Export Button */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Project Ratings</h1>
+          <h1 className="text-2xl font-semibold text-blue-600">Admin Project Ratings</h1>
           <p className="text-gray-500">Student feedback and satisfaction ratings for your projects</p>
         </div>
       </div>

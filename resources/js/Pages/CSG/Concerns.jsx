@@ -123,7 +123,7 @@ export default function ConcernsPage() {
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-gray-900 text-2xl font-semibold">Student Reports and Concerns</h1>
+              <h1 className="text-blue-600 text-2xl font-semibold">Student Reports and Concerns</h1>
               <p className="text-gray-500">View and monitor concerns. Favorite an item to pin it at the top of the list.</p>
             </div>
           </div>
@@ -187,6 +187,7 @@ export default function ConcernsPage() {
 
                   <div className="mb-4">
                     <p className="text-sm text-gray-700 whitespace-pre-line">{concern.concern}</p>
+                    <p className="text-xs text-gray-400 mt-1">Student Name: {concern.name ? concern.name : 'Anonymous'}</p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">

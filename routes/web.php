@@ -325,9 +325,18 @@ Route::middleware(['auth', 'verified', 'role:csg', 'csg.online'])->group(functio
     Route::get('/csg/concerns', function () {
         return Inertia::render('CSG/Concerns', [
             'concerns' => Inertia::defer(fn() => Concern::query()
+                ->with('user:id,name')
                 ->orderByDesc('favorite')
                 ->orderByDesc('created_at')
                 ->get(['id', 'user_id', 'concern', 'favorite', 'created_at'])
+                ->map(fn (Concern $concern) => [
+                    'id' => $concern->id,
+                    'user_id' => $concern->user_id,
+                    'name' => $concern->user?->name,
+                    'concern' => $concern->concern,
+                    'favorite' => $concern->favorite,
+                    'created_at' => $concern->created_at,
+                ])
             ),
         ]);
     })->name('csg.concerns');

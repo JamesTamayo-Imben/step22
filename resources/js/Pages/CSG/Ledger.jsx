@@ -886,7 +886,7 @@ const getTypeAmountColor = (type) => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
          <div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold text-gray-900">Ledger Management</h1>
+          <h1 className="text-2xl font-semibold text-blue-600">CSG Officer Ledger Management</h1>
          
     {hasSecurityAlert ? (
       <Badge className="bg-red-100 text-red-700 rounded-lg">

@@ -361,7 +361,7 @@ export default function AdviserApprovalsPage() {
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-gray-900 text-2xl font-semibold">Approval Center</h1>
+              <h1 className="text-blue-600 text-2xl font-semibold">Admin Approval Center</h1>
               <p className="text-gray-500">Review and approve pending submissions</p>
             </div>
 
