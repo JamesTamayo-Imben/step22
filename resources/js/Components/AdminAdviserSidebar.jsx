@@ -24,6 +24,11 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const page = usePage();
   const user = page.props.auth?.user;
+    const userPermissions = Array.isArray(page.props.userPermissions)
+    ? page.props.userPermissions
+    : Array.isArray(page.props.auth?.permissions)
+      ? page.props.auth.permissions
+      : [];
 
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   
@@ -38,16 +43,23 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
       .slice(0, 2);
   };
 
+  const canNotifications = userPermissions.includes('notifications.view');
+  const canRatings = userPermissions.includes('ratings.view');
+  const canProof = userPermissions.includes('proof-documents.view');
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'approvals', label: 'Approvals', icon: CheckSquare },
     // { id: 'history', label: 'History', icon: Layers },
     {id: 'projects', label: 'Projects', icon: FolderKanban},
     { id: 'ledger-view', label: 'Ledger Oversight', icon: BookOpen },
+    ...(canProof ? [{ id: 'proof', label: 'Proof', icon: FileText }] : []),
     { id: 'feedback-review', label: 'Role & Permissions', icon: ShieldCheck },
-    { id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp },
+    // { id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp },
+    ...(canRatings ? [{ id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp }] : []),
     { id: 'system-logs', label: 'System Logs', icon: FileText },
-     { id: 'notifications', label: 'Notifications', icon: Bell },
+    //  { id: 'notifications', label: 'Notifications', icon: Bell },
+    ...(canNotifications ? [{ id: 'notifications', label: 'Notifications', icon: Bell }] : []),
     { id: 'profile', label: 'Profile', icon: User },
   ];
   // Derive active view from pathname when parent doesn't provide `currentView`.
@@ -58,6 +70,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
     // if (p.startsWith('/adviser/history')) return 'history';
     if (p.startsWith('/adviser/projects')) return 'projects';
     if (p.startsWith('/adviser/ledger')) return 'ledger-view';
+    if (p.startsWith('/adviser/proof')) return 'proof';
     if (p.startsWith('/adviser/notifications')) return 'notifications';
     if (p.startsWith('/adviser/role-permissions')) return 'feedback-review';
     if (p.startsWith('/adviser/ratings')) return 'ratings-analytics';
@@ -169,6 +182,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                             approvals: '/adviser/approvals',
                             projects: '/adviser/projects',
                             'ledger-view': '/adviser/ledger',
+                            proof: '/adviser/proof',
                             history: '/adviser/history',
                             notifications: '/adviser/notifications',
                             'feedback-review': '/adviser/role-permissions',
@@ -247,6 +261,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                         approvals: '/adviser/approvals',
                         projects: '/adviser/projects',
                         'ledger-view': '/adviser/ledger',
+                        proof: '/adviser/proof',
                         history: '/adviser/history',
                         notifications: '/adviser/notifications',
                         'feedback-review': '/adviser/role-permissions',

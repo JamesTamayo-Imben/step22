@@ -40,17 +40,43 @@ A modern, comprehensive school management and transparency platform built with L
 
 STEP (School Transparency & Evaluation Platform) is an integrated school management system designed to streamline communication, evaluation, and transparency between students, teachers, administrators, and parents/guardians. The platform leverages modern web technologies to provide a seamless user experience across desktop and mobile devices.
 
+### Why STEP Exists
+
+STEP was designed to address a common challenge in academic institutions: fragmented access to records, inconsistent communication, and limited visibility into student performance and administrative activity. The platform consolidates academic operations into a secure, role-aware system built for transparency, accountability, and faster decision-making.
+
 ### Key Objectives
 
-- **Transparency**: Provide clear visibility into student performance and institutional activities
-- **Efficiency**: Automate administrative tasks and reduce paperwork
-- **Collaboration**: Enable effective communication between all stakeholders
-- **Evaluation**: Facilitate fair and consistent performance evaluations
-- **Accessibility**: Ensure easy access to information for all users
+- **Transparency**: Provide clear visibility into student performance, institutional workflows, and administrative actions
+- **Operational Efficiency**: Reduce manual processing, paperwork, and repetitive administrative tasks
+- **Collaboration**: Enable structured communication between students, teachers, staff, and administrators
+- **Fair Evaluation**: Standardize grading, feedback, and performance review workflows
+- **Accessibility**: Deliver a responsive and intuitive experience across desktop and mobile devices
+- **Governance**: Support institutional oversight through audit logs, reporting, and controlled access
+
+### At a Glance
+
+- **Primary audience**: Students, teachers, administrators, and academic stakeholders
+- **Core value**: Unified academic management with role-based access and reporting
+- **Architecture**: Laravel + React + Inertia.js for a modern full-stack experience
+- **Deployment model**: Web application designed for institutional use and future scalability
+
+### Project Snapshot
+
+STEP supports the full academic lifecycle—from onboarding and student records to teacher evaluation, governance, and reporting—within a single, secure, and user-friendly platform for Kolehiyo ng Lungsod ng Dasmariñas.
+
+## 🎬 Product Demo
+
+<div align="center">
+  <video src="./public/videos/tutorial.mp4" controls playsinline preload="metadata" width="100%" style="max-width: 960px; border-radius: 18px; box-shadow: 0 14px 30px rgba(15, 23, 42, 0.25); border: 1px solid rgba(148, 163, 184, 0.35); background: #0f172a;">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+> A functional walkthrough of the STEP platform, showcasing its workflows, user experience, and operational value for academic stakeholders.
 
 ---
 
-## ✨ Features
+## ✨ Core Features
 
 ### 👤 Authentication & Onboarding
 

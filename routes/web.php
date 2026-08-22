@@ -232,6 +232,15 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
     Route::post('/adviser/ledger/{id}/fix-tampered', [AdviserLedgerController::class, 'fixTampered'])->name('adviser.ledger.fix-tampered');
     Route::post('/adviser/ledger/fix-budget-mismatch', [AdviserLedgerController::class, 'fixBudgetMismatch'])->name('adviser.ledger.fix-budget-mismatch');
 
+    // Proof Documents
+    Route::get('/adviser/proof', function () {
+        return Inertia::render('Adviser/Proof', [
+            'proofDocuments' => Inertia::defer(fn() => app(LedgerEntryController::class)->getProofDocuments()->getData()),
+            'projects' => Inertia::defer(fn () => \App\Models\CSG\Project::where('archive', 0)->pluck('title')->toArray()),
+            'transactions' => Inertia::defer(fn () => \App\Models\CSG\LedgerEntry::where('archive', 0)->pluck('id')->toArray()),
+        ]);
+    })->name('adviser.proof');
+
     // Role Permissions Management
     Route::get('/adviser/role-permissions', [AdviserPermissionController::class, 'index'])->name('adviser.role-permissions');
     Route::post('/adviser/role-permissions/assign-officer', [AdviserPermissionController::class, 'assignOfficer'])->name('adviser.role-permissions.assign-officer');
