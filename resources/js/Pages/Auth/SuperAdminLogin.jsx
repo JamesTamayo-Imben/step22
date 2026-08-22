@@ -267,7 +267,7 @@ export default function SuperAdminLoginPage() {
 
           {/* Footer Note */}
           <div className="mt-8 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
-            <p className="font-semibold mb-1">⚠️ Restricted Access</p>
+            <p className="font-semibold mb-1">Restricted Access</p>
             <p>This login portal is restricted to authorized system administrators only. Unauthorized access attempts will be logged.</p>
           </div>
         </div>

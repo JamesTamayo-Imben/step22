@@ -254,7 +254,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="">
       <style>{animationStyles}</style>
 
 <div className="flex h-screen overflow-hidden mx-auto">
@@ -265,10 +265,10 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full"></div>
 
         <div className="relative z-10">
-          <h1 className="text-3xl font-medium mb-1">Welcome to STEP</h1>
-          <p className="text-lg">Create your school account</p>
+          <h1 className="text-4xl font-bold">Welcome to STEP</h1>
+          <p className="text-sm">Create your school account</p>
 
-            <div className="relative z-10 mt-10 flex justify-center">
+            <div className="relative z-10 mt-10 flex justify-center mb-10">
             <div className="mt-44 space-y-4 w-1/2">
               <h2 className="text-4xl font-semibold leading-tight">
                 Transparent.<br />
@@ -282,7 +282,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
             </div>
 
             <div className="mt-20 gap-2 overflow-hidden">
-              <img src="/images/login-bg.png" alt="Login Background" className="w-full object-cover" />
+              <img src="/images/login-bg.png" alt="Login Background" className="w-full object-cover rounded-[24px] drop-shadow-lg" />
             </div>
 
           </div>

@@ -132,10 +132,23 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full"></div>
 
         <div className="relative z-10">
-          <h1 className="text-3xl font-medium mb-1">Welcome to STEP</h1>
-          <p className="text-lg">Sign in with your school email</p>
+          {/* <div className="flex items-center gap-4 mb-10">
+  <img 
+    src="/images/kldlogo.png" 
+    alt="Step Logo" 
+    className="w-16 h-16 object-cover border-2 border-white rounded-full bg-white flex-shrink-0" 
+  />
+  <div>
+    <h1 className="text-lg font-medium">Kolehiyo ng Lungsod ng Dasmarinas</h1>
+    <p className="text-sm">In Partial Fulfilment of the Requirements for the Degree 
+Bachelor of Science in Information Systems</p>
+  </div>
+</div> */}
 
-          <div className="relative z-10 mt-10 flex justify-center">
+          <h1 className="text-4xl font-bold">Welcome to STEP</h1>
+          <p className="text-sm">Sign in with your school email</p>
+
+          <div className="relative flex justify-center mb-10 mt-20">
             <div className="mt-44 space-y-4 w-1/2">
               <h2 className="text-4xl font-semibold leading-tight">
                 Transparent.<br />
@@ -148,13 +161,13 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
               </p> */}
             </div>
 
-            <div className="mt-20 gap-2 overflow-hidden">
-              <img src="/images/login-bg.png" alt="Login Background" className="w-full object-cover" />
+            <div className="mt-20 gap-4 overflow-hidden">
+              <img src="/images/login-bg.png" alt="Login Background" className="rounded-[24px] drop-shadow-lg w-full object-cover" />
             </div>
 
           </div>
            <div>
-              <p className="text-white/80 max-w-md">
+              <p className="text-white max-w">
                 Empowering students and organizations with financial transparency
                 and collaborative decision making. 
               </p> 
