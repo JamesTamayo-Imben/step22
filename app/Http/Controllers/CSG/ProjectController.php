@@ -9,6 +9,8 @@ use App\Models\CSG\Approval;
 use App\Models\CSG\LedgerEntry;
 use App\Models\User\Rating;
 use Illuminate\Http\Request;
+use App\Http\Requests\CSG\StoreProjectRequest;
+use App\Http\Requests\CSG\UpdateProjectRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -19,6 +21,8 @@ class ProjectController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', Project::class);
+
         $projects = Project::where('archive', 0)->get()->map(function (Project $project) {
             $projectData = $project->toArray();
             $proofPath = $this->getProjectProofPath($project);
@@ -35,6 +39,11 @@ class ProjectController extends Controller
     {
         try {
             $project = Project::with(['approver:id,name', 'creator:id,name'])->find($id);
+            if (!$project) {
+                return response()->json(['message' => 'Project not found'], 404);
+            }
+
+            $this->authorize('view', $project);
             
             if (!$project) {
                 return response()->json(['message' => 'Project not found'], 404);
@@ -87,33 +96,9 @@ class ProjectController extends Controller
     public function store(Request $request)
     {
         try {
-            if (!Auth::user()?->hasPermission('projects.create')) {
-                return response()->json([
-                    'message' => 'You do not have permission to create projects.',
-                ], 403);
-            }
-
-            // Validate required fields
-            $validated = $request->validate([
-                'title' => 'required|string|max:255',
-                'description' => 'required|string',
-                'objective' => 'required|string',
-                'venue' => 'required|string',
-                'category' => 'required|string',
-                'budget' => 'nullable|numeric|min:0',
-                'has_budget' => 'nullable|in:0,1,true,false',
-                'is_active' => 'nullable|in:0,1,true,false',
-                'budget_source' => 'nullable|in:none,past_project',
-                'transfer_from_project_id' => 'nullable|string|exists:projects,id',
-                'transfer_amount' => 'nullable|numeric|min:0',
-                'proposed_by' => 'required|string',
-                'status' => 'nullable|string',
-                'approval_status' => 'nullable|string',
-                'start_date' => 'nullable|date',
-                'end_date' => 'nullable|date|after_or_equal:start_date',
-                'project_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240', // 10MB max
-                'is_initial' => 'nullable|in:0,1',
-            ]);
+            $this->authorize('create', Project::class);
+            // Backwards-compatible validation: use StoreProjectRequest rules
+            $request->validate((new \App\Http\Requests\CSG\StoreProjectRequest())->rules());
 
             $hasBudget = $request->boolean('has_budget');
             $isActive = $request->boolean('is_active');
@@ -325,35 +310,14 @@ class ProjectController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            if (!Auth::user()?->hasPermission('projects.edit')) {
-                return response()->json([
-                    'message' => 'You do not have permission to edit projects.',
-                ], 403);
-            }
-
             $project = Project::find($id);
-            
             if (!$project) {
                 return response()->json(['message' => 'Project not found'], 404);
             }
-            
-            // Validate the request
-            $request->validate([
-                'title' => 'sometimes|required|string|max:255',
-                'description' => 'sometimes|required|string',
-                'objective' => 'sometimes|required|string',
-                'venue' => 'sometimes|required|string',
-                'category' => 'sometimes|required|string',
-                'budget' => 'sometimes|nullable|numeric|min:0',
-                'has_budget' => 'nullable|in:0,1,true,false',
-                'budget_source' => 'nullable|in:none,past_project',
-                'transfer_from_project_id' => 'nullable|string|exists:projects,id',
-                'transfer_amount' => 'nullable|numeric|min:0',
-                'proposed_by' => 'sometimes|required|string',
-                'start_date' => 'nullable|date',
-                'end_date' => 'nullable|date|after_or_equal:start_date',
-                'project_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            ]);
+
+            $this->authorize('update', $project);
+            // Backwards-compatible validation: use UpdateProjectRequest rules
+            $request->validate((new \App\Http\Requests\CSG\UpdateProjectRequest())->rules());
 
             $hasBudget = $request->boolean('has_budget');
             $budgetSource = $request->input('budget_source', 'none');
@@ -566,17 +530,12 @@ class ProjectController extends Controller
     public function destroy($id)
     {
         try {
-            if (!Auth::user()?->hasPermission('projects.delete')) {
-                return response()->json([
-                    'message' => 'You do not have permission to delete projects.',
-                ], 403);
-            }
-
             $project = Project::find($id);
-            
             if (!$project) {
                 return response()->json(['message' => 'Project not found'], 404);
             }
+
+            $this->authorize('delete', $project);
             
             // Delete associated file if exists
             if ($project->project_proof && Storage::disk('public')->exists($project->project_proof)) {
@@ -620,19 +579,16 @@ class ProjectController extends Controller
     public function archive($id)
     {
         try {
-            if (!Auth::user()?->hasPermission('projects.delete') && !Auth::user()?->hasPermission('projects.edit')) {
-                return response()->json([
-                    'message' => 'You do not have permission to archive projects.',
-                ], 403);
-            }
-
             $project = Project::find($id);
-            
             if (!$project) {
                 return response()->json(['message' => 'Project not found'], 404);
             }
-            
-            $project->archive = 1;
+
+            // allow either delete or update permission to archive
+            $user = Auth::user();
+            if (!($user?->can('delete', $project) || $user?->can('update', $project))) {
+                return response()->json(['message' => 'You do not have permission to archive projects.'], 403);
+            }
             $project->save();
 
             // Archive all ledger entries (initial + others) for this project

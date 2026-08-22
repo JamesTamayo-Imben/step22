@@ -10,6 +10,9 @@ use App\Models\Role;
 use App\Models\StudentCsgOfficer;
 use App\Mail\OTPMail;
 use Illuminate\Http\Request;
+use App\Http\Requests\Auth\SendOTPRequest;
+use App\Http\Requests\Auth\VerifyOTPRequest;
+use App\Http\Requests\Auth\ResendOTPRequest;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -26,16 +29,8 @@ class OTPController extends Controller
     public function sendOTP(Request $request)
     {
         try {
-            // First, validate basic fields
-            $request->validate([
-                'email' => 'required|email|unique:users',
-                'firstName' => 'required|string',
-                'lastName' => 'required|string',
-                'password' => 'required|string|min:8',
-                'role_id' => 'required|exists:roles,id',
-                'student_id' => 'nullable|string',
-                'course_id' => 'nullable|string',
-            ], [
+            // Backwards-compatible validation: use SendOTPRequest rules
+            $request->validate((new \App\Http\Requests\Auth\SendOTPRequest())->rules(), [
                 'email.unique' => 'This email address is already registered. Please use a different email or login to your existing account.',
             ]);
 
@@ -116,10 +111,8 @@ class OTPController extends Controller
     public function verifyOTP(Request $request)
     {
         try {
-            $request->validate([
-                'email' => 'required|email',
-                'otp' => 'required|string|size:6',
-            ]);
+            // Backwards-compatible validation: use VerifyOTPRequest rules
+            $request->validate((new \App\Http\Requests\Auth\VerifyOTPRequest())->rules());
 
             // Retrieve OTP data from cache
             $otpData = Cache::get("otp_{$request->email}");
@@ -131,11 +124,27 @@ class OTPController extends Controller
                 ], 400);
             }
 
-            // Verify OTP matches
+            // Verify OTP matches with attempt counter to prevent brute force
+            $attempts = $otpData['attempts'] ?? 0;
             if ($otpData['otp'] !== $request->otp) {
+                $attempts++;
+                // If attempts exceed threshold, invalidate the OTP
+                if ($attempts > 5) {
+                    Cache::forget("otp_{$request->email}");
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'OTP invalidated after too many failed attempts. Request a new OTP.',
+                    ], 429);
+                }
+
+                // Update attempts count and keep original expiry (~10 minutes)
+                $otpData['attempts'] = $attempts;
+                Cache::put("otp_{$request->email}", $otpData, now()->addMinutes(10));
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid OTP code. Please try again.',
+                    'attempts' => $attempts,
                 ], 400);
             }
 
@@ -213,9 +222,8 @@ class OTPController extends Controller
     public function resendOTP(Request $request)
     {
         try {
-            $request->validate([
-                'email' => 'required|email',
-            ]);
+            // Backwards-compatible validation: use ResendOTPRequest rules
+            $request->validate((new \App\Http\Requests\Auth\ResendOTPRequest())->rules());
 
             // Retrieve OTP data from cache
             $otpData = Cache::get("otp_{$request->email}");

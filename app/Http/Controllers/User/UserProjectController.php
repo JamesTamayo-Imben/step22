@@ -65,7 +65,13 @@ class UserProjectController extends Controller
     {
         $user = $this->resolveCurrentUser();
 
-        if (!$user || !app(RolePermissionService::class)->userCan($user, 'projects.view')) {
+        if (!$user) {
+            return Redirect::route('user.dashboard');
+        }
+
+        try {
+            $this->authorize('viewAny', Project::class);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             return Redirect::route('user.dashboard');
         }
 
@@ -88,8 +94,13 @@ class UserProjectController extends Controller
     public function show(Request $request, string $id)
     {
         $user = $this->resolveCurrentUser();
+        if (!$user) {
+            return Redirect::route('user.dashboard');
+        }
 
-        if (!$user || !app(RolePermissionService::class)->userCan($user, 'projects.view')) {
+        try {
+            // project-specific view authorization will be checked after loading
+        } catch (\Exception $e) {
             return Redirect::route('user.dashboard');
         }
 
@@ -126,6 +137,12 @@ class UserProjectController extends Controller
                 $query->where('archive', 0);
             }])
             ->findOrFail($id);
+
+        try {
+            $this->authorize('view', $project);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return Redirect::route('user.dashboard');
+        }
 
         $userRating = null;
         if ($user) {
@@ -290,19 +307,19 @@ class UserProjectController extends Controller
     }
 
     //this is for handling the rating submission from the project details page
-   public function upsertRating(Request $request, string $projectId)
+    public function upsertRating(Request $request, string $projectId)
 {
     $user = $this->resolveCurrentUser();
     if (!$user) {
         return response()->json(['message' => 'No user found for rating'], 422);
     }
 
-    $validated = $request->validate([
-        'satisfaction_rating' => ['required', 'integer', 'min:1', 'max:5'],
-        'completeness_rating' => ['nullable', 'integer', 'min:1', 'max:5'],
-        'engagement_rating' => ['nullable', 'integer', 'min:1', 'max:5'],
-        'comment' => ['nullable', 'string', 'max:1000'],
-    ]);
+    // Require rating creation permission
+    $this->authorize('create', \App\Models\User\Rating::class);
+
+    // Use FormRequest rules for backward-compatible validation
+    $request->validate((new \App\Http\Requests\User\UpsertRatingRequest())->rules());
+    $validated = $request->all();
 
     $project = Project::query()->where('archive', 0)->findOrFail($projectId);
     if (($project->approval_status ?? '') !== 'Approved') {

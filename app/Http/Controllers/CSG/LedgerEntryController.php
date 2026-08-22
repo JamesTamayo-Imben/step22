@@ -12,6 +12,9 @@ use App\Models\CSG\Project;
 use App\Models\CSG\Approval;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Http\Requests\CSG\StoreLedgerEntryRequest;
+use App\Http\Requests\CSG\UpdateLedgerEntryRequest;
+use App\Http\Requests\CSG\UploadLedgerProofRequest;
 // use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -28,16 +31,30 @@ class LedgerEntryController extends Controller
  * Handles the uploading of transaction proofs (receipts/images).
  * Implements Immutable Ledger design by hashing the file content.
  */
-public function uploadProof(Request $request, $id)
+public function uploadProof(UploadLedgerProofRequest $request, $id)
 {
     try {
+        // Permission check
+
         // 1. Find the specific ledger entry
         $entry = LedgerEntry::findOrFail($id);
 
-        // 2. Validate the file presence and type
-        if (!$request->hasFile('proof_file')) {
-            return response()->json(['success' => false, 'message' => 'No file was uploaded.'], 400);
+            // Ensure the authenticated user is authorized to upload a proof for this entry
+            $this->authorize('uploadProof', $entry);
+
+        // Ensure the entry belongs to an active project
+        $project = $entry->project;
+        if (!$project || $project->archive) {
+            return response()->json(['success' => false, 'message' => 'Ledger entry not found or project archived.'], 404);
         }
+
+        // Ownership check for CSG role: only allow CSG creators to upload to their own projects
+        $currentUser = Auth::user();
+        if (($currentUser->role?->slug ?? '') === 'csg' && ($project->created_by !== $currentUser->id)) {
+            return response()->json(['success' => false, 'message' => 'You do not have access to this project.'], 403);
+        }
+
+        // Validation handled by UploadLedgerProofRequest
 
         $file = $request->file('proof_file');
 
@@ -82,6 +99,7 @@ public function uploadProof(Request $request, $id)
     public function index($projectId)
     {
         try {
+                $this->authorize('viewAny', LedgerEntry::class);
             $entries = LedgerEntry::where('project_id', $projectId)
                 ->where('archive', 0)
                 ->orderBy('created_at', 'desc')
@@ -131,6 +149,7 @@ public function uploadProof(Request $request, $id)
     public function all(Request $request)
     {
         try {
+                $this->authorize('viewAny', LedgerEntry::class);
             $query = LedgerEntry::where('archive', 0);
 
             if ($request->filled('project_id')) {
@@ -210,27 +229,11 @@ public function uploadProof(Request $request, $id)
     /**
      * Store a new ledger entry with optional file upload
      */
-    public function store(Request $request)
+    public function store(StoreLedgerEntryRequest $request)
     {
         try {
-            if (!Auth::user()?->hasPermission('ledger.create')) {
-                return response()->json([
-                    'message' => 'You do not have permission to create ledger entries.',
-                ], 403);
-            }
-
-            // Validate the request
-            $validated = $request->validate([
-                'project_id' => 'required|exists:projects,id',
-                'type' => 'required|in:Income,Expense,Canvas,Donation,Sponsorship',
-                'description' => 'required|string|max:1000',
-                'amount' => 'required|numeric|min:0',
-                'budget_breakdown' => 'nullable|json',
-                'proof_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-                'ledger_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-                'approval_status' => 'nullable|string',
-                'created_by' => 'nullable|exists:users,id',
-            ]);
+                $this->authorize('create', LedgerEntry::class);
+            // Validation handled by StoreLedgerEntryRequest
             
             // Create new ledger entry
             $entry = new LedgerEntry();
@@ -368,15 +371,12 @@ public function uploadProof(Request $request, $id)
     //     }
     // }
 
-    public function update(Request $request, $id)
+    public function update(UpdateLedgerEntryRequest $request, $id)
     {
         try {
-            if (!Auth::user()?->hasPermission('ledger.edit')) {
-                return response()->json([
-                    'message' => 'You do not have permission to edit ledger entries.',
-                ], 403);
-            }
-        $entry = LedgerEntry::findOrFail($id);
+            $entry = LedgerEntry::findOrFail($id);
+
+            $this->authorize('update', $entry);
 
         if ($entry->type === 'Initial') {
             return response()->json([
@@ -384,15 +384,7 @@ public function uploadProof(Request $request, $id)
             ], 403);
         }
 
-        // Validate the request
-        $validated = $request->validate([
-            'type' => 'required|in:Income,Expense,Canvas,Donation,Sponsorship',
-            'description' => 'required|string|max:1000',
-            'amount' => 'required|numeric|min:0',
-            'budget_breakdown' => 'nullable|json',
-            'updated_by' => 'nullable|exists:users,id',
-            'ledger_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-        ]);
+        // Validation handled by UpdateLedgerEntryRequest
 
         // Update the entry
         $entry->type = $request->type;
@@ -510,14 +502,11 @@ public function uploadProof(Request $request, $id)
      * Delete a ledger entry
      */
     public function destroy($id)
-    {
+                // Backwards-compatible validation: use StoreLedgerEntryRequest rules
+                $request->validate((new \App\Http\Requests\CSG\StoreLedgerEntryRequest())->rules());
         try {
-            if (!Auth::user()?->hasPermission('ledger.delete')) {
-                return response()->json([
-                    'message' => 'You do not have permission to delete ledger entries.',
-                ], 403);
-            }
             $entry = LedgerEntry::findOrFail($id);
+            $this->authorize('delete', $entry);
 
             if ($entry->type === 'Initial') {
                 return response()->json([
@@ -602,7 +591,8 @@ public function uploadProof(Request $request, $id)
                 try {
                     $fullPath = storage_path('app/public/ledger_proofs/' . $fileName);
                     if (file_exists($fullPath)) {
-                        $fileSizeBytes = filesize($fullPath);
+                // Backwards-compatible validation: use UpdateLedgerEntryRequest rules
+                $request->validate((new \App\Http\Requests\CSG\UpdateLedgerEntryRequest())->rules());
                         $fileSize = round($fileSizeBytes / (1024 * 1024), 2) . ' MB';
                     }
                 } catch (\Exception $e) {
@@ -690,6 +680,7 @@ public function uploadProof(Request $request, $id)
     public function verifyChain($projectId)
     {
         try {
+            $this->authorize('viewAny', LedgerEntry::class);
             $verification = \App\Support\BlockchainService::verifyChain($projectId);
             
             return response()->json($verification);

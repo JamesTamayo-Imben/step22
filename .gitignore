@@ -22,3 +22,6 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+#. Prevent accidental commits of local env copies and cookies
+.env-with*
+cookies.txt

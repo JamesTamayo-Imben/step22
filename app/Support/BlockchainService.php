@@ -6,6 +6,7 @@ use App\Models\Chain;
 use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class BlockchainService
 {
@@ -17,7 +18,18 @@ class BlockchainService
      */
     public static function createGenesisBlock($projectId, $projectData)
     {
-        $dataSnapshot = [
+        return DB::transaction(function () use ($projectId, $projectData) {
+            // If a genesis block already exists, return it (protect against concurrent creation)
+            $existing = Chain::where('project_id', $projectId)
+                ->where('block_index', 0)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+
+            $dataSnapshot = [
             'type' => 'project',
             'project_id' => $projectId,
             'title' => $projectData['title'] ?? null,
@@ -26,20 +38,20 @@ class BlockchainService
             'approval_status' => 'Approved',
             'approved_at' => now()->toIso8601String(),
         ];
+            $hash = self::generateHash($dataSnapshot, null);
+            $blockId = Str::uuid();
 
-        $hash = self::generateHash($dataSnapshot, null);
-        $blockId = Str::uuid();
+            $block = Chain::create([
+                'id' => $blockId,
+                'project_id' => $projectId,
+                'block_index' => 0,
+                'prev_hash' => null,
+                'hash' => $hash,
+                'data_snapshot' => json_encode($dataSnapshot),
+            ]);
 
-        $block = Chain::create([
-            'id' => $blockId,
-            'project_id' => $projectId,
-            'block_index' => 0,
-            'prev_hash' => null,
-            'hash' => $hash,
-            'data_snapshot' => json_encode($dataSnapshot),
-        ]);
-
-        return $block;
+            return $block;
+        });
     }
 
     /**
@@ -51,16 +63,18 @@ class BlockchainService
      */
     public static function addBlockToChain($ledgerId, $projectId, $ledgerData)
     {
-        // Find the latest block in the chain for this project
-        $lastBlock = Chain::where('project_id', $projectId)
-            ->orderByDesc('block_index')
-            ->first();
+        return DB::transaction(function () use ($ledgerId, $projectId, $ledgerData) {
+            // Find the latest block in the chain for this project with an exclusive lock
+            $lastBlock = Chain::where('project_id', $projectId)
+                ->orderByDesc('block_index')
+                ->lockForUpdate()
+                ->first();
 
-        if (!$lastBlock) {
-            throw new \Exception("Genesis block not found for project: {$projectId}");
-        }
+            if (!$lastBlock) {
+                throw new \Exception("Genesis block not found for project: {$projectId}");
+            }
 
-        $blockIndex = ($lastBlock->block_index ?? 0) + 1;
+            $blockIndex = ($lastBlock->block_index ?? 0) + 1;
 
         // Attempt to pull budget breakdown from the ledger record if not provided
         $entry = LedgerEntry::where('id', $ledgerId)->first();
@@ -84,16 +98,17 @@ class BlockchainService
         $hash = self::generateHash($dataSnapshot, $lastBlock->hash);
         $blockId = Str::uuid();
 
-        $block = Chain::create([
-            'id' => $blockId,
-            'project_id' => $projectId,
-            'block_index' => $blockIndex,
-            'prev_hash' => $lastBlock->hash,
-            'hash' => $hash,
-            'data_snapshot' => json_encode($dataSnapshot),
-        ]);
+            $block = Chain::create([
+                'id' => $blockId,
+                'project_id' => $projectId,
+                'block_index' => $blockIndex,
+                'prev_hash' => $lastBlock->hash,
+                'hash' => $hash,
+                'data_snapshot' => json_encode($dataSnapshot),
+            ]);
 
-        return $block;
+            return $block;
+        });
     }
 
     /**
