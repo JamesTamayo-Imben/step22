@@ -1,4 +1,4 @@
-# 🎓 STEP - School Transparency & Evaluation Platform
+# 🎓 STEP — School Transparency & Evaluation Platform
 
 <div align="center">
 
@@ -7,10 +7,9 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Laravel](https://img.shields.io/badge/Laravel-12.x-red)
 ![React](https://img.shields.io/badge/React-18.x-blue)
+![PHP](https://img.shields.io/badge/PHP-8.2%2B-777bb4)
 
-A modern, comprehensive school management and transparency platform built with Laravel 12, React 18, and Inertia.js for Kolehiyo ng Lungsod ng Dasmariñas (KLD).
-
-**[Features](#features)** • **[Tech Stack](#tech-stack)** • **[Installation](#installation)** • **[Database](#database)** • **[API Documentation](#api-documentation)** • **[Contributing](#contributing)**
+A role-based governance, evaluation, and financial-transparency platform for **Kolehiyo ng Lungsod ng Dasmariñas (KLD)**, built as a Laravel 12 + Inertia.js + React 18 monolith.
 
 </div>
 
@@ -18,1005 +17,307 @@ A modern, comprehensive school management and transparency platform built with L
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [System Architecture](#system-architecture)
-- [Installation & Setup](#installation--setup)
-- [Database Schema](#database-schema)
-- [Authentication System](#authentication-system)
-- [API Documentation](#api-documentation)
-- [Project Structure](#project-structure)
-- [User Roles & Permissions](#user-roles--permissions)
-- [Key Components](#key-components)
-- [Development Workflow](#development-workflow)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+- [Problem Statement](#-problem-statement)
+- [Architecture](#-architecture)
+- [Documentation Map](#-documentation-map)
+- [Tech Stack](#-tech-stack)
+- [Core Modules](#-core-modules)
+- [User Roles & Permission Matrix](#-user-roles--permission-matrix)
+- [Local Setup](#-local-setup)
+- [Development Workflow & CI/CD](#-development-workflow--cicd)
+- [Observability](#-observability)
+- [Common Pitfalls & Troubleshooting](#-common-pitfalls--troubleshooting)
+- [Known Issues & Housekeeping](#-known-issues--housekeeping)
+- [License & Contact](#-license--contact)
 
 ---
 
-## 🎯 Overview
+## 🎯 Problem Statement
 
-STEP (School Transparency & Evaluation Platform) is an integrated school management system designed to streamline communication, evaluation, and transparency between students, teachers, administrators, and parents/guardians. The platform leverages modern web technologies to provide a seamless user experience across desktop and mobile devices.
+Academic institutions running student governance (CSG) programs typically manage project approvals, budget disbursement, and performance evaluation across disconnected spreadsheets, paper trails, and email threads. This creates two concrete failure modes: **financial records that can be edited after the fact with no trace**, and **evaluation/rating data that stakeholders can't independently verify**.
 
-### Why STEP Exists
+STEP addresses this by giving every actor — student, teacher, CSG officer, adviser, and system admin — a single, role-scoped system of record, and by making CSG project ledgers **tamper-evident** via an internal cryptographic hash chain (see [Core Modules](#-core-modules)).
 
-STEP was designed to address a common challenge in academic institutions: fragmented access to records, inconsistent communication, and limited visibility into student performance and administrative activity. The platform consolidates academic operations into a secure, role-aware system built for transparency, accountability, and faster decision-making.
-
-### Key Objectives
-
-- **Transparency**: Provide clear visibility into student performance, institutional workflows, and administrative actions
-- **Operational Efficiency**: Reduce manual processing, paperwork, and repetitive administrative tasks
-- **Collaboration**: Enable structured communication between students, teachers, staff, and administrators
-- **Fair Evaluation**: Standardize grading, feedback, and performance review workflows
-- **Accessibility**: Deliver a responsive and intuitive experience across desktop and mobile devices
-- **Governance**: Support institutional oversight through audit logs, reporting, and controlled access
-
-### At a Glance
-
-- **Primary audience**: Students, teachers, administrators, and academic stakeholders
-- **Core value**: Unified academic management with role-based access and reporting
-- **Architecture**: Laravel + React + Inertia.js for a modern full-stack experience
-- **Deployment model**: Web application designed for institutional use and future scalability
-
-### Project Snapshot
-
-STEP supports the full academic lifecycle—from onboarding and student records to teacher evaluation, governance, and reporting—within a single, secure, and user-friendly platform for Kolehiyo ng Lungsod ng Dasmariñas.
-
-## 🎬 Product Demo
-
-<div align="center">
-  <video src="./public/videos/tutorial.mp4" controls playsinline preload="metadata" width="100%" style="max-width: 960px; border-radius: 18px; box-shadow: 0 14px 30px rgba(15, 23, 42, 0.25); border: 1px solid rgba(148, 163, 184, 0.35); background: #0f172a;">
-    Your browser does not support the video tag.
-  </video>
-</div>
-
-> A functional walkthrough of the STEP platform, showcasing its workflows, user experience, and operational value for academic stakeholders.
+This is a monolith by design, not by accident: a single institution, a single database of record, and a request volume that doesn't currently justify the operational cost of a distributed system. If/when STEP needs to scale across institutions, the module boundaries below (Auth, Governance, Ledger, Ratings, Notifications) are already the natural seams for extraction into services.
 
 ---
 
-## ✨ Core Features
+## 🏗 Architecture
 
-### 👤 Authentication & Onboarding
+STEP is a **server-rendered monolith**: Laravel owns routing, auth, and business logic; Inertia.js hands fully-formed page props to React components with no separate REST/GraphQL API layer for the web app itself (a narrow `routes/api.php` surface exists for the chatbot widget and a subset of project/ledger endpoints).
 
-- **Google OAuth Integration** via Supabase for seamless SSO
-- **Email Domain Validation** (@kld.edu.ph required)
-- **Role-Based Onboarding** with dynamic form fields based on user role
-- **Profile Completion** with optional skip option
-- **Temporary Password Generation** on account creation
-- **Email Notifications** with login credentials sent automatically
+```mermaid
+flowchart TD
+    User["Browser (React 18 + Inertia.js)"]
 
-### 📚 Student Features
+    subgraph Edge["Edge / Auth"]
+        OAuth["Supabase (Google OAuth + session bootstrap)"]
+    end
 
-- View and manage academic records
-- Track course enrollments and progress
-- Submit assignments and projects
-- View grades and evaluations from instructors
-- Access course materials and resources
-- Submit feedback and ratings for courses/teachers
-- Track CSG (Class Student Government) activities
+    subgraph App["Laravel 12 Application (single deployable)"]
+        Router["Router<br/>routes/web.php · routes/api.php"]
+        MW["Middleware Stack<br/>auth · verified · role: · csg.online · Inertia"]
+        Ctrl["Controllers<br/>Auth · SAdmin · Adviser · CSG · User"]
+        Svc["Services<br/>RolePermissionService · BlockchainService"]
+        Models["Eloquent Models"]
+    end
 
-### 👨‍🏫 Teacher Features
+    subgraph Data["Data Layer"]
+        MySQL[("MySQL — system of record")]
+        SessionStore[("DB-backed Sessions")]
+        Queue[("DB-backed Queue<br/>(mail: OTP, welcome, success)")]
+    end
 
-- Manage courses and course materials
-- View enrolled students
-- Record student grades and evaluations
-- Provide feedback and comments on assignments
-- View CSG adviser responsibilities
-- Access institute-specific information
-- Generate and export student reports
+    subgraph Out["Outbound"]
+        SMTP["SMTP (Gmail) — OTP, credentials, notifications"]
+    end
 
-### 👨‍💼 Admin Features
+    User -->|HTTPS| OAuth
+    User -->|HTTPS| Router
+    OAuth -.->|JWT / session handoff| Router
+    Router --> MW --> Ctrl --> Svc --> Models --> MySQL
+    Ctrl --> SessionStore
+    Ctrl -->|dispatch queued mailables| Queue --> SMTP
+    Models -.->|Inertia props| User
+```
 
-- Manage users and roles
-- Manage courses and institutes
-- View system-wide statistics and reports
-- Configure platform settings
-- Audit logs for system activities
-- User activity tracking
+**Key architectural decisions worth knowing before you touch this code:**
 
-### 🔐 Security Features
+- **Auth is split across two systems.** Google OAuth identity is brokered through Supabase (`VITE_SUPABASE_URL` / anon key on the frontend, `SUPABASE_SERVICE_ROLE_KEY` for backend-trusted calls), while session state, roles, and permissions are owned entirely by Laravel's own `users`/`roles`/`permission` tables. Supabase is an identity provider here, not the system of record for authorization.
+- **Authorization is two-layer.** Route groups apply coarse `role:` gating; a seeded `permission` / `role_permission` catalog (`RolePermissionService`) applies fine-grained module.action grants that Superadmin can edit at runtime, including per-CSG-position overrides. See [Permission Matrix](#-user-roles--permission-matrix).
+- **The ledger integrity chain is application-level, not distributed.** `BlockchainService` builds a SHA-256 linked hash chain per approved CSG project (`Chain` model): a genesis block on approval, then one block per ledger entry, each hashing forward from the previous block's hash. It gives tamper-evidence for a single-writer system — explicitly not a consensus/DLT claim.
+- **No message broker.** Background work (queued mailables) runs through Laravel's database queue driver, processed by `php artisan queue:listen` alongside the app — there is no Kafka/SQS/Redis-Streams layer in this system today.
 
-- Secure authentication with encrypted sessions
-- Role-based access control (RBAC)
-- CSRF protection on all forms
-- Audit logging of critical actions
-- Temporary password policies
-- Email verification
+---
 
-### 📱 User Experience
+## 🗺 Documentation Map
 
-- Responsive design for mobile and desktop
-- Intuitive navigation
-- Real-time notifications
-- Dark/Light theme support (UI components ready)
-- Smooth page transitions with Inertia.js
+This README is the entry point, not the whole story. Deeper flows are documented separately at the repo root — read them before modifying the corresponding subsystem:
+
+| Document | Covers |
+|---|---|
+| `ROLE_DASHBOARD_FLOW.md` | How each role's dashboard is composed and routed |
+| `ROLE_SWITCH_FLOW.txt` | How a user with multiple role assignments switches context |
+| `RATING_LOGIC_FLOW_MAP.txt` | Rating computation, aggregation, and moderation logic |
+| `USER_RATING_SUBMISSION_FLOW.txt` | End-to-end student/teacher rating submission flow |
+| `RATINGS_TAB_ENHANCEMENT_UPDATE.txt` | Change log for the ratings UI/logic revisions |
+| `COMPLETENESS_ENGAGEMENT_RATINGS_IMPLEMENTATION.txt` | Engagement/completeness scoring implementation notes |
+| `NOTIFICATION_FLOW.txt` | Notification triggers, channels, and delivery logic |
+| `IMPLEMENTATION_COMPLETE.txt` | Historical implementation-completion log |
+
+> These are working engineering notes rather than polished docs — treat them as the most accurate source for subsystem-level detail, and prefer updating them over letting logic drift undocumented.
 
 ---
 
 ## 🛠 Tech Stack
 
-### Backend
-
-| Technology | Purpose | Version |
-|-----------|---------|---------|
-| **Laravel** | Web Framework | 12.x |
-| **PHP** | Server Language | 8.2+ |
-| **MySQL/MariaDB** | Database | 8.0+ |
-| **Supabase** | OAuth Provider | Latest |
-
-### Frontend
-
-| Technology | Purpose | Version |
-|-----------|---------|---------|
-| **React** | UI Framework | 18.x |
-| **Inertia.js** | Server-driven UI | 1.x |
-| **Tailwind CSS** | Styling | 3.x |
-| **Vite** | Build Tool | Latest |
-
-### Development Tools
-
-| Tool | Purpose |
-|------|---------|
-| **Composer** | PHP Package Manager |
-| **npm/yarn** | JavaScript Package Manager |
-| **PHPUnit** | PHP Testing Framework |
-| **Laravel Pint** | PHP Code Style Fixer |
-| **Axios** | HTTP Client |
+| Layer | Technology | Notes |
+|---|---|---|
+| Backend framework | Laravel 12 (PHP 8.2+) | `inertiajs/inertia-laravel`, `laravel/sanctum` |
+| Frontend | React 18 + Inertia.js | Server-driven routing, no separate SPA build |
+| Styling | Tailwind CSS 3 | |
+| Build tool | Vite | |
+| Database | MySQL 8.0 / MariaDB 10.4+ | `sqlite` supported for quick local bootstrap only |
+| Identity provider | Supabase (Google OAuth) | Session/authorization stays in Laravel |
+| Mail | SMTP (Gmail), Laravel Mailables | 2 of 4 mailables are queued (`ShouldQueue`) |
+| Queue | Laravel database queue driver | No broker; requires a running `queue:listen` worker |
+| Testing | PHPUnit 11 | `tests/Feature`, `tests/Unit` |
+| Code style | Laravel Pint (PSR-12) | |
 
 ---
 
-## 🏗 System Architecture
+## 🔧 Core Modules
 
-### High-Level Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Client Layer (React)                      │
-│                   Browser-based UI Components                    │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-                    ┌──────────▼──────────┐
-                    │   Inertia.js        │
-                    │  Server-Driven UI   │
-                    └──────────┬──────────┘
-                               │
-┌──────────────────────────────▼──────────────────────────────────┐
-│                     Backend Layer (Laravel)                      │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │            API Routes & Controllers                       │  │
-│  │  (Onboarding, Users, Courses, Grades, etc.)             │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │            Middleware Layer                               │  │
-│  │  (Auth, CORS, Inertia, Rate Limiting, Audit)            │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │            Models & Services                              │  │
-│  │  (Business Logic, Relationships, Queries)               │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-┌──────────────────────────────▼──────────────────────────────────┐
-│                      Data Layer                                  │
-│                                                                   │
-│  ┌───────────────────┬─────────────────────┬──────────────┐   │
-│  │   MySQL Database  │  Session Storage    │  File Storage│   │
-│  └───────────────────┴─────────────────────┴──────────────┘   │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-### Request Flow
-
-```
-1. User Request (OAuth/Form)
-         │
-         ▼
-2. Laravel Router (routes/web.php or routes/api.php)
-         │
-         ▼
-3. Middleware Stack (HandleInertiaRequests, Auth, etc.)
-         │
-         ▼
-4. Controller Action (Business Logic)
-         │
-         ▼
-5. Model/Service Layer (Database Queries)
-         │
-         ▼
-6. Return Response (JSON or Inertia Props)
-         │
-         ▼
-7. React Component Renders
-```
+| Module | Responsibility | Key classes |
+|---|---|---|
+| **Auth & Onboarding** | Google OAuth handoff, email-domain enforcement (`@kld.edu.ph`), OTP, role-based onboarding, temp password issuance | `GoogleAuthController`, `OTPController`, `OnboardingController` |
+| **Governance (CSG)** | Project lifecycle (create → submit → approve/reject), council positions/terms, meetings | `CSGProjectController`, `AdviserApprovalController`, `CsgPosition` |
+| **Ledger & Integrity Chain** | Financial entries per project, SHA-256 linked hash chain, integrity verification | `LedgerEntryController`, `BlockchainService`, `Chain` |
+| **Ratings & Engagement** | Student/teacher rating submission, moderation, aggregation, gamification (points/badges/leaderboard) | `UserProjectController`, `AdviserRatingsController` |
+| **Admin & RBAC** | User management, role/permission grant editing, system-wide audit logs | `UserManagementController`, `RolePermissionService`, `AuditLog` |
+| **Notifications** | In-app + email notifications across role dashboards | `*NotificationController` (per-role), `Notification` models |
 
 ---
 
-## 📦 Installation & Setup
+## 👥 User Roles & Permission Matrix
+
+STEP has six role slugs enforced in two layers: coarse `role:` route middleware, and a fine-grained permission catalog editable at runtime by Superadmin (including per-CSG-position overrides).
+
+| Capability | Student | Teacher | CSG Officer | Council Adviser / SADU Admin | Superadmin |
+|---|:---:|:---:|:---:|:---:|:---:|
+| View projects | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Create / edit / delete projects | ❌ | ❌ | ✅ | ❌ | ✅ |
+| Approve projects | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Submit ratings | ✅ | ✅ | ❌ | ❌ | ✅ |
+| View / moderate ratings | ✅ (own) | ✅ (own) | ✅ (view) | ✅ (view) | ✅ (moderate) |
+| Create / edit ledger entries | ❌ | ❌ | ✅ | ❌ | ✅ |
+| Approve ledger entries | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Upload proof documents | ❌ | ❌ | ✅ | ✅ (view only) | ✅ |
+| Create / approve meeting minutes | ❌ | ❌ | ✅ (create) | ✅ (approve) | ✅ |
+| View ledger integrity chain | ❌ | ❌ | ✅ (own projects) | ✅ | ✅ |
+| Manage users (create/disable/reset/role) | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Edit role/permission grants & CSG positions | ❌ | ❌ | ❌ | ❌ | ✅ |
+| View system-wide audit logs | ❌ | ❌ | ❌ | ❌ | ✅ |
+| System configuration | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+**Caveats that matter before you rely on this table:**
+- Several `/sadmin/*` routes (Data Backup, Organizations, System Settings, Global Reports, Engagement Rules, Master Data) currently render static placeholder pages with no backing controller — scaffolded, not shipped.
+- The `role:superadmin` route group is annotated in `routes/web.php` itself as *"Temporarily without middleware for testing"* — confirm this is hardened before any public-facing deployment.
+- CSG grants can be further scoped per council position (President vs. Treasurer, etc.) at runtime — not reflected as a static default above.
+
+---
+
+## 📦 Local Setup
 
 ### Prerequisites
 
-- PHP 8.2 or higher
-- Composer
-- Node.js (v16+) and npm/yarn
-- MySQL 8.0 or MariaDB 10.4+
+- PHP 8.2+, Composer
+- Node.js 16+, npm
+- MySQL 8.0 / MariaDB 10.4+
 - Git
 
-### Step 1: Clone Repository
+### Setup
 
 ```bash
 git clone https://github.com/JamesTamayo-Imben/step22.git
 cd step22
-```
 
-### Step 2: Install Dependencies
-
-```bash
-# Install PHP dependencies
 composer install
-
-# Install JavaScript dependencies
 npm install
-```
 
-### Step 3: Environment Configuration
-
-```bash
-# Copy environment file
 cp .env.example .env
-
-# Generate application key
 php artisan key:generate
-```
 
-**Update `.env` with:**
-
-```env
-APP_NAME=STEP
-APP_URL=http://localhost:8000
-
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=step_system
-DB_USERNAME=root
-DB_PASSWORD=
-
-# Supabase OAuth Configuration
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_KEY=your_supabase_service_key
-
-# Mail Configuration
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.mailtrap.io
-MAIL_PORT=2525
-MAIL_USERNAME=your_username
-MAIL_PASSWORD=your_password
-MAIL_FROM_ADDRESS=noreply@kld.edu.ph
-```
-
-### Step 4: Database Setup
-
-```bash
-# Run migrations
 php artisan migrate
-
-# Seed database with sample data (optional)
-php artisan db:seed
-
-# Create storage symlink
-php artisan storage:link
 ```
 
-### Step 5: Start Development Servers
+### Critical Environment Variables
+
+> Values below are **mock placeholders** for reference only. Never commit a populated `.env` file — including under a non-standard filename — to version control.
+
+| Variable | Purpose | Example (mock) |
+|---|---|---|
+| `APP_KEY` | Laravel encryption key, generated locally | `base64:GENERATE_WITH_ARTISAN_KEY_GENERATE=` |
+| `APP_URL` | Base URL used for signed links/emails | `http://localhost:8000` |
+| `DB_CONNECTION` / `DB_HOST` / `DB_DATABASE` / `DB_USERNAME` / `DB_PASSWORD` | MySQL connection | `mysql` / `127.0.0.1` / `step_local` / `root` / `changeme` |
+| `SESSION_DRIVER` | Session storage backend | `database` |
+| `QUEUE_CONNECTION` | Queue backend for mailables | `database` (requires a running `queue:listen` worker — see [Pitfalls](#-common-pitfalls--troubleshooting)) |
+| `MAIL_MAILER` / `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` | Outbound SMTP for OTP/credential/notification emails | `smtp` / `smtp.gmail.com` / `587` / `no-reply@yourdomain.edu` / `use an app password, not your login password` |
+| `VITE_SUPABASE_URL` | Supabase project URL (frontend-exposed) | `https://your-project.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Supabase public anon key (frontend-exposed, RLS-bound) | `sb_publishable_xxxxxxxxxxxxxxxx` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Backend-only key that **bypasses Row Level Security** | `⚠️ server-side only — never expose to the frontend or commit to git` |
 
 ```bash
-# Terminal 1: Laravel Development Server
+# Terminal 1 — app server
 php artisan serve
 
-# Terminal 2: Vite Development Server
+# Terminal 2 — queue worker (required for OTP/welcome/success mail)
+php artisan queue:listen --tries=1
+
+# Terminal 3 — frontend build
 npm run dev
 ```
 
-Access the application at `http://localhost:8000`
-
-### Step 6: Verify Installation
-
-- Navigate to login page
-- Try Google OAuth login with @kld.edu.ph email
-- Complete onboarding flow
-- Access user dashboard
+Or run all three concurrently via `composer dev`.
 
 ---
 
-## 🗄 Database Schema
+## 🚀 Development Workflow & CI/CD
 
-### Core Tables
+**Current state: there is no CI/CD pipeline in this repository today** (no `.github/workflows`, no containerization). The steps below are what's runnable locally now, followed by the recommended pipeline this project should adopt before any production deployment.
 
-#### `users`
-Main user account table
-- `id` (UUID) - Primary Key
-- `name` (string) - User's full name
-- `email` (string) - University email
-- `role_id` (UUID) - Foreign Key to roles
-- `profile_completed` (boolean) - Onboarding status
-- `phone` (string) - Contact number
-- `avatar_url` (string) - Profile picture
-- `email_verified_at` (timestamp) - Email verification
-- `password` (string) - Hashed password (nullable for OAuth users)
-- `timestamps`
-
-#### `roles`
-User role definitions
-- `id` (UUID) - Primary Key
-- `name` (string) - Role name (Student, Teacher, Admin, Superadmin)
-- `slug` (string) - URL-friendly role identifier
-- `description` (text) - Role description
-- `timestamps`
-
-#### `student_csg_officers`
-Student information and CSG roles
-- `id` (string) - Student ID (Primary Key)
-- `user_id` (UUID) - Foreign Key to users
-- `course_id` (UUID) - Foreign Key to courses
-- `is_csg` (boolean) - Is CSG member
-- `csg_is_active` (boolean) - CSG member active status
-- `timestamps`
-
-#### `teacher_adviser`
-Teacher information and adviser roles
-- `id` (string) - Employee ID (Primary Key)
-- `user_id` (UUID) - Foreign Key to users
-- `institute_id` (UUID) - Foreign Key to institutes
-- `is_adviser` (boolean) - Is class adviser
-- `timestamps`
-
-#### `courses`
-Course/Subject information
-- `id` (UUID) - Primary Key
-- `code` (string) - Course code (unique)
-- `name` (string) - Course name
-- `description` (text) - Course description
-- `credit_units` (decimal) - Credit value
-- `institute_id` (UUID) - Foreign Key to institutes
-- `timestamps`
-
-#### `institutes`
-Academic institutes/departments
-- `id` (UUID) - Primary Key
-- `code` (string) - Institute code (unique)
-- `name` (string) - Institute name
-- `description` (text) - Institute description
-- `head_name` (string) - Institute head/chair
-- `timestamps`
-
-#### `grades`
-Student grades and evaluations
-- `id` (UUID) - Primary Key
-- `student_id` (string) - Foreign Key to student_csg_officers
-- `course_id` (UUID) - Foreign Key to courses
-- `teacher_id` (string) - Foreign Key to teacher_adviser
-- `grade` (decimal) - Numeric grade
-- `remarks` (text) - Teacher comments
-- `timestamps`
-
-#### `audit_logs`
-System audit trail
-- `id` (UUID) - Primary Key
-- `user_id` (UUID) - Foreign Key to users
-- `action` (string) - Action performed
-- `model` (string) - Model affected
-- `model_id` (string) - Record ID
-- `changes` (json) - Before/after values
-- `ip_address` (string) - User IP
-- `user_agent` (string) - Browser info
-- `timestamps`
-
-#### `notifications`
-User notifications
-- `id` (UUID) - Primary Key
-- `user_id` (UUID) - Foreign Key to users
-- `type` (string) - Notification type
-- `title` (string) - Notification title
-- `message` (text) - Notification content
-- `read_at` (timestamp) - Read status
-- `timestamps`
-
-### Relationships Diagram
-
-```
-users (1) ──────── (1) roles
-  │
-  ├─── (1) ────── (1) student_csg_officers
-  │                      │
-  │                      └─── (1) ────── (1) courses
-  │
-  ├─── (1) ────── (1) teacher_adviser
-  │                      │
-  │                      └─── (1) ────── (1) institutes
-  │
-  ├─── (1) ────── (M) grades
-  │
-  ├─── (1) ────── (M) audit_logs
-  │
-  └─── (1) ────── (M) notifications
-
-courses (1) ────── (M) grades
-           └────── (M) student_csg_officers
-
-institutes (1) ──── (M) teacher_adviser
-            └───── (M) courses
-
-teacher_adviser (1) ──── (M) grades
-```
-
----
-
-## 🔐 Authentication System
-
-### OAuth Flow (Google)
-
-```
-1. User clicks "Sign in with Google" → Redirects to Supabase OAuth endpoint
-2. User authenticates with Google account
-3. Google redirects back with authorization code
-4. Supabase exchanges code for ID token
-5. Token sent to Laravel backend (/api/auth/callback)
-6. Backend verifies token and creates/updates user in database
-7. Session established, user redirected to onboarding or dashboard
-```
-
-### Session Management
-
-- **Driver**: Database (configurable in `config/session.php`)
-- **Lifetime**: 120 minutes (configurable)
-- **Secure Cookies**: Enabled in production
-- **CSRF Protection**: Enabled on all state-changing requests
-
-### Password Policy
-
-- **Temporary Password Format**: `{email_local_part}KLD{year}`
-  - Example: `{username}@kld.edu.ph` → `{username}KLD2026`
-- **Required Change**: On first login after onboarding
-- **Minimum Length**: 8 characters (configurable)
-- **Complexity**: Enforced during password change
-
----
-
-## 📡 API Documentation
-
-### Base URL
-- Development: `http://localhost:8000/api`
-- Production: `https://your-domain.com/api`
-
-### Authentication
-Include CSRF token in request header or use Laravel cookies for authenticated requests.
-
-### Key Endpoints
-
-#### Authentication
-
-**POST** `/auth/callback`
-- Handle OAuth callback from Supabase
-- Body: `{ code, state }`
-- Response: User data and session token
-
-**POST** `/auth/logout`
-- Terminate user session
-- Response: `{ success: true }`
-
-#### Onboarding
-
-**POST** `/onboarding/complete`
-- Complete user profile setup
-- Body: `{ user_id, email, role, student_id, course_id, employee_id, institute_id }`
-- Response: User profile with assigned role and ID
-
-**POST** `/onboarding/skip`
-- Skip profile completion (minimal setup)
-- Body: `{ user_id, email }`
-- Response: `{ success: true, message: "..." }`
-
-**GET** `/onboarding/courses`
-- Retrieve available courses for student onboarding
-- Response: Array of courses with IDs and names
-
-**GET** `/onboarding/institutes`
-- Retrieve available institutes for teacher onboarding
-- Response: Array of institutes with IDs and names
-
-#### User Management
-
-**GET** `/user`
-- Retrieve current authenticated user profile
-- Response: User object with relationships (role, student, teacher)
-
-**PUT** `/user/profile`
-- Update user profile information
-- Body: `{ name, phone, avatar }`
-- Response: Updated user object
-
-**POST** `/user/password`
-- Change user password
-- Body: `{ current_password, password, password_confirmation }`
-- Response: `{ success: true }`
-
-#### Courses
-
-**GET** `/courses`
-- List all courses with pagination
-- Query: `?page=1&per_page=15`
-- Response: Paginated course list
-
-**GET** `/courses/{id}`
-- Retrieve specific course details
-- Response: Course object with enrolled students
-
-**POST** `/courses` (Admin only)
-- Create new course
-- Body: `{ code, name, description, credit_units, institute_id }`
-- Response: Created course object
-
-#### Grades
-
-**GET** `/grades/student/{student_id}`
-- Retrieve grades for specific student
-- Response: Array of grade records
-
-**POST** `/grades`
-- Record student grade (Teacher only)
-- Body: `{ student_id, course_id, grade, remarks }`
-- Response: Created grade record
-
-#### Notifications
-
-**GET** `/notifications`
-- Retrieve user notifications
-- Query: `?read=false` (filter unread)
-- Response: Array of notifications
-
-**PUT** `/notifications/{id}`
-- Mark notification as read
-- Response: Updated notification
-
----
-
-## 📁 Project Structure
-
-```
-step22/
-├── app/
-│   ├── Exceptions/
-│   │   └── Handler.php                    # Exception handling
-│   ├── Http/
-│   │   ├── Controllers/
-│   │   │   ├── Auth/
-│   │   │   │   ├── OAuthCallbackController.php
-│   │   │   │   ├── OnboardingController.php
-│   │   │   │   └── LoginController.php
-│   │   │   ├── UserController.php
-│   │   │   ├── CourseController.php
-│   │   │   └── GradeController.php
-│   │   ├── Middleware/
-│   │   │   ├── HandleInertiaRequests.php  # Inertia data sharing
-│   │   │   ├── VerifyCsrfToken.php
-│   │   │   └── Authenticate.php
-│   │   └── Requests/
-│   │       ├── OnboardingRequest.php
-│   │       └── ProfileUpdateRequest.php
-│   ├── Mail/
-│   │   ├── OnboardingWelcomeMail.php      # Welcome email with temp password
-│   │   ├── OTPMail.php
-│   │   └── SuccessMail.php
-│   ├── Models/
-│   │   ├── User.php                       # Core user model
-│   │   ├── Student.php
-│   │   ├── StudentCsgOfficer.php          # Student record with CSG info
-│   │   ├── Teacher.php
-│   │   ├── TeacherAdviser.php             # Teacher record with adviser info
-│   │   ├── Course.php
-│   │   ├── Institute.php
-│   │   ├── Role.php
-│   │   ├── Grade.php
-│   │   ├── Notification1.php
-│   │   ├── AuditLog.php
-│   │   └── CSG/
-│   │       └── Chain.php
-│   ├── Services/
-│   │   ├── SupabaseService.php            # Supabase OAuth service
-│   │   └── BlockchainService.php
-│   ├── Support/
-│   │   ├── AdviserLedgerFormatter.php
-│   │   └── BlockchainService.php
-│   └── Providers/
-│       └── AppServiceProvider.php
-├── bootstrap/
-│   ├── app.php
-│   └── providers.php
-├── config/
-│   ├── app.php                            # Application config
-│   ├── auth.php                           # Authentication config
-│   ├── database.php                       # Database config
-│   ├── mail.php                           # Email config
-│   ├── session.php                        # Session config
-│   └── services.php                       # Third-party services
-├── database/
-│   ├── migrations/                        # Database migrations
-│   │   ├── *_create_users_table.php
-│   │   ├── *_create_courses_table.php
-│   │   ├── *_create_student_csg_officers_table.php
-│   │   └── ... (more migrations)
-│   ├── seeders/                           # Database seeders
-│   └── factories/                         # Model factories
-├── public/
-│   ├── index.php                          # Application entry point
-│   ├── images/                            # Static images
-│   └── storage/                           # Symbolic link to storage/app/public
-├── resources/
-│   ├── css/
-│   │   └── app.css                        # Tailwind CSS
-│   ├── js/
-│   │   ├── app.jsx                        # React entry point
-│   │   ├── Pages/
-│   │   │   ├── Auth/
-│   │   │   │   ├── OAuthCallback.jsx      # OAuth handling & onboarding form
-│   │   │   │   └── Login.jsx
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── User/
-│   │   │   │   ├── pages/
-│   │   │   │   │   └── StudentProfile.jsx # Student/Teacher profile display
-│   │   │   │   └── Account.jsx
-│   │   │   ├── Courses/
-│   │   │   │   ├── Index.jsx
-│   │   │   │   └── Show.jsx
-│   │   │   └── Grades/
-│   │   │       └── Index.jsx
-│   │   └── Components/
-│   │       ├── Navigation.jsx
-│   │       ├── Sidebar.jsx
-│   │       └── ... (shared components)
-│   └── views/
-│       ├── app.blade.php                  # Inertia root template
-│       └── emails/
-│           ├── onboarding-welcome.blade.php # Welcome email template
-│           ├── otp.blade.php
-│           └── ... (other email templates)
-├── routes/
-│   ├── api.php                            # API routes
-│   ├── web.php                            # Web routes
-│   ├── auth.php                           # Auth routes
-│   └── console.php                        # Console commands
-├── storage/
-│   ├── app/                               # Application files
-│   ├── framework/                         # Framework cache
-│   └── logs/                              # Application logs
-├── tests/
-│   ├── Feature/                           # Feature tests
-│   └── Unit/                              # Unit tests
-├── .env.example                           # Environment template
-├── artisan                                # Laravel CLI
-├── composer.json                          # PHP dependencies
-├── package.json                           # JavaScript dependencies
-├── vite.config.js                         # Vite configuration
-├── tailwind.config.js                     # Tailwind CSS configuration
-├── phpunit.xml                            # PHPUnit configuration
-└── README.md                              # This file
-```
-
----
-
-## 👥 User Roles & Permissions
-
-### Role Hierarchy
-
-```
-┌─────────────────────────────────────────────┐
-│          Superadmin (Full Access)           │
-│  • Manage all users and roles               │
-│  • Configure system settings                │
-│  • View all audit logs                      │
-│  • Access all data                          │
-└─────────────────────────────────────────────┘
-                    ▲
-                    │
-        ┌───────────┴────────────┐
-        ▼                        ▼
-┌─────────────────┐    ┌──────────────────┐
-│      Admin      │    │ Institute Head   │
-│ • User Management   │ • Manage institute │
-│ • Course setup      │ • View institute   │
-│ • View reports      │   data             │
-└─────────────────┘    └──────────────────┘
-        ▲
-        │
-    ┌───┴─────┐
-    ▼         ▼
- Teacher   Student
- • Teach    • View grades
- • Grade    • Submit work
- • Advise   • Rate courses
-```
-
-### Permission Matrix
-
-| Action | Student | Teacher | Admin | Superadmin |
-|--------|---------|---------|-------|-----------|
-| View Own Grades | ✅ | ✅ | ✅ | ✅ |
-| Record Grades | ❌ | ✅ | ✅ | ✅ |
-| Manage Users | ❌ | ❌ | ✅ | ✅ |
-| Create Courses | ❌ | ❌ | ✅ | ✅ |
-| View Audit Logs | ❌ | ❌ | ✅ | ✅ |
-| System Config | ❌ | ❌ | ❌ | ✅ |
-
----
-
-## 🔧 Key Components
-
-### Frontend Components
-
-#### `OAuthCallback.jsx`
-Handles Google OAuth authentication callback and onboarding form display.
-
-**Features:**
-- Validates @kld.edu.ph email domain
-- Dynamic form fields based on user role
-- Course/Institute selection dropdowns
-- Real-time validation with error display
-- Submits complete/skip onboarding action
-- Sends temporary password via email
-
-**Props:**
-- `auth.user` - Authenticated user data
-- `auth.redirect_url` - Post-login redirect
-
-#### `StudentProfile.jsx`
-Displays user profile with student/employee IDs.
-
-**Features:**
-- Shows Student ID for students
-- Shows Employee ID for teachers
-- Displays profile information
-- Editable profile fields
-- Role-specific information display
-
-#### Navigation Components
-- Responsive sidebar navigation
-- Role-based menu items
-- User dropdown menu
-- Mobile hamburger menu
-
-### Backend Controllers
-
-#### `OnboardingController`
-
-**Methods:**
-- `complete()` - Finalize onboarding with student/teacher linking
-- `skip()` - Skip profile setup and send welcome email
-- `setPassword()` - Allow user to set new password
-- `getCourses()` - Return available courses
-- `getInstitutes()` - Return available institutes
-
-**Key Logic:**
-- Database transactions for atomic operations
-- Temporary password generation and email sending
-- Student/teacher record creation
-- Validation and error handling
-
-#### `UserController`
-
-**Methods:**
-- `show()` - Get current user profile
-- `update()` - Update profile information
-- `changePassword()` - Change user password
-
----
-
-## 🚀 Development Workflow
-
-### Running the Application
+### What exists today (run before every PR)
 
 ```bash
-# Terminal 1: Start Laravel server
-php artisan serve
-
-# Terminal 2: Start Vite development server
-npm run dev
-
-# Access application at http://localhost:8000
+php artisan pint          # PSR-12 style fix (backend)
+php artisan test          # PHPUnit: tests/Feature + tests/Unit
+npm run build             # Vite production build sanity check
 ```
 
-### Database Management
+### Recommended pipeline (not yet implemented — proposed target state)
 
-```bash
-# Create new migration
-php artisan make:migration create_table_name
-
-# Run migrations
-php artisan migrate
-
-# Rollback last migration
-php artisan migrate:rollback
-
-# Seed database
-php artisan db:seed
-
-# Fresh migration and seed
-php artisan migrate:fresh --seed
+```
+lint (Pint + ESLint) → test (PHPUnit + npm test) → build (composer + vite) → deploy
 ```
 
-### Code Quality
+| Stage | Tooling | Gate |
+|---|---|---|
+| Lint | `laravel/pint`, ESLint (frontend linting not yet configured) | Fails PR on style violations |
+| Test | `php artisan test`, target ≥80% coverage per existing contribution guidelines | Fails PR on any failing test or coverage regression |
+| Build | `composer install --no-dev`, `npm run build` | Fails PR on build error |
+| Deploy | Manual/SSH today; target: tagged release → environment promotion | Requires passing lint+test+build and one approving review |
 
-```bash
-# Run PHP tests
-php artisan test
+### Merge requirements
 
-# Fix code style
-php artisan pint
-
-# Check code coverage
-php artisan test --coverage
-```
-
-### Debugging
-
-```bash
-# View application logs
-tail -f storage/logs/laravel.log
-
-# Tinker (interactive shell)
-php artisan tinker
-
-# Debug email sending (test)
-php artisan tinker
-# In tinker: Mail::to('test@example.com')->send(new OnboardingWelcomeMail(...))
-```
+1. Feature branch off `main`: `git checkout -b feature/your-feature`
+2. Pint + PHPUnit pass locally before opening a PR
+3. At least one reviewer approval
+4. No direct pushes to `main`
 
 ---
 
-## 🐛 Troubleshooting
+## 📊 Observability
 
-### Common Issues
+**Current state** — this is a single-instance monolith, so observability is file/log-based rather than a metrics/tracing stack:
 
-#### 1. "422 Unprocessable Content" on Onboarding
+| Signal | Where to find it |
+|---|---|
+| Application logs | `storage/logs/laravel.log` (`tail -f storage/logs/laravel.log`), or live-stream via `php artisan pail` |
+| Domain audit trail | `audit_logs` table (`AuditLog` model) — user actions, module, IP, browser info; queryable by Superadmin at `/sadmin/system-logs` |
+| Ledger integrity | Per-project chain verification via `BlockchainController@verify` — recomputes hashes and reports whether the chain is intact |
+| Queue health | No dashboard today — inspect the `jobs` / `failed_jobs` tables directly, or run `php artisan queue:failed` |
+| Errors | Laravel's default exception handler + `storage/logs` — no external error tracker (Sentry/Bugsnag) wired up today |
 
-**Cause**: Missing required fields in API request
-**Solution**: Ensure `email` and `role` fields are included in POST body
-
-```javascript
-// ✅ Correct
-fetch('/api/onboarding/complete', {
-  body: JSON.stringify({
-    user_id: uuid,
-    email: 'user@kld.edu.ph',
-    role: 'student',
-    student_id: 'STU001',
-    course_id: courseUuid
-  })
-})
-
-// ❌ Wrong - Missing email and role
-fetch('/api/onboarding/complete', {
-  body: JSON.stringify({
-    user_id: uuid,
-    student_id: 'STU001',
-    course_id: courseUuid
-  })
-})
-```
-
-#### 2. Student IDs Not Displaying in Profile
-
-**Cause**: User model relationship not loading StudentCsgOfficer
-**Solution**: Verify `HandleInertiaRequests` middleware loads relationships:
-
-```php
-// config/app.php middleware
-$user->load('role', 'student', 'teacher');
-```
-
-#### 3. Emails Not Sending
-
-**Cause**: Mail configuration incorrect or SMTP credentials invalid
-**Solution**: 
-- Verify `.env` mail settings
-- Test with Mailtrap or local mail service
-- Check `storage/logs/laravel.log` for errors
-
-```bash
-# Test email sending
-php artisan tinker
-Mail::to('test@kld.edu.ph')->send(new OnboardingWelcomeMail(...))
-```
-
-#### 4. OAuth Login Not Working
-
-**Cause**: Supabase credentials or redirect URL misconfigured
-**Solution**:
-- Verify `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `.env`
-- Ensure redirect URL matches in Supabase configuration
-- Check browser console for OAuth errors
-
-#### 5. Session Not Persisting
-
-**Cause**: Session configuration or driver issue
-**Solution**:
-- Verify `SESSION_DRIVER=database` in `.env`
-- Run `php artisan migrate` to create sessions table
-- Check cookie settings in `config/session.php`
+**Gaps to flag for anyone hardening this for production:** no metrics export (Prometheus-style), no distributed tracing (not applicable to a single-process monolith, but request-level timing/APM is still absent), and no alerting on `failed_jobs` growth — currently an operator has to notice manually.
 
 ---
 
-## 📝 Contributing
+## 🐛 Common Pitfalls & Troubleshooting
 
-Contributions are welcome! Please follow these guidelines:
+### 1. Queued OTP/welcome emails never arrive
 
-### Code Style
-- Follow PSR-12 standard for PHP
-- Use Laravel naming conventions
-- Add DocBlocks to functions/methods
+**Symptom**: `Mail::to(...)->send(...)` appears to succeed, user reports never receiving the OTP or welcome email.
+**Cause**: `OTPMail` and `SuccessMail` implement `ShouldQueue`, but `QUEUE_CONNECTION=database` only *stores* the job — nothing dispatches it without a running worker.
+**Fix**: Confirm `php artisan queue:listen` (or `queue:work`) is running in every environment, including production. Check `SELECT * FROM jobs` / `SELECT * FROM failed_jobs` to see if mail is stuck rather than lost.
 
-### Testing
-- Write tests for new features
-- Ensure all tests pass: `php artisan test`
-- Maintain code coverage above 80%
+### 2. Ledger integrity chain reports as broken after a legitimate edit
 
-### Commit Messages
-```
-Format: [TYPE] Brief description
+**Symptom**: `BlockchainController@verify` reports a hash mismatch after someone edits a historical ledger entry directly (e.g. via a DB tool or a bug in an update path that doesn't go through `BlockchainService`).
+**Cause**: The chain is intentionally tamper-evident — any out-of-band write to a ledger row invalidates every subsequent hash. This is a data-consistency signal working as designed, not a bug, but it will look alarming if the team doesn't know how it fails.
+**Fix**: All ledger mutations must go through `BlockchainService::addBlockToChain`. If a chain break is confirmed post-incident, the correct remediation is a documented, audited resync — never a silent hash rewrite, which defeats the entire purpose of the chain.
 
-Types:
-- feat: New feature
-- fix: Bug fix
-- docs: Documentation
-- style: Code style changes
-- refactor: Code refactoring
-- test: Test additions/changes
-- chore: Dependencies or config
+### 3. Race condition on concurrent ledger writes to the same project
 
-Example:
-feat: Add email notifications on onboarding completion
-```
+**Symptom**: Two ledger entries submitted near-simultaneously for the same project occasionally produce a chain with a duplicated `block_index` or an incorrect `prev_hash` link.
+**Cause**: `BlockchainService::addBlockToChain` reads the latest block (`orderByDesc('block_index')->first()`) and then writes a new one — this read-then-write is not wrapped in a row-level lock or DB transaction with `lockForUpdate()`, so concurrent requests can both read the same "latest" block before either commits.
+**Fix**: Wrap the read-latest-block + insert-new-block sequence in a DB transaction with `lockForUpdate()` on the project's chain rows, or serialize ledger writes per-project at the application layer (e.g. a per-project mutex/queue) until that locking is added.
 
-### Pull Request Process
-1. Create feature branch: `git checkout -b feature/your-feature`
-2. Commit changes with clear messages
-3. Push to repository: `git push origin feature/your-feature`
-4. Create Pull Request with description
-5. Address code review comments
-6. Merge after approval
+### 4. Session appears to log the user out when switching between role dashboards
+
+**Symptom**: A user with a CSG position who is also a student reports being redirected to login when moving between `/user/*` and `/csg/*` routes.
+**Cause**: `role:` middleware checks a single `role_id` on `users`, loaded via `HandleInertiaRequests`. If the relationship isn't eagerly reloaded after a role/position change mid-session, stale role data can trigger a false negative in `CheckRole`.
+**Fix**: Force a session/role reload after any role or CSG-position mutation (`$user->load('role')` before the next `role:` check), rather than relying on data cached earlier in the request lifecycle.
 
 ---
 
-## 📞 Support
+## 🧹 Known Issues & Housekeeping
 
-For issues, questions, or suggestions:
-- **Email**: support@kld.edu.ph
-- **GitHub Issues**: [Report an issue](https://github.com/JamesTamayo-Imben/step22/issues)
-- **Documentation**: Check inline code comments and `/docs` folder
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- **Secrets in tracked files**: `.env.example` and a stray `.env-with HTTPS` file have previously contained live credentials (Supabase service role key, Gmail app password, `APP_KEY`). If you're standing this project up, generate fresh credentials — do not reuse any value that has appeared in this repo's history — and rotate the Supabase and Gmail credentials regardless, since git history retains them even after deletion.
+- **Duplicate/scratch files**: `composer copy.json`, `composer - Copy.lock`, `routes/web copy.php`, `BulkRegistrationController copy.php`, and multiple historical `step_system_database*.sql` dumps are present and pending cleanup. Treat the non-`copy` file as canonical.
+- **Legacy duplicate models**: `Rating1`, `Project1`, `Notification1`, `LedgerEntry1` exist alongside their namespaced equivalents (`User\Rating`, `User\Project`, etc.) — new work should target the namespaced versions; consolidation is planned.
+- **Repo size**: demo videos and images are committed directly (~97MB) rather than via Git LFS or external hosting — inflates every clone.
 
 ---
 
-## 🙏 Acknowledgments
+## 📄 License & Contact
 
-- Built with [Laravel](https://laravel.com) and [React](https://react.dev)
-- Styled with [Tailwind CSS](https://tailwindcss.com)
-- Powered by [Inertia.js](https://inertiajs.com)
-- Authentication via [Supabase](https://supabase.com)
-- Developed for Kolehiyo ng Lungsod ng Dasmariñas (KLD)
+Licensed under the **MIT License** — see [`LICENSE`](LICENSE) for full terms.
 
----
-
-**Last Updated**: April 20, 2026
-**Version**: 1.0.0
 **Maintainer**: James Tamayo-Imben
+**Support / Issues**: [GitHub Issues](https://github.com/JamesTamayo-Imben/step22/issues)
+**Institution**: Kolehiyo ng Lungsod ng Dasmariñas (KLD)
+
+---
+
+**Last Updated**: August 23, 2026
+**Version**: 1.0.0
