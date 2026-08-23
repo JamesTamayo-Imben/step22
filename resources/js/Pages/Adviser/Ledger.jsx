@@ -618,7 +618,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
             </button>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
               <div className="flex items-center justify-between">
                 <div>

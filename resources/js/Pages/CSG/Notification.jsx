@@ -12,7 +12,7 @@ const filters = [
   { id: 'meeting', label: 'Meetings' },
   // { id: 'badge', label: 'Badges' },
   // { id: 'points', label: 'Points' },
-  { id: 'rating', label: 'Ratings' },
+  // { id: 'rating', label: 'Ratings' },
   { id: 'system', label: 'System' },
 ];
 

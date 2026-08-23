@@ -65,6 +65,13 @@ export default function ConcernsPage() {
     });
   }, [items]);
 
+    const getFavoriteColor = (concern) => {
+    switch (concern.favorite) {
+      case true: return 'text-yellow-700 bg-yellow-100';
+      case false: return 'text-gray-700 bg-gray-100';
+    }
+  };
+
   const filteredItems = useMemo(() => {
     return sortedItems.filter((concern) => matchesFilter(concern, searchQuery, statusFilter));
   }, [sortedItems, searchQuery, statusFilter]);
@@ -87,6 +94,7 @@ export default function ConcernsPage() {
       return;
     }
 
+  
     const newState = !item.favorite;
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
@@ -158,7 +166,7 @@ export default function ConcernsPage() {
         </div>
 
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {paginatedItems.length === 0 ? (
               <Card className="col-span-full rounded-[20px] border-0 shadow-sm p-12">
                 <div className="text-center">
@@ -170,10 +178,10 @@ export default function ConcernsPage() {
             ) : (
               paginatedItems.map((concern) => (
                 <Card key={concern.id} className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all">
-                  <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="font-semibold text-gray-900 truncate">Concern</h3>
-                      <p className="text-xs text-gray-500 mt-1">Submitted {new Date(concern.created_at).toLocaleString()}</p>
+                      <p className="text-xs text-gray-500">Submitted {new Date(concern.created_at).toLocaleString()}</p>
                     </div>
                     <button
                       type="button"
@@ -185,14 +193,16 @@ export default function ConcernsPage() {
                     </button>
                   </div>
 
-                  <div className="mb-4">
+                  <div className="mb-2">
                     <p className="text-sm text-gray-700 whitespace-pre-line">{concern.concern}</p>
-                    <p className="text-xs text-gray-400 mt-1">Student Name: {concern.name ? concern.name : 'Anonymous'}</p>
+                    <p className="text-xs text-gray-400">Student Name: {concern.name ? concern.name : 'Anonymous'}</p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <Badge className="bg-blue-100 text-blue-700 rounded-lg">{concern.favorite ? 'Favorited' : 'Normal'}</Badge>
-                    <Badge className="bg-gray-100 text-gray-700 rounded-lg">{new Date(concern.created_at).toLocaleDateString()}</Badge>
+                    <Badge className={`rounded-lg ${getFavoriteColor(concern)}`}>
+                      {concern.favorite ? 'Favorited' : 'Normal'}
+                    </Badge>
+                    {/* <Badge className="bg-gray-100 text-gray-700 rounded-lg">{new Date(concern.created_at).toLocaleDateString()}</Badge> */}
                   </div>
                 </Card>
               ))

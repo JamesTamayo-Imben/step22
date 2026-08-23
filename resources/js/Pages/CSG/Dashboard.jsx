@@ -1206,7 +1206,7 @@ const formatHeatmapTooltip = (item) => {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="stats-grid-section">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="stats-grid-section">
         <StatsCard
           title="Active Projects"
           value={projectStatusCounts.active}

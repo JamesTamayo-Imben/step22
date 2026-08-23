@@ -947,7 +947,7 @@ const getTypeAmountColor = (type) => {
   )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="rounded-[20px] border-0 shadow-sm p-6">
           <div className="flex items-center justify-between">
             <div>

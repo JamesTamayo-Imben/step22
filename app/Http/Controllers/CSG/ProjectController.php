@@ -912,7 +912,7 @@ class ProjectController extends Controller
             return null;
         }
 
-        return Storage::url($path);
+        return Storage::disk('public')->url($this->normalizeStoragePath($path));
     }
 
     private function storageExists(?string $path): bool

@@ -373,7 +373,7 @@ export default function AdviserApprovalsPage() {
             </div> */}
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="rounded-[20px] p-4 border-0 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
@@ -846,10 +846,10 @@ export default function AdviserApprovalsPage() {
                 <p className="text-sm text-gray-500 mb-1">Proof Document *</p>
                 {selectedItem?.ledger_proof ? (
                    <div className="flex items-center justify-between">
-                                     <div className="flex items-center gap-3">
+                                     <div className="flex items-center gap-3 min-w-0">
                                        <FileText className="w-8 h-8 text-blue-600" />
-                                       <div>
-                                         <p className="text-sm font-medium text-gray-900">
+                                       <div className="min-w-0">
+                                         <p className="text-sm font-medium text-gray-900 truncate">
                                            {selectedItem.ledger_proof.split('/').pop()}
                                          </p>
                                          <p className="text-xs text-gray-500">
