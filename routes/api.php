@@ -41,9 +41,9 @@ Route::middleware(EnsureFrontendRequestsAreStateful::class)->group(function () {
 /**
  * AUTHENTICATION - OTP Routes (No auth required)
  */
-Route::post('/send-otp', [OTPController::class, 'sendOTP']);
-Route::post('/verify-otp', [OTPController::class, 'verifyOTP']);
-Route::post('/resend-otp', [OTPController::class, 'resendOTP']);
+Route::post('/send-otp', [OTPController::class, 'sendOTP'])->middleware('throttle:6,1');
+Route::post('/verify-otp', [OTPController::class, 'verifyOTP'])->middleware('throttle:6,1');
+Route::post('/resend-otp', [OTPController::class, 'resendOTP'])->middleware('throttle:6,1');
 
 /**
  * PASSWORD RESET - OTP-based password reset (No auth required)
@@ -110,28 +110,32 @@ Route::prefix('onboarding')->group(function () {
 /**
  * CSG FINANCIAL SYSTEM ROUTES
  */
+// Protect ledger and project API endpoints with Sanctum auth
+Route::middleware(['auth:sanctum'])->group(function () {
+    // Route to create a new ledger entry with file upload
+    // This is used by the CSG Add Ledger Entry modal
+    Route::post('/ledger-entries', [LedgerEntryController::class, 'store']);
 
-// Route to create a new ledger entry with file upload
-// This is used by the CSG Add Ledger Entry modal
-Route::post('/ledger-entries', [LedgerEntryController::class, 'store']);
+    // Route to handle the document/image upload for a specific ledger entry
+    // This matches your React fetch: `/api/ledger-entries/{id}/upload`
+    Route::post('/ledger-entries/{id}/upload', [LedgerEntryController::class, 'uploadProof']);
 
-// Route to handle the document/image upload for a specific ledger entry
-// This matches your React fetch: `/api/ledger-entries/{id}/upload`
-Route::post('/ledger-entries/{id}/upload', [LedgerEntryController::class, 'uploadProof']);
+    // Route to fetch all entries for a specific project
+    // Supports both: /api/ledger-entries/project/{projectId} and query param
+    Route::get('/ledger-entries/project/{projectId}', [LedgerEntryController::class, 'index']);
 
-// Route to fetch all entries for a specific project
-// Supports both: /api/ledger-entries/project/{projectId} and query param
-Route::get('/ledger-entries/project/{projectId}', [LedgerEntryController::class, 'index']);
+    // Route to fetch all entries (accepts project_id as query parameter)
+    Route::get('/ledger-entries', [LedgerEntryController::class, 'all']);
 
-// Route to fetch all entries (accepts project_id as query parameter)
-Route::get('/ledger-entries', [LedgerEntryController::class, 'all']);
+    // Route to verify blockchain integrity for a project
+    Route::get('/projects/{projectId}/verify-chain', [LedgerEntryController::class, 'verifyChain']);
 
-// Route to verify blockchain integrity for a project
-Route::get('/projects/{projectId}/verify-chain', [LedgerEntryController::class, 'verifyChain']);
+    /**
+     * CSG PROJECT API ROUTES
+     */
+    Route::apiResource('projects', ProjectController::class, [
+        'only' => ['index', 'store', 'show', 'update', 'destroy']
+    ]);
+});
 
-/**
- * CSG PROJECT API ROUTES
- */
-Route::apiResource('projects', ProjectController::class, [
-    'only' => ['index', 'store', 'show', 'update', 'destroy']
-]);
+// NOTE: OTP, onboarding, institutes, and course provider routes intentionally remain public
