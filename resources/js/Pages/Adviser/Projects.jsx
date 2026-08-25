@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
-import { CalendarDays, DollarSign, FolderKanban, Search, Star } from 'lucide-react';
+import ReactDOM from 'react-dom';
+import { CalendarDays, DollarSign, FolderKanban, Search, Star, X } from 'lucide-react';
 
 const SORT_OPTIONS = [
   { value: 'all', label: 'Default Sorting' },
@@ -166,6 +167,16 @@ export default function AdviserProjectsPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState('all');
+  const [selectedProject, setSelectedProject] = useState(null);
+
+  const handleProjectClick = (project) => {
+    if (project.approval_status === 'Approved') {
+      setSelectedProject(project);
+      return;
+    }
+
+    router.visit(`/adviser/approvals?project=${encodeURIComponent(project.id)}`);
+  };
 
   const stats = useMemo(() => {
     const computedProjects = projects.map((project) => ({
@@ -318,7 +329,16 @@ export default function AdviserProjectsPage() {
                 <p className="text-base text-gray-700">Recommended from best-performing past projects near the current month.</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                   {recommendedProjects.map((project) => (
-                    <Card key={project.id} className="rounded-[20px] border border-blue-500 bg-white p-4 shadow-sm">
+                    <Card
+                      key={project.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleProjectClick(project)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') handleProjectClick(project);
+                      }}
+                      className="rounded-[20px] border border-blue-500 bg-white p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                    >
                       <div className="mb-3">
                         <h2 className="text-sm font-semibold text-gray-900 line-clamp-2">{project.title || 'Untitled Project'}</h2>
                         <p className="text-xs text-gray-500">{project.category || 'Uncategorized'}</p>
@@ -362,7 +382,16 @@ export default function AdviserProjectsPage() {
                 const computedStatus = getCalculatedStatus(project);
 
                 return (
-                  <Card key={project.id} className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all flex flex-col gap-4">
+                  <Card
+                    key={project.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleProjectClick(project)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') handleProjectClick(project);
+                    }}
+                    className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all flex flex-col gap-4 cursor-pointer"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h3 className="font-semibold text-gray-900 line-clamp-2">{project.title || 'Untitled Project'}</h3>
@@ -422,6 +451,38 @@ export default function AdviserProjectsPage() {
           </div>
         </div>
       </div>
+
+      {selectedProject && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setSelectedProject(null)}>
+          <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-lg" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-6 flex items-start justify-between gap-4 border-b pb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">{selectedProject.title || 'Untitled Project'}</h2>
+                <p className="mt-1 text-sm text-gray-500">Approved project details</p>
+              </div>
+              <button type="button" onClick={() => setSelectedProject(null)} className="text-gray-500 hover:text-gray-700" aria-label="Close project details">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div><p className="text-xs text-gray-500">Status</p><Badge className="mt-1 rounded-lg bg-green-100 text-green-700">{selectedProject.approval_status || 'Approved'}</Badge></div>
+              <div><p className="text-xs text-gray-500">Category</p><p className="mt-1 text-sm text-gray-900">{selectedProject.category || 'Not specified'}</p></div>
+              <div><p className="text-xs text-gray-500">Budget</p><p className="mt-1 text-sm text-gray-900">{formatCurrency(selectedProject.budget)}</p></div>
+              <div><p className="text-xs text-gray-500">Timeline</p><p className="mt-1 text-sm text-gray-900">{formatTimeline(selectedProject)}</p></div>
+              <div><p className="text-xs text-gray-500">Venue</p><p className="mt-1 text-sm text-gray-900">{selectedProject.venue || 'Not specified'}</p></div>
+              <div><p className="text-xs text-gray-500">Created By</p><p className="mt-1 text-sm text-gray-900">{selectedProject.created_by || selectedProject.proposed_by || 'Unknown'}</p></div>
+              <div className="sm:col-span-2"><p className="text-xs text-gray-500">Objective</p><p className="mt-1 whitespace-pre-wrap text-sm text-gray-900">{selectedProject.objective || 'No objective provided'}</p></div>
+              <div className="sm:col-span-2"><p className="text-xs text-gray-500">Description</p><p className="mt-1 whitespace-pre-wrap text-sm text-gray-900">{selectedProject.description || 'No description provided'}</p></div>
+            </div>
+
+            <div className="mt-6 flex justify-end border-t pt-4">
+              <button type="button" onClick={() => setSelectedProject(null)} className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Close</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </AuthenticatedLayout>
   );
 }

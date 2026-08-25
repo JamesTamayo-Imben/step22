@@ -414,7 +414,15 @@ export default function RolePermissionEditor({
                       <div className={`flex h-6 w-6 items-center justify-center rounded-md ${permission.enabled ? 'bg-[#dcfce7] text-[#16a34a]' : 'bg-[#e5e7eb] text-[#6b7280]'}`}>
                         {permission.enabled ? <Check className="w-4 h-4" /> : <span className="text-xs">✕</span>}
                       </div>
-                      <span className="text-[15px] font-medium text-[#374151]">{permission.label}</span>
+                      <span className="text-[15px] font-medium text-[#374151]">
+                        {permission.label}
+                        {['admin', 'admin-sadu'].includes(current.slug) && section.category === 'Projects' && permission.label === 'View' && (
+                          <span className="ml-2 text-xs font-normal text-gray-500">(cannot view approved projects, but can still approve or reject if permitted)</span>
+                        )}
+                        {['admin', 'admin-sadu'].includes(current.slug) && section.category === 'Ledger' && permission.label === 'View' && (
+                          <span className="ml-2 text-xs font-normal text-gray-500">(cannot view ledger entries, but can still approve or reject if permitted)</span>
+                        )}
+                      </span>
                       {!current.isEditable && <Lock className="w-3 h-3 text-gray-400" />}
                     </div>
                     <Switch

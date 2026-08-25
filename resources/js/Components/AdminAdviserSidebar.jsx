@@ -46,13 +46,15 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
   const canNotifications = userPermissions.includes('notifications.view');
   const canRatings = userPermissions.includes('ratings.view');
   const canProof = userPermissions.includes('proof-documents.view');
+  const canProjects = userPermissions.includes('projects.view');
+  const canLedger = userPermissions.includes('ledger.view');
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'approvals', label: 'Approvals', icon: CheckSquare },
     // { id: 'history', label: 'History', icon: Layers },
-    {id: 'projects', label: 'Projects', icon: FolderKanban},
-    { id: 'ledger-view', label: 'Ledger Oversight', icon: BookOpen },
+    ...(canProjects ? [{ id: 'projects', label: 'Projects', icon: FolderKanban }] : []),
+    ...(canLedger ? [{ id: 'ledger-view', label: 'Ledger Oversight', icon: BookOpen }] : []),
     ...(canProof ? [{ id: 'proof', label: 'Proof', icon: FileText }] : []),
     { id: 'feedback-review', label: 'Role & Permissions', icon: ShieldCheck },
     // { id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp },

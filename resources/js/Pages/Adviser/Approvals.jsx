@@ -68,6 +68,19 @@ function Modal({ open, onClose, title, children }) {
 }
 
 export default function AdviserApprovalsPage() {
+  const page = usePage();
+      // Can Project
+  const userPermissions = Array.isArray(page.props.userPermissions)
+    ? page.props.userPermissions
+    : Array.isArray(page.props.auth?.permissions)
+      ? page.props.auth.permissions
+      : [];
+
+  const canApproveProjects = userPermissions.includes('projects.approve');
+  const canRejectProjects = userPermissions.includes('projects.reject');
+  const canApproveLedger = userPermissions.includes('ledger.approve');
+  const canRejectLedger = userPermissions.includes('ledger.reject');
+
   const {
     pendingProjects = [],
     pendingLedger = [],
@@ -103,6 +116,8 @@ export default function AdviserApprovalsPage() {
     'project proposals': pendingProjects.length,
     'ledger entries': pendingLedger.length,
     'Change Requests': changeRequests.length,
+    'approved items': approvedItems.length,
+    'rejected items': rejectedItems.length,
   };
 
   // Calculate project statistics from approved ledger entries
@@ -245,6 +260,15 @@ export default function AdviserApprovalsPage() {
     }
   };
 
+  const getApprovalTypeLabel = (approvalType) => {
+    switch (approvalType) {
+      case 'project': return 'Project Approval';
+      case 'ledger': return 'Ledger Approval';
+      case 'date_change': return 'Date Change Approval';
+      default: return 'Approval';
+    }
+  };
+
   const formatDate = (dateString) => {
   if (!dateString) return 'Not specified';
   
@@ -310,14 +334,36 @@ export default function AdviserApprovalsPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredEntries.slice(indexOfFirstItem, indexOfLastItem);
 
+  useEffect(() => {
+    const projectId = new URLSearchParams(page.url?.split('?')[1] || '').get('project');
+    if (!projectId) return;
+
+    const pendingProject = pendingProjects.find((project) => String(project.id) === String(projectId));
+    const rejectedProject = rejectedItems.find((project) => String(project.id) === String(projectId));
+    const project = pendingProject || rejectedProject;
+    if (!project) return;
+
+    setTab(pendingProject ? 'project proposals' : 'rejected items');
+    setSelectedItem({
+      ...project,
+      approvalType: 'project',
+      type: 'project',
+      status: pendingProject ? (project.status || 'Pending Approval') : 'Rejected',
+    });
+    setShowReview(true);
+  }, [page.url, pendingProjects, rejectedItems]);
+
   const renderItem = (item) => (
-    <Card key={`${item.approvalType}-${item.id}`} className="rounded-[20px] border-0 shadow-sm p-4 hover:shadow-md transition-all">
-      <div className="flex items-start gap-4">
+    <Card key={`${item.approvalType}-${item.id}`} className="flex h-full min-h-[240px] rounded-[20px] border-0 shadow-sm p-4 hover:shadow-md transition-all">
+      <div className="flex h-full items-start gap-4">
         <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">{getTypeIcon(item.approvalType)}</div>
-        <div className="flex-1 min-w-0">
+        <div className="flex flex-1 min-w-0 flex-col">
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="flex-1 min-w-0">
               <h3 className="text-gray-900 mb-1 truncate">{item.title}</h3>
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                {getApprovalTypeLabel(item.approvalType)}
+              </span>
               <p className="text-xs text-gray-500">ID: {item.id}</p>
             </div>
             <div className={`text-xs px-3 py-1 rounded-full ${getApprovalStatusColor(item.status)}`}>
@@ -341,13 +387,13 @@ export default function AdviserApprovalsPage() {
             )} */}
           </div>
 
-          {(item.status === 'Pending Approval' || item.status === 'Pending Adviser Approval') && (
-            <div className="flex gap-2">
+          <div className="mt-auto flex min-h-8 gap-2">
+            {(item.status === 'Pending Approval' || item.status === 'Pending Adviser Approval' || item.status === 'Rejected') && (
               <Button variant="outline" size="sm" className="flex-1 rounded-xl bg-blue-600 text-white hover:bg-blue-700" onClick={() => { setSelectedItem(item); setShowReview(true); }}>
-                <Eye className="w-4 h-4 mr-1" /> Review
+                <Eye className="w-4 h-4 mr-1" /> {item.status === 'Rejected' ? 'View' : 'Review'}
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </Card>
@@ -445,9 +491,8 @@ export default function AdviserApprovalsPage() {
           </Card>
 
           <div className="space-y-6">
-            <div className="bg-white w-full rounded-xl p-2 shadow-sm grid grid-cols-3 gap-4">
-              {/* {['project proposals', 'ledger entries', 'approved items', 'rejected items'].map((t) => ( */}
-               {['project proposals', 'ledger entries', 'Change Requests'].map((t) => (
+            <div className="bg-white w-full rounded-xl p-2 shadow-sm grid grid-cols-2 md:grid-cols-5 gap-4">
+              {['project proposals', 'ledger entries', 'Change Requests', 'approved items', 'rejected items'].map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -460,7 +505,7 @@ export default function AdviserApprovalsPage() {
               ))}
             </div>
 
-            <div className="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {currentItems.length === 0 ? (
                 <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center md:col-span-2">
                   <div className="text-center py-4">
@@ -616,14 +661,18 @@ export default function AdviserApprovalsPage() {
                 <Button variant="outline" className="flex-1 rounded-xl"  onClick={() => setShowReview(false)} >
                   Cancel
                 </Button>
+                {canRejectProjects && (
                 <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }} >
                    {/* <XCircle className="w-4 h-4 text-red-600" /> */}
                   Reject
                 </Button>
+                )}
+                {canApproveProjects && (
                 <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
                   {/* <CheckCircle className="w-4 h-4 text-white-600" /> */}
                   Approve
                 </Button>
+                )}
               </div>
            
       </Modal> 
@@ -738,14 +787,18 @@ export default function AdviserApprovalsPage() {
                 <Button variant="outline" className="flex-1 rounded-xl"  onClick={() => setShowReview(false)}>
                   Cancel
                 </Button>
-                <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
-                   <XCircle className="w-4 h-4 text-red-600" />
-                  Reject
-                </Button>
-                <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
-                  <CheckCircle className="w-4 h-4 text-white-600" />
-                  Approve
-                </Button>
+                {canRejectProjects && (
+                  <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
+                    <XCircle className="w-4 h-4 text-red-600" />
+                    Reject
+                  </Button>
+                )}
+                {canApproveProjects && (
+                  <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
+                    <CheckCircle className="w-4 h-4 text-white-600" />
+                    Approve
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -883,12 +936,16 @@ export default function AdviserApprovalsPage() {
                 <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowReview(false)}>
                   Cancel
                 </Button>
-                <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
-                  Reject
-                </Button>
-                <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
-                  Approve
-                </Button>
+                {canRejectLedger && (
+                  <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
+                    Reject
+                  </Button>
+                )}
+                {canApproveLedger && (
+                  <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
+                    Approve
+                  </Button>
+                )}
               </div>
             )}
           </div>

@@ -18,8 +18,8 @@ class RolePermissionService
     public static function catalog(): array
     {
         return [
-            'Projects' => ['view', 'create', 'edit', 'delete', 'approve', 'rate', 'submit'],
-            'Ledger' => ['view', 'create', 'edit', 'delete', 'approve', 'submit'],
+            'Projects' => ['view', 'create', 'edit', 'delete', 'approve', 'rate', 'submit', 'reject'],
+            'Ledger' => ['view', 'create', 'edit', 'delete', 'approve', 'reject', 'submit'],
             'Proof Documents' => ['view', 'upload', 'delete', 'approve'],
             'Meetings' => ['view', 'create', 'edit', 'delete', 'submit', 'upload minutes', 'approve minutes'],
             'Ratings' => ['view', 'submit', 'moderate'],
@@ -34,8 +34,8 @@ class RolePermissionService
     {
         return match ($slug) {
             'admin', 'admin-sadu' => [
-                'Projects' => ['view', 'approve'],
-                'Ledger' => ['view', 'approve'],
+                'Projects' => ['view', 'approve', 'reject'],
+                'Ledger' => ['view', 'approve', 'reject'],
                 'Proof Documents' => ['view'],
                 'Meetings' => ['view', 'approve minutes'],
                 'Ratings' => ['view'],
@@ -125,16 +125,16 @@ class RolePermissionService
         return [
             'superadmin' => ['*'],
             'admin' => [
-                'projects.view', 'projects.approve',
-                'ledger.view', 'ledger.approve',
+                'projects.view', 'projects.approve', 'projects.reject',
+                'ledger.view', 'ledger.approve', 'ledger.reject',
                 'proof-documents.view',
                 'meetings.view', 'meetings.approve-minutes',
                 'ratings.view',
                 'notifications.view',
             ],
             'admin-sadu' => [
-                'projects.view', 'projects.approve',
-                'ledger.view', 'ledger.approve',
+                'projects.view', 'projects.approve', 'projects.reject',
+                'ledger.view', 'ledger.approve', 'ledger.reject',
                 'proof-documents.view',
                 'meetings.view', 'meetings.approve-minutes',
                 'ratings.view',
@@ -642,7 +642,6 @@ class RolePermissionService
         if (!$permission) {
             return false;
         }
-
         $hasPosition = $this->supportsPositionScope();
 
         // CSG officers: use their council position grants when available

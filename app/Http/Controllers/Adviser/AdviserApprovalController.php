@@ -205,6 +205,17 @@ class AdviserApprovalController extends Controller
 
         $type = $data['type'] === 'date_change' ? 'change_date' : $data['type'];
 
+        $user = Auth::user();
+        $required = match ($type) {
+            'project', 'change_date' => 'projects.reject',
+            'ledger', 'proof' => 'ledger.reject',
+            default => null,
+        };
+
+        if ($required && !$user?->hasPermission($required)) {
+            abort(403, 'You do not have permission to reject this item.');
+        }
+
         match ($type) {
             'project' => $this->rejectProject($data['id'], $data['reason']),
             'ledger', 'proof' => $this->rejectLedger($data['id'], $data['reason']),
