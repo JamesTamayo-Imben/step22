@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
@@ -370,6 +370,7 @@ export function CSGProjectDetailsPage({
 }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
+  const { props } = usePage();
   
   const [project, setProject] = useState(() => {
     if (initialProject) {
@@ -384,6 +385,19 @@ export function CSGProjectDetailsPage({
     return defaultProject;
   });
   
+//  Can Ledger
+  const userPermissions = Array.isArray(props.userPermissions)
+    ? props.userPermissions
+    : Array.isArray(props.auth?.permissions)
+      ? props.auth.permissions
+      : [];
+
+  const canCreateLedgers = userPermissions.includes('ledger.create');
+  const canEditLedgers = userPermissions.includes('ledger.edit');
+  const canViewLedgers = userPermissions.includes('ledger.view');
+  const canDeleteLedgers = userPermissions.includes('ledger.delete');
+  const canSubmitLedgers = userPermissions.includes('ledger.submit');
+
   const [ledgerEntries, setLedgerEntries] = useState([]);
   const [proofDocuments, setProofDocuments] = useState([]);
   const [verificationStatus, setVerificationStatus] = useState({ isValid: true, status: 'valid', message: 'Blockchain is valid', tamperedBlocks: [] });
@@ -623,10 +637,10 @@ const formatDate = (dateString) => {
     }
   };
 
-  // Fetch project from API if we have a projectId but no initial data (deep link refresh)
+  // Fetch the authoritative project record so details are current when opened.
   useEffect(() => {
     const fetchProjectById = async () => {
-      if (!projectId || initialProject) return;
+      if (!projectId) return;
       setLoading(true);
       try {
         const response = await fetch(`/api/projects/${projectId}`, {
@@ -1861,7 +1875,8 @@ function maskUserName(fullName) {
                   {verificationStatus.status === 'tampering_detected' ? 'Tampered Alert' : 'Verified'}
                 </Badge>
               </div>
-             <Button 
+            {canCreateLedgers && (
+ <Button 
   onClick={() => setShowAddLedgerModal(true)} 
   className={`rounded-xl transition-all ${
     isLedgerDisabled 
@@ -1873,6 +1888,7 @@ function maskUserName(fullName) {
   <Plus className="w-4 h-4 mr-2" />
   Add Ledger Entry
 </Button>
+            )}
             </div>
             
             {loading ? (
@@ -1968,20 +1984,28 @@ function maskUserName(fullName) {
             </td>
             <td className="py-3 px-4">
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg">
+                {canViewLedgers && (
+                  <Button variant="ghost" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg">
                   <Eye className="w-4 h-4" />
                 </Button>
+                )}
                 {canManageEntry && (
                   <>
-                    <Button variant="ghost" size="sm" onClick={() => { console.log(' Desktop edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
+                   {canEditLedgers && (
+                     <Button variant="ghost" size="sm" onClick={() => { console.log(' Desktop edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
                       <Edit className="w-4 h-4" />
                     </Button>
+                   )}
+                   {canSubmitLedgers && (
                     <Button variant="ghost" size="sm" onClick={() => { setLedgerToSubmit(entry); setShowSubmitLedgerModal(true); }} className="rounded-lg">
                       <Send className="w-4 h-4" />
                     </Button>
+                   )}
+                  {canDeleteLedgers && (
                     <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(entry.id)} className="rounded-lg text-red-600 hover:text-red-700">
                       <Trash2 className="w-4 h-4" />
                     </Button>
+                  )}
                   </>
                 )}
               </div>
