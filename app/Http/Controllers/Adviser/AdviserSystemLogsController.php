@@ -14,7 +14,7 @@ class AdviserSystemLogsController extends Controller
         return AuditLog::with('user:id,name,role_id')
             ->where('archive', false)
             ->whereHas('user.role', function ($query) {
-                $query->where('slug', 'csg');
+                // $query->where('slug', 'csg');
             });
     }
 
