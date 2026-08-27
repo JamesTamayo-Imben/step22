@@ -231,6 +231,13 @@ public function uploadProof(Request $request, $id)
                 'approval_status' => 'nullable|string',
                 'created_by' => 'nullable|exists:users,id',
             ]);
+
+            if (!$request->hasFile('proof_file') && !$request->hasFile('ledger_proof')) {
+                return response()->json([
+                    'message' => 'Proof is required when creating a ledger entry.',
+                    'errors' => ['ledger_proof' => ['Proof is required when creating a ledger entry.']],
+                ], 422);
+            }
             
             // Create new ledger entry
             $entry = new LedgerEntry();

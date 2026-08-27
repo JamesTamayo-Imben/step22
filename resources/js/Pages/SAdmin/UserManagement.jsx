@@ -468,7 +468,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
-                <h1 className="text-gray-900 text-2xl font-semibold">User Management</h1>
+                <h1 className="text-blue-600 text-2xl font-semibold">User Management</h1>
                 <p className="text-gray-500">Add, suspend, and manage platform users</p>
               </div>
               <Button onClick={() => openBulkRegModal()} className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 lg:w-auto w-full" disabled={isLoading}>

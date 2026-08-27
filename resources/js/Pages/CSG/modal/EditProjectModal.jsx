@@ -200,6 +200,17 @@ export function EditProjectModal({
     }
   }
 
+    const hasPositiveBudget = editForm.hasBudget && (
+      (editForm.budgetSource === 'past_project' && parseFloat(editForm.transferAmount) > 0) ||
+      (editForm.budgetSource !== 'past_project' && parseFloat(editForm.budget) > 0)
+    );
+    const hasExistingProof = Boolean(editForm.projectProof || editForm.project_proof);
+
+    if (hasPositiveBudget && !selectedFile && !hasExistingProof) {
+      showToast('Please attach proof of the project budget', 'error');
+      return;
+    }
+
   setIsUploading(true);
 
   try {
@@ -466,7 +477,7 @@ export function EditProjectModal({
 
         {/* File Upload */}
         <div>
-          <FieldLabel>Project Budget Proof (Optional)</FieldLabel>
+          <FieldLabel>Project Budget Proof {editForm.hasBudget ? '(Required)' : '(Optional)'}</FieldLabel>
           <div className="flex flex-col items-center gap-3">
             <button
               type="button"

@@ -111,7 +111,13 @@ class ProjectController extends Controller
                 'approval_status' => 'nullable|string',
                 'start_date' => 'nullable|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
-                'project_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240', // 10MB max
+                'project_proof' => [
+                    'nullable',
+                    'file',
+                    'mimes:pdf,jpg,jpeg,png',
+                    'max:10240',
+                    'required_if:has_budget,1',
+                ], // Required when a budget is provided.
                 'is_initial' => 'nullable|in:0,1',
             ]);
 
@@ -365,6 +371,19 @@ class ProjectController extends Controller
                     'transfer_from_project_id' => 'required|string|exists:projects,id',
                     'transfer_amount' => 'required|numeric|min:0.01',
                 ]);
+            }
+
+            $requestedBudget = !$hasBudget
+                ? 0
+                : ($budgetSource === 'past_project' && $transferAmount > 0
+                    ? $transferAmount
+                    : ($request->filled('budget') ? (float) $request->input('budget') : 0));
+
+            if ($requestedBudget > 0 && !$request->hasFile('project_proof') && empty($this->getProjectProofPath($project))) {
+                return response()->json([
+                    'message' => 'Project budget proof is required when a budget is provided.',
+                    'errors' => ['project_proof' => ['Project budget proof is required when a budget is provided.']],
+                ], 422);
             }
             
             // Update only fields that are provided

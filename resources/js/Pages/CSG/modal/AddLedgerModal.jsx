@@ -190,6 +190,12 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
   // Handle save
   const handleSave = async (e) => {
     if (e) e.preventDefault();
+
+    if (!selectedFile) {
+      showToast('Please attach proof for this ledger entry', 'error');
+      return;
+    }
+
     setIsUploading(true); // Start loading state
 
     try {
@@ -208,10 +214,8 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
 
       // 2. Attach the proof file using both supported field names so the Laravel
       // controller can persist it into the ledger entry's ledger_proof column.
-      if (selectedFile) {
-        formData.append('proof_file', selectedFile);
-        formData.append('ledger_proof', selectedFile);
-      }
+      formData.append('proof_file', selectedFile);
+      formData.append('ledger_proof', selectedFile);
 
       console.log('📤 Sending ledger entry to /api/ledger-entries...');
 
@@ -413,7 +417,7 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
 
         {/* File Upload */}
         <div>
-          <FieldLabel>Attach Proof Document (Optional)</FieldLabel>
+          <FieldLabel>Attach Proof Document (Required)</FieldLabel>
           <div className="flex flex-col items-center gap-3">
             <button
               type="button"

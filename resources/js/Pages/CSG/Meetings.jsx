@@ -659,6 +659,15 @@ const renderAttendees = (attendees) => {
     showToast('Meeting minutes uploaded successfully', 'success');
   };
 
+    const handleDownloadTemplate = () => {
+    const link = document.createElement('a');
+      link.href = '/storage/meeting_template/meeting_minutes_template.pdf';
+      link.download = 'meeting_minutes_template.pdf';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   const openDocumentPreview = (meeting) => {
     const documentUrl = meeting?.minutes_file_url || (meeting?.meeting_proof ? `/storage/${meeting.meeting_proof}` : null);
 
@@ -809,11 +818,11 @@ const renderAttendees = (attendees) => {
            )}
 
           <Button
-          // onClick={() => setShowCreateModal(true)}
+           onClick={handleDownloadTemplate}
           className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
         >
           <Download className="w-4 h-4 mr-2" />
-          Proof Template
+          Minutes Template
         </Button> 
         </div>
       </div>

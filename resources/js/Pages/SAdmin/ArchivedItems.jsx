@@ -15,7 +15,7 @@ export default function SAdminArchivedItemsPage({
       <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           <div className="mb-6">
-            <h1 className="text-gray-900 text-2xl font-semibold">Archived Items</h1>
+            <h1 className="text-blue-600 text-2xl font-semibold">Archived Items</h1>
             <p className="text-gray-500">All archived projects, ledger entries, and meetings in one place.</p>
           </div>
           <div className="space-y-6">

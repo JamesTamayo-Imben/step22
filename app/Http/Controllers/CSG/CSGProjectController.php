@@ -4,8 +4,8 @@ namespace App\Http\Controllers\CSG;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
-use App\Models\LedgerEntry;
-use App\Models\Project;
+use App\Models\CSG\LedgerEntry;
+use App\Models\CSG\Project;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -16,9 +16,8 @@ class CSGProjectController extends Controller
 {
     public function index()
     {
-        // Only pass empty array initially, load via deferred props
         return Inertia::render('CSG/Projects', [
-            'projects' => Inertia::defer(fn() => $this->getProjectsData()),
+            'projects' => $this->getProjectsData(),
         ]);
     }
 

@@ -256,7 +256,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   });
 
   //filter meeting o only show upcomming
-  const [upcomingMeetings, setUpcomingMeetings] = useState([]);
+  const [upcomingMeetings, setUpcomingMeetings] = useState(initialMeetings);
 
   const [ledgerEntries, setLedgerEntries] = useState(recentLedgerEntries);
   const [ledgerFilePreview, setLedgerFilePreview] = useState(null);
@@ -536,6 +536,11 @@ const formatHeatmapTooltip = (item) => {
       return;
     }
 
+    if (!selectedLedgerFile) {
+      showToast('Please attach proof for this ledger entry', 'error');
+      return;
+    }
+
     if (isProjectLocked(ledgerForm.project_id)) {
       showToast('This project ledger is locked due to tampering. Resolve the issue first.', 'error');
       return;
@@ -567,10 +572,7 @@ const formatHeatmapTooltip = (item) => {
       formData.append('approval_status', 'Draft');
       formData.append('budget_breakdown', JSON.stringify(budgetBreakdown));
       
-      // Only add file if one was selected (making it optional)
-      if (selectedLedgerFile) {
-        formData.append('ledger_proof', selectedLedgerFile);
-      }
+      formData.append('ledger_proof', selectedLedgerFile);
 
       // Make API call to store the ledger entry
       const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -1068,9 +1070,9 @@ const formatHeatmapTooltip = (item) => {
             </div>
           </div>
 
-          {/* STEP 6.7: File Upload Section - NOW OPTIONAL */}
+          {/* STEP 6.7: File Upload Section */}
           <div>
-            <FieldLabel>Attach Proof Document (Optional)</FieldLabel>
+            <FieldLabel>Attach Proof Document (Required)</FieldLabel>
             <div className="flex flex-col items-center gap-3">
               <button
                 type="button"
@@ -1125,7 +1127,7 @@ const formatHeatmapTooltip = (item) => {
                   category: '',
                   project_id: '',
                   referenceNumber: '',
-                  requiresProof: false,
+                  requiresProof: true,
                 });
                 setBudgetItems([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
                 setLedgerFilePreview(null);

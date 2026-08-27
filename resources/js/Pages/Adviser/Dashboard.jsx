@@ -76,23 +76,31 @@ export function AdminAdviserDashboard({
   const heatmapDaysData = heatmapDays || [];
 
   const getHeatmapCellStyles = (item) => {
-    if (item.tamperingCount > 0) {
-      return { bg: 'bg-red-600', text: 'text-white' };
+    const tampering = Number(item.tamperingCount) || 0;
+    const activity = Number(item.activityCount) || 0;
+    const total = tampering + activity;
+
+    if (!total) {
+      return { className: 'bg-slate-200 text-slate-700 border border-slate-300' };
     }
-    if (item.activityCount > 0) {
-      return { bg: 'bg-emerald-500', text: 'text-white' };
+    if (!tampering) {
+      return { className: 'bg-emerald-500 text-white' };
     }
-    return { bg: 'bg-slate-200', text: 'text-slate-700' };
+    if (!activity) {
+      return { className: 'bg-red-600 text-white' };
+    }
+
+    const tamperingPercent = Math.round((tampering / total) * 100);
+    return {
+      className: 'text-white',
+      style: {
+        background: `linear-gradient(90deg, #dc2626 ${tamperingPercent}%, #10b981 ${tamperingPercent}%)`,
+      },
+    };
   };
 
   const formatHeatmapTooltip = (item) => {
-    if (item.tamperingCount > 0) {
-      return `${item.tamperingCount} tampering event${item.tamperingCount > 1 ? 's' : ''}`;
-    }
-    if (item.activityCount > 0) {
-      return `${item.activityCount} CSG activity event${item.activityCount > 1 ? 's' : ''}`;
-    }
-    return 'No activity';
+    return `${item.tamperingCount} tampering event${item.tamperingCount !== 1 ? 's' : ''}, ${item.activityCount} CSG activit${item.activityCount !== 1 ? 'ies' : 'y'} event${item.activityCount !== 1 ? 's' : ''}`;
   };
 
   function ApprovalItem({ item }) {
@@ -276,11 +284,12 @@ export function AdminAdviserDashboard({
               return (
                 <div
                   key={item.date}
-                  className={`${styles.bg} ${styles.text} rounded-xl p-2 h-20 flex flex-col justify-between transition-all`}
+                  className={`${styles.className} rounded-xl p-2 h-20 flex flex-col justify-between transition-all`}
+                  style={styles.style}
                   title={`${item.label} ${item.date}: ${formatHeatmapTooltip(item)}`}
                 >
-                  <span className="text-[11px] uppercase tracking-[0.08em]">{item.label}</span>
-                  <span className="text-lg font-semibold">{item.day}</span>
+                  <span className="text-[11px] uppercase tracking-[0.08em]">{item.day}</span>
+                  <span className="text-lg font-semibold">{item.tamperingCount + item.activityCount} <span className="text-xs font-normal">events</span></span>
                 </div>
               );
             })}

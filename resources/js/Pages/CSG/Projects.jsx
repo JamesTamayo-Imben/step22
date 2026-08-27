@@ -83,6 +83,30 @@ function FieldLabel({ children }) {
   return <label className="block text-sm text-gray-700 mb-1">{children}</label>;
 }
 
+const normalizeProject = (p) => ({
+  id: p.id,
+  title: p.title || '',
+  category: p.category || '',
+  description: p.description || '',
+  objective: p.objective || '',
+  venue: p.venue || '',
+  status: p.status || '',
+  approvalStatus: p.approval_status || p.approvalStatus || '',
+  progress: p.progress || 0,
+  budget: p.budget || 0,
+  startDate: p.start_date || p.startDate || '',
+  endDate: p.end_date || p.endDate || '',
+  createdAt: p.created_at || p.createdAt || '',
+  proposedBy: p.proposed_by || p.proposedBy || '',
+  note: p.note || '',
+  approveBy: p.approveBy || p.approve_by || '',
+  projectProof: p.project_proof || p.projectProof || null,
+  createdBy: p.createdBy || p.created_by || null,
+  updatedBy: p.updated_by || p.updatedBy || null,
+  archive: p.archive || 0,
+  approvedAt: p.approved_at || p.approvedAt || null,
+});
+
 function Select({ className = '', children, value, onValueChange, ...props }) {
   return (
     <select
@@ -102,7 +126,12 @@ function Select({ className = '', children, value, onValueChange, ...props }) {
 function CSGProjectsPageInner() {
   const page = usePage();
   const { auth } = usePage().props;
-  const [projects, setProjects] = useState([]);
+  const [projects, setProjects] = useState(() => {
+    const initialProjects = page.props.projects;
+    return Array.isArray(initialProjects)
+      ? initialProjects.map((project) => normalizeProject(project))
+      : [];
+  });
   const [ledgerEntries, setLedgerEntries] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(() => {
@@ -148,33 +177,6 @@ function CSGProjectsPageInner() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-
-  const normalizeProject = (p) => ({
-    id: p.id,
-    title: p.title || '',
-    category: p.category || '',
-    description: p.description || '',
-    objective: p.objective || '',
-    venue: p.venue || '',
-    status: p.status || '',
-    approvalStatus: p.approval_status || p.approvalStatus || '',
-    progress: p.progress || 0,
-    budget: p.budget || 0,
-    // budgetBreakdown: p.budget_breakdown
-    //   ? (typeof p.budget_breakdown === 'string' ? JSON.parse(p.budget_breakdown) : p.budget_breakdown)
-    //   : (p.budgetBreakdown || []),
-    startDate: p.start_date || p.startDate || '',
-    endDate: p.end_date || p.endDate || '',
-    createdAt: p.created_at || p.createdAt || '',
-    proposedBy: p.proposed_by || p.proposedBy || '',
-    note: p.note || '',
-    approveBy: p.approveBy || p.approve_by || '',
-    projectProof: p.project_proof || p.projectProof || null,
-    createdBy: p.createdBy || p.created_by || null,
-    updatedBy: p.updated_by || p.updatedBy || null,
-    archive: p.archive || 0,
-    approvedAt: p.approved_at || p.approvedAt || null,
-  });
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];

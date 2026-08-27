@@ -222,7 +222,7 @@ $avgRating = $ratings->count() > 0
 
             $action = (string) ($log->action ?? '');
 
-            if (preg_match('/tamper|tampered|tampering/i', $action)) {
+            if (preg_match('/tamper|tampered|tampering|budget\s*mismatch/i', $action)) {
                 $heatmapEventsByDate[$dateKey]['tampering']++;
                 continue;
             }

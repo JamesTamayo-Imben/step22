@@ -35,13 +35,13 @@ class CSGDashboardController extends Controller
 
         $stats = $this->computeCSGDashboardStats();
         
-        // Return only statistics immediately, defer sensitive data to prevent leakage
+        // Return dashboard data with the initial page so it is available immediately.
         return Inertia::render('CSG/Dashboard', [
             'statistics' => $stats['statistics'],
-            'projects' => Inertia::defer(fn() => $this->getProjectsData()),
-            'recommendedProjects' => Inertia::defer(fn() => $this->getRecommendedProjects()),
-            'recentLedgerEntries' => Inertia::defer(fn() => $this->getLedgerEntriesData()),
-            'upcomingMeetings' => Inertia::defer(fn() => $this->getMeetingsData()),
+            'projects' => $this->getProjectsData(),
+            'recommendedProjects' => $this->getRecommendedProjects(),
+            'recentLedgerEntries' => $this->getLedgerEntriesData(),
+            'upcomingMeetings' => $this->getMeetingsData(),
         ]);
     }
 

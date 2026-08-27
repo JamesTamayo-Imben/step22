@@ -222,6 +222,15 @@ function CSGProofPageInner() {
     });
   };
 
+  const handleDownloadTemplate = () => {
+    const link = document.createElement('a');
+    link.href = '/storage/proof_template/proof_template.pdf';
+    link.download = 'proof_template.pdf';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   const handleDelete = () => {
     if (!selectedProof) return;
     setProofDocuments(proofDocuments.filter((doc) => doc.id !== selectedProof.id));
@@ -256,6 +265,13 @@ function CSGProofPageInner() {
           <h1 className="text-2xl font-semibold text-blue-600">CSG Officer Proof of Transactions</h1>
           <p className="text-gray-500">Manage all supporting documents and receipts</p>
         </div>
+         <Button
+                  onClick={handleDownloadTemplate}
+                  className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Proof Template
+                </Button> 
       </div>
 
       {/* Stats Cards */}

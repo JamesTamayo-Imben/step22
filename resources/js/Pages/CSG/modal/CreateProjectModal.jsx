@@ -233,6 +233,16 @@ export function CreateProjectModal({
       }
     }
 
+    const hasPositiveBudget = newProject.hasBudget && (
+      (newProject.budgetSource === 'past_project' && parseFloat(newProject.transferAmount) > 0) ||
+      (newProject.budgetSource !== 'past_project' && parseFloat(newProject.budget) > 0)
+    );
+
+    if (hasPositiveBudget && !selectedFile) {
+      showToast('Please attach proof of the project budget', 'error');
+      return;
+    }
+
     setIsLoading(true);
 
     const formData = new FormData();
@@ -519,7 +529,7 @@ export function CreateProjectModal({
 
         {/* File Upload */}
         <div>
-          <FieldLabel>Project Budget Proof (Optional)</FieldLabel>
+          <FieldLabel>Project Budget Proof {newProject.hasBudget ? '(Required)' : '(Optional)'}</FieldLabel>
           <div className="flex flex-col items-center gap-3">
             <button
               type="button"

@@ -1,0 +1,315 @@
+HOSTINGER DEPLOYMENT AUDIT
+==========================
+
+Project: STEP Platform
+Target: Laravel 12 + React/Inertia/Vite on Hostinger
+Status: NOT READY FOR PRODUCTION
+
+This audit records the deployment blockers and required preparation. No secret values are included here.
+
+
+1. CRITICAL SECURITY ACTIONS
+----------------------------
+
+1.1 Rotate exposed credentials immediately.
+
+Credentials were found in environment files, including the tracked file:
+- .env
+- .env.example
+- .env-with HTTPS
+
+Rotate/revoke:
+- Gmail SMTP app password
+- Supabase service-role key
+- Any other API keys found in the environment files
+- APP_KEY, if the existing key has been exposed and no encrypted production data must be preserved
+
+Do not reuse exposed credentials in Hostinger.
+
+1.2 Fix Git ignore rules.
+
+The repository ignores .env but does not protect .env-with HTTPS. Add an appropriate rule such as:
+
+.env*
+!.env.example
+
+Then remove the tracked environment file from Git and clean it from repository history if it has been pushed remotely. Do not commit production .env files.
+
+Also review cookies.txt and SQL dumps before pushing or uploading them. Remove authentication material and unnecessary production/user data.
+
+1.3 Do not expose raw errors in production.
+
+Several controllers return exception messages directly. Replace these responses with generic messages and keep technical details in protected server logs only.
+
+1.4 Remove OTP logging.
+
+OTPController logs OTP values when email delivery fails. Remove OTP values from all logs. Add rate limiting and attempt limits to OTP and password-reset endpoints.
+
+
+2. PRODUCTION ENVIRONMENT
+-------------------------
+
+Create the production .env directly on Hostinger. Do not upload a local .env.
+
+Use values similar to the following, replacing placeholders with Hostinger credentials:
+
+APP_NAME=STEP Platform
+APP_ENV=production
+APP_KEY=<new production key>
+APP_DEBUG=false
+APP_URL=https://your-domain.com
+
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_LEVEL=warning
+
+DB_CONNECTION=mysql
+DB_HOST=<Hostinger database host>
+DB_PORT=3306
+DB_DATABASE=<Hostinger database name>
+DB_USERNAME=<Hostinger database username>
+DB_PASSWORD=<Hostinger database password>
+
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=true
+SESSION_SECURE_COOKIE=true
+SESSION_HTTP_ONLY=true
+SESSION_SAME_SITE=lax
+SESSION_DOMAIN=<your domain, if required>
+
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=database
+CACHE_STORE=file
+
+MAIL_MAILER=smtp
+MAIL_HOST=<production SMTP host>
+MAIL_PORT=587
+MAIL_USERNAME=<production SMTP username>
+MAIL_PASSWORD=<new SMTP app password>
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=<verified sender address>
+MAIL_FROM_NAME="STEP Platform"
+
+VITE_APP_NAME="${APP_NAME}"
+VITE_SUPABASE_URL=<Supabase project URL>
+VITE_SUPABASE_ANON_KEY=<Supabase publishable/anonymous key>
+SUPABASE_SERVICE_ROLE_KEY=<Supabase service-role key, server-side only>
+
+Never expose SUPABASE_SERVICE_ROLE_KEY through VITE_ variables or frontend JavaScript.
+
+
+3. DATABASE AND MIGRATIONS
+--------------------------
+
+The current database/migrations directory does not contain a complete baseline schema. Most existing migrations alter tables that must already exist.
+
+Required decision:
+
+Option A: Import a reviewed, sanitized MySQL/MariaDB schema dump into the Hostinger database.
+
+Option B: Create and commit complete ordered Laravel migrations for every application table, then run them on Hostinger.
+
+Do not blindly import the bundled SQL files. They may contain user, audit, or application data. Review and sanitize them first. The file named step2_postgresql.sql appears to use MySQL/phpMyAdmin syntax and should not be treated as a PostgreSQL dump.
+
+Before and after database changes:
+
+1. Take a Hostinger database backup.
+2. Import the selected schema/data carefully.
+3. Run:
+
+   php artisan migrate:status
+   php artisan migrate --force
+
+4. Confirm these tables exist because the configured drivers require them:
+
+   migrations
+   sessions
+   jobs
+   failed_jobs
+   job_batches
+
+
+4. ROUTE AUTHORIZATION REVIEW
+-----------------------------
+
+Several routes in routes/api.php are public or do not visibly use auth:sanctum or role middleware. Stateful middleware alone does not authenticate a user.
+
+Review and protect endpoint-by-endpoint, especially:
+
+- /api/ledger-entries
+- /api/ledger-entries/{id}/upload
+- /api/projects
+- /api/onboarding/complete
+- /api/onboarding/skip
+- /api/onboarding/set-password
+- /api/concerns
+- OTP endpoints
+- password-reset endpoints
+- registration endpoints
+
+Use auth:sanctum for authenticated API requests and role/policy checks for project, ledger, approval, administrative, and file operations.
+
+Check for IDOR vulnerabilities, especially operations that accept a numeric record ID. A user must only read or modify records they are authorized to access.
+
+Notification updates must be scoped to the authenticated user's notifications.
+
+Add throttling to:
+
+- Login
+- OTP send/resend/verify
+- Password reset
+- Registration
+- Other publicly callable mutation endpoints
+
+
+5. FILE STORAGE
+---------------
+
+Project and ledger proofs are currently stored on the public disk and can be reachable through /storage URLs.
+
+For sensitive documents:
+
+- Store files on a private disk.
+- Serve downloads through an authorization-checked controller.
+- Validate MIME type, extension, size, and generated filenames.
+- Do not trust user-supplied filenames or paths.
+
+If public storage is intentionally acceptable, document that anyone with a URL can access the files.
+
+On Hostinger, run:
+
+php artisan storage:link
+
+Ensure storage/ and bootstrap/cache/ are writable by the web process. Confirm Hostinger supports the required symbolic link. If not, configure the supported public-storage alternative.
+
+
+6. EMAIL AND QUEUES
+-------------------
+
+The application uses queued mail and the database queue driver. Shared hosting normally does not run a persistent queue worker automatically.
+
+Create a Hostinger cron job that runs from the Laravel project root, for example:
+
+php artisan queue:work --stop-when-empty --tries=3
+
+Set an appropriate cron frequency for the expected mail volume. Monitor failed jobs with:
+
+php artisan queue:failed
+
+Verify SMTP delivery using a production sender address. Configure and verify SPF, DKIM, and DMARC for the sending domain. Confirm Hostinger permits the selected SMTP connection.
+
+
+7. SUPABASE
+-----------
+
+supabase/functions/send-email/index.ts currently reads a literal key-like string instead of the environment variable name RESEND_API_KEY.
+
+Change the function to read:
+
+Deno.env.get("RESEND_API_KEY")
+
+Then configure and deploy the function with the correct Supabase secret. Review function authentication, allowed callers, CORS, and rate limiting.
+
+Review Supabase Storage buckets and policies. Use private buckets and signed URLs for sensitive documents. Do not make service-role credentials available to the frontend.
+
+
+8. HOSTINGER SERVER REQUIREMENTS
+--------------------------------
+
+Use:
+
+- PHP 8.2 or newer
+- MySQL/MariaDB with pdo_mysql
+- mbstring
+- openssl
+- fileinfo
+- xml
+- curl
+- bcmath
+- Apache mod_rewrite and .htaccess overrides enabled
+
+Configure the domain document root to Laravel's public directory.
+
+If Hostinger cannot point the domain to public/, place only the contents of public/ in the web root and adjust index.php paths carefully. Keep the Laravel application, vendor, storage, and .env outside the public web root where possible.
+
+Enable HTTPS and force production traffic to HTTPS.
+
+
+9. BUILD AND INSTALLATION
+--------------------------
+
+Build locally or in a compatible build environment:
+
+composer install --no-dev --prefer-dist --optimize-autoloader
+npm ci
+npm run build
+
+Upload the resulting public/build directory. The current Vite production build succeeds, but public/build is ignored by Git, so it must be built or uploaded separately.
+
+On Hostinger, from the Laravel project root:
+
+composer install --no-dev --prefer-dist --optimize-autoloader
+php artisan storage:link
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+Do not run composer setup in production because it may generate keys or run migrations with unintended local settings.
+
+
+10. PRODUCTION SMOKE TESTS
+--------------------------
+
+After deployment, test all of the following over HTTPS:
+
+- Homepage and static assets
+- Login and logout
+- Session persistence and CSRF protection
+- Email verification
+- Registration and OTP delivery
+- OTP expiration, retry limits, and resend limits
+- Password reset
+- Each user role's dashboard
+- Role-restricted pages and API endpoints
+- Project creation, viewing, updating, and deletion authorization
+- Ledger creation, approval, correction, and deletion authorization
+- Proof upload and authorized download
+- Meeting creation and updates
+- Notifications and mark-as-read authorization
+- Supabase integrations
+- Queued email processing
+- Failed queue jobs
+- Application logs and error pages
+- File permissions and storage link
+- HTTPS redirects and secure cookies
+
+
+11. VERIFIED LOCALLY DURING AUDIT
+---------------------------------
+
+- Composer metadata and lockfile: valid.
+- Laravel route registration: application boots and routes load.
+- Vite production build: succeeds.
+- public/.htaccess: contains the Laravel front-controller rewrite rules.
+- package-lock.json and composer.lock: present.
+
+These checks do not prove Hostinger configuration, database readiness, SMTP delivery, authorization correctness, or production security.
+
+
+RECOMMENDED DEPLOYMENT ORDER
+----------------------------
+
+1. Rotate all exposed credentials.
+2. Remove environment files and sensitive data from Git.
+3. Prepare a clean production .env on Hostinger.
+4. Back up and prepare the database.
+5. Resolve the incomplete schema strategy.
+6. Fix route authorization and sensitive file access.
+7. Fix the Supabase email function configuration.
+8. Build and upload the application.
+9. Configure document root, permissions, HTTPS, and cron.
+10. Cache configuration and routes.
+11. Run the full smoke-test list.
+12. Monitor logs, queue failures, backups, and mail delivery.

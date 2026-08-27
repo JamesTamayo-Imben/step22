@@ -235,9 +235,9 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
     // Proof Documents
     Route::get('/adviser/proof', function () {
         return Inertia::render('Adviser/Proof', [
-            'proofDocuments' => Inertia::defer(fn() => app(LedgerEntryController::class)->getProofDocuments()->getData()),
-            'projects' => Inertia::defer(fn () => \App\Models\CSG\Project::where('archive', 0)->pluck('title')->toArray()),
-            'transactions' => Inertia::defer(fn () => \App\Models\CSG\LedgerEntry::where('archive', 0)->pluck('id')->toArray()),
+            'proofDocuments' => app(LedgerEntryController::class)->getProofDocuments()->getData(),
+            'projects' => \App\Models\CSG\Project::where('archive', 0)->pluck('title')->toArray(),
+            'transactions' => \App\Models\CSG\LedgerEntry::where('archive', 0)->pluck('id')->toArray(),
         ]);
     })->name('adviser.proof');
 
@@ -318,11 +318,7 @@ Route::middleware(['auth', 'verified', 'role:csg', 'csg.online'])->group(functio
     Route::get('/csg/dashboard', [CSGDashboardController::class, 'index'])->name('csg.dashboard.alias');
 
     // Projects Management
-    Route::get('/csg/projects/{projectId?}', function ($projectId = null) {
-        return Inertia::render('CSG/Projects', [
-            'selectedProjectId' => $projectId
-        ]);
-    })->name('csg.projects');
+    Route::get('/csg/projects/{projectId?}', [CSGProjectController::class, 'index'])->name('csg.projects');
     Route::post('/csg/projects', [CSGProjectController::class, 'store'])->name('csg.projects.store');
     Route::patch('/csg/projects/{id}', [CSGProjectController::class, 'update'])->name('csg.projects.update');
     Route::delete('/csg/projects/{id}', [CSGProjectController::class, 'destroy'])->name('csg.projects.destroy');
@@ -352,14 +348,17 @@ Route::middleware(['auth', 'verified', 'role:csg', 'csg.online'])->group(functio
 
     // Ledger & Proof
     Route::get('/csg/ledger', function () {
-        return Inertia::render('CSG/Ledger');
+        return Inertia::render('CSG/Ledger', [
+            'ledgerEntries' => app(LedgerEntryController::class)->all(request())->getData(),
+            'projects' => \App\Models\CSG\Project::where('archive', 0)->get(),
+        ]);
     })->name('csg.ledger');
 
     Route::get('/csg/proof', function () {
         return Inertia::render('CSG/Proof', [
-            'proofDocuments' => Inertia::defer(fn() => app(\App\Http\Controllers\CSG\LedgerEntryController::class)->getProofDocuments()->getData()),
-            'projects' => Inertia::defer(fn() => \App\Models\CSG\Project::where('archive', 0)->pluck('title')->toArray()),
-            'transactions' => Inertia::defer(fn() => \App\Models\CSG\LedgerEntry::where('archive', 0)->pluck('id')->toArray()),
+            'proofDocuments' => app(LedgerEntryController::class)->getProofDocuments()->getData(),
+            'projects' => \App\Models\CSG\Project::where('archive', 0)->pluck('title')->toArray(),
+            'transactions' => \App\Models\CSG\LedgerEntry::where('archive', 0)->pluck('id')->toArray(),
         ]);
     })->name('csg.proof');
 

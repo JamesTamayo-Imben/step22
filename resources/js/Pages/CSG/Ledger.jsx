@@ -129,6 +129,28 @@ function Select({ className = '', children, ...props }) {
   );
 }
 
+function normalizeLedgerEntry(entry) {
+  return {
+    ...entry,
+    status: entry.approval_status || entry.status || 'Draft',
+    projectName: entry.project?.title || entry.project?.name || entry.project_name || entry.project || '—',
+    project: entry.project?.title || entry.project?.name || entry.project_name || entry.project || '—',
+    amount: Number(entry.amount) || 0,
+    createdAt: entry.created_at ? entry.created_at.split('T')[0] : entry.createdAt,
+    createdBy: entry.created_by || entry.createdBy || 'N/A',
+    budgetBreakdown: entry.budget_breakdown || [],
+    verificationState: entry.verificationState || {
+      tampered: false,
+      blockchainStatus: 'no_chain',
+      blockchainValid: false,
+      submitted: '',
+      reviewed: '',
+      approvedRejected: '',
+      corrected: '',
+    },
+  };
+}
+
 function Switch({ checked, onCheckedChange, label }) {
   return (
     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
@@ -156,6 +178,7 @@ function Switch({ checked, onCheckedChange, label }) {
 
 function LedgerPageInner() {
   const page = usePage();
+  const { ledgerEntries: initialLedgerEntries = [], projects: initialProjects = [] } = page.props;
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -190,10 +213,18 @@ function LedgerPageInner() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(true);
 
-  const [ledgerEntries, setLedgerEntries] = useState([]);
-  const [allProjects, setAllProjects] = useState([]);
+  const [ledgerEntries, setLedgerEntries] = useState(() => (
+    Array.isArray(initialLedgerEntries) ? initialLedgerEntries.map(normalizeLedgerEntry) : []
+  ));
+  const [allProjects, setAllProjects] = useState(() => (
+    Array.isArray(initialProjects)
+      ? initialProjects.filter((project) => (
+          (project.approval_status || project.status || '').toString().toLowerCase() === 'approved'
+        ))
+      : []
+  ));
   const [editBudgetItems, setEditBudgetItems] = useState([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
   const [isUploading, setIsUploading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -202,25 +233,7 @@ function LedgerPageInner() {
     return fetch('/api/ledger-entries')
       .then((response) => response.json())
       .then((data) => {
-        const processedData = data.map((entry) => ({
-          ...entry,
-          status: entry.approval_status || entry.status || 'Draft',
-          projectName: entry.project?.title || entry.project?.name || entry.project_name || entry.project || '—',
-          project: entry.project?.title || entry.project?.name || entry.project_name || entry.project || '—',
-          amount: Number(entry.amount) || 0,
-          createdAt: entry.created_at ? entry.created_at.split('T')[0] : entry.createdAt,
-          createdBy: entry.created_by || entry.createdBy || 'N/A',
-          budgetBreakdown: entry.budget_breakdown || [],
-          verificationState: entry.verificationState || {
-            tampered: false,
-            blockchainStatus: 'no_chain',
-            blockchainValid: false,
-            submitted: '',
-            reviewed: '',
-            approvedRejected: '',
-            corrected: ''
-          },
-        }));
+        const processedData = data.map(normalizeLedgerEntry);
         console.log('Processed ledger entries:', processedData);
         setLedgerEntries(processedData);
         return processedData;
@@ -465,6 +478,11 @@ const handleAddEntry = async () => {
     return;
   }
 
+  if (!selectedFile) {
+    showToast('Please attach proof for this ledger entry', 'error');
+    return;
+  }
+
   try {
     // Get project ID directly from form
     const projectId = ledgerForm.project_id;
@@ -493,10 +511,7 @@ setIsLoading(true);
     formData.append('approval_status', 'Draft');
     formData.append('budget_breakdown', JSON.stringify(budgetBreakdown));
     
-    // Only add file if one was selected (making it optional)
-    if (selectedFile) {
-      formData.append('ledger_proof', selectedFile);
-    }
+    formData.append('ledger_proof', selectedFile);
 
     // Make API call to store the ledger entry
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -919,13 +934,13 @@ const getTypeAmountColor = (type) => {
             Add Ledger Entry
           </Button>
           )}
-          <Button
+          {/* <Button
           // onClick={() => setShowCreateModal(true)}
           className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
         >
           <Download className="w-4 h-4 mr-2" />
           Proof Template
-        </Button> 
+        </Button>  */}
           </div>
         {/* </div> */}
       </div>
@@ -1458,7 +1473,7 @@ const getTypeAmountColor = (type) => {
 
           {/* File Upload */}
           <div>
-            <FieldLabel>Attach Proof Document (Optional)</FieldLabel>
+            <FieldLabel>Attach Proof Document (Required)</FieldLabel>
             <div className="flex flex-col items-center gap-3">
               <button 
                 type="button" 
@@ -1637,7 +1652,7 @@ const getTypeAmountColor = (type) => {
                           </div>
                 
                           <div>
-                            <FieldLabel>Ledger Proof Document (Optional)</FieldLabel>
+                            <FieldLabel>Ledger Proof Document (Required)</FieldLabel>
                             <div className="flex flex-col items-center gap-3">
                               <button
                                 type="button"

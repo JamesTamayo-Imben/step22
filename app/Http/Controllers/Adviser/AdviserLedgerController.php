@@ -43,8 +43,8 @@ class AdviserLedgerController extends Controller
         }
 
         return Inertia::render('Adviser/Ledger', [
-            'ledgerEntries' => Inertia::defer(fn() => $this->getLedgerEntriesData()),
-            'auditTrail' => Inertia::defer(fn() => $this->getAuditTrailData()),
+            'ledgerEntries' => $this->getLedgerEntriesData(),
+            'auditTrail' => $this->getAuditTrailData(),
             'projectFilterOptions' => $projectNames,
             'totalProjectBudget' => (float) $totalProjectBudget,
             'userPermissions' => $userPermissions,

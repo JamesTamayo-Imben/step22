@@ -117,6 +117,70 @@ const BarChart = ({ data }) => {
   );
 };
 
+const AuditHeatmap = ({ data, heatmapLabel, prevHeatmapMonth, nextHeatmapMonth, canNavigateNext }) => {
+  const getCellStyles = (item) => {
+    const tampering = Number(item.tamperingCount) || 0;
+    const activity = Number(item.activityCount) || 0;
+    const total = tampering + activity;
+
+    if (!total) return { className: 'bg-slate-200 text-slate-700 border border-slate-300' };
+    if (!tampering) return { className: 'bg-emerald-500 text-white' };
+    if (!activity) return { className: 'bg-red-600 text-white' };
+
+    const tamperingPercent = Math.round((tampering / total) * 100);
+    return {
+      className: 'text-white',
+      style: {
+        background: `linear-gradient(90deg, #dc2626 ${tamperingPercent}%, #10b981 ${tamperingPercent}%)`,
+      },
+    };
+  };
+
+  return (
+    <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+      <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-gray-900 font-semibold">Audit Activity</h2>
+          <p className="text-sm text-gray-500">System activity and tampering events by month.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <a href={`/sadmin?heatmap_month=${prevHeatmapMonth}`} className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50">← Prev</a>
+          <div className="rounded-md bg-slate-100 px-3 py-1 text-sm font-medium text-slate-800">{heatmapLabel || 'This month'}</div>
+          {canNavigateNext ? (
+            <a href={`/sadmin?heatmap_month=${nextHeatmapMonth}`} className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50">Next →</a>
+          ) : (
+            <span className="rounded-md bg-slate-100 px-3 py-1 text-sm text-slate-400 cursor-not-allowed">Next →</span>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 text-xs text-gray-600 mb-4">
+        <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-red-600" /> Tampering</span>
+        <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-emerald-500" /> System activity</span>
+        <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-slate-200 border border-slate-300" /> No activity</span>
+      </div>
+
+      <div className="grid grid-cols-7 gap-2 text-[11px] text-center text-gray-600">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <div key={day}>{day}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-2 mt-2">
+        {Array.from({ length: data[0]?.weekday || 0 }, (_, index) => <div key={`blank-${index}`} className="h-20" />)}
+        {data.map((item) => (
+          <div
+            key={item.date}
+            className={`${getCellStyles(item).className} rounded-xl p-2 h-20 flex flex-col justify-between transition-all`}
+            style={getCellStyles(item).style}
+            title={`${item.label} ${item.date}: ${item.tamperingCount} tampering event${item.tamperingCount !== 1 ? 's' : ''}, ${item.activityCount} system activit${item.activityCount !== 1 ? 'ies' : 'y'}`}
+          >
+            <span className="text-[11px] uppercase tracking-[0.08em]">{item.day}</span>
+            <span className="text-lg font-semibold">{item.tamperingCount + item.activityCount} <span className="text-xs font-normal">events</span></span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+};
+
 export default function SAdminDashboard({ stats = {}, charts = {} }) {
   const s = {
     totalUsers: stats.totalUsers ?? 0,
@@ -147,6 +211,7 @@ export default function SAdminDashboard({ stats = {}, charts = {} }) {
   const chartData = {
     projectStatus: charts.projectStatus ?? [],
     auditByDay: charts.auditByDay ?? [],
+    auditHeatmap: charts.auditHeatmap ?? [],
     usersByRole: processedUsersByRole,
     ledgerStatus: charts.ledgerStatus ?? [],
   };
@@ -160,7 +225,7 @@ export default function SAdminDashboard({ stats = {}, charts = {} }) {
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           <div className="space-y-6">
             <div>
-              <h1 className="text-gray-900 text-2xl font-semibold">Superadmin Dashboard</h1>
+              <h1 className="text-blue-600 text-2xl font-semibold">Superadmin Dashboard</h1>
               <p className="text-gray-500">Complete system oversight and management</p>
             </div>
 
@@ -207,7 +272,7 @@ export default function SAdminDashboard({ stats = {}, charts = {} }) {
               <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">Advisers</p>
+                    <p className="text-sm text-gray-500">Admins</p>
                     <p className="text-2xl text-gray-900 mt-1">{s.totalAdvisers}</p>
                     <p className="text-xs text-gray-500 mt-1">Assigned advisers</p>
                   </div>
@@ -218,42 +283,12 @@ export default function SAdminDashboard({ stats = {}, charts = {} }) {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-gray-900 font-semibold">Approved Projects</h2>
-                  <TrendingUp className="w-5 h-5 text-gray-400" />
-                </div>
-                <p className="text-3xl font-bold text-gray-900">{s.approvedProjects}</p>
-                <p className="text-sm text-gray-500 mt-2">Projects with approved status</p>
-              </Card>
-
-              <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-gray-900 font-semibold">Pending Approvals</h2>
-                  <AlertCircle className="w-5 h-5 text-orange-400" />
-                </div>
-                <p className="text-3xl font-bold text-gray-900">{s.pendingApprovals}</p>
-                <p className="text-sm text-gray-500 mt-2">Projects and ledger entries awaiting approval</p>
-              </Card>
-            </div>
-
-            <Card className="p-5 rounded-[20px] border-0 shadow-sm bg-white flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-8 h-8 text-orange-500" />
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Audit Activity</p>
-                  <p className="text-xs text-gray-500">Entries recorded in the last 7 days</p>
-                </div>
-              </div>
-              <p className="text-2xl font-semibold text-gray-900 tabular-nums">{s.auditEventsWeek.toLocaleString()}</p>
-            </Card>
-
-            {/* Analytics Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* //here */}
+              {/* Analytics Charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Project Status Chart */}
               {chartData.projectStatus.length > 0 && (
-                <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+                <Card className="items-center p-6 rounded-[20px] border-0 shadow-sm bg-white">
                   <div className="flex items-center gap-2 mb-4">
                     <PieChartIcon className="w-5 h-5 text-blue-600" />
                     <h2 className="text-gray-900 font-semibold">Project Status Distribution</h2>
@@ -267,7 +302,7 @@ export default function SAdminDashboard({ stats = {}, charts = {} }) {
 
               {/* Ledger Status Chart */}
               {chartData.ledgerStatus.length > 0 && (
-                <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+                <Card className="items-center p-6 rounded-[20px] border-0 shadow-sm bg-white">
                   <div className="flex items-center gap-2 mb-4">
                     <PieChartIcon className="w-5 h-5 text-green-600" />
                     <h2 className="text-gray-900 font-semibold">Ledger Entry Status</h2>
@@ -280,16 +315,18 @@ export default function SAdminDashboard({ stats = {}, charts = {} }) {
               )}
             </div>
 
+            <AuditHeatmap
+              data={chartData.auditHeatmap}
+              heatmapLabel={charts.heatmapLabel}
+              prevHeatmapMonth={charts.prevHeatmapMonth}
+              nextHeatmapMonth={charts.nextHeatmapMonth}
+              canNavigateNext={charts.canNavigateNext}
+            />
+
+          
+
             {/* Audit Activity Chart */}
-            {chartData.auditByDay.length > 0 && (
-              <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-                <div className="flex items-center gap-2 mb-6">
-                  <BarChart3 className="w-5 h-5 text-blue-600" />
-                  <h2 className="text-gray-900 font-semibold">Audit Activity (Last 7 Days)</h2>
-                </div>
-                <LineChart data={chartData.auditByDay} />
-              </Card>
-            )}
+           
 
             {/* Users by Role Chart */}
             {/* {chartData.usersByRole.length > 0 && (

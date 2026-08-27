@@ -845,7 +845,7 @@ const handleSetSaduAdviser = () => {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[30px] font-semibold tracking-tight text-[#111827]">Roles & Permissions</h1>
+          <h1 className="text-blue-600 text-2xl font-semibold tracking-tight">Roles & Permissions</h1>
           <p className="mt-1 text-[15px] text-[#6b7280]">Configure role-based access control</p>
         </div>
         <div className="flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white p-1 shadow-sm">
@@ -870,7 +870,7 @@ const handleSetSaduAdviser = () => {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[290px_minmax(0,1fr)]">
-        <aside className="rounded-[18px] border border-[#e5e7eb] bg-[#f8fafc] p-3">
+        <aside className="rounded-[18px] border border-[#e5e7eb] bg-white p-3">
           <div className="space-y-3">
             {ROLE_OPTIONS.map((option) => {
               const isSelected = selectedRoleKey === option.key;
@@ -935,7 +935,7 @@ const handleSetSaduAdviser = () => {
               onSaved={(matrix) => setRoleMatrix(matrix)}
             />
           ) : (
-            <div className="p-6">
+            <div className="p-6 rounded-[18px] space-y-6">
               {selectedRoleKey === 'superadmin' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -947,7 +947,7 @@ const handleSetSaduAdviser = () => {
                       {superAdmins.length} account(s)
                     </span>
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                     {superAdmins.map((admin) => (
                       <div key={admin.id} className="rounded-xl border border-[#dbeafe] bg-[#eff6ff] p-4">
                         <div className="flex items-center gap-3">
@@ -961,7 +961,8 @@ const handleSetSaduAdviser = () => {
                             </span>
                           </div>
                         </div>
-                        <p className="mt-3 text-sm text-[#6b7280]">{admin.email}</p>
+                        <p className="mt-3 text-sm text-[#6b7280]">Admin email: {admin.email}</p>
+                        <p className="mt-1 text-sm text-[#6b7280]">Admin ID: {admin.id}</p>
                       </div>
                     ))}
                   </div>
@@ -974,7 +975,7 @@ const handleSetSaduAdviser = () => {
                     <h2 className="text-xl font-semibold text-[#111827]">Council Adviser</h2>
                     <p className="text-sm text-[#6b7280]">Manage and assign council adviser role</p>
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-4 grid-cols-2">
                     {councilAdviser.map((adviser) => {
                       const isVacant = !adviser.name;
                       return (
@@ -1010,12 +1011,18 @@ const handleSetSaduAdviser = () => {
                               </>
                             )}
                           </div>
-                          <div className="mt-4">
+                          <div className="mt-4 grid-cols-2 gap-2">
                             <Button
                               onClick={() => openAdviserModal(adviser)}
                               className="w-full bg-[#2563EB] hover:bg-blue-700 text-white"
                             >
                               {isVacant ? 'Assign Adviser' : 'Reassign Adviser'}
+                            </Button>
+                            <Button
+                              onClick={() => handleRemoveAdviser(adviser)}
+                              className="w-full bg-white border border-red-500 text-red-500 hover:bg-red-700 hover:text-white mt-2"
+                            >
+                              Remove
                             </Button>
                           </div>
                         </div>
@@ -1031,7 +1038,7 @@ const handleSetSaduAdviser = () => {
                     <h2 className="text-xl font-semibold text-[#111827]">SADU Admin</h2>
                     <p className="text-sm text-[#6b7280]">Manage and assign SADU Admin role</p>
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-4 grid-cols-2">
                     {councilSaduAdviser.map((adviser) => {
                       const isVacant = !adviser.name;
                       return (
@@ -1073,6 +1080,12 @@ const handleSetSaduAdviser = () => {
                               className="w-full bg-[#2563EB] hover:bg-blue-700 text-white"
                             >
                               {isVacant ? 'Assign SADU Admin' : 'Reassign SADU Admin'}
+                            </Button>
+                              <Button
+                              onClick={() => handleRemoveSaduAdviser(adviser)}
+                              className="w-full bg-white border border-red-500 text-red-500 hover:bg-red-700 hover:text-white mt-2"
+                            >
+                              Remove
                             </Button>
                           </div>
                         </div>
@@ -1125,6 +1138,7 @@ const handleSetSaduAdviser = () => {
                               <>
                                 <p>No officer assigned</p>
                                 <p>No email available</p>
+                                <p>No student ID available</p>
                               </>
                             ) : (
                               <>
@@ -1140,6 +1154,12 @@ const handleSetSaduAdviser = () => {
                               className="w-full bg-[#2563EB] hover:bg-blue-700 text-white"
                             >
                               {isVacant ? 'Assign Officer' : 'Reassign Position'}
+                            </Button>
+                              <Button
+                              onClick={() => handleRemoveOfficer(officer)}
+                              className="w-full bg-white border border-red-500 text-red-500 hover:bg-red-700 hover:text-white mt-2"
+                            >
+                              Remove
                             </Button>
                           </div>
                         </div>

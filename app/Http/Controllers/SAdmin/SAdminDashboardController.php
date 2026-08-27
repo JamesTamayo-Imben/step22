@@ -20,7 +20,7 @@ use Inertia\Inertia;
 
 class SAdminDashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
         if (!$user || !$user->hasRole('Super Admin')) {
@@ -57,20 +57,65 @@ class SAdminDashboardController extends Controller
         $projectStatusChart = [
             ['name' => 'Approved', 'value' => $projectStatuses['Approved'] ?? 0],
             ['name' => 'Pending Adviser', 'value' => $projectStatuses['Pending Adviser Approval'] ?? 0],
-            ['name' => 'Pending Approval', 'value' => $projectStatuses['Pending Approval'] ?? 0],
+            // ['name' => 'Pending Approval', 'value' => $projectStatuses['Pending Approval'] ?? 0],
             ['name' => 'Rejected', 'value' => $projectStatuses['Rejected'] ?? 0],
         ];
 
         $auditByDay = [];
         for ($i = 6; $i >= 0; $i--) {
-            $date = now()->subDays($i)->format('Y-m-d');
-            $count = AuditLog::query()
+            $day = now()->subDays($i);
+            $date = $day->format('Y-m-d');
+            $dayLogs = AuditLog::query()
                 ->where('archive', false)
                 ->whereDate('created_at', $date)
-                ->count();
+                ->get(['action']);
+            $tamperingCount = $dayLogs->filter(fn ($log) => preg_match('/tamper|tampered|tampering/i', (string) $log->action))->count();
+            $activityCount = $dayLogs->count() - $tamperingCount;
+
             $auditByDay[] = [
-                'date' => now()->subDays($i)->format('M d'),
-                'count' => $count,
+                'date' => $day->format('M d'),
+                'count' => $dayLogs->count(),
+            ];
+        }
+
+        $heatmapParam = $request->get('heatmap_month');
+        try {
+            $heatmapStart = $heatmapParam
+                ? \Illuminate\Support\Carbon::createFromFormat('Y-m', $heatmapParam)->startOfMonth()
+                : now()->startOfMonth();
+        } catch (\Exception $e) {
+            $heatmapStart = now()->startOfMonth();
+        }
+        $heatmapEnd = $heatmapStart->copy()->endOfMonth();
+        $heatmapEntries = AuditLog::query()
+            ->where('archive', false)
+            ->whereBetween('created_at', [$heatmapStart->copy()->startOfDay(), $heatmapEnd->copy()->endOfDay()])
+            ->get(['created_at', 'action']);
+        $heatmapEventsByDate = [];
+        foreach ($heatmapEntries as $log) {
+            $date = optional($log->created_at)->format('Y-m-d');
+            if (!$date) {
+                continue;
+            }
+            $heatmapEventsByDate[$date] ??= ['tampering' => 0, 'activity' => 0];
+            if (preg_match('/tamper|tampered|tampering|budget\s*mismatch/i', (string) $log->action)) {
+                $heatmapEventsByDate[$date]['tampering']++;
+            } else {
+                $heatmapEventsByDate[$date]['activity']++;
+            }
+        }
+
+        $auditHeatmap = [];
+        for ($day = $heatmapStart->copy(); $day->lte($heatmapEnd); $day->addDay()) {
+            $date = $day->format('Y-m-d');
+            $events = $heatmapEventsByDate[$date] ?? ['tampering' => 0, 'activity' => 0];
+            $auditHeatmap[] = [
+                'date' => $date,
+                'label' => $day->format('D'),
+                'day' => (int) $day->format('j'),
+                'weekday' => (int) $day->dayOfWeek,
+                'tamperingCount' => $events['tampering'],
+                'activityCount' => $events['activity'],
             ];
         }
 
@@ -134,6 +179,12 @@ class SAdminDashboardController extends Controller
             'charts' => [
                 'projectStatus' => $projectStatusChart,
                 'auditByDay' => $auditByDay,
+                'auditHeatmap' => $auditHeatmap,
+                'heatmapMonth' => $heatmapStart->format('Y-m'),
+                'heatmapLabel' => $heatmapStart->format('F Y'),
+                'prevHeatmapMonth' => $heatmapStart->copy()->subMonth()->format('Y-m'),
+                'nextHeatmapMonth' => $heatmapStart->copy()->addMonth()->format('Y-m'),
+                'canNavigateNext' => $heatmapStart->copy()->addMonth()->startOfMonth()->lte(now()->startOfMonth()),
                 'usersByRole' => $usersByRole,
                 'ledgerStatus' => $ledgerStatusChart,
             ],
@@ -571,7 +622,7 @@ class SAdminDashboardController extends Controller
             }
         }
 
-        // return response()->json(['message' => 'Officer removed successfully']);
+        return back();
     }
 
     public function removeAdviser(\Illuminate\Http\Request $request)
@@ -600,7 +651,7 @@ class SAdminDashboardController extends Controller
             }
         }
 
-        // return response()->json(['message' => 'Adviser removed successfully']);
+        return back();
     }
 
     public function assignSaduAdviser(\Illuminate\Http\Request $request)
@@ -659,7 +710,7 @@ class SAdminDashboardController extends Controller
             }
         }
 
-        // return response()->json(['message' => 'SADU Admin removed successfully']);
+        return back();
     }
 
     public function getPositions()
