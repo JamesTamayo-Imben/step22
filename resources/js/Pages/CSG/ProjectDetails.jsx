@@ -1560,7 +1560,7 @@ function maskUserName(fullName) {
     ? 'text-red-700' 
     : Number(project.budget || 0) < 0 
       ? 'text-red-600' 
-      : 'text-gray-900'
+      : 'text-blue-900'
 }`}>
   ₱{formatLimitedNumber(Number(project.budget || 0), { minFractionDigits: 2, maxFractionDigits: 2 })}
 </p>

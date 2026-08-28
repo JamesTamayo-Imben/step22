@@ -184,6 +184,15 @@ function LedgerPageInner() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkProjectId, setBulkProjectId] = useState('');
+  const [bulkCsvFile, setBulkCsvFile] = useState(null);
+  const [bulkProofFile, setBulkProofFile] = useState(null);
+  const [bulkPreview, setBulkPreview] = useState(null); // response from bulk-preview endpoint
+  const [isBulkPreviewing, setIsBulkPreviewing] = useState(false);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const bulkCsvInputRef = useRef(null);
+  const bulkProofInputRef = useRef(null);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -403,6 +412,154 @@ function LedgerPageInner() {
   const hasTamperedEntries = isDataLoaded && tamperedProjectIds.size > 0;
   const hasBudgetMismatchAlert = isDataLoaded && (mismatchedProjectIds.size > 0 || isBudgetTampered);
   const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
+
+  // ─── Bulk CSV Upload ──────────────────────────────────────────────────────
+
+  const resetBulkModal = () => {
+    setBulkProjectId('');
+    setBulkCsvFile(null);
+    setBulkProofFile(null);
+    setBulkPreview(null);
+    if (bulkCsvInputRef.current) bulkCsvInputRef.current.value = '';
+    if (bulkProofInputRef.current) bulkProofInputRef.current.value = '';
+  };
+
+  const handleCloseBulkModal = () => {
+    resetBulkModal();
+    setShowBulkModal(false);
+  };
+
+  const downloadBulkCsvTemplate = () => {
+    const sample = [
+      'type,item,qty,unit_price,description',
+      'Income,Registration fees,1,2500,Membership drive',
+      'Expense,Venue rental,1,1500,Membership drive',
+      'Expense,Snacks,50,25,Membership drive',
+      'Donation,Alumni contribution,1,1000,',
+    ].join('\n');
+    const blob = new Blob([sample], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ledger_bulk_upload_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleBulkCsvSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!/\.(csv|txt)$/i.test(file.name)) {
+      showToast('Please select a .csv file', 'error');
+      return;
+    }
+    setBulkCsvFile(file);
+    setBulkPreview(null); // require re-preview after picking a new file
+  };
+
+  const handleBulkProofSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Proof file must be less than 10MB', 'error');
+      return;
+    }
+    setBulkProofFile(file);
+  };
+
+  const handleBulkPreviewClick = async () => {
+    if (!bulkProjectId) {
+      showToast('Please select a project first', 'error');
+      return;
+    }
+    if (!bulkCsvFile) {
+      showToast('Please choose a CSV file to upload', 'error');
+      return;
+    }
+
+    setIsBulkPreviewing(true);
+    try {
+      const formData = new FormData();
+      formData.append('project_id', bulkProjectId);
+      formData.append('csv_file', bulkCsvFile);
+
+      const res = await fetch('/api/ledger-entries/bulk-preview', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const errList = data.errors
+          ? Object.values(data.errors).flat().join('\n')
+          : (data.message || 'Could not preview this CSV file.');
+        showToast(errList, 'error');
+        return;
+      }
+
+      setBulkPreview(data);
+      if (data.entries_to_create === 0) {
+        showToast('No valid rows found — check the CSV format and try again', 'error');
+      }
+    } catch (err) {
+      showToast('Network error while previewing the CSV: ' + (err.message || ''), 'error');
+    } finally {
+      setIsBulkPreviewing(false);
+    }
+  };
+
+  const handleBulkSubmit = async () => {
+    if (!bulkPreview || bulkPreview.entries_to_create === 0) {
+      showToast('Preview the CSV first', 'error');
+      return;
+    }
+
+    setIsBulkUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('project_id', bulkProjectId);
+      formData.append('csv_file', bulkCsvFile);
+      if (bulkProofFile) {
+        formData.append('proof_file', bulkProofFile);
+      }
+
+      const res = await fetch('/api/ledger-entries/bulk-upload', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: formData,
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const errList = data.errors
+          ? Object.values(data.errors).flat().join('\n')
+          : (data.message || 'Bulk upload failed.');
+        showToast(errList, 'error');
+        return;
+      }
+
+      showToast(data.message || 'Ledger entries created from CSV', 'success');
+      await fetchLedgerEntries();
+      handleCloseBulkModal();
+    } catch (err) {
+      showToast('Network error while uploading: ' + (err.message || ''), 'error');
+    } finally {
+      setIsBulkUploading(false);
+    }
+  };
   const hasSecurityAlert = hasTamperedEntries || hasBudgetMismatchAlert;
   const integrityBadgeLabel = hasTamperedEntries
     ? 'Tampered Alert'
@@ -934,13 +1091,18 @@ const getTypeAmountColor = (type) => {
             Add Ledger Entry
           </Button>
           )}
-          {/* <Button
-          // onClick={() => setShowCreateModal(true)}
-          className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Proof Template
-        </Button>  */}
+          {canCreateLedgers && (
+            <Button
+              onClick={() => setShowBulkModal(true)}
+              variant="outline"
+              className="rounded-xl border-blue-200 text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={allProjects.length === 0}
+              title={allProjects.length === 0 ? 'No projects available. Create a project first.' : 'Upload a CSV of line items — grouped automatically into one entry per type'}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Bulk Upload (CSV)
+            </Button>
+          )}
           </div>
         {/* </div> */}
       </div>
@@ -1254,6 +1416,7 @@ const getTypeAmountColor = (type) => {
         </Card>
       )}
 
+
       {/* Pagination */}
       {filteredEntries.length > 0 && totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
@@ -1536,6 +1699,154 @@ const getTypeAmountColor = (type) => {
               disabled={!ledgerForm.description || !ledgerForm.project_id || !ledgerForm.type || isLoading}
             >
               {isLoading ? 'Adding...' : 'Save Entry'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bulk Upload (CSV) Modal */}
+      <Modal
+        open={showBulkModal}
+        onClose={handleCloseBulkModal}
+        title="Bulk Upload Ledger Entries (CSV)"
+        description="Upload a CSV of line items. Rows are grouped by their type column — all Income rows become one Income entry, all Expense rows become one Expense entry, and so on."
+      >
+        <div className="space-y-4">
+          {/* Project Selection */}
+          <div>
+            <FieldLabel>Project *</FieldLabel>
+            <Select
+              value={bulkProjectId}
+              onChange={(e) => { setBulkProjectId(e.target.value); setBulkPreview(null); }}
+              className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-200"
+            >
+              <option value="">Select Project</option>
+              {projects.filter((project) => !isProjectLocked(project.id)).map((project) => (
+                <option key={project.id} value={project.id}>{project.title}</option>
+              ))}
+            </Select>
+          </div>
+
+          {/* CSV format help + template download */}
+          <div className="rounded-xl bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
+            <p>Required columns: <code>type</code>, <code>item</code>, <code>unit_price</code>. Optional: <code>qty</code> (defaults to 1), <code>description</code>.</p>
+            <p><code>type</code> must be one of: Income, Expense, Donation, Sponsorship, Canvas.</p>
+            <button
+              type="button"
+              onClick={downloadBulkCsvTemplate}
+              className="text-blue-600 hover:underline font-medium"
+            >
+              
+                <div className='flex'>
+                  <Download className="w-4 h-4 mr-2" /> Download a sample CSV template
+                </div>
+            </button>
+          </div>
+
+          {/* CSV File */}
+          <div>
+            <FieldLabel>CSV File *</FieldLabel>
+            <button
+              type="button"
+              className="w-full border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center hover:bg-gray-50 transition"
+              onClick={() => bulkCsvInputRef.current?.click()}
+            >
+              <Upload className="w-6 h-6 text-gray-500" />
+              <p className="text-sm text-gray-600 mt-2">{bulkCsvFile ? bulkCsvFile.name : 'Click to choose a .csv file'}</p>
+            </button>
+            <input
+              ref={bulkCsvInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleBulkCsvSelect}
+              className="hidden"
+            />
+          </div>
+
+          {/* Preview button */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full rounded-xl border-blue-200 text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleBulkPreviewClick}
+            disabled={!bulkProjectId || !bulkCsvFile || isBulkPreviewing}
+          >
+            {isBulkPreviewing ? 'Reading CSV...' : 'Preview Grouped Entries'}
+          </Button>
+
+          {/* Preview results */}
+          {bulkPreview && (
+            <div className="space-y-3">
+              <div className="rounded-xl bg-blue-50 p-4">
+                <p className="text-sm font-medium text-blue-900">
+                  {bulkPreview.entries_to_create} ledger entry(ies) will be created from {bulkPreview.row_count} row(s)
+                </p>
+              </div>
+
+              {bulkPreview.preview?.map((group) => (
+                <div key={group.type} className="rounded-xl border border-gray-200 p-3">
+                  <div className="flex items-center justify-between">
+                    <Badge className={'bg-gray-100 text-gray-700 rounded-lg ' + getTypeColor(group.type)}>{group.type}</Badge>
+                    <span className="text-sm font-semibold text-gray-900">
+                      ₱{Number(group.amount || 0).toLocaleString()} · {group.item_count} item(s)
+                    </span>
+                  </div>
+                  <ul className="mt-2 text-xs text-gray-600 space-y-0.5 max-h-24 overflow-y-auto">
+                    {group.items.map((it) => (
+                      <li key={it.id}>
+                        {it.item} — {it.qty} × ₱{Number(it.unitPrice).toLocaleString()} = ₱{Number(it.amount).toLocaleString()}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+
+              {bulkPreview.errors?.length > 0 && (
+                <div className="rounded-xl bg-amber-50 p-3">
+                  <p className="text-xs font-medium text-amber-800 mb-1">
+                    {bulkPreview.errors.length} row(s) were skipped:
+                  </p>
+                  <ul className="text-xs text-amber-700 space-y-0.5 max-h-20 overflow-y-auto">
+                    {bulkPreview.errors.map((e, i) => (
+                      <li key={i}>Row {e.row}: {e.reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Optional shared proof */}
+              <div>
+                <FieldLabel>Attach Supporting Document (optional)</FieldLabel>
+                <button
+                  type="button"
+                  className="w-full border-2 border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center hover:bg-gray-50 transition"
+                  onClick={() => bulkProofInputRef.current?.click()}
+                >
+                  <FileText className="w-5 h-5 text-gray-500" />
+                  <p className="text-xs text-gray-600 mt-1">{bulkProofFile ? bulkProofFile.name : 'One document attached to every entry created (e.g. a scanned receipt bundle)'}</p>
+                </button>
+                <input
+                  ref={bulkProofInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={handleBulkProofSelect}
+                  className="hidden"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-4 border-t">
+            <Button variant="outline" onClick={handleCloseBulkModal} className="flex-1 rounded-xl" disabled={isBulkUploading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkSubmit}
+              className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
+              disabled={!bulkPreview || bulkPreview.entries_to_create === 0 || isBulkUploading}
+            >
+              {isBulkUploading ? 'Creating entries...' : `Create ${bulkPreview?.entries_to_create || ''} Entries`}
             </Button>
           </div>
         </div>

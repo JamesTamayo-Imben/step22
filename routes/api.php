@@ -115,6 +115,10 @@ Route::prefix('onboarding')->group(function () {
 // This is used by the CSG Add Ledger Entry modal
 Route::post('/ledger-entries', [LedgerEntryController::class, 'store']);
 
+// CSV bulk-upload: preview the grouped entries before committing, then create them.
+Route::post('/ledger-entries/bulk-preview', [LedgerEntryController::class, 'bulkPreview']);
+Route::post('/ledger-entries/bulk-upload', [LedgerEntryController::class, 'bulkStore']);
+
 // Route to handle the document/image upload for a specific ledger entry
 // This matches your React fetch: `/api/ledger-entries/{id}/upload`
 Route::post('/ledger-entries/{id}/upload', [LedgerEntryController::class, 'uploadProof']);

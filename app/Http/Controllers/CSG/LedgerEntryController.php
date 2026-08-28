@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 // use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -316,6 +317,279 @@ public function uploadProof(Request $request, $id)
                 'message' => 'Failed to create ledger entry',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Allowed ledger entry types a CSG council member may create through
+     * either the manual form or a CSV bulk import. "Initial", "Transfer",
+     * and "Initial Transfer" are system-generated and excluded here.
+     */
+    private const BULK_ALLOWED_TYPES = ['Income', 'Expense', 'Donation', 'Sponsorship', 'Canvas'];
+
+    /**
+     * Parse an uploaded CSV of line items and group them by ledger entry
+     * type, computing a running total per group. Expected header columns
+     * (case-insensitive, order-independent):
+     *   type, item, qty, unit_price, description
+     *
+     * Returns:
+     *   [
+     *     'groups' => [ 'Expense' => ['items' => [...], 'amount' => 123.45, 'descriptions' => [...]], ... ],
+     *     'errors' => [ ['row' => 3, 'reason' => '...'], ... ],
+     *     'rowCount' => int  // number of non-header, non-blank rows read
+     *   ]
+     */
+    private function parseLedgerCsv($file): array
+    {
+        $handle = fopen($file->getRealPath(), 'r');
+        if ($handle === false) {
+            throw new \RuntimeException('Could not read the uploaded CSV file.');
+        }
+
+        $header = fgetcsv($handle);
+        if ($header === false) {
+            fclose($handle);
+            throw new \RuntimeException('The CSV file is empty.');
+        }
+
+        // Normalize header names so "Unit Price", "unit_price", "UnitPrice" all match.
+        $normalize = fn ($h) => strtolower(preg_replace('/[^a-z0-9]/i', '', (string) $h));
+        $columnIndex = [];
+        foreach ($header as $i => $col) {
+            $columnIndex[$normalize($col)] = $i;
+        }
+
+        $find = function (array $aliases) use ($columnIndex) {
+            foreach ($aliases as $alias) {
+                if (array_key_exists($alias, $columnIndex)) {
+                    return $columnIndex[$alias];
+                }
+            }
+            return null;
+        };
+
+        $typeIdx = $find(['type']);
+        $itemIdx = $find(['item', 'itemname', 'name']);
+        $qtyIdx = $find(['qty', 'quantity']);
+        $priceIdx = $find(['unitprice', 'price', 'amount']);
+        $descIdx = $find(['description', 'notes', 'remarks']);
+
+        if ($typeIdx === null || $itemIdx === null || $priceIdx === null) {
+            fclose($handle);
+            throw new \RuntimeException(
+                'CSV must include at least "type", "item", and "unit_price" columns.'
+            );
+        }
+
+        $groups = [];
+        $errors = [];
+        $rowCount = 0;
+        $rowNumber = 1; // header is row 1
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $rowNumber++;
+
+            // Skip fully blank lines.
+            if (count(array_filter($row, fn ($v) => trim((string) $v) !== '')) === 0) {
+                continue;
+            }
+            $rowCount++;
+
+            $type = ucfirst(strtolower(trim((string) ($row[$typeIdx] ?? ''))));
+            $item = trim((string) ($row[$itemIdx] ?? ''));
+            $qty = $qtyIdx !== null ? trim((string) ($row[$qtyIdx] ?? '')) : '1';
+            $price = trim((string) ($row[$priceIdx] ?? ''));
+            $desc = $descIdx !== null ? trim((string) ($row[$descIdx] ?? '')) : '';
+
+            if (!in_array($type, self::BULK_ALLOWED_TYPES, true)) {
+                $errors[] = ['row' => $rowNumber, 'reason' => "Unrecognized type \"{$row[$typeIdx]}\" — must be one of: " . implode(', ', self::BULK_ALLOWED_TYPES)];
+                continue;
+            }
+            if ($item === '') {
+                $errors[] = ['row' => $rowNumber, 'reason' => 'Missing item name'];
+                continue;
+            }
+            if ($qty === '' || !is_numeric($qty) || (float) $qty <= 0) {
+                $qty = '1';
+            }
+            if ($price === '' || !is_numeric($price) || (float) $price < 0) {
+                $errors[] = ['row' => $rowNumber, 'reason' => 'Unit price must be a non-negative number'];
+                continue;
+            }
+
+            $qtyNum = (float) $qty;
+            $priceNum = (float) $price;
+            $amount = round($qtyNum * $priceNum, 2);
+
+            $groups[$type]['items'][] = [
+                'id' => count($groups[$type]['items'] ?? []) + 1,
+                'item' => $item,
+                'qty' => $qtyNum,
+                'unitPrice' => $priceNum,
+                'amount' => $amount,
+            ];
+            $groups[$type]['amount'] = ($groups[$type]['amount'] ?? 0) + $amount;
+            if ($desc !== '') {
+                $groups[$type]['descriptions'][$desc] = true;
+            }
+        }
+
+        fclose($handle);
+
+        return ['groups' => $groups, 'errors' => $errors, 'rowCount' => $rowCount];
+    }
+
+    /**
+     * Preview a CSV bulk-upload without saving anything, so the CSG council
+     * can review how many ledger entries will be created and how the rows
+     * were grouped/validated before committing.
+     */
+    public function bulkPreview(Request $request)
+    {
+        try {
+            if (!Auth::user()?->hasPermission('ledger.create')) {
+                return response()->json(['message' => 'You do not have permission to create ledger entries.'], 403);
+            }
+
+            $request->validate([
+                'project_id' => 'required|exists:projects,id',
+                'csv_file' => 'required|file|mimes:csv,txt|max:5120',
+            ]);
+
+            $parsed = $this->parseLedgerCsv($request->file('csv_file'));
+
+            $preview = [];
+            foreach ($parsed['groups'] as $type => $group) {
+                $preview[] = [
+                    'type' => $type,
+                    'item_count' => count($group['items']),
+                    'amount' => round($group['amount'], 2),
+                    'items' => $group['items'],
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'row_count' => $parsed['rowCount'],
+                'entries_to_create' => count($preview),
+                'preview' => $preview,
+                'errors' => $parsed['errors'],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            Log::error('Ledger CSV preview failed: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Bulk-create ledger entries from an uploaded CSV. Rows are grouped by
+     * their "type" column — every row of the same type becomes line items
+     * on a single ledger entry of that type, so e.g. 5 Expense rows in the
+     * CSV become one Expense ledger entry with a 5-item budget breakdown,
+     * while 3 Income rows become a separate Income entry.
+     */
+    public function bulkStore(Request $request)
+    {
+        try {
+            if (!Auth::user()?->hasPermission('ledger.create')) {
+                return response()->json(['message' => 'You do not have permission to create ledger entries.'], 403);
+            }
+
+            $request->validate([
+                'project_id' => 'required|exists:projects,id',
+                'csv_file' => 'required|file|mimes:csv,txt|max:5120',
+                'proof_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            ]);
+
+            $parsed = $this->parseLedgerCsv($request->file('csv_file'));
+
+            if (empty($parsed['groups'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No valid rows were found in the CSV file.',
+                    'errors' => $parsed['errors'],
+                ], 422);
+            }
+
+            // A single shared supporting document (e.g. the receipts folder scan, or the
+            // source spreadsheet as a PDF) can optionally be attached to every entry
+            // created in this batch, the same way a proof file is attached manually.
+            $sharedProofPath = null;
+            $sharedProofHash = null;
+            if ($request->hasFile('proof_file')) {
+                $file = $request->file('proof_file');
+                $sharedProofHash = hash_file('sha256', $file->getRealPath());
+                $extension = $file->getClientOriginalExtension();
+                $fileName = $sharedProofHash . '.' . $extension;
+                $file->storeAs('ledger_proofs', $fileName, 'public');
+                $sharedProofPath = 'storage/ledger_proofs/' . $fileName;
+            }
+
+            $created = [];
+
+            DB::transaction(function () use ($parsed, $request, $sharedProofPath, $sharedProofHash, &$created) {
+                foreach ($parsed['groups'] as $type => $group) {
+                    $description = !empty($group['descriptions'])
+                        ? implode('; ', array_keys($group['descriptions']))
+                        : sprintf('Bulk CSV import — %d item(s)', count($group['items']));
+
+                    $entry = new LedgerEntry();
+                    $entry->id = Str::uuid()->toString();
+                    $entry->project_id = $request->project_id;
+                    $entry->type = $type;
+                    $entry->amount = round($group['amount'], 2);
+                    $entry->description = $description;
+                    $entry->budget_breakdown = json_encode($group['items']);
+                    $entry->approval_status = 'Draft';
+                    $entry->created_by = Auth::id();
+
+                    if ($sharedProofPath) {
+                        $entry->ledger_proof = $sharedProofPath;
+                        $entry->file_content_hash = $sharedProofHash;
+                    }
+
+                    $entry->created_at = now();
+                    $entry->updated_at = now();
+                    $entry->save();
+
+                    AuditLog::create([
+                        'id' => (string) Str::uuid(),
+                        'user_id' => Auth::id(),
+                        'actionable_id' => $entry->id,
+                        'actionable_type' => 'ledger_entry',
+                        'action' => 'Ledger Entry Created',
+                        'module' => 'ledger',
+                        'action_type' => 'create',
+                        'status' => 'Success',
+                        'details' => "Created {$type} ledger entry for project ID {$request->project_id} via CSV bulk import (" . count($group['items']) . ' item(s))',
+                        'ip_address' => $request->ip(),
+                        'browser_info' => substr((string) $request->userAgent(), 0, 500),
+                        'archive' => 0,
+                    ]);
+
+                    $created[] = [
+                        'id' => $entry->id,
+                        'type' => $type,
+                        'amount' => $entry->amount,
+                        'item_count' => count($group['items']),
+                    ];
+                }
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => count($created) . ' ledger entry(ies) created from CSV import.',
+                'created' => $created,
+                'skipped' => $parsed['errors'],
+            ], 201);
+        } catch (ValidationException $e) {
+            return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            Log::error('Ledger CSV bulk upload failed: ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString());
+            return response()->json(['success' => false, 'message' => 'Failed to process CSV: ' . $e->getMessage()], 500);
         }
     }
 

@@ -478,6 +478,8 @@ Route::prefix('api')->group(function () {
         Route::get('/project/{projectId}', [LedgerEntryController::class, 'index']);
         Route::get('/proof-documents', [LedgerEntryController::class, 'getProofDocuments']);
         Route::post('/', [LedgerEntryController::class, 'store']);
+        Route::post('/bulk-preview', [LedgerEntryController::class, 'bulkPreview']);
+        Route::post('/bulk-upload', [LedgerEntryController::class, 'bulkStore']);
         Route::put('/{id}', [LedgerEntryController::class, 'update']);
         Route::delete('/{id}', [LedgerEntryController::class, 'destroy']);
         Route::post('/{id}/submit', [LedgerEntryController::class, 'submitForApproval']);
