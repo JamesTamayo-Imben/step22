@@ -27,10 +27,19 @@ class AdviserLedgerController extends Controller
             ->filter()
             ->values();
 
-        $totalProjectBudget = Project::query()
+        // Sum raw budgets first (an overspent project's negative balance still
+        // nets against other projects' positive balances, and any donation
+        // to that project still moves this total). Only floor at the END:
+        // totalProjectBudget is the "on hand" figure (never negative), and
+        // totalProjectShortfall is the negative part shown as its own number
+        // instead of being hidden — e.g. "you need ₱X more to cover approved
+        // expenses" rather than a confusing negative "remaining budget".
+        $rawTotalProjectBudget = Project::query()
             ->where('archive', false)
             ->where('approval_status', 'Approved')
             ->sum('budget');
+        $totalProjectBudget = max(0, (float) $rawTotalProjectBudget);
+        $totalProjectShortfall = max(0, -(float) $rawTotalProjectBudget);
 
         // Get user's permissions
         $userPermissions = [];
@@ -47,6 +56,7 @@ class AdviserLedgerController extends Controller
             'auditTrail' => $this->getAuditTrailData(),
             'projectFilterOptions' => $projectNames,
             'totalProjectBudget' => (float) $totalProjectBudget,
+            'totalProjectShortfall' => (float) $totalProjectShortfall,
             'userPermissions' => $userPermissions,
         ]);
     }

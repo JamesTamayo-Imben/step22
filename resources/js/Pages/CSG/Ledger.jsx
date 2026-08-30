@@ -255,7 +255,12 @@ function LedgerPageInner() {
   };
 
   //computation of total budget in all prjects getting it from the project table budget column
-  const totalBudget = allProjects.reduce((sum, project) => sum + (Number(project.budget) || 0), 0);
+  // const totalBudget = allProjects.reduce((sum, project) => sum + (Number(project.budget) || 0), 0);
+  // const totalBudget = allProjects.reduce((sum, project) => sum + Math.max(0, Number(project.budget) || 0), 0);
+const rawTotalBudget = allProjects.reduce((sum, project) => sum + (Number(project.budget) || 0), 0);
+const totalBudget = Math.max(0, rawTotalBudget);
+const totalShortfall = Math.max(0, -rawTotalBudget);
+
 
   // Compute ledger-derived budget (sum of APPROVED entries only).
   // Draft/Pending/Rejected entries must not count toward the org total,
@@ -1151,25 +1156,10 @@ const getTypeAmountColor = (type) => {
           </div>
         </Card>
 
-        <Card className="rounded-[20px] border-0 shadow-sm p-6">
+          <Card className={`rounded-[20px] border-0 shadow-sm p-6 ${isBudgetTampered ? 'bg-red-50' : 'bg-white'}`}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Average Net Per Project</p>
-              <p className={`text-2xl mt-1 ${averageNet >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                ₱{formatLimitedNumber(averageNet || 0)}
-              </p>
-               <p className="text-xs text-gray-500 mt-1">Profit per project</p>
-            </div>
-            <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-              <Wallet className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </Card>
-
-         <Card className={`rounded-[20px] border-0 shadow-sm p-6 ${isBudgetTampered ? 'bg-red-50' : 'bg-white'}`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Budget</p>
+              <p className="text-sm text-gray-500">Remaining Budget</p>
               <p className={`text-2xl mt-1 ${isBudgetTampered ? 'text-red-700' : 'text-blue-600'}`}>
                 ₱{formatLimitedNumber(totalBudget || 0)}
               </p>
@@ -1183,6 +1173,22 @@ const getTypeAmountColor = (type) => {
             </div>
           </div>
         </Card>
+
+        <Card className="rounded-[20px] border-0 shadow-sm p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Project Shortfall</p>
+              <p className={`text-2xl mt-1 text-red-600`}>
+                ₱{formatLimitedNumber(totalShortfall  || 0)}
+              </p>
+               <p className="text-xs text-gray-500 mt-1">Expenses exceed funds</p>
+            </div>
+            <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
+              <Wallet className="w-6 h-6 text-red-600" />
+            </div>
+          </div>
+        </Card>
+
       </div>
 
       {/* Filters */}

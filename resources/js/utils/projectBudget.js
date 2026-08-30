@@ -15,6 +15,19 @@ export function computeBudgetFromEntries(entries) {
 }
 
 export function computeOrgBudgetFromLedger(entries) {
+  return Math.max(0, computeOrgRawBalanceFromLedger(entries));
+}
+
+// The negative portion of the org-wide balance — i.e. how much more funding
+// is needed to cover approved expenses across all projects. This is 0 when
+// the org is not in deficit. Kept separate from computeOrgBudgetFromLedger so
+// a shortfall never silently disappears from the dashboard — it should be
+// shown as its own figure, not folded into (or hidden from) the total.
+export function computeOrgShortfallFromLedger(entries) {
+  return Math.max(0, -computeOrgRawBalanceFromLedger(entries));
+}
+
+function computeOrgRawBalanceFromLedger(entries) {
   const approved = (entries || []).filter(
     (entry) => (entry?.status === 'Approved' || entry?.approval_status === 'Approved') && !entry?.archive
   );
@@ -32,6 +45,9 @@ export function computeOrgBudgetFromLedger(entries) {
 
   let total = 0;
   for (const projectEntries of byProject.values()) {
+    // Sum raw per-project balances (can be negative) so donations against a
+    // deficit and offsetting positive balances on other projects both stay
+    // visible in the running total.
     total += computeBudgetFromEntries(projectEntries);
   }
 

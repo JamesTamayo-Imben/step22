@@ -28,7 +28,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     // { id: 'ledger-entries', label: 'Ledger Entries', icon: BookOpenText },
     // { id: 'meetings', label: 'Meetings', icon: CalendarDays },
     { id: 'system-logs', label: 'System Logs', icon: FileText },
-    // { id: 'system-settings', label: 'System Settings', icon: Settings },
+    { id: 'system-settings', label: 'Blockchain', icon: Settings },
     // { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
     // { id: 'data-backup', label: 'Data & Backup', icon: Database },
     // { id: 'engagement-rules', label: 'Engagement Rules', icon: TrendingUp },

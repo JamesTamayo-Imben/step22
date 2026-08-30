@@ -987,6 +987,7 @@ export default function AdviserApprovalsPage() {
             <label className="mt-3 inline-flex cursor-pointer rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100">
               <input
                 type="file"
+                //  value={approvalproof}
                 accept="application/pdf"
                 className="hidden"
                 onChange={(e) => setApprovalFile(e.target.files?.[0] || null)}
@@ -1003,7 +1004,7 @@ export default function AdviserApprovalsPage() {
       )}
     </div>
     <div className="flex gap-3">
-      <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowApprove(false); setApprovalNotes(''); }}>
+      <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowApprove(false); setApprovalNotes('');  }}>
         Cancel
       </Button>
       <Button 
@@ -1013,9 +1014,9 @@ export default function AdviserApprovalsPage() {
             showToast('Please provide approval notes before confirming', 'error');
             return;
           }
-          runApprove(selectedItem, approvalNotes);
+          runApprove(selectedItem, approvalNotes,);
         }}
-        disabled={!approvalNotes.trim()}
+        disabled={!approvalNotes.trim() || (selectedItem?.approvalType === 'project' && !approvalFile) }
       >
         Confirm Approval
       </Button>

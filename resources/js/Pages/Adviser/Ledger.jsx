@@ -273,7 +273,7 @@ function csvEscape(val) {
 const TABLE_PAGE_SIZE = 10;
 
 export default function LedgerApprovalsPage() {
-  const { ledgerEntries = [], projectFilterOptions = [], totalProjectBudget = 0, userPermissions = [] } = usePage().props;
+  const { ledgerEntries = [], projectFilterOptions = [], totalProjectBudget = 0, totalProjectShortfall = 0, userPermissions = [] } = usePage().props;
 
   const [selectedEntry, setSelectedEntry] = useState(null);
 
@@ -294,7 +294,7 @@ export default function LedgerApprovalsPage() {
 
   const [ledgerPage, setLedgerPage] = useState(1);
   const [showLedgerProofViewer, setShowLedgerProofViewer] = useState(false);
-
+  
   useEffect(() => {
     setLedgerPage(1);
   }, [filterProject, filterStatus, searchQuery, filterCategory]);
@@ -332,6 +332,7 @@ export default function LedgerApprovalsPage() {
       averageExpenses: projectCount ? totalExpenses / projectCount : 0,
       averageNet: projectCount ? (totalIncome - totalExpenses) / projectCount : 0,
       totalProjectBudget: Number(totalProjectBudget) || 0,
+      totalProjectShortfall: Number(totalProjectShortfall) || 0,
       computedBudgetFromLedger,
       budgetDifference,
       isBudgetTampered,
@@ -649,24 +650,10 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                 </div>
               </div>
             </div>
-            <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Average Net Per Project</p>
-                  <p className={`text-2xl mt-1 ${stats.averageNet >= 0 ? 'text-gray-800' : 'text-red-600'}`}>
-                    ₱{formatLimitedNumber(stats.averageNet, { maxFractionDigits: 2 })}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">Across all projects</p>
-                </div>
-                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
-                  <Wallet className="w-6 h-6 text-gray-600" />
-                </div>
-              </div>
-            </div>
             <div className={`p-6 rounded-[20px] border-0 shadow-sm ${stats.isBudgetTampered ? 'bg-red-50 border border-red-200' : 'bg-white'}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Total Project Budget</p>
+                  <p className="text-sm text-gray-500">Ramaining Budget</p>
                   <p className={`text-2xl mt-1 ${stats.isBudgetTampered ? 'text-red-700' : 'text-blue-600'}`}>
                     ₱{formatLimitedNumber(stats.totalProjectBudget, { maxFractionDigits: 2 })}
                   </p>
@@ -689,6 +676,20 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                 </div>
               </div>
             </div>
+             <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-sm text-gray-500">Project Shortfall</p>
+      <p className={`text-2xl mt-1 ${stats.totalProjectShortfall > 0.01 ? 'text-red-600' : 'text-gray-800'}`}>
+        ₱{formatLimitedNumber(stats.totalProjectShortfall, { maxFractionDigits: 2 })}
+      </p>
+      <p className="text-xs text-gray-500 mt-1">Across all projects</p>
+    </div>
+    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stats.totalProjectShortfall > 0.01 ? 'bg-red-100' : 'bg-gray-100'}`}>
+      <Wallet className={`w-6 h-6 ${stats.totalProjectShortfall > 0.01 ? 'text-red-600' : 'text-gray-600'}`} />
+    </div>
+  </div>
+</div>
           </div>
 
           <>
