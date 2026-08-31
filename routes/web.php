@@ -21,6 +21,7 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\SAdmin\SAdminDashboardController;
 use App\Http\Controllers\SAdmin\SAdminArchivedItemsController;
 use App\Http\Controllers\SAdmin\SAdminSystemLogsController;
+use App\Http\Controllers\SAdmin\SAdminBlockchainController;
 use App\Http\Controllers\SAdmin\UserManagementController;
 use App\Http\Controllers\User\UserProjectController;
 use App\Models\AuditLog;
@@ -158,9 +159,8 @@ Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function ()  {
         return Inertia::render('SAdmin/Organizations');
     })->name('sadmin.organizations');
 
-    Route::get('/sadmin/settings', function () {
-        return Inertia::render('SAdmin/SystemSettings');
-    })->name('sadmin.settings');
+    Route::get('/sadmin/settings', [SAdminBlockchainController::class, 'index'])->name('sadmin.settings');
+    Route::get('/sadmin/settings/blockchain/verify', [SAdminBlockchainController::class, 'verify'])->name('sadmin.settings.blockchain.verify');
 
     Route::get('/sadmin/audit-logs', function () {
         return Inertia::render('SAdmin/AuditLogs');

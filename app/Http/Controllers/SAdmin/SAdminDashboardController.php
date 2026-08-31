@@ -49,15 +49,23 @@ class SAdminDashboardController extends Controller
 
         $projectStatuses = Project::query()
             ->where('archive', false)
-            ->selectRaw('approval_status, COUNT(*) as count')
-            ->groupBy('approval_status')
-            ->pluck('count', 'approval_status')
+            ->get(['status', 'approval_status'])
+            ->map(function (Project $project) {
+                $status = trim((string) ($project->approval_status ?: $project->status));
+
+                return match (strtolower($status)) {
+                    'approved' => 'Approved',
+                    'pending adviser approval', 'pending approval', 'pending' => 'Pending Adviser',
+                    'rejected' => 'Rejected',
+                    default => $status !== '' ? 'Other' : 'Other',
+                };
+            })
+            ->countBy()
             ->toArray();
 
         $projectStatusChart = [
             ['name' => 'Approved', 'value' => $projectStatuses['Approved'] ?? 0],
-            ['name' => 'Pending Adviser', 'value' => $projectStatuses['Pending Adviser Approval'] ?? 0],
-            // ['name' => 'Pending Approval', 'value' => $projectStatuses['Pending Approval'] ?? 0],
+            ['name' => 'Pending Adviser', 'value' => $projectStatuses['Pending Adviser'] ?? 0],
             ['name' => 'Rejected', 'value' => $projectStatuses['Rejected'] ?? 0],
         ];
 

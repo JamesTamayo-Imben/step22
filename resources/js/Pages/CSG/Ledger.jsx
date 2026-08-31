@@ -1100,7 +1100,7 @@ const getTypeAmountColor = (type) => {
             <Button
               onClick={() => setShowBulkModal(true)}
               variant="outline"
-              className="rounded-xl border-blue-200 text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={allProjects.length === 0}
               title={allProjects.length === 0 ? 'No projects available. Create a project first.' : 'Upload a CSV of line items — grouped automatically into one entry per type'}
             >

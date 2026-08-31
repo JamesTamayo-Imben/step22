@@ -197,6 +197,70 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
+function formatReportDate(value) {
+  if (!value) return 'Not available';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+}
+
+function buildIncidentReport(entries, stats) {
+  const createdAt = new Date().toISOString();
+  const tamperedEntries = entries.filter((entry) => entry?.verificationState?.tampered);
+  const affectedProjects = [...new Map(tamperedEntries.map((entry) => [entry.projectId, entry])).values()];
+  const sections = affectedProjects.map((entry, index) => `INCIDENT ${index + 1}
+Project Chain Affected: ${entry.projectName} (${entry.projectId})
+Specific Chain Segment: Ledger entry ${entry.id}
+Date of Tampering: ${formatReportDate(entry.date)}
+Time of Detection: ${formatReportDate(createdAt)}
+Current Status: Chain tampering detected
+Issues Found:
+- Ledger entry was flagged as tampered by blockchain verification.
+- Transaction: ${entry.transactionType || 'Not available'}
+- Description: ${entry.description || 'Not available'}
+
+Impact Assessment
+- Project Deliverable: Budget records for this project require review.
+- Project Timeline: The integrity of the recorded financial sequence cannot be confirmed until resolved.
+- Audit Trail: The chain is no longer self-consistent for the affected segment.
+`);
+
+  if (stats.isBudgetTampered) {
+    sections.push(`BUDGET MISMATCH
+Project Chain Affected: All approved projects in the reviewed ledger
+Specific Chain Segment: Project budget reconciliation
+Date of Tampering: Not determinable from the budget total
+Time of Detection: ${formatReportDate(createdAt)}
+Current Status: Budget mismatch detected
+Issues Found:
+- Stored project budget total differs from the approved ledger total.
+- Difference: ${formatLimitedNumber(stats.budgetDifference, { minFractionDigits: 2 })}
+
+Impact Assessment
+- Project Deliverable: The reported available budget requires reconciliation.
+- Project Timeline: Financial planning may be affected until the totals are corrected.
+- Audit Trail: The project budget and approved ledger are not self-consistent.
+`);
+  }
+
+  return `CONFIDENTIAL INCIDENT REPORT
+REGARDING CHAIN OF CUSTODY TAMPERING
+
+This report serves to formally notify the committee of a confirmed integrity breach concerning the operational chain of the STEP blockchain. Evidence indicates that unauthorized alterations or budget discrepancies were detected at a specific node within the chain, compromising the validity of the data/logistical flow.
+
+Report Created: ${formatReportDate(createdAt)}
+Time of Detection: ${formatReportDate(createdAt)}
+Total Ledger Entries Reviewed: ${entries.length}
+Affected Chains or Budget Checks: ${sections.length}
+
+${sections.length ? sections.join('\n') : `FINDING
+No chain tampering or budget mismatch was detected during this review.
+Current Status: All reviewed records are self-consistent.
+`}
+Prepared by: STEP Administration
+This document is confidential and intended for committee and authorized audit use only.
+`;
+}
+
 function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry }) {
   if (!isOpen) return null;
 
@@ -366,6 +430,17 @@ export default function LedgerApprovalsPage() {
       case 'Transfer': return 'bg-yellow-100 text-yellow-700';
       default: return 'bg-gray-100 text-gray-700';
     }
+  };
+
+const downloadReport = () => {
+  const report = buildIncidentReport(ledgerEntries, stats);
+    const url = URL.createObjectURL(new Blob([report], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `step-confidential-incident-report-${new Date().toISOString().slice(0, 10)}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('Integrity report downloaded', 'success');
   };
 
   const getTypeAmountColor = (type) => {
@@ -594,7 +669,29 @@ export default function LedgerApprovalsPage() {
              </div>
               <p className="text-gray-500 mt-1">Review and verify financial ledger entries</p>
 
-              {hasTamperAlert && (
+            
+            </div>
+           <div className="flex items-center gap-2">
+             <button
+              type="button"
+              onClick={handleExport}
+className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-colors"            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </button>
+             <Button
+                              onClick={downloadReport}
+                              
+                              variant="outline"
+                              className="rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-60 text-white w-full sm:w-auto"
+                            >
+                              <Download className="w-4 h-4 mr-2" />
+                              Download Report
+                            </Button>
+           </div>
+          </div>
+
+            {hasTamperAlert && (
                 <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
@@ -609,15 +706,6 @@ export default function LedgerApprovalsPage() {
                   </div>
                 </div>
               )}
-            </div>
-            <button
-              type="button"
-              onClick={handleExport}
-className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-colors"            >
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
-            </button>
-          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">

@@ -819,7 +819,7 @@ const renderAttendees = (attendees) => {
 
           <Button
            onClick={handleDownloadTemplate}
-          className="text-blue-600 bg-white border border-blue-200 rounded-xl hover:bg-blue-50"
+          className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download className="w-4 h-4 mr-2" />
           Minutes Template

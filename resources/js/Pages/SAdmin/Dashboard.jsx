@@ -56,12 +56,16 @@ const PieChart = ({ data, colors }) => {
     };
   });
 
+  const fullCircle = slices.length === 1 || slices.some((slice) => slice.value === total);
+
   return (
     <div className="flex items-center gap-4">
       <svg width="120" height="120" viewBox="0 0 100 100">
-        {slices.map((slice, idx) => (
-          <path key={idx} d={slice.pathData} fill={slice.color} stroke="white" strokeWidth="1" />
-        ))}
+        {fullCircle
+          ? <circle cx="50" cy="50" r="45" fill={slices.find((slice) => slice.value === total)?.color || '#6b7280'} stroke="white" strokeWidth="1" />
+          : slices.map((slice, idx) => (
+            <path key={idx} d={slice.pathData} fill={slice.color} stroke="white" strokeWidth="1" />
+          ))}
       </svg>
       <div className="space-y-2 text-sm">
         {slices.map((slice, idx) => (
@@ -287,8 +291,7 @@ export default function SAdminDashboard({ stats = {}, charts = {} }) {
               {/* Analytics Charts */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Project Status Chart */}
-              {chartData.projectStatus.length > 0 && (
-                <Card className="items-center p-6 rounded-[20px] border-0 shadow-sm bg-white">
+              <Card className="p-6 items-center rounded-[20px] border-0 shadow-sm bg-white">
                   <div className="flex items-center gap-2 mb-4">
                     <PieChartIcon className="w-5 h-5 text-blue-600" />
                     <h2 className="text-gray-900 font-semibold">Project Status Distribution</h2>
@@ -297,8 +300,7 @@ export default function SAdminDashboard({ stats = {}, charts = {} }) {
                     data={chartData.projectStatus}
                     colors={['#10b981', '#f97316', '#ef4444', '#6b7280']}
                   />
-                </Card>
-              )}
+              </Card>
 
               {/* Ledger Status Chart */}
               {chartData.ledgerStatus.length > 0 && (
