@@ -83,6 +83,41 @@ This document is confidential and intended for committee and authorized audit us
 `;
 }
 
+function reportToPdfBlob(report) {
+  const lines = report.split('\n').flatMap((line) => {
+    const chunks = line.match(/.{1,95}(?:\s|$)/g);
+    return chunks?.map((chunk) => chunk.trimEnd()) || [''];
+  });
+  const pages = [];
+  for (let index = 0; index < lines.length; index += 48) pages.push(lines.slice(index, index + 48));
+  const objects = [];
+  const pageIds = [];
+  const contentIds = [];
+  const escapePdf = (value) => value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+
+  objects.push('<< /Type /Catalog /Pages 2 0 R >>');
+  objects.push('<< /Type /Pages /Kids [] /Count 0 >>');
+  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  pages.forEach((pageLines) => {
+    const content = ['BT', '/F1 10 Tf', '50 742 Td', '13 TL', ...pageLines.map((line) => `(${escapePdf(line)}) Tj T*`), 'ET'].join('\n');
+    contentIds.push(objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`) - 1);
+    pageIds.push(objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentIds.at(-1) + 1} 0 R >>`) - 1);
+  });
+  objects[1] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id + 1} 0 R`).join(' ')}] /Count ${pageIds.length} >>`;
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets[index + 1] = pdf.length;
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => { pdf += `${String(offset).padStart(10, '0')} 00000 n \n`; });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return new Blob([pdf], { type: 'application/pdf' });
+}
+
 function PaginationBar({ page, pageCount, onChange, rangeLabel }) {
   if (pageCount <= 1) return null;
   return (
@@ -167,10 +202,10 @@ export default function SystemSettingsPage() {
 
   const downloadReport = () => {
     const report = buildIncidentReport(chains, scannedAt);
-    const url = URL.createObjectURL(new Blob([report], { type: 'text/plain;charset=utf-8' }));
+    const url = URL.createObjectURL(reportToPdfBlob(report));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `step-confidential-incident-report-${new Date().toISOString().slice(0, 10)}.txt`;
+    link.download = `step-confidential-incident-report-${new Date().toISOString().slice(0, 10)}.pdf`;
     link.click();
     URL.revokeObjectURL(url);
     showToast('Integrity report downloaded', 'success');
