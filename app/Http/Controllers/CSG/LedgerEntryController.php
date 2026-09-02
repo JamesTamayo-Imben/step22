@@ -7,15 +7,15 @@ namespace App\Http\Controllers\CSG;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\CSG\Approval;
 use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Project;
-use App\Models\CSG\Approval;
 use App\Models\User;
 use Illuminate\Http\Request;
-// use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -51,7 +51,7 @@ public function uploadProof(Request $request, $id)
 
         // 4. STORAGE (Local Folder)
         // Automatically creates 'storage/app/public/ledger_proofs' if it doesn't exist
-        $path = $file->storeAs('ledger_proofs', $fileName, 'public');
+        $path = $file->storeAs('ledger_proofs', $fileName, 'supabase'); 
 
         // 5. UPDATE DATABASE
         // Store the web-accessible path and the content hash for auditing
@@ -265,7 +265,7 @@ public function uploadProof(Request $request, $id)
                 $fileName = $fileHash . '.' . $extension;
                 
                 // Store file with hash-based name to prevent duplicates in ledger_proofs folder
-                $filePath = $file->storeAs('ledger_proofs', $fileName, 'public');
+                $filePath = $file->storeAs('ledger_proofs', $fileName, 'supabase'); 
                 
                 if ($filePath) {
                     $entry->ledger_proof = 'storage/ledger_proofs/' . $fileName;
@@ -524,7 +524,7 @@ public function uploadProof(Request $request, $id)
                 $sharedProofHash = hash_file('sha256', $file->getRealPath());
                 $extension = $file->getClientOriginalExtension();
                 $fileName = $sharedProofHash . '.' . $extension;
-                $file->storeAs('ledger_proofs', $fileName, 'public');
+                $file->storeAs('ledger_proofs', $fileName, 'supabase'); 
                 $sharedProofPath = 'storage/ledger_proofs/' . $fileName;
             }
 
@@ -689,7 +689,7 @@ public function uploadProof(Request $request, $id)
             $extension = $file->getClientOriginalExtension();
             $fileName = $fileHash . '.' . $extension;
 
-            $filePath = $file->storeAs('ledger_proofs', $fileName, 'public');
+            $filePath = $file->storeAs('ledger_proofs', $fileName, 'supabase'); 
 
             if ($filePath) {
                 $entry->ledger_proof = 'storage/ledger_proofs/' . $fileName;
@@ -874,7 +874,11 @@ public function uploadProof(Request $request, $id)
 
             foreach ($projects as $project) {
                 $fileName = basename($project->project_proof);
-                $filePath = $project->project_proof;
+                // $filePath = $project->project_proof;
+                $filePath = Storage::disk('supabase')->temporaryUrl(
+    $project->project_proof,
+    now()->addMinutes(15)
+);
                 $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
                 $fileType = in_array(strtolower($fileExtension), ['pdf']) ? 'PDF' : 'Image';
 

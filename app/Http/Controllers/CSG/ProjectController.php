@@ -852,7 +852,7 @@ class ProjectController extends Controller
         $fileHash = hash_file('sha256', $file->getRealPath());
         $extension = $file->getClientOriginalExtension();
         $fileName = $fileHash . ($extension ? '.' . $extension : '');
-        Storage::disk('public')->putFileAs('ledger_proofs', $file, $fileName);
+        Storage::disk('supabase')->putFileAs('ledger_proofs', $file, $fileName);
 
         $proofPath = 'storage/ledger_proofs/' . $fileName;
 
