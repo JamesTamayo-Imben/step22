@@ -117,45 +117,39 @@ class AdviserDashboardController extends Controller
                 $alertTitle = 'Tampering & Budget Mismatch Detected';
             }
 
-            $recentTamperAlertExists = AuditLog::query()
-                ->where('user_id', Auth::id())
-                ->where('action', $alertTitle)
-                ->where('created_at', '>=', now()->subDay())
-                ->exists();
-
-            if (! $recentTamperAlertExists) {
-                $alertDetails = [];
-                if ($tamperedCount > 0) {
-                    $alertDetails[] = "{$tamperedCount} tampered block(s) detected";
-                }
-                if ($budgetMismatchCount > 0) {
-                    $alertDetails[] = "{$budgetMismatchCount} budget mismatch(es) detected";
-                }
-
-                $alertMessage = implode(' and ', $alertDetails) . ' across verified project chains. Review the dashboard for details.';
-
-                AuditLog::create([
-                    'id' => (string) Str::uuid(),
-                    'user_id' => Auth::id(),
-                    'actionable_id' => null,
-                    'actionable_type' => 'blockchain',
-                    'action' => $alertTitle,
-                    'module' => 'blockchain',
-                    'action_type' => 'alert',
-                    'status' => 'Warning',
-                    'details' => implode(' and ', $alertDetails) . ' across verified project chains.',
-                    'ip_address' => $request->ip(),
-                    'browser_info' => substr((string) $request->userAgent(), 0, 500),
-                    'archive' => 0,
-                ]);
-
-                $this->createNotification(
-                    $alertTitle,
-                    $alertMessage,
-                    'security',
-                    Auth::id()
-                );
+            // Duplicate alerts are intentionally not suppressed so every dashboard
+            // visit records the currently detected tampering or budget mismatch.
+            $alertDetails = [];
+            if ($tamperedCount > 0) {
+                $alertDetails[] = "{$tamperedCount} tampered block(s) detected";
             }
+            if ($budgetMismatchCount > 0) {
+                $alertDetails[] = "{$budgetMismatchCount} budget mismatch(es) detected";
+            }
+
+            $alertMessage = implode(' and ', $alertDetails) . ' across verified project chains. Review the dashboard for details.';
+
+            AuditLog::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => Auth::id(),
+                'actionable_id' => null,
+                'actionable_type' => 'blockchain',
+                'action' => $alertTitle,
+                'module' => 'blockchain',
+                'action_type' => 'alert',
+                'status' => 'Warning',
+                'details' => implode(' and ', $alertDetails) . ' across verified project chains.',
+                'ip_address' => $request->ip(),
+                'browser_info' => substr((string) $request->userAgent(), 0, 500),
+                'archive' => 0,
+            ]);
+
+            $this->createNotification(
+                $alertTitle,
+                $alertMessage,
+                'security',
+                Auth::id()
+            );
         }
 
         // $ratingAvg = Rating::query()->where('archive', false)->avg('rating_score');

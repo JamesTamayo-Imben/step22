@@ -382,6 +382,10 @@ class AdviserLedgerController extends Controller
 
     public function fixTampered(Request $request, string $id)
     {
+        $request->validate([
+            'current_password' => ['required', 'current_password'],
+        ]);
+
         $entry = LedgerEntry::where('id', $id)->with('project')->firstOrFail();
 
         // Get the blockchain snapshot for this entry
@@ -541,6 +545,10 @@ class AdviserLedgerController extends Controller
 
     public function fixBudgetMismatch(Request $request)
     {
+        $request->validate([
+            'current_password' => ['required', 'current_password'],
+        ]);
+
         $projects = Project::query()
             ->where('archive', false)
             ->where('approval_status', 'Approved')

@@ -297,7 +297,7 @@ function reportToPdfBlob(report) {
   return new Blob([pdf], { type: 'application/pdf' });
 }
 
-function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry }) {
+function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry, password, onPasswordChange }) {
   if (!isOpen) return null;
 
   return ReactDOM.createPortal(
@@ -342,6 +342,23 @@ function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry }) {
            <p className="text-red-600 font-sm mb-2">
             * We advise that you take a screenshot of this tampering, which can be used as proof.
             </p>
+
+          <div className="mb-6">
+            <label htmlFor="restore-account-password" className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm your account password
+            </label>
+            <input
+              id="restore-account-password"
+              type="password"
+              value={password}
+              onChange={(event) => onPasswordChange(event.target.value)}
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-red-500"
+              required
+            />
+            <p className="mt-1 text-xs text-gray-500">Your password is required to verify this sensitive action.</p>
+          </div>
           
           <div className="flex justify-end space-x-3">
             <button
@@ -352,7 +369,8 @@ function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry }) {
             </button>
             <button
               onClick={onConfirm}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+              disabled={!password}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
             >
               Restore Entry
             </button>
@@ -391,6 +409,8 @@ export default function LedgerApprovalsPage() {
   const [isBudgetMismatchModalOpen, setIsBudgetMismatchModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [correctionReason, setCorrectionReason] = useState('');
+  const [restorePassword, setRestorePassword] = useState('');
+  const [budgetMismatchPassword, setBudgetMismatchPassword] = useState('');
 
   const [filterProject, setFilterProject] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -538,19 +558,22 @@ const downloadReport = () => {
   };
 
   const handleConfirmRestore = () => {
-    if (!selectedEntry) return;
+    if (!selectedEntry || !restorePassword) {
+      showToast('Please enter your account password', 'error');
+      return;
+    }
     
-    router.post(route('adviser.ledger.fix-tampered', selectedEntry.id), {}, {
+    router.post(route('adviser.ledger.fix-tampered', selectedEntry.id), { current_password: restorePassword }, {
       preserveScroll: true,
       onSuccess: () => {
         showToast('Ledger entry restored from blockchain snapshot');
         setIsDetailsOpen(false);
         setSelectedEntry(null);
         setIsRestoreModalOpen(false);
+        setRestorePassword('');
       },
       onError: () => {
-        showToast('Could not restore entry', 'error');
-        setIsRestoreModalOpen(false);
+        showToast('Could not restore entry due to wrong password', 'error');
       },
     });
   };
@@ -580,13 +603,19 @@ const downloadReport = () => {
 // };
 
   const handleFixBudgetMismatch = () => {
-    router.post(route('adviser.ledger.fix-budget-mismatch'), {}, {
+    if (!budgetMismatchPassword) {
+      showToast('Please enter your account password', 'error');
+      return;
+    }
+
+    router.post(route('adviser.ledger.fix-budget-mismatch'), { current_password: budgetMismatchPassword }, {
       preserveScroll: true,
       onSuccess: () => {
         showToast('Project budgets synchronized from ledger');
         setIsBudgetMismatchModalOpen(false);
+        setBudgetMismatchPassword('');
       },
-      onError: () => showToast('Could not synchronize project budgets', 'error'),
+      onError: () => showToast('Could not fix budget mismatch, password is incorrect', 'error'),
     });
   };
 
@@ -1280,7 +1309,10 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
       {/* Budget Mismatch Modal */}
       <Modal
         open={isBudgetMismatchModalOpen}
-        onClose={() => setIsBudgetMismatchModalOpen(false)}
+        onClose={() => {
+          setIsBudgetMismatchModalOpen(false);
+          setBudgetMismatchPassword('');
+        }}
         title="Budget Mismatch Details"
       >
         <div className="space-y-4 pt-4">
@@ -1316,10 +1348,29 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
             </div>
           </div>
 
+          <div>
+            <label htmlFor="budget-mismatch-password" className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm your account password
+            </label>
+            <input
+              id="budget-mismatch-password"
+              type="password"
+              value={budgetMismatchPassword}
+              onChange={(event) => setBudgetMismatchPassword(event.target.value)}
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-red-500"
+              required
+            />
+          </div>
+
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => setIsBudgetMismatchModalOpen(false)}
+              onClick={() => {
+                setIsBudgetMismatchModalOpen(false);
+                setBudgetMismatchPassword('');
+              }}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
               Close
@@ -1327,7 +1378,8 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
             <button
               type="button"
               onClick={handleFixBudgetMismatch}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors"
+              disabled={!budgetMismatchPassword}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
             >
               Fix Budget Mismatch
             </button>
@@ -1429,9 +1481,12 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
         onClose={() => {
           setIsRestoreModalOpen(false);
           setSelectedEntry(null);
+          setRestorePassword('');
         }}
         onConfirm={handleConfirmRestore}
         entry={selectedEntry}
+        password={restorePassword}
+        onPasswordChange={setRestorePassword}
       />
     </AuthenticatedLayout>
   );

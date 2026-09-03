@@ -87,7 +87,7 @@ class SAdminArchivedItemsController extends Controller
         $ledgerArchivedBy = $this->archivedByMap($ledgerRows->pluck('id')->all(), 'ledger_entry');
 
         $archivedLedgerEntries = $ledgerRows
-            ->map(function (LedgerEntry $entry) use ($ledgerArchivedBy) {
+            ->map(function (LedgerEntry $entry) use ($ledgerArchivedBy, $projectArchivedBy) {
                 return [
                     'id' => $entry->id,
                     'projectTitle' => $entry->project?->title ?? 'Unknown Project',
@@ -97,7 +97,9 @@ class SAdminArchivedItemsController extends Controller
                     'description' => $entry->description ?? '',
                     'approvalStatus' => $entry->approval_status ?? 'N/A',
                     'archivedAt' => optional($entry->updated_at ?? $entry->created_at)?->format('Y-m-d H:i:s'),
-                    'archivedBy' => $ledgerArchivedBy[$entry->id] ?? 'Unknown',
+                    'archivedBy' => $ledgerArchivedBy[$entry->id]
+                        ?? $projectArchivedBy[$entry->project_id] 
+                        ?? 'Unknown',
                 ];
             })
             ->values();
