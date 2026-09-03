@@ -983,7 +983,7 @@ export default function AdviserApprovalsPage() {
           <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center">
             <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
             <p className="text-sm text-gray-500">Select the final approved proposal PDF</p>
-            <p className="text-xs text-gray-400">PDF only · max 10MB</p>
+            <p className="text-xs text-gray-400">PDF only · max 2MB</p>
             <label className="mt-3 inline-flex cursor-pointer rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100">
               <input
                 type="file"

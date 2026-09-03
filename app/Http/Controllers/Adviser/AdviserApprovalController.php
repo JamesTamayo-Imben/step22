@@ -758,9 +758,7 @@ class AdviserApprovalController extends Controller
     $fileHash = hash_file('sha256', $file->getRealPath());
     $extension = $file->getClientOriginalExtension();
     $fileName = $fileHash . ($extension ? '.' . $extension : '');
-    Storage::disk('public')->putFileAs('ledger_proofs', $file, $fileName);
-
-    $proofPath = 'storage/ledger_proofs/' . $fileName;
+    $proofPath = Storage::disk('supabase')->putFileAs('ledger_proofs', $file, $fileName);
 
     // Only backfill ledger_proof if the baseline entry doesn't already have one
     // (covers the freshly-created case above). Never overwrite an existing one.

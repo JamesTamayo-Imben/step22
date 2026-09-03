@@ -3,6 +3,7 @@
 namespace App\Models\CSG;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class Meeting extends Model
@@ -77,7 +78,15 @@ class Meeting extends Model
      */
     public function getMinutesFileUrlAttribute()
     {
-        return $this->meeting_proof ? asset('storage/' . $this->meeting_proof) : null;
+        if (! $this->meeting_proof) {
+            return null;
+        }
+
+        $key = str_starts_with($this->meeting_proof, 'storage/')
+            ? substr($this->meeting_proof, strlen('storage/'))
+            : $this->meeting_proof;
+
+        return Storage::disk('supabase')->temporaryUrl($key, now()->addMinutes(15));
     }
 
     /**

@@ -48,6 +48,14 @@ function formatLimitedNumber(value, opts = {}) {
   return n.toLocaleString('en-US', { minimumFractionDigits: minFractionDigits, maximumFractionDigits: maxFractionDigits });
 }
 
+function proofDetails(value) {
+  const url = new URL(value, window.location.origin);
+  const fileName = decodeURIComponent(url.pathname.split('/').pop() || 'Proof document');
+  const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
+
+  return { url: url.toString(), fileName, extension };
+}
+
 function renderStars(value) {
   const stars = Math.max(0, Math.min(5, Math.round(Number(value) || 0)));
   return [...Array(5)].map((_, i) => (
@@ -2494,10 +2502,10 @@ function maskUserName(fullName) {
           <FileText className="w-8 h-8 text-blue-600" />
           <div>
             <p className="text-sm font-medium text-gray-900 truncate max-w-[200px] md:max-w-[400px]">
-              {selectedLedger.ledger_proof.split('/').pop()}
+              {proofDetails(selectedLedger.ledger_proof).fileName}
             </p>
             <p className="text-xs text-gray-500">
-              {selectedLedger.ledger_proof.split('.').pop().toUpperCase()} file
+              {proofDetails(selectedLedger.ledger_proof).extension.toUpperCase()} file
             </p>
           </div>
         </div>
@@ -2644,10 +2652,7 @@ function maskUserName(fullName) {
           <div className="space-y-4 pt-6">
             <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
               {(() => {
-                const proofUrl = selectedLedger.ledger_proof.startsWith('/') 
-                  ? selectedLedger.ledger_proof 
-                  : `/${selectedLedger.ledger_proof}`;
-                const fileExtension = selectedLedger.ledger_proof.split('.').pop().toLowerCase();
+                const { url: proofUrl, extension: fileExtension } = proofDetails(selectedLedger.ledger_proof);
                 const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
                 
                 if (imageExtensions.includes(fileExtension)) {
@@ -2674,7 +2679,7 @@ function maskUserName(fullName) {
                     <div className="text-center">
                       <FileText className="w-16 h-16 text-blue-600 mb-4 mx-auto" />
                       <p className="text-gray-600 mb-2 font-medium">
-                        {selectedLedger.ledger_proof.split('/').pop()}
+                        {proofDetails(selectedLedger.ledger_proof).fileName}
                       </p>
                       <p className="text-sm text-gray-500">
                         {fileExtension.toUpperCase()} file
@@ -2698,9 +2703,7 @@ function maskUserName(fullName) {
               <Button 
                 className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
                 onClick={() => {
-                  const proofUrl = selectedLedger.ledger_proof.startsWith('/') 
-                    ? selectedLedger.ledger_proof 
-                    : `/${selectedLedger.ledger_proof}`;
+                  const { url: proofUrl } = proofDetails(selectedLedger.ledger_proof);
                   window.open(proofUrl, '_blank');
                 }}
               >

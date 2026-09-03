@@ -217,10 +217,10 @@ public function update(Request $request, $id)
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'required|string',
             'scheduled_date' => 'required|date_format:Y-m-d\TH:i',
-            'expected_attendees' => 'nullable|integer|min:0',
-            'attendees' => 'nullable|string', // Accept as string
+            'expected_attendees' => 'required|integer|min:0',
+            'attendees' => 'required|string', // Accept as string
             'is_done' => 'nullable|boolean',
             'minutes_content' => 'nullable|string',
             'meeting_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
@@ -237,6 +237,11 @@ public function update(Request $request, $id)
         ];
 
         $meetingProofHash = $meeting->file_content_hash;
+        if (! $meeting->meeting_proof && ! $request->hasFile('meeting_proof') && ! $request->hasFile('proof')) {
+            return response()->json([
+                'message' => 'A meeting proof or minutes file is required.',
+            ], 422);
+        }
 
         // Handle attendees properly - convert comma-separated string to array for JSON storage
         if ($request->has('attendees') && !empty($request->input('attendees'))) {
@@ -306,7 +311,7 @@ public function update(Request $request, $id)
         $fileHash = hash_file('sha256', $file->getRealPath());
         $extension = $file->getClientOriginalExtension();
         $fileName = $fileHash . ($extension ? '.' . $extension : '');
-        $filePath = $file->storeAs('meeting_proofs', $fileName, 'public');
+        $filePath = $file->storeAs('meeting_proofs', $fileName, 'supabase');
 
         return [
             'path' => $filePath,

@@ -166,14 +166,15 @@ class AdviserLedgerController extends Controller
             ->contains(fn ($b) => ($b['ledgerId'] ?? null) === $entry->id);
 
         // ---- Proof handling (this is the part your jsx modal needs) ----
-        $proofAttached = (bool) $entry->ledger_proof;
+        $proofPath = $entry->resolveLedgerProof();
+        $proofAttached = (bool) $proofPath;
         $proofFiles = [];
         if ($proofAttached) {
             $proofFiles[] = [
                 'id' => $entry->id,
                 'name' => basename($entry->ledger_proof),
                 'filename' => basename($entry->ledger_proof),
-                'path' => $entry->ledger_proof, // e.g. storage/ledger_proofs/abc123.png
+                'path' => $proofPath,
                 'hash' => $entry->file_content_hash,
             ];
         }

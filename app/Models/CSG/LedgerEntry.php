@@ -4,6 +4,7 @@
 namespace App\Models\CSG;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class LedgerEntry extends Model
 {
@@ -96,7 +97,7 @@ class LedgerEntry extends Model
     public function resolveLedgerProof(): ?string
     {
         if (! empty($this->ledger_proof)) {
-            return $this->ledger_proof;
+            return $this->temporaryLedgerProofUrl($this->ledger_proof);
         }
 
         if ($this->category === 'Transfer' && $this->type === 'Expense') {
@@ -114,20 +115,35 @@ class LedgerEntry extends Model
                     ->value('ledger_proof');
 
                 if ($destinationProof) {
-                    return $destinationProof;
+                    return $this->temporaryLedgerProofUrl($destinationProof);
                 }
             }
         }
 
         if (in_array($this->type, ['Initial', 'Initial Transfer'], true)) {
-            return static::query()
+            $initialProof = static::query()
                 ->where('project_id', $this->project_id)
                 ->whereIn('type', ['Initial', 'Initial Transfer'])
                 ->where('archive', 0)
                 ->orderBy('created_at')
                 ->value('ledger_proof');
+
+            return $this->temporaryLedgerProofUrl($initialProof);
         }
 
         return null;
+    }
+
+    private function temporaryLedgerProofUrl(?string $path): ?string
+    {
+        if (empty($path)) {
+            return null;
+        }
+
+        $key = str_starts_with($path, 'storage/')
+            ? substr($path, strlen('storage/'))
+            : $path;
+
+        return Storage::disk('supabase')->temporaryUrl($key, now()->addMinutes(15));
     }
 }

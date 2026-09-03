@@ -56,7 +56,7 @@ public function uploadProof(Request $request, $id)
         // 5. UPDATE DATABASE
         // Store the web-accessible path and the content hash for auditing
         $entry->update([
-            'ledger_proof' => 'storage/ledger_proofs/' . $fileName,
+            'ledger_proof' => $path,
             'file_content_hash' => $fileHash, // Ensure this column exists in your table
             'updated_at' => now()
         ]);
@@ -66,7 +66,7 @@ public function uploadProof(Request $request, $id)
             'success' => true,
             'message' => 'Proof uploaded and verified successfully!',
             'data' => [
-                'path' => asset('storage/ledger_proofs/' . $fileName),
+                'path' => Storage::disk('supabase')->temporaryUrl($path, now()->addMinutes(15)),
                 'hash' => $fileHash
             ]
         ], 200);
@@ -268,7 +268,7 @@ public function uploadProof(Request $request, $id)
                 $filePath = $file->storeAs('ledger_proofs', $fileName, 'supabase'); 
                 
                 if ($filePath) {
-                    $entry->ledger_proof = 'storage/ledger_proofs/' . $fileName;
+                    $entry->ledger_proof = $filePath;
                     $entry->file_content_hash = $fileHash;
                     Log::info('File stored: ' . $filePath . ' with hash: ' . $fileHash);
                 }
@@ -524,8 +524,7 @@ public function uploadProof(Request $request, $id)
                 $sharedProofHash = hash_file('sha256', $file->getRealPath());
                 $extension = $file->getClientOriginalExtension();
                 $fileName = $sharedProofHash . '.' . $extension;
-                $file->storeAs('ledger_proofs', $fileName, 'supabase'); 
-                $sharedProofPath = 'storage/ledger_proofs/' . $fileName;
+                $sharedProofPath = $file->storeAs('ledger_proofs', $fileName, 'supabase');
             }
 
             $created = [];
@@ -692,7 +691,7 @@ public function uploadProof(Request $request, $id)
             $filePath = $file->storeAs('ledger_proofs', $fileName, 'supabase'); 
 
             if ($filePath) {
-                $entry->ledger_proof = 'storage/ledger_proofs/' . $fileName;
+                $entry->ledger_proof = $filePath;
                 $entry->file_content_hash = $fileHash;
                 Log::info('Ledger entry ' . $entry->id . ' proof updated: ' . $filePath . ' hash: ' . $fileHash);
             }
@@ -875,10 +874,13 @@ public function uploadProof(Request $request, $id)
             foreach ($projects as $project) {
                 $fileName = basename($project->project_proof);
                 // $filePath = $project->project_proof;
+                $projectProofKey = str_starts_with($project->project_proof, 'storage/')
+                    ? substr($project->project_proof, strlen('storage/'))
+                    : $project->project_proof;
                 $filePath = Storage::disk('supabase')->temporaryUrl(
-    $project->project_proof,
-    now()->addMinutes(15)
-);
+                    $projectProofKey,
+                    now()->addMinutes(15)
+                );
                 $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
                 $fileType = in_array(strtolower($fileExtension), ['pdf']) ? 'PDF' : 'Image';
 
@@ -925,7 +927,7 @@ public function uploadProof(Request $request, $id)
 
             foreach ($entries as $entry) {
                 $fileName = basename($entry->ledger_proof);
-                $filePath = $entry->ledger_proof;
+                $filePath = $entry->resolveLedgerProof();
                 $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
                 $fileType = in_array(strtolower($fileExtension), ['pdf']) ? 'PDF' : 'Image';
 

@@ -85,6 +85,15 @@ function FieldLabel({ children }) {
   return <label className="block text-sm text-gray-700 mb-1">{children}</label>;
 }
 
+function documentExtension(value) {
+  try {
+    const pathname = new URL(value, window.location.origin).pathname;
+    return pathname.split('.').pop()?.toLowerCase() || '';
+  } catch {
+    return '';
+  }
+}
+
 function Textarea({ className = '', rows = 4, ...props }) {
   return (
     <textarea
@@ -490,7 +499,15 @@ const renderAttendees = (attendees) => {
 
  const handleEditMeeting = async () => {
   if (!selectedMeeting) return;
-  if (!meetingForm.title || !meetingForm.scheduled_date || !meetingForm.description) {
+  const hasExistingProof = Boolean(selectedMeeting.meeting_proof || selectedMeeting.minutes_file_url);
+  if (
+    !meetingForm.title.trim() ||
+    !meetingForm.scheduled_date ||
+    !meetingForm.description.trim() ||
+    meetingForm.expected_attendees === '' ||
+    !meetingForm.attendees.trim() ||
+    (!meetingForm.proof && !hasExistingProof)
+  ) {
     showToast('Please fill in all required fields', 'error');
     return;
   }
@@ -641,22 +658,34 @@ const renderAttendees = (attendees) => {
       return;
     }
 
-    const updatedMeetings = meetings.map(m =>
-      m.id === selectedMeeting.id
-        ? {
-            ...m,
-            hasMinutes: true,
-            minutesFile: minutesFile,
-            status: 'Completed',
-          }
-        : m
-    );
+    const formData = new FormData();
+    formData.append('minutes_content', minutesFile);
 
-    setMeetings(updatedMeetings);
-    setShowUploadMinutesModal(false);
-    setMinutesFile('');
-    setSelectedMeeting(null);
-    showToast('Meeting minutes uploaded successfully', 'success');
+    fetch(`/api/meetings/${selectedMeeting.id}/mark-as-done`, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+        'Accept': 'application/json',
+      },
+      body: formData,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.message || `Upload failed: ${response.status}`);
+        }
+
+        const refreshResponse = await fetch('/api/meetings', {
+          headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const data = await refreshResponse.json();
+        if (Array.isArray(data)) setMeetings(data);
+        setShowUploadMinutesModal(false);
+        setMinutesFile(null);
+        setSelectedMeeting(null);
+        showToast('Meeting minutes uploaded successfully', 'success');
+      })
+      .catch((error) => showToast(`Error: ${error.message}`, 'error'));
   };
 
     const handleDownloadTemplate = () => {
@@ -1348,52 +1377,13 @@ const renderAttendees = (attendees) => {
             />
           </div>
 
-          {/* <div>
-            <FieldLabel>Meeting Proof or Meeting Minutes File (Optional)</FieldLabel>
-            <div className="flex flex-col gap-3">
-              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                <div className="flex flex-col items-center justify-center py-3">
-                  <Upload className="w-5 h-5 mb-2 text-gray-400" />
-                  <p className="text-xs text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                  <p className="text-xs text-gray-400">PDF, JPG, PNG, DOC, DOCX (MAX. 10MB)</p>
-                </div>
-                <input
-                  ref={proofFileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setProofFilePreview(file.name);
-                      setMeetingForm({ ...meetingForm, proof: file });
-                    }
-                  }}
-                />
-              </label>
-              {proofFilePreview && (
-                <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm text-gray-600 flex-1 truncate">{proofFilePreview}</span>
-                  <button
-                    onClick={() => {
-                      setProofFilePreview(null);
-                      setMeetingForm({ ...meetingForm, proof: null });
-                      if (proofFileInputRef.current) proofFileInputRef.current.value = '';
-                    }}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-            </div>
-          </div> */}
-
           <div className="flex gap-3 pt-4">
             <Button
               variant="outline"
               onClick={() => setShowCreateModal(false)}
+              disabled={
+!meetingForm.title || !meetingForm.scheduled_date || !meetingForm.description
+              }
               className="flex-1 rounded-xl"
             >
               Cancel
@@ -1425,6 +1415,7 @@ const renderAttendees = (attendees) => {
           <div>
             <FieldLabel>Meeting Title *</FieldLabel>
             <Input
+              required
               value={meetingForm.title}
               onChange={(e) => setMeetingForm({ ...meetingForm, title: e.target.value })}
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
@@ -1434,6 +1425,7 @@ const renderAttendees = (attendees) => {
           <div>
             <FieldLabel>Date & Time *</FieldLabel>
             <Input
+              required
               type="datetime-local"
               value={meetingForm.scheduled_date}
               onChange={(e) => setMeetingForm({ ...meetingForm, scheduled_date: e.target.value })}
@@ -1442,8 +1434,9 @@ const renderAttendees = (attendees) => {
           </div>
 
           <div>
-            <FieldLabel>Number of Expected Attendees</FieldLabel>
+            <FieldLabel>Number of Expected Attendees *</FieldLabel>
             <Input
+              required
               type="number"
               placeholder="0"
               value={meetingForm.expected_attendees}
@@ -1454,8 +1447,9 @@ const renderAttendees = (attendees) => {
           </div>
 
           <div>
-            <FieldLabel>Description</FieldLabel>
+            <FieldLabel>Description *</FieldLabel>
             <Textarea
+              required
               value={meetingForm.description}
               onChange={(e) => setMeetingForm({ ...meetingForm, description: e.target.value })}
               rows={4}
@@ -1464,8 +1458,9 @@ const renderAttendees = (attendees) => {
           </div>
 
           <div>
-  <FieldLabel>Attendees</FieldLabel>
+  <FieldLabel>Attendees *</FieldLabel>
   <Input
+    required
     placeholder="List all of the attendees here (comma separated)"
     value={meetingForm.attendees}
     onChange={(e) => setMeetingForm({ ...meetingForm, attendees: e.target.value })}
@@ -1477,13 +1472,13 @@ const renderAttendees = (attendees) => {
 </div>
 
           <div>
-            <FieldLabel>Meeting Proof or Meeting Minutes File (Optional)</FieldLabel>
+            <FieldLabel>Meeting Proof or Meeting Minutes File (Required)</FieldLabel>
             <div className="flex flex-col gap-3">
               <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
                 <div className="flex flex-col items-center justify-center py-3">
                   <Upload className="w-5 h-5 mb-2 text-gray-400" />
                   <p className="text-xs text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                  <p className="text-xs text-gray-400">PDF, JPG, PNG (MAX. 10MB)</p>
+                  <p className="text-xs text-gray-400">PDF, JPG, PNG (MAX. 2MB)</p>
                 </div>
                 <input
                   ref={proofFileInputRef}
@@ -1493,6 +1488,10 @@ const renderAttendees = (attendees) => {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
+                      if (file.size > 2 * 1024 * 1024) {
+                        showToast('The proof file must be 2 MB or smaller due to the lack of storage space', 'error');
+                        return;
+                      }
                       setProofFilePreview(file.name);
                       setMeetingForm({ ...meetingForm, proof: file });
                     }
@@ -1535,6 +1534,12 @@ const renderAttendees = (attendees) => {
             </Button>
             <Button
               onClick={handleEditMeeting}
+               disabled={
+          !meetingForm.title?.trim() ||
+          !meetingForm.scheduled_date ||
+          !meetingForm.expected_attendees ||
+          !meetingForm.description?.trim() ||
+          !meetingForm.attendees?.trim()}
               className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
             >
               Update Changes
@@ -1573,7 +1578,7 @@ const renderAttendees = (attendees) => {
                   <p className="mb-2 text-sm text-gray-500">
                     <span className="font-semibold">Click to upload</span> or drag and drop
                   </p>
-                  <p className="text-xs text-gray-400">PDF, DOC, DOCX (MAX. 10MB)</p>
+                  <p className="text-xs text-gray-400">PDF, DOC, DOCX (MAX. 2MB)</p>
                 </div>
                 <input
                   type="file"
@@ -1582,7 +1587,11 @@ const renderAttendees = (attendees) => {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      setMinutesFile(file.name);
+                      if (file.size > 2 * 1024 * 1024) {
+                        showToast('The minutes file must be 2 MB or smaller', 'error');
+                        return;
+                      }
+                      setMinutesFile(file);
                     }
                   }}
                 />
@@ -1591,7 +1600,7 @@ const renderAttendees = (attendees) => {
                 <div className="w-full p-3 bg-gray-50 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm text-gray-600">{minutesFile}</span>
+                    <span className="text-sm text-gray-600">{minutesFile.name}</span>
                   </div>
                   <button
                     onClick={() => setMinutesFile('')}
@@ -1738,13 +1747,13 @@ const renderAttendees = (attendees) => {
         <div className="pt-4">
           {documentPreviewUrl ? (
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-2">
-              {documentPreviewUrl.toLowerCase().match(/\.(png|jpe?g|gif|webp|bmp)$/i) ? (
+              {['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(documentExtension(documentPreviewUrl)) ? (
                 <img
                   src={documentPreviewUrl}
                   alt={documentPreviewName || 'Meeting document'}
                   className="max-h-[70vh] w-full rounded-lg object-contain"
                 />
-              ) : documentPreviewUrl.toLowerCase().match(/\.pdf$/i) ? (
+              ) : documentExtension(documentPreviewUrl) === 'pdf' ? (
                 <iframe
                   src={documentPreviewUrl}
                   title={documentPreviewName || 'Meeting document'}

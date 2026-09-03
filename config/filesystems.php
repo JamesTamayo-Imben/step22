@@ -67,6 +67,8 @@ return [
        'bucket' => env('SUPABASE_S3_BUCKET', 'ledger-proofs'),
        'endpoint' => env('SUPABASE_S3_ENDPOINT'),
        'use_path_style_endpoint' => true,
+       'throw' => true,
+       'report' => true,
    ],
 
     ],

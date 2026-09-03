@@ -203,7 +203,7 @@ function formatReportDate(value) {
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
 }
 
-function buildIncidentReport(entries, stats) {
+function buildIncidentReport(entries, stats, preparedBy) {
   const createdAt = new Date().toISOString();
   const tamperedEntries = entries.filter((entry) => entry?.verificationState?.tampered);
   const affectedProjects = [...new Map(tamperedEntries.map((entry) => [entry.projectId, entry])).values()];
@@ -242,7 +242,9 @@ Impact Assessment
 `);
   }
 
-  return `CONFIDENTIAL INCIDENT REPORT
+  return `
+SCHOOL TRANSPARENCY AND ENGAGEMENT PORTAL (STEP)  
+CONFIDENTIAL INCIDENT REPORT
 REGARDING CHAIN OF CUSTODY TAMPERING
 
 This report serves to formally notify the committee of a confirmed integrity breach concerning the operational chain of the STEP blockchain. Evidence indicates that unauthorized alterations or budget discrepancies were detected at a specific node within the chain, compromising the validity of the data/logistical flow.
@@ -256,7 +258,7 @@ ${sections.length ? sections.join('\n') : `FINDING
 No chain tampering or budget mismatch was detected during this review.
 Current Status: All reviewed records are self-consistent.
 `}
-Prepared by: STEP Administration
+Prepared by: ${preparedBy.name}, STEP ${preparedBy.role}
 This document is confidential and intended for committee and authorized audit use only.
 `;
 }
@@ -371,7 +373,12 @@ function csvEscape(val) {
 const TABLE_PAGE_SIZE = 10;
 
 export default function LedgerApprovalsPage() {
-  const { ledgerEntries = [], projectFilterOptions = [], totalProjectBudget = 0, totalProjectShortfall = 0, userPermissions = [] } = usePage().props;
+  const { auth, ledgerEntries = [], projectFilterOptions = [], totalProjectBudget = 0, totalProjectShortfall = 0, userPermissions = [] } = usePage().props;
+  const user = auth?.user;
+  const preparedBy = {
+    name: user?.name || 'Unknown User',
+    role: user?.role?.name || user?.role || 'Adviser',
+  };
 
   const [selectedEntry, setSelectedEntry] = useState(null);
 
@@ -467,7 +474,7 @@ export default function LedgerApprovalsPage() {
   };
 
 const downloadReport = () => {
-  const report = buildIncidentReport(ledgerEntries, stats);
+  const report = buildIncidentReport(ledgerEntries, stats, preparedBy);
   const url = URL.createObjectURL(reportToPdfBlob(report));
     const link = document.createElement('a');
     link.href = url;
@@ -713,7 +720,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
               <Download className="w-4 h-4 mr-2" />
               Export CSV
             </button>
-             <Button
+             {/* <Button
                               onClick={downloadReport}
                               
                               variant="outline"
@@ -721,7 +728,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                             >
                               <Download className="w-4 h-4 mr-2" />
                               Download Report
-                            </Button>
+                            </Button> */}
            </div>
           </div>
 
@@ -1021,13 +1028,24 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                       <p className="text-sm text-red-700 mt-1">
                         This entry has been modified after approval. You can restore it to its approved state using the blockchain snapshot. This includes restoring all fields such as amount, description, type, and budget breakdown.
                       </p>
-                      <button
+                      <div className="flex items-center gap-2">
+                        <button
                         type="button"
                         onClick={() => handleFixTampered(selectedEntry)}
-                        className="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                        className="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors"
                       >
                         <RotateCcw className="w-4 h-4 mr-2 inline" /> Fix Tampered Data
                       </button>
+                       <Button
+                              onClick={downloadReport}
+                              
+                              variant="outline"
+                              className="mt-3 rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-60 text-white w-full sm:w-auto"
+                            >
+                              <Download className="w-4 h-4 mr-2" />
+                              Download Report
+                            </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1270,6 +1288,10 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
             <p className="text-sm font-medium text-red-800">Tampering Alert</p>
             <p className="text-sm text-red-700 mt-1">
               The projects table budget total does not match the computed budget from approved ledger entries.
+              Kindly review the details below and take necessary actions to resolve the discrepancy.
+            </p>
+            <p className="text-sm text-red-700 mt-1">
+              Take a screenshot and download the report for your records before fixing the mismatch.
             </p>
           </div>
 
@@ -1294,7 +1316,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
             </div>
           </div>
 
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={() => setIsBudgetMismatchModalOpen(false)}
@@ -1305,10 +1327,19 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
             <button
               type="button"
               onClick={handleFixBudgetMismatch}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors"
             >
               Fix Budget Mismatch
             </button>
+             <Button
+                              onClick={downloadReport}
+                              
+                              variant="outline"
+                              className="rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-60 text-white w-full sm:w-auto"
+                            >
+                              <Download className="w-4 h-4 mr-2" />
+                              Download Report
+                            </Button>
           </div>
         </div>
       </Modal>

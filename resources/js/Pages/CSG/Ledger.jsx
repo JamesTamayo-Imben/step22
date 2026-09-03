@@ -35,6 +35,14 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+function proofDetails(value) {
+  const url = new URL(value, window.location.origin);
+  const fileName = decodeURIComponent(url.pathname.split('/').pop() || 'Proof document');
+  const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
+
+  return { url: url.toString(), fileName, extension };
+}
+
 function showToast(message, type = 'success') {
   const id = `simple-toast-${Date.now()}`;
   const el = document.createElement('div');
@@ -467,8 +475,8 @@ const totalShortfall = Math.max(0, -rawTotalBudget);
   const handleBulkProofSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('Proof file must be less than 10MB', 'error');
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Proof file must be less than 2MB due to the lack of storage space', 'error');
       return;
     }
     setBulkProofFile(file);
@@ -906,8 +914,8 @@ const handleSaveUpload = async () => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('File size must be less than 10MB', 'error');
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('File size must be less than 2MB due to the lack of storage space', 'error');
       return;
     }
 
@@ -1651,7 +1659,7 @@ const getTypeAmountColor = (type) => {
               >
                 <Upload className="w-6 h-6 text-gray-500" />
                 <p className="text-sm text-gray-600 mt-2">Click to upload</p>
-                <p className="text-xs text-gray-500 mt-1">PDF, Images up to 10MB</p>
+                <p className="text-xs text-gray-500 mt-1">PDF, Images up to 2MB</p>
               </button>
               <input 
                 ref={fileInputRef} 
@@ -1978,7 +1986,7 @@ const getTypeAmountColor = (type) => {
                               >
                                 <Upload className="w-6 h-6 text-gray-500" />
                                 <p className="text-sm text-gray-600 mt-2">Click to upload new file</p>
-                                <p className="text-xs text-gray-500 mt-1">PDF, Images up to 10MB</p>
+                                <p className="text-xs text-gray-500 mt-1">PDF, Images up to 2MB</p>
                               </button>
                               <input 
                                 ref={fileInputRef} 
@@ -2141,10 +2149,10 @@ const getTypeAmountColor = (type) => {
                      <FileText className="w-8 h-8 text-blue-600" />
                      <div>
                        <p className="text-sm font-medium text-gray-900 truncate max-w-[200px] md:max-w-[400px">
-                         {selectedEntry.ledger_proof.split('/').pop()}
+                         {proofDetails(selectedEntry.ledger_proof).fileName}
                        </p>
                        <p className="text-xs text-gray-500">
-                         {selectedEntry.ledger_proof.split('.').pop().toUpperCase()} file
+                         {proofDetails(selectedEntry.ledger_proof).extension.toUpperCase()} file
                        </p>
                      </div>
                    </div>
@@ -2314,10 +2322,7 @@ const getTypeAmountColor = (type) => {
                 <div className="space-y-4 pt-6">
                   <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
                     {(() => {
-                      const proofUrl = selectedEntry.ledger_proof.startsWith('/') 
-                        ? selectedEntry.ledger_proof 
-                        : `/${selectedEntry.ledger_proof}`;
-                      const fileExtension = selectedEntry.ledger_proof.split('.').pop().toLowerCase();
+                      const { url: proofUrl, extension: fileExtension } = proofDetails(selectedEntry.ledger_proof);
                       const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
                       
                       if (imageExtensions.includes(fileExtension)) {
@@ -2344,7 +2349,7 @@ const getTypeAmountColor = (type) => {
                           <div className="text-center">
                             <FileText className="w-16 h-16 text-blue-600 mb-4 mx-auto" />
                             <p className="text-gray-600 mb-2 font-medium">
-                              {selectedEntry.ledger_proof.split('/').pop()}
+                              {proofDetails(selectedEntry.ledger_proof).fileName}
                             </p>
                             <p className="text-sm text-gray-500">
                               {fileExtension.toUpperCase()} file
@@ -2368,9 +2373,7 @@ const getTypeAmountColor = (type) => {
                     <Button 
                       className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
                       onClick={() => {
-                        const proofUrl = selectedEntry.ledger_proof.startsWith('/') 
-                          ? selectedEntry.ledger_proof 
-                          : `/${selectedEntry.ledger_proof}`;
+                        const { url: proofUrl } = proofDetails(selectedEntry.ledger_proof);
                         window.open(proofUrl, '_blank');
                       }}
                     >
@@ -2403,7 +2406,7 @@ const getTypeAmountColor = (type) => {
             >
               <Upload className="w-6 h-6 text-gray-500" />
               <p className="text-sm text-gray-600 mt-2">Click to upload</p>
-              <p className="text-xs text-gray-500 mt-1">PDF, Images up to 10MB</p>
+              <p className="text-xs text-gray-500 mt-1">PDF, Images up to 2MB</p>
             </button>
 
             <input

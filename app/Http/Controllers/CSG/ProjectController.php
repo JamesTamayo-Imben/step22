@@ -852,9 +852,7 @@ class ProjectController extends Controller
         $fileHash = hash_file('sha256', $file->getRealPath());
         $extension = $file->getClientOriginalExtension();
         $fileName = $fileHash . ($extension ? '.' . $extension : '');
-        Storage::disk('supabase')->putFileAs('ledger_proofs', $file, $fileName);
-
-        $proofPath = 'storage/ledger_proofs/' . $fileName;
+        $proofPath = Storage::disk('supabase')->putFileAs('ledger_proofs', $file, $fileName);
 
         $initialLedger->ledger_proof = $proofPath;
         $initialLedger->file_content_hash = $fileHash;
@@ -931,7 +929,9 @@ class ProjectController extends Controller
             return null;
         }
 
-        return Storage::disk('public')->url($this->normalizeStoragePath($path));
+        $key = $this->normalizeStoragePath($path);
+
+        return Storage::disk('supabase')->temporaryUrl($key, now()->addMinutes(15));
     }
 
     private function storageExists(?string $path): bool

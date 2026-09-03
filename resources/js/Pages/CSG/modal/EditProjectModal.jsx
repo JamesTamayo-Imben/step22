@@ -157,8 +157,8 @@ export function EditProjectModal({
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      showToast('File size must be less than 10MB', 'error');
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('File size must be less than 2MB due to the lack of storage space', 'error');
       return;
     }
     setSelectedFile(file);
@@ -486,7 +486,7 @@ export function EditProjectModal({
             >
               <Upload className="w-6 h-6 text-gray-500" />
               <p className="text-sm text-gray-600 mt-2">Click to upload new file</p>
-              <p className="text-xs text-gray-500 mt-1">PDF, Images up to 10MB</p>
+              <p className="text-xs text-gray-500 mt-1">PDF, Images up to 2MB</p>
             </button>
             <input
               ref={fileInputRef}
