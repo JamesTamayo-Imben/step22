@@ -709,7 +709,7 @@ const formatDate = (dateString) => {
             proposedBy: data.proposed_by || data.proposedBy || '',
             note: data.note || '',
             approveBy: data.approveBy || data.approve_by || '',
-            projectProof: data.project_proof || data.projectProof || null,
+            projectProof: data.project_proof_url || data.project_proof || data.projectProof || null,
             createdBy: data.createdBy || data.created_by || null,
             updatedBy: data.updated_by || data.updatedBy || null,
             archive: data.archive || 0,
@@ -998,7 +998,7 @@ function maskUserName(fullName) {
     proposedBy: raw.proposed_by || raw.proposedBy,
     note: raw.note,
     approveBy: raw.approveBy || raw.approve_by,
-    projectProof: raw.project_proof || raw.projectProof,
+    projectProof: raw.project_proof_url || raw.project_proof || raw.projectProof,
     createdAt: raw.created_at || raw.createdAt,
     archive: raw.archive || 0,
     createdBy: raw.createdBy || raw.created_by,
@@ -1787,8 +1787,7 @@ function maskUserName(fullName) {
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
             {(() => {
               const proofPath = project.projectProof;
-              const proofUrl = proofPath.startsWith('/') ? proofPath : `/${proofPath}`;
-              const fileExtension = (proofPath.split('.').pop() || '').toLowerCase();
+              const { url: proofUrl, extension: fileExtension } = proofDetails(proofPath);
               const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
 
               if (imageExtensions.includes(fileExtension)) {

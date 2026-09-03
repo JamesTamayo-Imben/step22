@@ -28,7 +28,6 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [activeRatingTab, setActiveRatingTab] = useState('satisfaction');
   const [selectedLedgerEntry, setSelectedLedgerEntry] = useState(null);
   const [selectedProofDocument, setSelectedProofDocument] = useState(null);
-  const [selectedApprovalCopy, setSelectedApprovalCopy] = useState(null);
   const [showAllComments, setShowAllComments] = useState(false);
 
   const currentRoleName = props?.auth?.user?.role?.name || props?.auth?.user?.role_name || props?.role?.name || '';
@@ -67,11 +66,20 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
     return `/${path}`;
   };
 
+  const getProofExtension = (path) => {
+    try {
+      const pathname = new URL(path, window.location.origin).pathname;
+      return (pathname.split('.').pop() || '').toLowerCase();
+    } catch {
+      return (path.split(/[?#]/)[0].split('.').pop() || '').toLowerCase();
+    }
+  };
+
   const renderProofPreview = (proofPath, altText = 'Proof Document') => {
     if (!proofPath) return null;
 
     const proofUrl = getProofUrl(proofPath);
-    const fileExtension = (proofPath.split('.').pop() || '').toLowerCase();
+    const fileExtension = getProofExtension(proofPath);
     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
 
     if (imageExtensions.includes(fileExtension)) {
@@ -772,51 +780,13 @@ function maskUserName(fullName) {
               <p className="text-sm text-gray-800">{selectedLedgerEntry.note || '-'}</p>
             </div>
 
-            <div className="flex items-center justify-between rounded-xl bg-blue-50 border border-blue-100 p-3">
-              <p className="text-sm text-blue-800">Supporting proof file</p>
-              <a
-                href={getProofUrl(selectedLedgerEntry.ledgerProof)}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs px-3 py-1.5 rounded-md border border-blue-300 text-blue-700 hover:bg-blue-100"
-              >
-                Open Proof
-              </a>
-            </div>
-          </div>
-        )}
-      </StudentModal>
-
-      <StudentModal
-        isOpen={!!selectedApprovalCopy}
-        onClose={() => setSelectedApprovalCopy(null)}
-        title="Project Approval Copy"
-      >
-        {selectedApprovalCopy && (
-          <div className="space-y-4 pt-2">
-            <div className="rounded-2xl bg-blue-50 border border-blue-200 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-gray-900">{selectedApprovalCopy.fileName || 'Project Approval Copy'}</p>
-                  <p className="text-xs text-gray-600 mt-1">Approved proposal copy uploaded by the adviser.</p>
-                </div>
-              </div>
-            </div>
-
             <div className="rounded-xl border border-blue-100 bg-white p-3">
-              {renderProofPreview(selectedApprovalCopy.path, 'Project Approval Copy')}
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl bg-blue-50 border border-blue-100 p-3">
-              <p className="text-sm text-blue-800">Open uploaded approval copy</p>
-              <a
-                href={getProofUrl(selectedApprovalCopy.path)}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs px-3 py-1.5 rounded-md border border-blue-300 text-blue-700 hover:bg-blue-100"
-              >
-                View File
-              </a>
+              <p className="text-xs text-gray-500 mb-2">Supporting proof file</p>
+              {selectedLedgerEntry.ledgerProof ? (
+                renderProofPreview(selectedLedgerEntry.ledgerProof, 'Supporting proof')
+              ) : (
+                <p className="text-sm text-gray-500">No proof document available.</p>
+              )}
             </div>
           </div>
         )}

@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use App\Support\ProjectBudgetCalculator;
 use App\Services\RolePermissionService;
@@ -141,7 +142,7 @@ class UserProjectController extends Controller
                     'amount' => (float) ($entry->amount ?? 0),
                     'description' => $entry->description,
                     'category' => $entry->category,
-                    'ledgerProof' => $entry->ledger_proof,
+                    'ledgerProof' => $entry->resolveLedgerProof(),
                     'approvalStatus' => $entry->approval_status ?: 'Draft',
                     'note' => $entry->getDisplayNote(),
                     'approvedBy' => $entry->approver?->name ?? 'Unknown',
@@ -156,7 +157,7 @@ class UserProjectController extends Controller
             ->map(function ($entry) {
                 return [
                     'id' => $entry['id'],
-                    'fileName' => basename((string) $entry['ledgerProof']),
+                    'fileName' => basename(parse_url((string) $entry['ledgerProof'], PHP_URL_PATH) ?: (string) $entry['ledgerProof']),
                     'ledgerProof' => $entry['ledgerProof'],
                     'linkedTransaction' => $entry['id'],
                     'uploadDate' => $entry['createdAt'] ? substr((string) $entry['createdAt'], 0, 10) : null,
@@ -171,6 +172,8 @@ class UserProjectController extends Controller
                     return ($entry->type ?? '') === 'Initial' && !empty($entry->ledger_proof);
                 })?->ledger_proof
             ?: null;
+
+        $projectProofUrl = $projectProofPath ? $this->temporaryProofUrl($projectProofPath) : null;
 
         $statusTimeline = collect([
             [
@@ -244,10 +247,10 @@ class UserProjectController extends Controller
                 'objective' => $project->objective ?: 'No objective available.',
                 'proposeBy' => $project->proposed_by ?: 'Not specified',
                 'approvedBy' => $project->approver?->name ?? 'CSG Adviser',
-                'project_proof' => $projectProofPath,
-                'projectProof' => $projectProofPath,
-                'approval_copy' => $projectProofPath,
-                'approvalCopy' => $projectProofPath,
+                'project_proof' => $projectProofUrl,
+                'projectProof' => $projectProofUrl,
+                'approval_copy' => $projectProofUrl,
+                'approvalCopy' => $projectProofUrl,
                 'ratingsCount' => (int) ($project->ratings_count ?? 0),
                 'tamperedAlerts' => $tamperedCount,
                 'ratings' => $project->ratings->map(function ($rating) 
@@ -972,6 +975,23 @@ class UserProjectController extends Controller
             'minutes_file_name' => $m->minutes_file_name,
             'attended' => false,
         ];
+    }
+
+    private function temporaryProofUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return $path;
+        }
+
+        $key = str_starts_with($path, 'storage/')
+            ? substr($path, strlen('storage/'))
+            : $path;
+
+        return Storage::disk('supabase')->temporaryUrl($key, now()->addMinutes(15));
     }
 
     private function resolveCurrentUser(): ?User

@@ -67,6 +67,30 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
+
+function getProofUrl(filePath) {
+  if (!filePath) return null;
+  if (/^(https?:|blob:|data:)/i.test(filePath)) return filePath;
+  if (filePath.startsWith('/')) return filePath;
+  return filePath.startsWith('storage/') ? `/${filePath}` : `/storage/${filePath}`;
+}
+
+function getProofFileName(filePath) {
+  if (!filePath) return 'Proof document';
+
+  try {
+    const pathname = new URL(filePath, window.location.origin).pathname;
+    return decodeURIComponent(pathname.split('/').pop() || 'Proof document');
+  } catch {
+    return filePath.split(/[?#]/)[0].split('/').pop() || 'Proof document';
+  }
+}
+
+function getProofExtension(filePath) {
+  const fileName = getProofFileName(filePath);
+  return fileName.includes('.') ? fileName.split('.').pop().toUpperCase() : 'FILE';
+}
+
 export default function AdviserApprovalsPage() {
   const page = usePage();
       // Can Project
@@ -751,10 +775,10 @@ export default function AdviserApprovalsPage() {
                                        <FileText className="w-8 h-8 text-blue-600" />
                                        <div>
                                          <p className="text-sm font-medium text-gray-900">
-                                           {(selectedItem.project_proof || selectedItem.ledger_proof).split('/').pop()}
+                                           {getProofFileName(selectedItem.project_proof || selectedItem.ledger_proof)}
                                          </p>
                                          <p className="text-xs text-gray-500">
-                                           {(selectedItem.project_proof || selectedItem.ledger_proof).split('.').pop().toUpperCase()} file
+                                           {getProofExtension(selectedItem.project_proof || selectedItem.ledger_proof)} file
                                          </p>
                                        </div>
                                      </div>
@@ -903,10 +927,10 @@ export default function AdviserApprovalsPage() {
                                        <FileText className="w-8 h-8 text-blue-600" />
                                        <div className="min-w-0">
                                          <p className="text-sm font-medium text-gray-900 truncate">
-                                           {selectedItem.ledger_proof.split('/').pop()}
+                                           {getProofFileName(selectedItem.ledger_proof)}
                                          </p>
                                          <p className="text-xs text-gray-500">
-                                           {selectedItem.ledger_proof.split('.').pop().toUpperCase()} file
+                                           {getProofExtension(selectedItem.ledger_proof)} file
                                          </p>
                                        </div>
                                      </div>
@@ -1031,10 +1055,8 @@ export default function AdviserApprovalsPage() {
                   <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
                     {(() => {
                       const proofPath = selectedItem?.approvalType === 'ledger' ? selectedItem?.ledger_proof : selectedItem?.project_proof;
-                      const proofUrl = proofPath.startsWith('/') 
-                        ? proofPath 
-                        : `/${proofPath}`;
-                      const fileExtension = proofPath.split('.').pop().toLowerCase();
+                      const proofUrl = getProofUrl(proofPath);
+                      const fileExtension = getProofExtension(proofPath).toLowerCase();
                       const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
                       
                       if (imageExtensions.includes(fileExtension)) {
@@ -1061,7 +1083,7 @@ export default function AdviserApprovalsPage() {
                           <div className="text-center">
                             <FileText className="w-16 h-16 text-blue-600 mb-4 mx-auto" />
                             <p className="text-gray-600 mb-2 font-medium">
-                              {proofPath.split('/').pop()}
+                              {getProofFileName(proofPath)}
                             </p>
                             <p className="text-sm text-gray-500">
                               {fileExtension.toUpperCase()} file
@@ -1086,9 +1108,7 @@ export default function AdviserApprovalsPage() {
                       className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
                       onClick={() => {
                         const proofPath = selectedItem?.approvalType === 'ledger' ? selectedItem?.ledger_proof : selectedItem?.project_proof;
-                        const proofUrl = proofPath.startsWith('/') 
-                          ? proofPath 
-                          : `/${proofPath}`;
+                        const proofUrl = getProofUrl(proofPath);
                         window.open(proofUrl, '_blank');
                       }}
                     >

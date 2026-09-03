@@ -269,9 +269,9 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
                                </div>
         </Card>
       ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ">
         {paginatedProjects.map((project) => (
-          <Card key={project.id} className="overflow-hidden rounded-[20px] border-0 shadow-sm hover:shadow-md transition-all">
+          <Card key={project.id} className={`${isProjectLocked(project.id) ? "opacity-70 bg-gray-200" : ""} overflow-hidden rounded-xl  border-0 shadow-sm hover:shadow-md transition-shadow`}>
             {/* Project Icon */}
             <div className={`h-32 bg-gradient-to-br ${getCategoryVisual(project.category).color} flex items-center justify-center`}>
               <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">

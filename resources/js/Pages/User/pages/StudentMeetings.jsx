@@ -7,7 +7,6 @@ import { Calendar, Clock, MapPin, Users, Eye, FileText, CheckCircle2, Search } f
 
 export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [], meetingsPast = [] }) {
   const [selectedMeeting, setSelectedMeeting] = useState(null);
-  const [documentPreview, setDocumentPreview] = useState(null);
   const [activeTab, setActiveTab] = useState('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('all');
@@ -89,17 +88,18 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
 
   const normalize = (s) => (s || '').toString().toLowerCase();
 
-  const openDocumentPreview = (meeting) => {
-    const documentUrl = meeting?.minutes_file_url || (meeting?.meeting_proof ? `/storage/${meeting.meeting_proof}` : null);
+  const getMeetingDocumentUrl = (meeting) => (
+    meeting?.minutes_file_url || (meeting?.meeting_proof ? `/storage/${meeting.meeting_proof}` : null)
+  );
 
-    if (!documentUrl) {
-      return;
+  const getMeetingDocumentExtension = (url) => {
+    if (!url) return '';
+    try {
+      const pathname = new URL(url, window.location.origin).pathname;
+      return (pathname.split('.').pop() || '').toLowerCase();
+    } catch {
+      return (url.split(/[?#]/)[0].split('.').pop() || '').toLowerCase();
     }
-
-    setDocumentPreview({
-      url: documentUrl,
-      name: meeting?.minutes_file_name || meeting?.meeting_proof?.split('/').pop() || 'Meeting Document',
-    });
   };
 
   const meetingsUpcomingFiltered = meetingsUpcoming.filter(m => inTimeRange(m, timeFilter)).filter(m => {
@@ -424,22 +424,28 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
                   </p>
                 </div>
                 <h3 className="text-gray-900 font-semibold mb-3">Meeting Documentation</h3>
-                {selectedMeeting.minutes_file_url ? (
+                {getMeetingDocumentUrl(selectedMeeting) ? (
                   <div className="">
                     <p className="text-sm text-gray-600 mb-2">Uploaded documentation</p>
-                    <div className="flex items-center justify-between gap-3 bg-blue-100 rounded-xl p-3 border border-blue-400">
+                    <div className="bg-blue-100 rounded-xl p-3 border border-blue-400">
                       <div className="w-0 flex-1">
                         <p className="font-medium text-gray-900 truncate">{selectedMeeting.minutes_file_name || selectedMeeting.meeting_proof?.split('/').pop() || 'Document'}</p>
-                     
                       </div>
-                      <button
-                        onClick={() => openDocumentPreview(selectedMeeting)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View
-                      </button>
                     </div>
+                    {(() => {
+                      const documentUrl = getMeetingDocumentUrl(selectedMeeting);
+                      const extension = getMeetingDocumentExtension(documentUrl);
+
+                      if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(extension)) {
+                        return <img src={documentUrl} alt="Meeting documentation" className="mt-3 max-h-[420px] w-full rounded-lg object-contain" />;
+                      }
+
+                      if (extension === 'pdf') {
+                        return <iframe src={documentUrl} title="Meeting documentation" className="mt-3 h-[420px] w-full rounded-lg border-0" />;
+                      }
+
+                      return <p className="mt-3 text-sm text-gray-500">Preview unavailable for this file type.</p>;
+                    })()}
                   </div>
                 ) : (
                   <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-500">
@@ -463,50 +469,6 @@ export default function StudentMeetingsPage({ onNavigate, meetingsUpcoming = [],
         )}
       </StudentModal>
 
-      <StudentModal
-        isOpen={!!documentPreview}
-        onClose={() => setDocumentPreview(null)}
-        title={'Document Preview'}
-      >
-        {documentPreview && (
-          <div className="space-y-4 pt-2">
-            {documentPreview.url.toLowerCase().match(/\.(png|jpe?g|gif|webp|bmp)$/i) ? (
-              <img
-                src={documentPreview.url}
-                alt={documentPreview.name}
-                className="max-h-[70vh] w-full rounded-lg object-contain"
-              />
-            ) : documentPreview.url.toLowerCase().match(/\.pdf$/i) ? (
-              <iframe
-                src={documentPreview.url}
-                title={documentPreview.name}
-                className="h-[70vh] w-full rounded-lg border-0"
-              />
-            ) : (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-sm text-gray-500">
-                <p className="mb-2 font-medium text-gray-700">This file type cannot be previewed inline.</p>
-                <p className="mb-4">Open it in a new tab to view it.</p>
-                <button
-                  onClick={() => window.open(documentPreview.url, '_blank')}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                  Open in new tab
-                </button>
-              </div>
-            )}
-
-            <div className="">
-              <button
-                onClick={() => window.open(documentPreview.url, '_blank')}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                {/* <Eye className="w-4 h-4" /> */}
-                Open in new tab
-              </button>
-            </div>
-          </div>
-        )}
-      </StudentModal>
     </div>
   );
 }

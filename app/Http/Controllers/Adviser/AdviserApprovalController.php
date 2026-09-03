@@ -230,9 +230,8 @@ class AdviserApprovalController extends Controller
     {
         $project = Project::where('id', $id)->where('archive', false)->firstOrFail();
         $wasApproved = $project->approval_status === 'Approved';
-        $existingProofPath = $this->getProjectProofPath($project);
 
-        if (! $approvalCopy && ! $existingProofPath) {
+        if (! $approvalCopy) {
             throw ValidationException::withMessages([
                 'approval_copy' => ['Please upload a PDF copy of the approved proposal before confirming approval.'],
             ]);
@@ -758,7 +757,7 @@ class AdviserApprovalController extends Controller
     $fileHash = hash_file('sha256', $file->getRealPath());
     $extension = $file->getClientOriginalExtension();
     $fileName = $fileHash . ($extension ? '.' . $extension : '');
-    $proofPath = Storage::disk('supabase')->putFileAs('ledger_proofs', $file, $fileName);
+    $proofPath = Storage::disk('supabase')->putFileAs('project_approval', $file, $fileName);
 
     // Only backfill ledger_proof if the baseline entry doesn't already have one
     // (covers the freshly-created case above). Never overwrite an existing one.
@@ -820,6 +819,7 @@ class AdviserApprovalController extends Controller
             ->first();
 
         $proofPath = $p->project_proof ?: ($initialLedger?->ledger_proof ?? null);
+        $proofUrl = $proofPath ? $this->temporaryProofUrl($proofPath) : null;
 
         return [
             'id' => $p->id,
@@ -839,7 +839,7 @@ class AdviserApprovalController extends Controller
             'created_by' => $this->userName($p->created_by),
             'created_at' => optional($p->created_at)->format('Y-m-d H:i:s') ?? 'N/A',
             'proposed_by' => $p->proposed_by ?? 'Not specified',
-            'project_proof' => $proofPath,
+            'project_proof' => $proofUrl,
         ];
     }
 
@@ -881,6 +881,23 @@ class AdviserApprovalController extends Controller
         'budget_breakdown' => $budgetBreakdown ?? [], // <-- ADD THIS
     ];
 }
+
+    private function temporaryProofUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        $key = str_starts_with($path, 'storage/')
+            ? substr($path, strlen('storage/'))
+            : $path;
+
+        if (filter_var($key, FILTER_VALIDATE_URL)) {
+            return $key;
+        }
+
+        return Storage::disk('supabase')->temporaryUrl($key, now()->addMinutes(15));
+    }
 
     private function serializeProofCard(LedgerEntry $e): array
     {

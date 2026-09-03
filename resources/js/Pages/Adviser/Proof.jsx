@@ -83,6 +83,13 @@ function FieldLabel({ children }) {
   return <label className="block text-sm text-gray-700 mb-1">{children}</label>;
 }
 
+function getProofUrl(filePath) {
+  if (!filePath) return null;
+  if (/^(https?:|blob:|data:)/i.test(filePath)) return filePath;
+  if (filePath.startsWith('/')) return filePath;
+  return filePath.startsWith('storage/') ? `/${filePath}` : `/storage/${filePath}`;
+}
+
 function Select({ className = '', children, ...props }) {
   return (
     <select
@@ -691,7 +698,7 @@ function CSGProofPageInner() {
                   );
                 }
 
-                const proofUrl = filePath.startsWith('/') ? filePath : `/${filePath}`;
+                const proofUrl = getProofUrl(filePath);
                 const fileExtension = selectedProof.fileName.split('.').pop().toLowerCase();
                 const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
                 
@@ -774,7 +781,7 @@ function CSGProofPageInner() {
                 onClick={() => {
                   const filePath = selectedProof.filePath || selectedProof.file_path || selectedProof.path;
                   if (filePath) {
-                    const proofUrl = filePath.startsWith('/') ? filePath : `/${filePath}`;
+                    const proofUrl = getProofUrl(filePath);
                     window.open(proofUrl, '_blank');
                   } else {
                     showToast('No file available for download', 'error');
