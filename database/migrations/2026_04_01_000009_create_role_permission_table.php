@@ -13,7 +13,7 @@ return new class extends Migration
             $table->uuid('user_id')->nullable();
             $table->uuid('role_id')->nullable();
             $table->uuid('permission_id')->nullable();
-            $table->string('position_id', 32)->nullable();
+            $table->char('position_id', 32)->nullable();
             $table->timestamp('created_at')->useCurrent();
 
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();

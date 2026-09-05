@@ -34,7 +34,7 @@ class RegisteredUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'role_id' => 'required|exists:roles,id',
+            'role_id' => 'nullable|exists:roles,id',
             'student_id' => 'nullable|string|max:255|unique:'.User::class,
         ], [
             'email.unique' => 'This email address is already registered. Please use a different email or login to your existing account.',

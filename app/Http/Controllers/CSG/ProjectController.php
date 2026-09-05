@@ -275,6 +275,7 @@ class ProjectController extends Controller
             if ($request->hasFile('project_proof')) {
                 try {
                     $initialLedger = $this->storeProjectProofOnInitialLedger($project, $request->file('project_proof'), $initialLedger);
+
                     Log::info('✅ Project proof stored on ledger entry', [
                         'project_id' => $project->id,
                         'ledger_id' => $initialLedger->id,

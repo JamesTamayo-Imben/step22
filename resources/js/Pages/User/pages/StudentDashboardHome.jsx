@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react';
-import { TrendingUp, Award, Trophy, FolderKanban, Calendar, Star, Target, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { TrendingUp, Award, Trophy, FolderKanban, Calendar, Star, Target, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Chatbot } from '@/Components/ui/Chatbot';
 
 export function StudentDashboardHome({
@@ -21,6 +22,46 @@ export function StudentDashboardHome({
   const canViewMeetings = userPermissions.includes('meetings.view');
   const canViewRatings = userPermissions.includes('ratings.view');
   // const canViewNotifications = userPermissions.includes('notifications.view');
+
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+
+  const parseProjectDate = (value) => {
+    if (!value || value === 'TBD') return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const calendarDays = (() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstWeekday = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells = Array.from({ length: firstWeekday }, (_, index) => ({ key: `blank-${index}` }));
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const date = new Date(year, month, day);
+      const projectsStarting = (activeProjects || []).filter((project) => {
+        const startDate = parseProjectDate(project.startDate);
+        return startDate && startDate.getFullYear() === year && startDate.getMonth() === month && startDate.getDate() === day;
+      });
+      const projectsEnding = (activeProjects || []).filter((project) => {
+        const endDate = parseProjectDate(project.deadline);
+        return endDate && endDate.getFullYear() === year && endDate.getMonth() === month && endDate.getDate() === day;
+      });
+
+      cells.push({ key: date.toISOString(), day, projectsStarting, projectsEnding });
+    }
+
+    return cells;
+  })();
+
+  const calendarMonthLabel = calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const shiftCalendarMonth = (amount) => {
+    setCalendarMonth((currentMonth) => new Date(currentMonth.getFullYear(), currentMonth.getMonth() + amount, 1));
+  };
 
 const getStatusColor = (status) => {
   switch (status) { 
@@ -196,6 +237,83 @@ const getStatusColor = (status) => {
         {/* </div> */}
        </div>
       </div>
+      )}
+
+      {canViewProjects && (
+        <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <div>
+              <h2 className="text-gray-900">Project Calendar</h2>
+              <p className="text-sm text-gray-500">Track project start and end dates.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => shiftCalendarMonth(-1)}
+                className="p-2 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50"
+                aria-label="Previous month"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="min-w-32 text-center text-sm font-medium text-gray-800">{calendarMonthLabel}</span>
+              <button
+                type="button"
+                onClick={() => shiftCalendarMonth(1)}
+                className="p-2 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50"
+                aria-label="Next month"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 mb-4 text-xs text-gray-600">
+            <span className="inline-flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm bg-blue-600" /> Project starts
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm bg-amber-500" /> Project ends
+            </span>
+          </div>
+
+          <div className="grid grid-cols-7 gap-2 text-[11px] text-center text-gray-500 mb-2">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <div key={day}>{day}</div>)}
+          </div>
+
+          <div className="grid grid-cols-7 gap-2">
+            {calendarDays.map((cell) => {
+              if (!cell.day) return <div key={cell.key} className="min-h-20 rounded-xl bg-transparent" />;
+
+              const hasStart = cell.projectsStarting.length > 0;
+              const hasEnd = cell.projectsEnding.length > 0;
+              const projectNames = [
+                ...cell.projectsStarting.map((project) => `Starts: ${project.title}`),
+                ...cell.projectsEnding.map((project) => `Ends: ${project.title}`),
+              ];
+
+              return (
+                <div
+                  key={cell.key}
+                  className={`min-h-20 rounded-xl p-2 border flex flex-col gap-1 ${
+                    hasStart && hasEnd
+                      ? 'bg-gradient-to-br from-blue-50 to-amber-50 border-blue-200'
+                      : hasStart
+                      ? 'bg-blue-50 border-blue-200'
+                      : hasEnd
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-gray-50 border-gray-100'
+                  }`}
+                  title={projectNames.join(' | ') || undefined}
+                >
+                  <span className="text-xs font-semibold text-gray-700">{cell.day}</span>
+                  {hasStart && <span className="truncate rounded bg-blue-600 px-1 py-0.5 text-[10px] text-white">Start</span>}
+                  {hasEnd && <span className="truncate rounded bg-amber-500 px-1 py-0.5 text-[10px] text-white">End</span>}
+                  {projectNames.length > 0 && <span className={`${hasStart ? 'bg-blue-600' : 'bg-amber-500'} text-white px-1 py-0.5 text-[10px] rounded`}>{projectNames[0].replace(/^(Starts|Ends): /, '')}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* Recent Badges & Upcoming Events */}

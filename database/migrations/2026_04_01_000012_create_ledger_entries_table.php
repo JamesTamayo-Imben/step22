@@ -6,8 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    // NOTE: file_content_hash is intentionally left out — it is added by the existing
-    // add_file_content_hash_to_ledger_entries migration already in this project.
     public function up(): void
     {
         Schema::create('ledger_entries', function (Blueprint $table) {
@@ -22,6 +20,7 @@ return new class extends Migration
             $table->string('category', 100)->nullable();
             $table->text('budget_breakdown')->nullable();
             $table->string('ledger_proof', 500)->nullable()->comment('Path to uploaded proof file');
+            $table->string('file_content_hash', 64)->nullable();
             $table->enum('approval_status', ['Draft', 'Pending Adviser Approval', 'Approved', 'Rejected'])
                 ->default('Draft');
             $table->boolean('is_initial_entry')->default(false);

@@ -14,6 +14,8 @@ return new class extends Migration
             $table->string('concern')->nullable();
             $table->boolean('favorite')->default(false);
             $table->timestamp('created_at')->nullable();
+
+            $table->index('user_id');
         });
     }
 

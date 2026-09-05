@@ -4,12 +4,11 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\CSG\MeetingController;
 use App\Models\CSG\Meeting;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class MeetingProofUploadTest extends TestCase
@@ -68,13 +67,10 @@ class MeetingProofUploadTest extends TestCase
 
     public function test_store_persists_uploaded_meeting_proof_path_and_hash(): void
     {
-        Storage::fake('public');
+        Storage::fake('supabase');
 
-        $user = User::create([
-            'name' => 'Meeting Tester',
-            'email' => 'meeting' . Str::random(4) . '@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = $this->authorizedUser('csg');
+        Auth::login($user);
 
         $request = Request::create('/api/meetings', 'POST', [
             'title' => 'Weekly Review',
@@ -95,7 +91,7 @@ class MeetingProofUploadTest extends TestCase
         $meeting = Meeting::query()->latest('created_at')->first();
         $this->assertNotNull($meeting);
         $this->assertNotNull($meeting->meeting_proof);
-        $this->assertStringContainsString('storage/meeting_proofs/', $meeting->meeting_proof);
+        $this->assertStringContainsString('meeting_proofs/', $meeting->meeting_proof);
         $this->assertNotNull($meeting->file_content_hash);
     }
 }

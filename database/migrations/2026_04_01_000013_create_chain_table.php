@@ -21,24 +21,28 @@ return new class extends Migration
             $table->foreign('project_id')->references('id')->on('projects')->cascadeOnDelete();
         });
 
-        // Chain records are an append-only tamper-evidence ledger — block edits/deletes at the DB level.
-        DB::unprepared('
-            CREATE TRIGGER prevent_chain_deletes BEFORE DELETE ON chain FOR EACH ROW BEGIN
-                SIGNAL SQLSTATE \'45000\' SET MESSAGE_TEXT = \'Chain records cannot be deleted\';
-            END
-        ');
+        if (DB::connection()->getDriverName() === 'mysql') {
+            // Chain records are append-only on MySQL/MariaDB.
+            DB::unprepared('
+                CREATE TRIGGER prevent_chain_deletes BEFORE DELETE ON chain FOR EACH ROW BEGIN
+                    SIGNAL SQLSTATE \'45000\' SET MESSAGE_TEXT = \'Chain records cannot be deleted\';
+                END
+            ');
 
-        DB::unprepared('
-            CREATE TRIGGER prevent_chain_updates BEFORE UPDATE ON chain FOR EACH ROW BEGIN
-                SIGNAL SQLSTATE \'45000\' SET MESSAGE_TEXT = \'Chain records cannot be updated\';
-            END
-        ');
+            DB::unprepared('
+                CREATE TRIGGER prevent_chain_updates BEFORE UPDATE ON chain FOR EACH ROW BEGIN
+                    SIGNAL SQLSTATE \'45000\' SET MESSAGE_TEXT = \'Chain records cannot be updated\';
+                END
+            ');
+        }
     }
 
     public function down(): void
     {
-        DB::unprepared('DROP TRIGGER IF EXISTS prevent_chain_deletes');
-        DB::unprepared('DROP TRIGGER IF EXISTS prevent_chain_updates');
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::unprepared('DROP TRIGGER IF EXISTS prevent_chain_deletes');
+            DB::unprepared('DROP TRIGGER IF EXISTS prevent_chain_updates');
+        }
         Schema::dropIfExists('chain');
     }
 };

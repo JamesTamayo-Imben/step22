@@ -2757,7 +2757,8 @@ function maskUserName(fullName) {
           <div className="flex gap-3 pt-4">
                         <Button onClick={() => setShowChangeDatesModal(false)} variant="outline" className="flex-1 rounded-xl">Cancel</Button>
 
-            <Button onClick={handleSubmitDateChangeRequest} disabled={isSubmittingDateChange} className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+            <Button onClick={handleSubmitDateChangeRequest} 
+            disabled={isSubmittingDateChange || !dateChangeReason.trim()} className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
               {isSubmittingDateChange ? 'Submitting...' : 'Submit Request'}
             </Button>
           </div>

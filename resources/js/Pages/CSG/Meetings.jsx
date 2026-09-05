@@ -846,13 +846,15 @@ const renderAttendees = (attendees) => {
           </Button>
            )}
 
-          <Button
+         {canCreateMeetings && (
+           <Button
            onClick={handleDownloadTemplate}
           className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download className="w-4 h-4 mr-2" />
           Minutes Template
         </Button> 
+         )}
         </div>
       </div>
 

@@ -982,7 +982,9 @@ export default function AdviserApprovalsPage() {
           <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={4} className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none transition" />
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowReject(false); setRejectReason(''); }}>Cancel</Button>
-            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={handleRejectClick}>Continue</Button>
+            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={handleRejectClick} disabled={!rejectReason.trim()}>
+              Continue
+            </Button>
           </div>
         </div>
       </Modal>

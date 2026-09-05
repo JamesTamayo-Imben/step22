@@ -634,6 +634,8 @@ class RolePermissionService
             return true;
         }
 
+        $this->syncCatalog();
+
         $permission = Permission::query()
             ->where('permission', $permissionSlug)
             ->where('archive', false)

@@ -327,7 +327,7 @@ Route::middleware(['auth', 'verified', 'role:csg', 'csg.online'])->group(functio
     Route::delete('/csg/projects/{projectId}/ledger/{ledgerId}', [CSGProjectController::class, 'destroyLedger'])->name('csg.projects.ledger.destroy');
 
     // Concerns
-    Route::get('/csg/concerns', function () {
+    Route::middleware('auth')->get('/csg/concerns', function () {
         return Inertia::render('CSG/Concerns', [
             'concerns' => Inertia::defer(fn() => Concern::query()
                 ->with('user:id,name')
@@ -456,7 +456,7 @@ Route::middleware(['auth', 'verified', 'role:student,teacher'])->group(function 
 // ==================== API ROUTES ====================
 Route::prefix('api')->group(function () {
     // Project Management Routes
-    Route::prefix('projects')->group(function () {
+    Route::middleware('auth')->prefix('projects')->group(function () {
         Route::get('/', [ProjectController::class, 'index']);
         Route::post('/', [ProjectController::class, 'store']);
         Route::get('/{id}', [ProjectController::class, 'show']);
@@ -473,7 +473,7 @@ Route::prefix('api')->group(function () {
     });
     
     // Ledger Entry Management Routes
-    Route::prefix('ledger-entries')->group(function () {
+    Route::middleware('auth')->prefix('ledger-entries')->group(function () {
         Route::get('/', [LedgerEntryController::class, 'all']);
         Route::get('/project/{projectId}', [LedgerEntryController::class, 'index']);
         Route::get('/proof-documents', [LedgerEntryController::class, 'getProofDocuments']);
@@ -487,7 +487,7 @@ Route::prefix('api')->group(function () {
     });
     
     // Meeting Management Routes
-    Route::prefix('meetings')->group(function () {
+    Route::middleware('auth')->prefix('meetings')->group(function () {
         Route::get('/', [MeetingController::class, 'all']);
         Route::get('/upcoming/count', [MeetingController::class, 'countUpcoming']);
         Route::get('/upcoming/list', [MeetingController::class, 'getUpcomingMeetings']);
@@ -498,11 +498,11 @@ Route::prefix('api')->group(function () {
         Route::post('/{id}/archive', [MeetingController::class, 'toggleArchive']);
     });
 
-    Route::get('/projects', [ProjectController::class, 'index']);
+    Route::middleware('auth')->get('/projects', [ProjectController::class, 'index']);
 });
 
 // Legacy non-api route prefix (for backward compatibility)
-Route::prefix('projects')->group(function () {
+Route::middleware('auth')->prefix('projects')->group(function () {
     Route::get('/', [ProjectController::class, 'index']);
     Route::get('/{id}', [ProjectController::class, 'show']);
     Route::get('/{id}/ledger', [ProjectController::class, 'ledgerEntries']);
@@ -531,18 +531,20 @@ Route::prefix('projects')->group(function () {
 //     Notification::where('user_id', auth()->id())->update(['is_read' => 1, 'read_at' => now()]);
 //     return back();
 // });
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'role:superadmin'])->group(function () {
     Route::post('/sadmin/notifications/read/{id}', function ($id) {
-        // Use the correct Notification model namespace
-        \App\Models\User\Notification::where('id', $id)->update([
-            'is_read' => 1, 
-            'read_at' => now()
-        ]);
+        \App\Models\User\Notification::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->update([
+                'is_read' => 1,
+                'read_at' => now(),
+            ]);
         return back();
     });
-
-    Route::post('/sadmin/notifications/archive/{id}', function ($id) {
-        \App\Models\User\Notification::where('id', $id)->update(['archive' => 1]);
+   Route::post('/sadmin/notifications/archive/{id}', function ($id) {
+        \App\Models\User\Notification::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->update(['archive' => 1]);
         return back();
     });
 
@@ -552,9 +554,11 @@ Route::middleware('auth')->group(function () {
             ->update(['is_read' => 1, 'read_at' => now()]);
         return back();
     });
+});
 
     // Student notification read/unread (mark as read)
-    Route::post('/user/notifications/read/{id}', function ($id) {
+    Route::middleware('auth')->group(function () {
+     Route::post('/user/notifications/read/{id}', function ($id) {
         \App\Models\User\Notification::where('id', $id)
             ->where(function ($q) {
                 $q->where('user_id', Auth::id())->orWhereNull('user_id');

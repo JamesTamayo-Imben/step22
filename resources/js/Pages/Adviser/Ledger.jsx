@@ -54,6 +54,14 @@ function formatLimitedNumber(value, opts = {}) {
   return n.toLocaleString(undefined, { minimumFractionDigits: minFractionDigits, maximumFractionDigits: maxFractionDigits });
 }
 
+function getProofUrl(filePath) {
+  if (!filePath) return null;
+  if (/^(https?:|blob:|data:)/i.test(filePath)) return filePath;
+  if (filePath.startsWith('/')) return filePath;
+  if (filePath.startsWith('storage/')) return `/${filePath}`;
+  return filePath;
+}
+
 // Helper function to parse budget breakdown (handles both string and object formats)
 function parseBudgetBreakdown(budgetBreakdown) {
   if (!budgetBreakdown) return null;
@@ -1403,16 +1411,16 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                         <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
                           {(() => {
                             const file = selectedEntry.proofFiles[0];
-                            const proofUrl = file.url || (file.path ? (file.path.startsWith('/') ? file.path : `/${file.path}`) : '#');
+                            const proofUrl = getProofUrl(file.url || file.path || '#');
                             const fileName = file.name || file.filename || '';
-                            const fileExtension = fileName.split('.').pop().toLowerCase();
+                            const fileExtension = (fileName.split('.').pop() || '').toLowerCase();
                             const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
-                            
+
                             if (imageExtensions.includes(fileExtension)) {
                               return (
-                                <img 
-                                  src={proofUrl} 
-                                  alt="Proof Document" 
+                                <img
+                                  src={proofUrl}
+                                  alt="Proof Document"
                                   className="max-w-full max-h-96 object-contain rounded-lg"
                                   onError={() => {
                                     console.error('Failed to load image:', proofUrl);
@@ -1421,8 +1429,8 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                               );
                             } else if (fileExtension === 'pdf') {
                               return (
-                                <iframe 
-                                  src={proofUrl} 
+                                <iframe
+                                  src={proofUrl}
                                   className="w-full h-96 rounded-lg border-0"
                                   title="PDF Preview"
                                 />
@@ -1435,7 +1443,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                                     {fileName}
                                   </p>
                                   <p className="text-sm text-gray-500">
-                                    {fileExtension.toUpperCase()} file
+                                    {fileExtension ? fileExtension.toUpperCase() : 'FILE'} file
                                   </p>
                                 </div>
                               );
@@ -1453,11 +1461,11 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                           </div>
                         </div>
                         <div className="flex gap-3 pt-4">
-                          <Button 
+                          <Button
                             className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
                             onClick={() => {
                               const file = selectedEntry.proofFiles[0];
-                              const proofUrl = file.url || (file.path ? (file.path.startsWith('/') ? file.path : `/${file.path}`) : '#');
+                              const proofUrl = getProofUrl(file.url || file.path || '#');
                               window.open(proofUrl, '_blank');
                             }}
                           >

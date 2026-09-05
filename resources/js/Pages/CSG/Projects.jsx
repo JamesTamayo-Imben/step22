@@ -452,6 +452,15 @@ function CSGProjectsPageInner() {
     }
   };
 
+   const handleDownloadTemplate = () => {
+    const link = document.createElement('a');
+      link.href = '/storage/project_template/project_template.pdf';
+      link.download = 'project_template.pdf';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   // Calculate project status based on dates
   const getCalculatedStatus = (project) => {
     // If project is not approved, always show Draft
@@ -698,13 +707,13 @@ function CSGProjectsPageInner() {
           Create New Project
         </Button>
           )}
-        {/* <Button
-          // onClick={() => setShowCreateModal(true)}
+        <Button
+          onClick={handleDownloadTemplate}
           className="text-white rounded-xl bg-blue-600 hover:bg-blue-700"
         >
           <Download className="w-4 h-4 mr-2" />
-          Proof Template
-        </Button> */}
+          Project Template
+        </Button>
         </div>
       </div> 
 

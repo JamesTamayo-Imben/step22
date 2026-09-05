@@ -321,11 +321,7 @@ class ProjectApprovalLedgerStatusTest extends TestCase
 
     public function test_project_approval_does_not_create_duplicate_initial_entry_for_transfer_projects(): void
     {
-        $user = User::create([
-            'name' => 'Tester',
-            'email' => 'tester' . uniqid() . '@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = $this->authorizedUser('admin');
 
         $this->actingAs($user);
 
@@ -379,11 +375,7 @@ class ProjectApprovalLedgerStatusTest extends TestCase
 
     public function test_project_approval_deducts_transfer_amount_from_source_project_budget(): void
     {
-        $user = User::create([
-            'name' => 'Tester',
-            'email' => 'tester' . uniqid() . '@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = $this->authorizedUser('admin');
 
         $this->actingAs($user);
 

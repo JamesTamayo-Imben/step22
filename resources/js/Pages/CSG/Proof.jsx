@@ -83,6 +83,14 @@ function FieldLabel({ children }) {
   return <label className="block text-sm text-gray-700 mb-1">{children}</label>;
 }
 
+function getProofUrl(filePath) {
+  if (!filePath) return null;
+  if (/^(https?:|blob:|data:)/i.test(filePath)) return filePath;
+  if (filePath.startsWith('/')) return filePath;
+  if (filePath.startsWith('storage/')) return `/${filePath}`;
+  return filePath;
+}
+
 function Select({ className = '', children, ...props }) {
   return (
     <select
@@ -707,15 +715,15 @@ function CSGProofPageInner() {
                   );
                 }
 
-                const proofUrl = filePath.startsWith('/') ? filePath : `/${filePath}`;
+                const proofUrl = getProofUrl(filePath);
                 const fileExtension = selectedProof.fileName.split('.').pop().toLowerCase();
                 const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
-                
+
                 if (imageExtensions.includes(fileExtension)) {
                   return (
-                    <img 
-                      src={proofUrl} 
-                      alt="Proof Document" 
+                    <img
+                      src={proofUrl}
+                      alt="Proof Document"
                       className="max-w-full max-h-96 object-contain rounded-lg"
                       onError={(e) => {
                         console.error('Failed to load image:', proofUrl);
@@ -725,8 +733,8 @@ function CSGProofPageInner() {
                   );
                 } else if (fileExtension === 'pdf') {
                   return (
-                    <iframe 
-                      src={proofUrl} 
+                    <iframe
+                      src={proofUrl}
                       className="w-full h-96 rounded-lg border-0"
                       title="PDF Preview"
                       onError={() => {
@@ -790,7 +798,7 @@ function CSGProofPageInner() {
                 onClick={() => {
                   const filePath = selectedProof.filePath || selectedProof.file_path || selectedProof.path;
                   if (filePath) {
-                    const proofUrl = filePath.startsWith('/') ? filePath : `/${filePath}`;
+                    const proofUrl = getProofUrl(filePath);
                     window.open(proofUrl, '_blank');
                   } else {
                     showToast('No file available for download', 'error');

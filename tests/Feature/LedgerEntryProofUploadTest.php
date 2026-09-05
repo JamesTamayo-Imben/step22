@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Http\Controllers\CSG\LedgerEntryController;
 use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Project;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -91,13 +91,10 @@ class LedgerEntryProofUploadTest extends TestCase
 
     public function test_store_persists_uploaded_proof_path_to_ledger_entry(): void
     {
-        Storage::fake('public');
+        Storage::fake('supabase');
 
-        $user = User::create([
-            'name' => 'Tester',
-            'email' => 'tester' . Str::random(4) . '@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        $user = $this->authorizedUser('csg');
+        Auth::login($user);
 
         $project = Project::create([
             'id' => (string) Str::uuid(),
@@ -134,7 +131,7 @@ class LedgerEntryProofUploadTest extends TestCase
         $entry = LedgerEntry::query()->where('project_id', $project->id)->latest('created_at')->first();
         $this->assertNotNull($entry);
         $this->assertNotNull($entry->ledger_proof);
-        $this->assertStringContainsString('storage/ledger_proofs/', $entry->ledger_proof);
+        $this->assertStringContainsString('ledger_proofs/', $entry->ledger_proof);
         $this->assertNotNull($entry->file_content_hash);
     }
 }
