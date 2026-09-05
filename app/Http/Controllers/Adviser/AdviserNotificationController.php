@@ -13,6 +13,10 @@ class AdviserNotificationController extends Controller
     {
         $rows = Notification::query()
             ->where('archive', false)
+            ->where(function ($query) {
+                $query->whereNull('user_id')
+                    ->orWhere('user_id', auth()->id());
+            })
             ->orderByDesc('created_at')
             ->limit(150)
             ->get();

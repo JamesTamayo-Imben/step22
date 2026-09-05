@@ -520,17 +520,6 @@ class AdviserLedgerController extends Controller
         $this->createNotification(
             'Ledger Tampering Resolved',
             sprintf(
-                'Tampered ledger entry "%s" for project "%s" was restored from the blockchain snapshot.',
-                $entry->description ?? 'Ledger entry',
-                $entry->project?->title ?? $entry->project_id
-            ),
-            'ledger',
-            $entry->created_by ?? $entry->project?->created_by
-        );
-
-        $this->createNotification(
-            'Ledger Tampering Resolved',
-            sprintf(
                 'Tampered ledger entry "%s" in project "%s" was restored by %s.',
                 $entry->description ?? 'Ledger entry',
                 $entry->project?->title ?? $entry->project_id,
@@ -540,7 +529,7 @@ class AdviserLedgerController extends Controller
             null
         );
 
-        return back();
+        return redirect()->route('adviser.ledger');
     }
 
     public function fixBudgetMismatch(Request $request)
@@ -594,7 +583,7 @@ class AdviserLedgerController extends Controller
         null
     );
 
-        return back();
+        return redirect()->route('adviser.ledger');
     }
 
 

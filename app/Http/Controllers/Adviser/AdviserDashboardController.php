@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\CSG\Meeting;
 use App\Models\Student;
 use App\Models\User;
+use App\Models\User\Notification;
 use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
 use App\Models\User\Rating;
@@ -70,6 +71,7 @@ class AdviserDashboardController extends Controller
 
         // Check for tampered ledger entries across all projects
         $tamperedCount = 0;
+        $tamperingUserIds = collect();
         $allLedgerEntries = LedgerEntry::query()
             ->with('project')
             ->where('archive', false)
@@ -80,6 +82,16 @@ class AdviserDashboardController extends Controller
             $verification = \App\Support\BlockchainService::verifyChain($projectId);
             if (isset($verification['tamperedBlocks']) && is_array($verification['tamperedBlocks'])) {
                 $tamperedCount += count($verification['tamperedBlocks']);
+
+                $tamperedLedgerIds = collect($verification['tamperedBlocks'])
+                    ->pluck('ledgerId')
+                    ->filter();
+
+                $allLedgerEntries
+                    ->whereIn('id', $tamperedLedgerIds)
+                    ->each(function (LedgerEntry $ledgerEntry) use ($tamperingUserIds) {
+                        $tamperingUserIds->push($ledgerEntry->created_by ?? $ledgerEntry->project?->created_by);
+                    });
             }
         }
 
@@ -105,6 +117,7 @@ class AdviserDashboardController extends Controller
 
             if (ProjectBudgetCalculator::hasMismatch($displayBudget, $computedBudget, true)) {
                 $budgetMismatchCount++;
+                $tamperingUserIds->push($project->created_by);
             }
         }
 
@@ -117,8 +130,6 @@ class AdviserDashboardController extends Controller
                 $alertTitle = 'Tampering & Budget Mismatch Detected';
             }
 
-            // Duplicate alerts are intentionally not suppressed so every dashboard
-            // visit records the currently detected tampering or budget mismatch.
             $alertDetails = [];
             if ($tamperedCount > 0) {
                 $alertDetails[] = "{$tamperedCount} tampered block(s) detected";
@@ -129,27 +140,58 @@ class AdviserDashboardController extends Controller
 
             $alertMessage = implode(' and ', $alertDetails) . ' across verified project chains. Review the dashboard for details.';
 
-            AuditLog::create([
-                'id' => (string) Str::uuid(),
-                'user_id' => Auth::id(),
-                'actionable_id' => null,
-                'actionable_type' => 'blockchain',
-                'action' => $alertTitle,
-                'module' => 'blockchain',
-                'action_type' => 'alert',
-                'status' => 'Warning',
-                'details' => implode(' and ', $alertDetails) . ' across verified project chains.',
-                'ip_address' => $request->ip(),
-                'browser_info' => substr((string) $request->userAgent(), 0, 500),
-                'archive' => 0,
-            ]);
+            $alertDetailsText = implode(' and ', $alertDetails) . ' across verified project chains.';
+            $alertAlreadyLogged = AuditLog::query()
+                ->where('user_id', Auth::id())
+                ->where('actionable_type', 'blockchain')
+                ->where('action', $alertTitle)
+                ->where('action_type', 'alert')
+                ->where('details', $alertDetailsText)
+                ->where('archive', false)
+                ->exists();
 
-            $this->createNotification(
-                $alertTitle,
-                $alertMessage,
-                'security',
-                Auth::id()
-            );
+            if (! $alertAlreadyLogged) {
+                AuditLog::create([
+                    'id' => (string) Str::uuid(),
+                    'user_id' => Auth::id(),
+                    'actionable_id' => null,
+                    'actionable_type' => 'blockchain',
+                    'action' => $alertTitle,
+                    'module' => 'blockchain',
+                    'action_type' => 'alert',
+                    'status' => 'Warning',
+                    'details' => $alertDetailsText,
+                    'ip_address' => $request->ip(),
+                    'browser_info' => substr((string) $request->userAgent(), 0, 500),
+                    'archive' => 0,
+                ]);
+
+                $this->createNotification(
+                    $alertTitle,
+                    $alertMessage,
+                    'security',
+                    Auth::id()
+                );
+
+            }
+
+            foreach ($tamperingUserIds->filter()->unique()->reject(fn ($userId) => $userId === Auth::id()) as $userId) {
+                $memberNotificationExists = Notification::query()
+                    ->where('user_id', $userId)
+                    ->where('title', $alertTitle)
+                    ->where('message', $alertMessage)
+                    ->where('archive', false)
+                    ->exists();
+
+                if (! $memberNotificationExists) {
+                    $this->createNotification(
+                        $alertTitle,
+                        $alertMessage,
+                        'security',
+                        $userId
+                    );
+                }
+            }
         }
 
         // $ratingAvg = Rating::query()->where('archive', false)->avg('rating_score');
