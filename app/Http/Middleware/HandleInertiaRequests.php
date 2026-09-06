@@ -7,6 +7,7 @@ use Inertia\Middleware;
 use App\Models\User\Notification;
 use App\Services\CsgOnlineStatusService;
 use App\Services\RolePermissionService;
+use Illuminate\Support\Facades\DB;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -40,9 +41,18 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user,
                 'permissions' => $permissions,
-                'notifications' => $user 
-                    ? Notification::where('archive', 0)
-                        ->orderBy('created_at', 'desc')
+                'notifications' => $user
+                    ? DB::table('notifications')
+                        ->leftJoin('notification_reads as notification_read_state', function ($join) use ($user) {
+                            $join->on('notifications.id', '=', 'notification_read_state.notification_id')
+                                ->where('notification_read_state.user_id', $user->id);
+                        })
+                        ->where('notifications.archive', 0)
+                        ->where(function ($query) use ($user) {
+                            $query->whereNull('notifications.user_id')->orWhere('notifications.user_id', $user->id);
+                        })
+                        ->select('notifications.*', DB::raw('CASE WHEN notification_read_state.read_at IS NULL THEN 0 ELSE 1 END as is_read'))
+                        ->orderBy('notifications.created_at', 'desc')
                         ->get()
                     : [],
             ],

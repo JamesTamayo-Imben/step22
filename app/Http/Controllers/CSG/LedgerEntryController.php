@@ -774,6 +774,15 @@ public function uploadProof(Request $request, $id)
                 'ledger',
                 $entry->created_by
             );
+
+            $this->notifyApprovalReviewers(
+                'Ledger entry submitted for approval',
+                sprintf(
+                    'A ledger entry for project "%s" was submitted and is pending adviser approval.',
+                    $entry->project?->title ?? 'Unknown Project'
+                ),
+                'ledger'
+            );
             
             return response()->json($entry);
             

@@ -24,4 +24,13 @@ abstract class Controller
             'archive' => 0,
         ]);
     }
+
+    protected function notifyApprovalReviewers(string $title, string $message, string $type = 'system'): void
+    {
+        User::query()
+            ->where('archive', false)
+            ->whereHas('role', fn ($query) => $query->whereIn('slug', ['admin', 'admin-sadu', 'superadmin']))
+            ->pluck('id')
+            ->each(fn ($userId) => $this->createNotification($title, $message, $type, (string) $userId));
+    }
 }

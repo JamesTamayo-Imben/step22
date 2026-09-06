@@ -4,20 +4,22 @@ namespace App\Http\Controllers\Adviser;
 
 use App\Http\Controllers\Controller;
 use App\Models\User\Notification;
+use App\Services\NotificationReadService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class AdviserNotificationController extends Controller
 {
     public function index()
     {
-        $rows = Notification::query()
-            ->where('archive', false)
+        $rows = app(NotificationReadService::class)->withReadState(Notification::query(), (string) auth()->id())
+            ->where('notifications.archive', false)
             ->where(function ($query) {
-                $query->whereNull('user_id')
-                    ->orWhere('user_id', auth()->id());
+                $query->whereNull('notifications.user_id')
+                    ->orWhere('notifications.user_id', auth()->id());
             })
-            ->orderByDesc('created_at')
+            ->orderByDesc('notifications.created_at')
             ->limit(150)
             ->get();
 
@@ -40,7 +42,7 @@ class AdviserNotificationController extends Controller
                 'title' => $row->title ?: 'Notification',
                 'message' => $row->message ?: '',
                 'timestamp' => optional($row->created_at)->format('M d, Y h:i A') ?? '',
-                'isRead' => (bool) $row->is_read,
+                'isRead' => (bool) $row->user_is_read,
                 'icon' => $icon,
                 'userId' => $row->user_id,
             ];
@@ -56,24 +58,31 @@ class AdviserNotificationController extends Controller
 
     public function markRead(Request $request, string $id)
     {
-        Notification::query()->where('id', $id)->where('archive', false)->update([
-            'is_read' => 1,
-            'read_at' => now(),
-        ]);
+        app(NotificationReadService::class)->markRead($id, (string) $request->user()->id);
 
         return back();
     }
 
     public function markAllRead(Request $request)
     {
-        Notification::query()
-            ->where('archive', false)
-            ->where('is_read', 0)
-            ->update([
-                'is_read' => 1,
-                'read_at' => now(),
-            ]);
+        app(NotificationReadService::class)->markAllRead((string) $request->user()->id);
 
         return back();
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:150'],
+            'message' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $this->createNotification(
+            $validated['title'],
+            $validated['message'],
+            'system'
+        );
+
+        return back()->with('success', 'Notice published.');
     }
 }

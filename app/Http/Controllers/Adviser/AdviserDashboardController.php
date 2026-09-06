@@ -7,7 +7,6 @@ use App\Models\AuditLog;
 use App\Models\CSG\Meeting;
 use App\Models\Student;
 use App\Models\User;
-use App\Models\User\Notification;
 use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
 use App\Models\User\Rating;
@@ -166,31 +165,6 @@ class AdviserDashboardController extends Controller
                     'archive' => 0,
                 ]);
 
-                $this->createNotification(
-                    $alertTitle,
-                    $alertMessage,
-                    'security',
-                    Auth::id()
-                );
-
-            }
-
-            foreach ($tamperingUserIds->filter()->unique()->reject(fn ($userId) => $userId === Auth::id()) as $userId) {
-                $memberNotificationExists = Notification::query()
-                    ->where('user_id', $userId)
-                    ->where('title', $alertTitle)
-                    ->where('message', $alertMessage)
-                    ->where('archive', false)
-                    ->exists();
-
-                if (! $memberNotificationExists) {
-                    $this->createNotification(
-                        $alertTitle,
-                        $alertMessage,
-                        'security',
-                        $userId
-                    );
-                }
             }
         }
 

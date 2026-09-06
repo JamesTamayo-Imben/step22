@@ -731,6 +731,15 @@ class ProjectController extends Controller
                 'project',
                 $project->created_by
             );
+
+            $this->notifyApprovalReviewers(
+                'Project submitted for approval',
+                sprintf(
+                    'Project "%s" was submitted and is pending adviser approval.',
+                    $project->title ?? 'Untitled Project'
+                ),
+                'project'
+            );
             
             return response()->json([
                 'message' => 'Project submitted for adviser approval successfully',

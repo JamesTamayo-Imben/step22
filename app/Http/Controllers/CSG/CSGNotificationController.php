@@ -4,6 +4,7 @@ namespace App\Http\Controllers\CSG;
 
 use App\Http\Controllers\Controller;
 use App\Models\User\Notification;
+use App\Services\NotificationReadService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -11,8 +12,11 @@ class CSGNotificationController extends Controller
 {
     public function index()
     {
-        $rows = Notification::query()
-            ->where('archive', false)
+        $rows = app(NotificationReadService::class)->withReadState(Notification::query(), (string) auth()->id())
+            ->where('notifications.archive', false)
+            ->where(function ($query) {
+                $query->whereNull('notifications.user_id')->orWhere('notifications.user_id', auth()->id());
+            })
             ->orderByDesc('created_at')
             ->limit(150)
             ->get();
@@ -38,7 +42,7 @@ class CSGNotificationController extends Controller
                 'title' => $row->title ?: 'Notification',
                 'message' => $row->message ?: '',
                 'timestamp' => optional($row->created_at)->format('M d, Y h:i A') ?? '',
-                'isRead' => (bool) $row->is_read,
+                'isRead' => (bool) $row->user_is_read,
                 'icon' => $icon,
                 'userId' => $row->user_id,
             ];
@@ -54,23 +58,14 @@ class CSGNotificationController extends Controller
 
     public function markRead(Request $request, string $id)
     {
-        Notification::query()->where('id', $id)->where('archive', false)->update([
-            'is_read' => 1,
-            'read_at' => now(),
-        ]);
+        app(NotificationReadService::class)->markRead($id, (string) $request->user()->id);
 
         return back();
     }
 
     public function markAllRead(Request $request)
     {
-        Notification::query()
-            ->where('archive', false)
-            ->where('is_read', 0)
-            ->update([
-                'is_read' => 1,
-                'read_at' => now(),
-            ]);
+        app(NotificationReadService::class)->markAllRead((string) $request->user()->id);
 
         return back();
     }

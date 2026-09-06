@@ -285,12 +285,16 @@ class BlockchainService
             }
         }
 
-        return [
+        $verification = [
             'isValid' => !$chainBroken,
             'status' => $chainBroken ? 'tampering_detected' : 'valid',
             'message' => $chainBroken ? 'Blockchain integrity compromised' : 'Blockchain is valid',
             'tamperedBlocks' => $tamperedBlocks,
         ];
+
+        app(\App\Services\TamperingEmailService::class)->sendIfNew((string) $projectId, $verification);
+
+        return $verification;
     }
 
     /**

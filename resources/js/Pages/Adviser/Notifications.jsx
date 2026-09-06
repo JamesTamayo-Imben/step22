@@ -4,7 +4,7 @@ import { Head, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
-import { Bell, AlertCircle, Star, Calendar, FolderKanban, Award, TrendingUp, FileText, DollarSign, Check, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, AlertCircle, Star, Calendar, FolderKanban, Award, TrendingUp, FileText, DollarSign, Check, Filter, ChevronLeft, ChevronRight, Send } from 'lucide-react';
 
 const filters = [
   { id: 'all', label: 'All' },
@@ -43,6 +43,7 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
   const [notifications, setNotifications] = useState(notificationsData);
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [notice, setNotice] = useState({ title: '', message: '' });
 
 
   const filteredNotifications = selectedFilter === 'all'
@@ -78,6 +79,14 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
         setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
         router.reload({ preserveScroll: true });
       },
+    });
+  };
+
+  const publishNotice = (event) => {
+    event.preventDefault();
+    router.post(route('adviser.notifications.store'), notice, {
+      preserveScroll: true,
+      onSuccess: () => setNotice({ title: '', message: '' }),
     });
   };
 
@@ -128,6 +137,33 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
 </button>
             ))}
           </div> 
+
+          <form onSubmit={publishNotice} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
+            <div className="flex items-center gap-2">
+      
+              <h2 className="font-semibold text-gray-900">Publish a notice</h2>
+            </div>
+            <input
+              value={notice.title}
+              onChange={(event) => setNotice({ ...notice, title: event.target.value })}
+              placeholder="Notice title"
+              required
+              maxLength={150}
+              className="w-full rounded-lg border-gray-300"
+            />
+            <textarea
+              value={notice.message}
+              onChange={(event) => setNotice({ ...notice, message: event.target.value })}
+              placeholder="Write a calm update, such as: Project ABC is under investigation. Please do not panic."
+              required
+              maxLength={5000}
+              rows={3}
+              className="w-full rounded-lg border-gray-300"
+            />
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2">
+              Publish to all users
+            </Button>
+          </form>
           
 
           <div className="space-y-3">

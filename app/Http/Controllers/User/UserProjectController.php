@@ -801,11 +801,16 @@ class UserProjectController extends Controller
         }
 
         $rows = DB::table('notifications')
-            ->where('archive', 0)
-            ->where(function ($query) use ($user) {
-                $query->where('user_id', $user->id)->orWhereNull('user_id');
+            ->leftJoin('notification_reads as notification_read_state', function ($join) use ($user) {
+                $join->on('notifications.id', '=', 'notification_read_state.notification_id')
+                    ->where('notification_read_state.user_id', $user->id);
             })
-            ->orderByDesc('created_at')
+            ->where('notifications.archive', 0)
+            ->where(function ($query) use ($user) {
+                $query->where('notifications.user_id', $user->id)->orWhereNull('notifications.user_id');
+            })
+            ->orderByDesc('notifications.created_at')
+            ->select('notifications.*', DB::raw('CASE WHEN notification_read_state.read_at IS NULL THEN 0 ELSE 1 END as user_is_read'))
             ->limit(50)
             ->get();
 
@@ -828,7 +833,7 @@ class UserProjectController extends Controller
                 'title' => $row->title ?: 'Notification',
                 'message' => $row->message ?: '',
                 'timestamp' => \Carbon\Carbon::parse($row->created_at)->format('M d, Y h:i A'),
-                'isRead' => (bool) $row->is_read,
+                'isRead' => (bool) $row->user_is_read,
                 'icon' => $icon,
             ];
         })->values()->toArray();

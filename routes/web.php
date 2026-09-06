@@ -253,6 +253,7 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
     // Ratings & Notifications
     Route::get('/adviser/ratings', [AdviserRatingsController::class, 'index'])->name('adviser.ratings');
     Route::get('/adviser/notifications', [AdviserNotificationController::class, 'index'])->name('adviser.notifications');
+    Route::post('/adviser/notifications', [AdviserNotificationController::class, 'store'])->name('adviser.notifications.store');
     Route::post('/adviser/notifications/read/{id}', [AdviserNotificationController::class, 'markRead'])->name('adviser.notifications.read');
     Route::post('/adviser/notifications/mark-all-read', [AdviserNotificationController::class, 'markAllRead'])->name('adviser.notifications.mark-all-read');
 
@@ -533,12 +534,7 @@ Route::middleware('auth')->prefix('projects')->group(function () {
 // });
 Route::middleware(['auth', 'role:superadmin'])->group(function () {
     Route::post('/sadmin/notifications/read/{id}', function ($id) {
-        \App\Models\User\Notification::where('id', $id)
-            ->where('user_id', Auth::id())
-            ->update([
-                'is_read' => 1,
-                'read_at' => now(),
-            ]);
+        app(\App\Services\NotificationReadService::class)->markRead($id, (string) Auth::id());
         return back();
     });
    Route::post('/sadmin/notifications/archive/{id}', function ($id) {
@@ -549,9 +545,7 @@ Route::middleware(['auth', 'role:superadmin'])->group(function () {
     });
 
     Route::post('/sadmin/notifications/mark-all-read', function () {
-        \App\Models\User\Notification::where('user_id', Auth::id())
-            ->where('is_read', 0)
-            ->update(['is_read' => 1, 'read_at' => now()]);
+        app(\App\Services\NotificationReadService::class)->markAllRead((string) Auth::id());
         return back();
     });
 });
@@ -559,29 +553,13 @@ Route::middleware(['auth', 'role:superadmin'])->group(function () {
     // Student notification read/unread (mark as read)
     Route::middleware('auth')->group(function () {
      Route::post('/user/notifications/read/{id}', function ($id) {
-        \App\Models\User\Notification::where('id', $id)
-            ->where(function ($q) {
-                $q->where('user_id', Auth::id())->orWhereNull('user_id');
-            })
-            ->where('archive', 0)
-            ->update([
-                'is_read' => 1,
-                'read_at' => now(),
-            ]);
+        app(\App\Services\NotificationReadService::class)->markRead($id, (string) Auth::id());
 
         return back();
     });
 
     Route::post('/user/notifications/mark-all-read', function () {
-        \App\Models\User\Notification::where('archive', 0)
-            ->where(function ($q) {
-                $q->where('user_id', Auth::id())->orWhereNull('user_id');
-            })
-            ->where('is_read', 0)
-            ->update([
-                'is_read' => 1,
-                'read_at' => now(),
-            ]);
+        app(\App\Services\NotificationReadService::class)->markAllRead((string) Auth::id());
 
         return back();
     });
