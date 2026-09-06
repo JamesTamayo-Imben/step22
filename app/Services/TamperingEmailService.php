@@ -37,20 +37,7 @@ class TamperingEmailService
             return;
         }
 
-        $recipients = User::query()
-            ->where('archive', false)
-            ->whereNotNull('email')
-            ->whereHas('role', fn ($query) => $query->whereIn('slug', [
-                'csg',
-                'admin',
-                'admin-sadu',
-                'superadmin',
-            ]))
-            ->pluck('email')
-            ->filter()
-            ->unique()
-            ->values();
-
+        $recipients = $this->recipientsForProject($project);
         if ($recipients->isEmpty()) {
             return;
         }
@@ -73,5 +60,87 @@ class TamperingEmailService
             'details' => $details,
             'archive' => false,
         ]);
+    }
+
+    public function sendBudgetMismatchIfNew(string $projectId, string $projectTitle, float $storedBudget, float $computedBudget): void
+    {
+        $project = \App\Models\User\Project::query()->find($projectId);
+        if (! $project) {
+            return;
+        }
+
+        $details = "budget_mismatch:{$storedBudget}:{$computedBudget}";
+        $alreadySent = AuditLog::query()
+            ->where('actionable_id', $projectId)
+            ->where('actionable_type', 'blockchain')
+            ->where('action', 'Budget mismatch - email delivered')
+            ->where('details', $details)
+            ->where('archive', false)
+            ->exists();
+
+        if ($alreadySent) {
+            return;
+        }
+
+        $recipients = $this->recipientsForProject($project);
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        Mail::to($recipients->all())->send(new TamperingDetectedMail(
+            $projectTitle,
+            (string) $projectId,
+            [[
+                'ledgerId' => null,
+                'issues' => [
+                    "Budget mismatch: stored {$storedBudget}, computed {$computedBudget}",
+                ],
+            ]],
+        ));
+
+        AuditLog::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => null,
+            'actionable_id' => $projectId,
+            'actionable_type' => 'blockchain',
+            'action' => 'Budget mismatch - email delivered',
+            'module' => 'blockchain',
+            'action_type' => 'alert',
+            'status' => 'Warning',
+            'details' => $details,
+            'archive' => false,
+        ]);
+    }
+
+    private function recipientsForProject(\App\Models\User\Project $project): \Illuminate\Support\Collection
+    {
+        $projectCreatorId = $project->created_by;
+        $recipientIds = User::query()
+            ->where('archive', false)
+            ->whereNotNull('email')
+            ->whereHas('role', fn ($query) => $query->whereIn('slug', [
+                'student',
+                'teacher',
+                'csg',
+                'admin',
+                'admin-sadu',
+                'superadmin',
+            ]))
+            ->pluck('id')
+            ->filter()
+            ->values();
+
+        if ($projectCreatorId) {
+            $recipientIds->push($projectCreatorId);
+        }
+
+        return User::query()
+            ->whereIn('id', $recipientIds->unique()->values())
+            ->where('archive', false)
+            ->whereNotNull('email')
+            ->pluck('email')
+            ->filter()
+            ->unique()
+            ->values();
     }
 }

@@ -117,6 +117,13 @@ class AdviserDashboardController extends Controller
             if (ProjectBudgetCalculator::hasMismatch($displayBudget, $computedBudget, true)) {
                 $budgetMismatchCount++;
                 $tamperingUserIds->push($project->created_by);
+
+                app(\App\Services\TamperingEmailService::class)->sendBudgetMismatchIfNew(
+                    (string) $project->id,
+                    (string) ($project->title ?? 'Unknown Project'),
+                    (float) $displayBudget,
+                    (float) $computedBudget,
+                );
             }
         }
 

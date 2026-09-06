@@ -529,6 +529,15 @@ class UserProjectController extends Controller
             $approvedLedgerEntries->count() > 0
         );
 
+        if ($isBudgetMismatch) {
+            app(\App\Services\TamperingEmailService::class)->sendBudgetMismatchIfNew(
+                (string) $project->id,
+                (string) ($project->title ?? 'Unknown Project'),
+                (float) $displayBudget,
+                (float) $computedBudget,
+            );
+        }
+
             // Calculate overall average from all three dimensions
             $satisfactionAvg = (float) ($project->ratings_avg_satisfaction_rating ?? 0);
             $completenessAvg = (float) ($project->ratings_avg_completeness_rating ?? 0);
