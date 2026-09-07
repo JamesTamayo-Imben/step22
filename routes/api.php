@@ -63,6 +63,16 @@ Route::post('/auth/register-student', [BulkRegistrationController::class, 'regis
 /**
  * DATA PROVIDERS - Courses and Institutes (No auth required)
  */
+Route::get('/registration-roles', function () {
+    $roles = \App\Models\Role::query()
+        ->whereIn('slug', ['student', 'teacher'])
+        ->where('archive', false)
+        ->select('id', 'name', 'slug')
+        ->get();
+
+    return response()->json(['roles' => $roles]);
+});
+
 Route::get('/institutes', function () {
     try {
         Log::info('Fetching institutes from table: institute');

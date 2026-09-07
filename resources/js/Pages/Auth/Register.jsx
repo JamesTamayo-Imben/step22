@@ -39,10 +39,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
   const [showOTPPage, setShowOTPPage] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
 
-  const roleOptions = [
-    { id: "059f4170-235d-11f1-9647-10683825ce81", name: "Student", slug: "student" },
-    { id: "059f4213-235d-11f1-9647-10683825ce81", name: "Professor", slug: "teacher" },
-  ];
+  const [roleOptions, setRoleOptions] = useState([]);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -50,7 +47,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
     email: "",
     password: "",
     confirmPassword: "",
-    role: roleOptions[0].id,
+    role: "",
     studentId: "",
     courseId: "",
     agree: false,
@@ -67,21 +64,36 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
     console.log("🎯 Register Component Loaded");
     console.log("📋 Available Roles:", roleOptions);
     
-    // Fetch courses for student registration
-    const fetchCourses = async () => {
+    // Fetch live role IDs and courses for registration.
+    const fetchRegistrationData = async () => {
       try {
-        const response = await fetch('/api/onboarding/courses', {
-          headers: { 'Accept': 'application/json' }
-        });
-        const data = await response.json();
-        setCourseList(data.courses || []);
-        console.log('✅ Courses loaded:', data.courses);
+        const [rolesResponse, coursesResponse] = await Promise.all([
+          fetch('/api/registration-roles', { headers: { 'Accept': 'application/json' } }),
+          fetch('/api/onboarding/courses', { headers: { 'Accept': 'application/json' } }),
+        ]);
+
+        if (!rolesResponse.ok || !coursesResponse.ok) {
+          throw new Error('Registration data could not be loaded. Please refresh the page.');
+        }
+
+        const rolesData = await rolesResponse.json();
+        const coursesData = await coursesResponse.json();
+        const roles = rolesData.roles || [];
+
+        setRoleOptions(roles);
+        setForm((currentForm) => ({
+          ...currentForm,
+          role: roles.find((role) => role.slug === 'student')?.id || '',
+        }));
+        setCourseList(coursesData.courses || []);
+        console.log('✅ Registration data loaded');
       } catch (err) {
-        console.error('❌ Failed to fetch courses:', err);
+        console.error('❌ Failed to fetch registration data:', err);
+        setError(err.message || 'Registration data could not be loaded. Please refresh the page.');
       }
     };
     
-    fetchCourses();
+    fetchRegistrationData();
   }, []);
 
   const handleChange = (field, value) => {
