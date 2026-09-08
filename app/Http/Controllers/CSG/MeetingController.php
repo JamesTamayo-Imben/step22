@@ -64,7 +64,6 @@ class MeetingController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch meetings',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -201,7 +200,6 @@ class MeetingController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to create meeting',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -301,7 +299,6 @@ public function update(Request $request, $id)
     } catch (\Exception $e) {
         return response()->json([
             'message' => 'Failed to update meeting',
-            'error' => $e->getMessage(),
         ], 500);
     }
 }
@@ -349,7 +346,6 @@ public function update(Request $request, $id)
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to delete meeting',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -386,7 +382,6 @@ public function update(Request $request, $id)
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to update meeting',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -438,7 +433,6 @@ public function update(Request $request, $id)
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to mark meeting as done',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -459,7 +453,6 @@ public function update(Request $request, $id)
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to count upcoming meetings',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -497,7 +490,6 @@ public function update(Request $request, $id)
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch upcoming meetings',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }

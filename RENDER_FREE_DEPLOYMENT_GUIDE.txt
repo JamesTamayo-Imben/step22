@@ -1,0 +1,356 @@
+STEP PLATFORM - RENDER FREE DEPLOYMENT GUIDE
+=============================================
+
+Project: STEP Platform
+Stack: Laravel 12, PHP 8.2+, React 18, Inertia.js, Vite
+Target: Render Free for temporary demo testing
+Status: POSSIBLE WITH ADAPTATION - NOT PRODUCTION HOSTING
+
+This guide describes the changes needed to run the current Laravel application
+on Render Free. Render does not provide a native PHP runtime for this deployment,
+so Laravel must run in a Docker web service. This guide assumes the application
+is connected to a separate PostgreSQL database and durable object storage.
+
+Render Free is suitable for a short-lived demo, not a dependable live system.
+Free web services sleep after 15 minutes without inbound traffic, may take about
+one minute to wake, may restart, and have an ephemeral filesystem. Free Render
+Postgres is limited to 1 GB, expires after 30 days, has no backups, and can be
+restarted or temporarily unavailable. Do not use real confidential data.
+
+
+1. RENDER GO / NO-GO CHECK
+---------------------------
+
+Render Free is a GO for:
+
+- A temporary review URL
+- Low-volume browser testing
+- A demo with disposable data
+- Testing the Laravel application inside a container
+
+Render Free is a NO-GO for:
+
+- Reliable production or institutional use
+- Persistent local file uploads
+- Guaranteed uptime or fast first response
+- A database that must survive beyond the free Postgres lifetime
+- Direct SMTP mail delivery from Laravel
+- A continuously running queue worker
+
+Current repository blockers for a Render demo:
+
+BLOCKER - the application is currently configured for MySQL. Render's managed
+free database is PostgreSQL. Set DB_CONNECTION=pgsql and test every migration and
+important query against PostgreSQL before importing or creating demo data.
+
+BLOCKER - Render Free web-service files are ephemeral. Files written to
+storage/app, storage/app/public, or any local path disappear after redeploy,
+restart, or spin-down. Move proof uploads to durable Supabase/S3-compatible
+storage before testing uploads.
+
+BLOCKER - Render Free blocks outbound SMTP ports 25, 465, and 587. The current
+Gmail SMTP configuration will not work from a Free web service. Use an HTTPS
+email provider or the existing Supabase email function through HTTPS, then update
+Laravel mail delivery code/configuration accordingly. MAIL_MAILER=log is only
+suitable for a demo that does not need real OTP or reset emails.
+
+BLOCKER - the current API authorization and sensitive-file findings remain
+applicable. Complete authentication, authorization, throttling, OTP-log removal,
+and exception-message redaction before sharing the URL.
+
+
+2. RENDER SERVICE LAYOUT
+-------------------------
+
+Minimum temporary demo layout:
+
+    Render Web Service (Free, Docker)
+        Laravel + PHP-FPM + Nginx + built Vite assets
+        APP_URL=https://your-service.onrender.com
+
+    PostgreSQL database
+        Prefer an external durable PostgreSQL provider for a longer demo.
+        Render Free Postgres is temporary and expires after 30 days.
+
+    Object storage
+        Supabase Storage/S3-compatible bucket for proof documents.
+
+    Email provider
+        HTTPS API, such as a deployed Supabase Edge Function using Resend.
+
+Do not create a Render cron job for a free-only plan. Render cron jobs are a
+separate service with billing and are not a free replacement for a persistent
+queue worker. For a temporary demo, either use synchronous mail delivery through
+an HTTPS email API or use a paid/background worker arrangement.
+
+
+3. REQUIRED REPOSITORY PREPARATION
+-----------------------------------
+
+The repository currently has no Dockerfile, render.yaml, or Render deployment
+configuration. Add a Docker deployment before creating the Render service.
+
+The Docker image must provide:
+
+- PHP 8.2 or newer
+- PHP extensions: pdo_pgsql, mbstring, bcmath, curl, fileinfo, xml, openssl
+- Composer dependencies installed with --no-dev
+- Node/npm build stage for public/build
+- Nginx serving public/
+- PHP-FPM listening on the container's internal PHP socket/port
+- A start command that runs the web server in the foreground
+
+Do not put .env, local credentials, cookies.txt, SQL dumps, node_modules, or
+storage contents into the Docker image. Add a .dockerignore before building.
+
+Build and test the frontend locally first:
+
+    composer validate --no-check-publish
+    npm ci
+    npm run build
+
+Render's official Laravel example uses a Docker web service with Nginx and
+PHP-FPM. Follow that architecture rather than trying to run `php artisan serve`
+in a live container.
+
+
+4. DATABASE MIGRATION PLAN
+--------------------------
+
+Option A - preferred for a longer demo:
+
+1. Create a PostgreSQL database outside the Render Free 30-day database limit.
+2. Use its private/internal connection URL where supported.
+3. Set DB_CONNECTION=pgsql.
+4. Run the migrations against a fresh database.
+
+Option B - disposable Render-only demo:
+
+1. Create one Render Free Postgres database in the same region as the web service.
+2. Copy its internal connection URL.
+3. Set DB_CONNECTION=pgsql and the individual DB values if required.
+4. Run migrations and accept that the database expires after 30 days.
+5. Export any required demo results before expiration; Free Postgres has no
+   supported backups.
+
+Render PostgreSQL environment example:
+
+    DB_CONNECTION=pgsql
+    DB_HOST=INTERNAL_POSTGRES_HOST
+    DB_PORT=5432
+    DB_DATABASE=DATABASE_NAME
+    DB_USERNAME=DATABASE_USER
+    DB_PASSWORD=DATABASE_PASSWORD
+
+Or use the complete connection URL if the deployment configuration supports it:
+
+    DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
+
+The repository's migrations include enum declarations and custom table names.
+Laravel may translate these successfully, but do not assume MySQL behavior is
+identical. Test registration, authentication, roles, projects, ledger entries,
+ratings, notifications, and date filtering on PostgreSQL. Check raw SQL and
+case-sensitive behavior in controllers if a query fails.
+
+Before the first demo migration, make sure the database queue tables exist if
+using the database queue driver. The current repository has no migration for
+jobs, failed_jobs, or job_batches:
+
+    php artisan make:queue-table
+    php artisan migrate --force
+
+Keep the generated migration in the repository.
+
+
+5. RENDER WEB SERVICE SETTINGS
+------------------------------
+
+Create a new Web Service from the connected Git repository:
+
+- Runtime: Docker
+- Region: same region as PostgreSQL where possible
+- Branch: the demo branch
+- Plan: Free
+- Health check path: /
+- Auto-deploy: enable only if the branch is ready for public testing
+
+The container must listen on Render's PORT environment variable. The Nginx
+configuration or startup command must use that value rather than hard-coding
+port 80.
+
+Recommended deployment flow inside the container/start script:
+
+    composer install --no-dev --prefer-dist --optimize-autoloader
+    php artisan optimize:clear
+    php artisan migrate --force
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
+
+Do not run `php artisan key:generate` on every start. Generate APP_KEY once,
+store it as a Render secret, and keep it stable for the lifetime of the demo.
+
+Use Render's managed environment variables/secrets. Never commit .env values.
+
+
+6. ENVIRONMENT VARIABLES
+-------------------------
+
+Set these in the Render Web Service environment settings:
+
+    APP_NAME=STEP Platform
+    APP_ENV=production
+    APP_KEY=base64:GENERATE_ONCE_AND_STORE_AS_SECRET
+    APP_DEBUG=false
+    APP_URL=https://your-service.onrender.com
+    ASSET_URL=https://your-service.onrender.com
+
+    LOG_CHANNEL=stderr
+    LOG_LEVEL=warning
+
+    DB_CONNECTION=pgsql
+    DB_HOST=INTERNAL_POSTGRES_HOST
+    DB_PORT=5432
+    DB_DATABASE=POSTGRES_DATABASE
+    DB_USERNAME=POSTGRES_USERNAME
+    DB_PASSWORD=POSTGRES_PASSWORD
+
+    SESSION_DRIVER=database
+    SESSION_LIFETIME=120
+    SESSION_ENCRYPT=true
+    SESSION_SECURE_COOKIE=true
+    SESSION_HTTP_ONLY=true
+    SESSION_SAME_SITE=lax
+
+    CACHE_STORE=file
+    QUEUE_CONNECTION=sync
+    FILESYSTEM_DISK=supabase
+
+    VITE_APP_NAME=STEP Platform
+    VITE_SUPABASE_URL=https://your-project.supabase.co
+    VITE_SUPABASE_ANON_KEY=YOUR_PUBLIC_ANON_KEY
+    SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVER_ONLY_KEY
+
+Set the Supabase S3/object-storage variables only as server-side secrets:
+
+    SUPABASE_S3_KEY=YOUR_KEY
+    SUPABASE_S3_SECRET=YOUR_SECRET
+    SUPABASE_S3_ENDPOINT=https://your-project.storage.supabase.co/storage/v1/s3
+    SUPABASE_S3_BUCKET=ledger-proofs
+
+Do not expose service-role, S3 secret, Resend, or SMTP credentials through VITE_
+variables. VITE_ values are included in browser-facing assets.
+
+The `QUEUE_CONNECTION=sync` value avoids a worker that cannot stay alive on a
+free web service, but queued mailables then run during the web request. This can
+increase request time and still requires the mail delivery code to use HTTPS
+rather than blocked SMTP. For a real queue, use a paid background worker or an
+external queue/worker architecture.
+
+
+7. FILE STORAGE ADAPTATION
+---------------------------
+
+Do not use Render local storage for proof documents. The current application has
+paths that use the public disk and direct storage/app/public filesystem paths.
+Those files will be lost on Render restart or spin-down.
+
+Before enabling upload testing:
+
+1. Create a private Supabase Storage bucket or S3-compatible bucket.
+2. Configure the `supabase` Laravel disk.
+3. Update upload, delete, existence, and download code to use that disk
+   consistently rather than `storage_path('app/public/...')`.
+4. Serve sensitive files through an authorization-checked controller or signed
+   URLs.
+5. Test that a redeploy does not remove uploaded files.
+
+Do not rely on `php artisan storage:link` for durable Render storage. A symbolic
+link only exposes the ephemeral container filesystem.
+
+
+8. EMAIL AND OTP ADAPTATION
+---------------------------
+
+Render Free cannot connect to Gmail SMTP on ports 25, 465, or 587. Choose one:
+
+Option A - HTTPS email API:
+
+- Keep the API key only in Render server secrets or Supabase secrets.
+- Call the Supabase `send-email` function or another provider over HTTPS.
+- Correct the function to read `Deno.env.get("RESEND_API_KEY")`.
+- Add authentication, CORS restrictions, and rate limiting.
+- Update OTP/password-reset delivery to use that API.
+
+Option B - temporary no-email demo:
+
+- Set `MAIL_MAILER=log`.
+- Do not present OTP/password reset as working functionality.
+- Do not log actual OTP values in a publicly accessible environment.
+
+Test OTP expiration, resend limits, and password-reset authorization even if the
+email transport is replaced.
+
+
+9. DEPLOYMENT STEPS
+-------------------
+
+1. Rotate all credentials that appeared in local environment files.
+2. Create a disposable demo branch and remove secrets, cookies, and user data.
+3. Add and test Docker/Nginx/PHP-FPM deployment files.
+4. Test the migration baseline on PostgreSQL, not only local MySQL.
+5. Create PostgreSQL and object storage services.
+6. Configure the Render Web Service and its secret environment variables.
+7. Deploy and inspect Render logs for Docker, PHP-FPM, Nginx, and Laravel errors.
+8. Run migrations from the container startup/deploy process.
+9. Verify the health-check endpoint and first-request wake-up behavior.
+10. Test login, roles, projects, ledger, uploads, notifications, and email.
+11. Redeploy deliberately and confirm database and object-storage data remain.
+12. Export or delete the demo before the free database reaches its 30-day limit.
+
+Useful commands when available in the image/startup logs:
+
+    php artisan about
+    php artisan migrate:status
+    php artisan route:list
+    php artisan queue:failed
+
+Render Free web services do not provide SSH shell access, so plan diagnostics
+through application logs and one-off deploy/startup output rather than an
+interactive server terminal.
+
+
+10. RENDER SMOKE TESTS
+----------------------
+
+- Open the service URL after it has been idle and measure the cold-start delay.
+- Confirm HTTPS asset URLs and no mixed-content warnings.
+- Confirm Laravel sessions and CSRF requests survive browser navigation.
+- Test each role's login and authorization boundaries.
+- Test API endpoints with missing, wrong, and valid authentication.
+- Test PostgreSQL migrations and create/read/update/delete flows.
+- Upload a proof, redeploy, and confirm it still exists in object storage.
+- Verify unauthorized users cannot read another user's project or notification.
+- Verify OTP/password-reset behavior through the selected HTTPS email path.
+- Confirm no credentials or OTP values appear in Render logs.
+- Check that free Postgres expiration and service sleep are understood by demo users.
+
+
+11. FINAL RECOMMENDATION
+------------------------
+
+For the fastest temporary visual/demo test, Render Free can work after Docker,
+PostgreSQL, object storage, and email adaptations are completed.
+
+For this application's current architecture, Hostinger is the simpler first
+choice because it supports PHP/Laravel and MySQL directly. Render becomes more
+attractive if the team is willing to standardize on Docker, PostgreSQL, external
+object storage, and HTTPS email APIs. Do not treat Render Free as the final live
+hosting platform.
+
+Official Render references:
+
+- https://render.com/docs/deploy-php-laravel-docker
+- https://render.com/docs/free
+- https://render.com/docs/postgresql-creating-connecting
+- https://render.com/docs/cronjobs

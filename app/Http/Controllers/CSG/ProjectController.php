@@ -79,7 +79,6 @@ class ProjectController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch project',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -324,7 +323,6 @@ class ProjectController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create project',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -578,7 +576,6 @@ class ProjectController extends Controller
             Log::error('Project update failed: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to update project',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -599,8 +596,8 @@ class ProjectController extends Controller
             }
             
             // Delete associated file if exists
-            if ($project->project_proof && Storage::disk('public')->exists($project->project_proof)) {
-                Storage::disk('public')->delete($project->project_proof);
+            if ($project->project_proof && Storage::disk('supabase')->exists($this->normalizeStoragePath($project->project_proof))) {
+                Storage::disk('supabase')->delete($this->normalizeStoragePath($project->project_proof));
             }
 
             // Archive all associated ledger entries (including initial entry) before project deletion
@@ -632,7 +629,6 @@ class ProjectController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to delete project',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -678,7 +674,6 @@ class ProjectController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to archive project',
-                'error' => $e->getMessage()
             ], 500);
         }
    }
@@ -748,7 +743,6 @@ class ProjectController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to submit project for approval',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -772,7 +766,6 @@ class ProjectController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch ledger entries',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -799,7 +792,6 @@ class ProjectController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to get file',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -814,7 +806,7 @@ class ProjectController extends Controller
             if ($project && $proofPath) {
                 // Delete the file from storage
                 if ($this->storageExists($proofPath)) {
-                    Storage::disk('public')->delete($this->normalizeStoragePath($proofPath));
+                    Storage::disk('supabase')->delete($this->normalizeStoragePath($proofPath));
                 }
 
                 $initialLedger = $this->getInitialLedgerEntry($project);
@@ -831,7 +823,6 @@ class ProjectController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to delete file',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -950,7 +941,7 @@ class ProjectController extends Controller
             return false;
         }
 
-        return Storage::disk('public')->exists($this->normalizeStoragePath($path));
+        return Storage::disk('supabase')->exists($this->normalizeStoragePath($path));
     }
 
     private function normalizeStoragePath(?string $path): string
@@ -1030,7 +1021,6 @@ class ProjectController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch ratings',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -1101,7 +1091,6 @@ class ProjectController extends Controller
             Log::error('Date change request failed: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to submit date change request',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -1144,7 +1133,6 @@ class ProjectController extends Controller
             Log::error('Failed to fetch date change requests: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to fetch date change requests',
-                'error' => $e->getMessage()
             ], 500);
         }
     }

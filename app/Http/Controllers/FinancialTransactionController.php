@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use App\Models\LedgerEntry; // Ensure this matches your model name [cite: 246]
 
 class FinancialTransactionController extends Controller
@@ -27,16 +26,15 @@ class FinancialTransactionController extends Controller
             $extension = $file->getClientOriginalExtension();
             $fileName = $fileHash . '.' . $extension;
 
-            // 3. Store the file locally [cite: 183]
-            // Laravel creates the 'proofs' folder automatically if it doesn't exist
-            $path = $file->storeAs('public/proofs', $fileName);
+            // 3. Store the proof in private object storage
+            $path = $file->storeAs('proofs', $fileName, 'supabase');
 
             // 4. Create the Ledger Entry [cite: 184, 246]
             $ledger = new LedgerEntry();
             $ledger->amount = $request->amount;
             $ledger->type = $request->type;
             $ledger->description = $request->description;
-            $ledger->ledger_proof = 'storage/proofs/' . $fileName; // Path for the frontend [cite: 251]
+            $ledger->ledger_proof = $path;
             // If you added a column for the hash as planned in your docs:
             // $ledger->file_content_hash = $fileHash; 
             

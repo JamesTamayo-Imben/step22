@@ -20,8 +20,8 @@ return new class extends Migration
             $table->timestamps();
             $table->boolean('archive')->default(false);
 
-            $table->foreign('user_id')->references('id')->on('users')->nullOnDelete();
-            $table->foreign('course_id')->references('id')->on('course')->nullOnDelete();
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->foreign('course_id')->references('id')->on('course')->cascadeOnDelete();
         });
     }
 

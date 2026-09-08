@@ -75,7 +75,8 @@ public function uploadProof(Request $request, $id)
         return response()->json(['success' => false, 'message' => 'Ledger entry not found.'], 404);
     } catch (\Exception $e) {
         // Catch-all for server errors (folder permissions, etc.)
-        return response()->json(['success' => false, 'message' => 'Server Error: ' . $e->getMessage()], 500);
+        Log::error('Ledger proof upload failed', ['error' => $e->getMessage()]);
+        return response()->json(['success' => false, 'message' => 'Unable to upload proof at this time.'], 500);
     }
 }
 
@@ -121,7 +122,6 @@ public function uploadProof(Request $request, $id)
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch ledger entries',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -203,7 +203,6 @@ public function uploadProof(Request $request, $id)
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch ledger entries',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -315,7 +314,6 @@ public function uploadProof(Request $request, $id)
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create ledger entry',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -480,7 +478,7 @@ public function uploadProof(Request $request, $id)
             return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             Log::error('Ledger CSV preview failed: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            return response()->json(['success' => false, 'message' => 'Unable to preview this CSV file.'], 422);
         }
     }
 
@@ -588,7 +586,7 @@ public function uploadProof(Request $request, $id)
             return response()->json(['success' => false, 'message' => 'Validation failed', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             Log::error('Ledger CSV bulk upload failed: ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString());
-            return response()->json(['success' => false, 'message' => 'Failed to process CSV: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Unable to process this CSV file.'], 500);
         }
     }
 
@@ -718,7 +716,6 @@ public function uploadProof(Request $request, $id)
         Log::error('Ledger entry update failed: ' . $e->getMessage());
         return response()->json([
             'message' => 'Failed to update ledger entry',
-            'error' => $e->getMessage()
         ], 500);
     }
 }
@@ -790,7 +787,6 @@ public function uploadProof(Request $request, $id)
             Log::error('Ledger entry submit for approval failed: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to submit ledger entry for approval',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -839,7 +835,6 @@ public function uploadProof(Request $request, $id)
             Log::error('Ledger entry archiving failed: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to archive ledger entry',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -861,7 +856,6 @@ public function uploadProof(Request $request, $id)
             Log::error('Ledger entry restore failed: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to restore ledger entry',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -975,7 +969,6 @@ public function uploadProof(Request $request, $id)
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to fetch proof documents',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -992,7 +985,6 @@ public function uploadProof(Request $request, $id)
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to verify blockchain',
-                'error' => $e->getMessage()
             ], 500);
         }
     }

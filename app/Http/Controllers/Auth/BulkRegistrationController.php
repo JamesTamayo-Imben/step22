@@ -100,7 +100,7 @@ class BulkRegistrationController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Registration failed: ' . $e->getMessage(),
+                'message' => 'Registration could not be completed at this time.',
             ], 500);
         }
     }
@@ -230,7 +230,7 @@ class BulkRegistrationController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Registration failed: ' . $e->getMessage(),
+                'message' => 'Registration could not be completed at this time.',
             ], 500);
         }
     }
@@ -351,7 +351,7 @@ class BulkRegistrationController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Registration failed: ' . $e->getMessage(),
+                'message' => 'Registration could not be completed at this time.',
             ], 500);
         }
     }

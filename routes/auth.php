@@ -13,7 +13,6 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\Auth\OTPController;
 use App\Http\Controllers\Auth\GoogleAuthController;
-use App\Http\Controllers\Auth\OnboardingController;
 use Illuminate\Support\Facades\Route;
 
 // Auth routes - Guests only (prevent logged-in users from accessing)
@@ -46,7 +45,8 @@ Route::group([], function () {
     // ========== API LOGIN ENDPOINT FOR REACT COMPONENT ==========
     // This endpoint accepts JSON and returns JSON with user role and redirect URL
     // Used by the React Login component for step2 database authentication
-    Route::post('api/login', [ApiLoginController::class, 'login']);
+    Route::post('api/login', [ApiLoginController::class, 'login'])
+        ->middleware('throttle:10,1');
     
     // Test endpoint to verify API is responding
     Route::get('api/test', function () {
@@ -55,9 +55,11 @@ Route::group([], function () {
     // ===========================================================
 
     // ========== OTP-BASED REGISTRATION ENDPOINTS ==========
-    Route::post('api/otp/send', [OTPController::class, 'sendOTP']);
-    Route::post('api/otp/verify', [OTPController::class, 'verifyOTP']);
-    Route::post('api/otp/resend', [OTPController::class, 'resendOTP']);
+    Route::middleware('throttle:5,1')->group(function () {
+        Route::post('api/otp/send', [OTPController::class, 'sendOTP']);
+        Route::post('api/otp/verify', [OTPController::class, 'verifyOTP']);
+        Route::post('api/otp/resend', [OTPController::class, 'resendOTP']);
+    });
     // ======================================================
 });
 

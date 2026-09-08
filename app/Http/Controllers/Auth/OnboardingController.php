@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Mail\OnboardingWelcomeMail;
 use App\Models\User;
-use App\Models\Course;
-use App\Models\Institute;
 use App\Models\Role;
 use App\Models\StudentCsgOfficer;
 use App\Models\TeacherAdviser;
@@ -15,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Auth;
 
 class OnboardingController extends Controller
 {
@@ -290,6 +289,13 @@ public function complete(Request $request)
             $userId = $validated['user_id'];
             $role   = strtolower($validated['role']); // Force lowercase to match slugs
 
+            if ((string) Auth::id() !== (string) $userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are not authorized to update this profile.',
+                ], 403);
+            }
+
             // 2. Database Transaction to ensure both tables update together
             $result = DB::transaction(function () use ($validated, $userId, $role) {
                 $user = User::findOrFail($userId);
@@ -429,7 +435,7 @@ public function complete(Request $request)
             Log::error('❌ Onboarding Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Connection failed: ' . $e->getMessage(),
+                'message' => 'Unable to complete onboarding at this time.',
             ], 500);
         }
     }
@@ -458,6 +464,13 @@ public function complete(Request $request)
             ]);
 
             $userId = $validated['user_id'];
+
+            if ((string) Auth::id() !== (string) $userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are not authorized to update this profile.',
+                ], 403);
+            }
 
             // Find user
             $user = User::findOrFail($userId);
@@ -538,7 +551,7 @@ public function complete(Request $request)
             ]);
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while skipping onboarding: ' . $e->getMessage(),
+                'message' => 'Unable to skip onboarding at this time.',
             ], 500);
         }
     }
@@ -573,6 +586,13 @@ public function complete(Request $request)
                     'success' => false,
                     'message' => 'User not found',
                 ], 404);
+            }
+
+            if ((string) Auth::id() !== (string) $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are not authorized to update this profile.',
+                ], 403);
             }
 
             // Step D: Hash password and update user
@@ -612,7 +632,7 @@ public function complete(Request $request)
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred: ' . $e->getMessage(),
+                'message' => 'Unable to set the password at this time.',
             ], 500);
         }
     }
@@ -650,7 +670,8 @@ public function complete(Request $request)
         $courses = DB::table('course')->where('archive', 0)->get();
         return response()->json(['success' => true, 'courses' => $courses], 200);
     } catch (\Exception $e) {
-        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        Log::error('Get courses error', ['error' => $e->getMessage()]);
+        return response()->json(['success' => false, 'message' => 'Unable to fetch courses.'], 500);
     }
 }
 
@@ -688,7 +709,8 @@ public function complete(Request $request)
         $institutes = DB::table('institute')->where('archive', 0)->get();
         return response()->json(['success' => true, 'institutes' => $institutes], 200);
     } catch (\Exception $e) {
-        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        Log::error('Get institutes error', ['error' => $e->getMessage()]);
+        return response()->json(['success' => false, 'message' => 'Unable to fetch institutes.'], 500);
     }
 }
 

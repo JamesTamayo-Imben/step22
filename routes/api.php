@@ -32,7 +32,11 @@ Route::get('/user', function (Request $request) {
 
 Route::post('/chatbot', ChatbotController::class)->middleware('auth:sanctum');
 
-Route::middleware(EnsureFrontendRequestsAreStateful::class)->group(function () {
+Route::middleware([
+    EnsureFrontendRequestsAreStateful::class,
+    'auth:sanctum',
+    'throttle:60,1',
+])->group(function () {
     Route::post('/concerns', [ConcernController::class, 'store']);
     Route::get('/concerns', [ConcernController::class, 'index']);
     Route::patch('/concerns/{id}/favorite', [ConcernController::class, 'toggleFavorite']);
@@ -41,14 +45,16 @@ Route::middleware(EnsureFrontendRequestsAreStateful::class)->group(function () {
 /**
  * AUTHENTICATION - OTP Routes (No auth required)
  */
-Route::post('/send-otp', [OTPController::class, 'sendOTP']);
-Route::post('/verify-otp', [OTPController::class, 'verifyOTP']);
-Route::post('/resend-otp', [OTPController::class, 'resendOTP']);
+Route::middleware('throttle:5,1')->group(function () {
+    Route::post('/send-otp', [OTPController::class, 'sendOTP']);
+    Route::post('/verify-otp', [OTPController::class, 'verifyOTP']);
+    Route::post('/resend-otp', [OTPController::class, 'resendOTP']);
+});
 
 /**
  * PASSWORD RESET - OTP-based password reset (No auth required)
  */
-Route::prefix('password-reset')->group(function () {
+Route::prefix('password-reset')->middleware('throttle:5,1')->group(function () {
     Route::post('/send-otp', [PasswordResetController::class, 'sendOTP']);
     Route::post('/verify-otp', [PasswordResetController::class, 'verifyOTP']);
     Route::post('/reset', [PasswordResetController::class, 'resetPassword']);
@@ -57,8 +63,10 @@ Route::prefix('password-reset')->group(function () {
 /**
  * BULK REGISTRATION - Role Specific Registration (No auth required)
  */
-Route::post('/auth/register-teacher', [BulkRegistrationController::class, 'registerTeacher']);
-Route::post('/auth/register-student', [BulkRegistrationController::class, 'registerStudent']);
+Route::middleware('throttle:5,1')->group(function () {
+    Route::post('/auth/register-teacher', [BulkRegistrationController::class, 'registerTeacher']);
+    Route::post('/auth/register-student', [BulkRegistrationController::class, 'registerStudent']);
+});
 
 /**
  * DATA PROVIDERS - Courses and Institutes (No auth required)
@@ -82,7 +90,7 @@ Route::get('/institutes', function () {
     } catch (\Exception $e) {
         Log::error('Failed to fetch institutes', ['error' => $e->getMessage()]);
         return response()->json([
-            'error' => $e->getMessage(),
+            'error' => 'Unable to fetch institutes at this time.',
             'institutes' => []
         ], 500);
     }
@@ -97,7 +105,7 @@ Route::get('/courses', function () {
     } catch (\Exception $e) {
         Log::error('Failed to fetch courses', ['error' => $e->getMessage()]);
         return response()->json([
-            'error' => $e->getMessage(),
+            'error' => 'Unable to fetch courses at this time.',
             'courses' => []
         ], 500);
     }
@@ -107,45 +115,52 @@ Route::get('/courses', function () {
  * ONBOARDING ROUTES
  * Handled via API directly to prevent Inertia HTML redirects
  */
-Route::prefix('onboarding')->group(function () {
+Route::prefix('onboarding')->middleware([
+    EnsureFrontendRequestsAreStateful::class,
+    'auth:sanctum',
+    'throttle:60,1',
+])->group(function () {
     Route::post('/complete', [OnboardingController::class, 'complete']);
     Route::post('/skip', [OnboardingController::class, 'skip']);
     Route::post('/set-password', [OnboardingController::class, 'setPassword']);
-    Route::get('/courses', [OnboardingController::class, 'getCourses']);
-    Route::get('/institutes', [OnboardingController::class, 'getInstitutes']);
     // routes/api.php
     Route::get('/onboarding/data', [OnboardingController::class, 'getOnboardingData']);
+});
+
+Route::prefix('onboarding')->middleware('throttle:60,1')->group(function () {
+    Route::get('/courses', [OnboardingController::class, 'getCourses']);
+    Route::get('/institutes', [OnboardingController::class, 'getInstitutes']);
 });
 
 /**
  * CSG FINANCIAL SYSTEM ROUTES
  */
 
-// Route to create a new ledger entry with file upload
-// This is used by the CSG Add Ledger Entry modal
-Route::post('/ledger-entries', [LedgerEntryController::class, 'store']);
+Route::middleware([
+    EnsureFrontendRequestsAreStateful::class,
+    'auth:sanctum',
+    'throttle:60,1',
+])->group(function () {
+    // Route to create a new ledger entry with file upload
+    Route::post('/ledger-entries', [LedgerEntryController::class, 'store']);
 
-// CSV bulk-upload: preview the grouped entries before committing, then create them.
-Route::post('/ledger-entries/bulk-preview', [LedgerEntryController::class, 'bulkPreview']);
-Route::post('/ledger-entries/bulk-upload', [LedgerEntryController::class, 'bulkStore']);
+    // CSV bulk-upload: preview the grouped entries before committing, then create them.
+    Route::post('/ledger-entries/bulk-preview', [LedgerEntryController::class, 'bulkPreview']);
+    Route::post('/ledger-entries/bulk-upload', [LedgerEntryController::class, 'bulkStore']);
 
-// Route to handle the document/image upload for a specific ledger entry
-// This matches your React fetch: `/api/ledger-entries/{id}/upload`
-Route::post('/ledger-entries/{id}/upload', [LedgerEntryController::class, 'uploadProof']);
+    // Route to handle the document/image upload for a specific ledger entry
+    Route::post('/ledger-entries/{id}/upload', [LedgerEntryController::class, 'uploadProof']);
 
-// Route to fetch all entries for a specific project
-// Supports both: /api/ledger-entries/project/{projectId} and query param
-Route::get('/ledger-entries/project/{projectId}', [LedgerEntryController::class, 'index']);
+    // Route to fetch all entries for a specific project
+    Route::get('/ledger-entries/project/{projectId}', [LedgerEntryController::class, 'index']);
 
-// Route to fetch all entries (accepts project_id as query parameter)
-Route::get('/ledger-entries', [LedgerEntryController::class, 'all']);
+    // Route to fetch all entries (accepts project_id as query parameter)
+    Route::get('/ledger-entries', [LedgerEntryController::class, 'all']);
 
-// Route to verify blockchain integrity for a project
-Route::get('/projects/{projectId}/verify-chain', [LedgerEntryController::class, 'verifyChain']);
+    // Route to verify blockchain integrity for a project
+    Route::get('/projects/{projectId}/verify-chain', [LedgerEntryController::class, 'verifyChain']);
 
-/**
- * CSG PROJECT API ROUTES
- */
-Route::apiResource('projects', ProjectController::class, [
-    'only' => ['index', 'store', 'show', 'update', 'destroy']
-]);
+    Route::apiResource('projects', ProjectController::class, [
+        'only' => ['index', 'store', 'show', 'update', 'destroy']
+    ]);
+});

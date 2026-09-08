@@ -182,7 +182,7 @@ class GoogleAuthController extends Controller
             
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred during Google login: ' . $e->getMessage(),
+                'message' => 'Google login could not be completed at this time.',
             ], 500);
         }
     }

@@ -105,7 +105,7 @@ class OTPController extends Controller
             Log::error('Send OTP Error:', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to send OTP: ' . $e->getMessage(),
+                'message' => 'Unable to send OTP at this time. Please try again later.',
             ], 500);
         }
     }
@@ -202,7 +202,7 @@ class OTPController extends Controller
             Log::error('Verify OTP Error:', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Verification failed: ' . $e->getMessage(),
+                'message' => 'Unable to verify OTP at this time. Please try again later.',
             ], 500);
         }
     }
@@ -252,7 +252,7 @@ class OTPController extends Controller
             Log::error('Resend OTP Error:', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to resend OTP: ' . $e->getMessage(),
+                'message' => 'Unable to resend OTP at this time. Please try again later.',
             ], 500);
         }
     }
@@ -268,10 +268,9 @@ class OTPController extends Controller
             // Send using Laravel Mail
             Mail::to($email)->send(new OTPMail($firstName, $otp));
 
-            Log::info("✅ OTP Email sent successfully to: $email", [
-                'otp' => $otp,
+            Log::info("OTP email sent successfully to: $email", [
                 'firstName' => $firstName,
-                'method' => 'Laravel Mail'
+                'method' => 'Laravel Mail',
             ]);
 
         } catch (\Exception $e) {
@@ -280,8 +279,7 @@ class OTPController extends Controller
                 'email' => $email
             ]);
             
-            // Log OTP as fallback for debugging
-            Log::info("📧 OTP Code for $email: $otp (Failed to send via email - check logs)");
+            // Never write the OTP to logs; the caller must retry delivery.
         }
     }
 
@@ -351,7 +349,7 @@ class OTPController extends Controller
             Log::error('Complete Profile Error:', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to complete profile: ' . $e->getMessage(),
+                'message' => 'Unable to complete your profile at this time.',
             ], 500);
         }
     }
@@ -417,7 +415,7 @@ class OTPController extends Controller
             Log::error('Check Profile Status Error:', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to check profile status: ' . $e->getMessage(),
+                'message' => 'Unable to check profile status at this time.',
             ], 500);
         }
     }

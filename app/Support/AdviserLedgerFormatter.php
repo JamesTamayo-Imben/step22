@@ -58,9 +58,13 @@ class AdviserLedgerFormatter
             return $path;
         }
 
-        return Storage::disk('public')->exists($path)
-            ? Storage::disk('public')->url($path)
-            : asset($path);
+        $key = str_starts_with($path, 'storage/')
+            ? substr($path, strlen('storage/'))
+            : $path;
+
+        return Storage::disk('supabase')->exists($key)
+            ? Storage::disk('supabase')->temporaryUrl($key, now()->addMinutes(15))
+            : null;
     }
 
     public static function toFrontendRow(

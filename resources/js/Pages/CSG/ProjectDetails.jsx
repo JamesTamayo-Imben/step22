@@ -720,7 +720,7 @@ const formatDate = (dateString) => {
         }
       } catch (error) {
         console.error('Error fetching project for detail page:', error);
-        showToast('Unable to load project details', 'error');
+        // showToast('Unable to load project details', 'error');
       } finally {
         setLoading(false);
       }
@@ -871,18 +871,22 @@ const computedBudgetFromLedger = ledgerEntries
       
       const proofs = mappedEntries
         .filter(entry => entry.ledger_proof)
-        .map(entry => ({
-          id: entry.id,
-          fileName: entry.ledger_proof.split('/').pop(),
-          linkedTransaction: entry.id,
-          uploadDate: entry.created_at ? entry.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-          fileType: entry.ledger_proof.split('.').pop().toUpperCase(),
-          fileSize: 'Unknown',
-          status: entry.approval_status,
-          hash: entry.id,
-          filePath: entry.ledger_proof,
-          budgetBreakdown: entry.budgetBreakdown,
-        }));
+        .map(entry => {
+          const proof = proofDetails(entry.ledger_proof);
+
+          return {
+            id: entry.id,
+            fileName: proof.fileName,
+            linkedTransaction: entry.id,
+            uploadDate: entry.created_at ? entry.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+            fileType: proof.extension.toUpperCase(),
+            fileSize: 'Unknown',
+            status: entry.approval_status,
+            hash: entry.id,
+            filePath: proof.url,
+            budgetBreakdown: entry.budgetBreakdown,
+          };
+        });
       
       setProofDocuments(proofs);
     } catch (error) {
@@ -2582,7 +2586,7 @@ function maskUserName(fullName) {
                   );
                 }
 
-                const proofUrl = filePath.startsWith('/') ? filePath : `/${filePath}`;
+                const proofUrl = proofDetails(filePath).url;
                 const fileExtension = selectedProof.fileName.split('.').pop().toLowerCase();
                 const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
                 
@@ -2629,7 +2633,7 @@ function maskUserName(fullName) {
                 onClick={() => {
                   const filePath = selectedProof.filePath || selectedProof.file_path || selectedProof.path;
                   if (filePath) {
-                    const proofUrl = filePath.startsWith('/') ? filePath : `/${filePath}`;
+                    const proofUrl = proofDetails(filePath).url;
                     window.open(proofUrl, '_blank');
                   } else {
                     showToastMessage('No file available for download', 'error');

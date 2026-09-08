@@ -457,7 +457,7 @@ Route::middleware(['auth', 'verified', 'role:student,teacher'])->group(function 
 // ==================== API ROUTES ====================
 Route::prefix('api')->group(function () {
     // Project Management Routes
-    Route::middleware('auth')->prefix('projects')->group(function () {
+    Route::middleware(['auth', 'throttle:60,1'])->prefix('projects')->group(function () {
         Route::get('/', [ProjectController::class, 'index']);
         Route::post('/', [ProjectController::class, 'store']);
         Route::get('/{id}', [ProjectController::class, 'show']);
@@ -474,7 +474,7 @@ Route::prefix('api')->group(function () {
     });
     
     // Ledger Entry Management Routes
-    Route::middleware('auth')->prefix('ledger-entries')->group(function () {
+    Route::middleware(['auth', 'throttle:60,1'])->prefix('ledger-entries')->group(function () {
         Route::get('/', [LedgerEntryController::class, 'all']);
         Route::get('/project/{projectId}', [LedgerEntryController::class, 'index']);
         Route::get('/proof-documents', [LedgerEntryController::class, 'getProofDocuments']);
@@ -488,7 +488,7 @@ Route::prefix('api')->group(function () {
     });
     
     // Meeting Management Routes
-    Route::middleware('auth')->prefix('meetings')->group(function () {
+    Route::middleware(['auth', 'throttle:60,1'])->prefix('meetings')->group(function () {
         Route::get('/', [MeetingController::class, 'all']);
         Route::get('/upcoming/count', [MeetingController::class, 'countUpcoming']);
         Route::get('/upcoming/list', [MeetingController::class, 'getUpcomingMeetings']);
@@ -499,7 +499,7 @@ Route::prefix('api')->group(function () {
         Route::post('/{id}/archive', [MeetingController::class, 'toggleArchive']);
     });
 
-    Route::middleware('auth')->get('/projects', [ProjectController::class, 'index']);
+    Route::middleware(['auth', 'throttle:60,1'])->get('/projects', [ProjectController::class, 'index']);
 });
 
 // Legacy non-api route prefix (for backward compatibility)

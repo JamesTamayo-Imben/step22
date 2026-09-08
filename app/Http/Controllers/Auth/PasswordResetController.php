@@ -77,7 +77,7 @@ class PasswordResetController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            Log::error('❌ Send OTP Error: ' . $e->getMessage());
+            Log::error('Send password reset OTP failed', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred',
@@ -149,7 +149,7 @@ class PasswordResetController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            Log::error('❌ Verify OTP Error: ' . $e->getMessage());
+            Log::error('Verify password reset OTP failed', ['error' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred',

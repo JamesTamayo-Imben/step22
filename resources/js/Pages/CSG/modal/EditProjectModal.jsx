@@ -249,6 +249,7 @@ export function EditProjectModal({
 
     const res = await fetch(`/api/projects/${projectId}`, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: {
         'X-CSRF-TOKEN': token,
         'Accept': 'application/json',
