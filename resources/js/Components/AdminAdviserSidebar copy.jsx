@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Inertia } from '@inertiajs/inertia';
+import { router } from '@inertiajs/react';  
 import { usePage } from '@inertiajs/react';
 import {
   LayoutDashboard,

@@ -6,9 +6,10 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 // Intercept Inertia "invalid" responses (non-Inertia HTML responses) and
 // display a friendly in-app overlay for 403s instead of letting Inertia
 // show its default iframe modal (which appears during dev).
-import { Inertia } from '@inertiajs/inertia';
+import { router } from '@inertiajs/react';  
 
-Inertia.on('invalid', (event) => {
+
+router.on('invalid', (event) => {
 	try {
 		const response = event.detail.response;
 		if (response && response.status === 403) {

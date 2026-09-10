@@ -1,5 +1,5 @@
 import React from 'react';
-import { Inertia } from '@inertiajs/inertia';
+import { router } from '@inertiajs/react';  
 import { Card } from '../../Components/ui/card';
 import { CheckSquare, Clock, AlertCircle, TrendingUp, FileText, CheckCircle2, FolderKanban, DollarSign, Star } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';

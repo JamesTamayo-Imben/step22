@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Inertia } from '@inertiajs/inertia';
+import { router } from '@inertiajs/react';  
 import { usePage } from '@inertiajs/react';
 import { useLogout } from '../hooks/useLogout';
 import { useSupabase } from '../context/SupabaseContext';

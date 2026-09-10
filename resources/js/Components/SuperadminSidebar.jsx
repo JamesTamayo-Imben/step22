@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Inertia } from '@inertiajs/inertia';
-import { usePage, router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';  
+import { usePage } from '@inertiajs/react';
 import {
   LayoutDashboard,
   Users,

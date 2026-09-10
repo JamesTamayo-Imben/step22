@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useSupabase } from '../context/SupabaseContext';
-import { Inertia } from '@inertiajs/inertia';
+import { router } from '@inertiajs/react';  
 import { usePage } from '@inertiajs/react';
 
 /**
