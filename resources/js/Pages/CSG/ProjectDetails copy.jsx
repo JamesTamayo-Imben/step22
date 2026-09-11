@@ -631,7 +631,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
                   className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Project
+                  Archive Project
                 </Button>
               )}
             </div>
@@ -1309,8 +1309,8 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
       <Modal
         open={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
-        title="Delete Project?"
-        description="Are you sure you want to delete this project? This action cannot be undone."
+        title="Archive Project?"
+        description="Are you sure you want to archive this project? This action cannot be undone."
       >
         <div className="pt-6">
           <div className="flex gap-3">
@@ -1325,7 +1325,7 @@ export function CSGProjectDetailsPage({ projectId, onBack, onUpdate, onDelete })
               onClick={handleDeleteProject}
               className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
             >
-              Delete
+              Archive
             </Button>
           </div>
         </div>

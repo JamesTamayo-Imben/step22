@@ -28,9 +28,9 @@ use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 // Default Sanctum User Route
 Route::get('/user', function (Request $request) {
     return $request->user();
-})->middleware('auth:sanctum');
+})->middleware('auth:sanctum', 'throttle:120,1');
 
-Route::post('/chatbot', ChatbotController::class)->middleware('auth:sanctum');
+Route::post('/chatbot', ChatbotController::class)->middleware('auth:sanctum', 'throttle:30,1');
 
 Route::middleware([
     EnsureFrontendRequestsAreStateful::class,
@@ -79,7 +79,7 @@ Route::get('/registration-roles', function () {
         ->get();
 
     return response()->json(['roles' => $roles]);
-});
+})->middleware('throttle:120,1');
 
 Route::get('/institutes', function () {
     try {
@@ -94,7 +94,7 @@ Route::get('/institutes', function () {
             'institutes' => []
         ], 500);
     }
-});
+})->middleware('throttle:120,1');
 
 Route::get('/courses', function () {
     try {
@@ -109,7 +109,7 @@ Route::get('/courses', function () {
             'courses' => []
         ], 500);
     }
-});
+})->middleware('throttle:120,1');
 
 /**
  * ONBOARDING ROUTES

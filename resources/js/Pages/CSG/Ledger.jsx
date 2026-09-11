@@ -823,14 +823,14 @@ const handleDeleteEntry = async () => {
     setLedgerEntries(ledgerEntries.filter(entry => entry.id !== selectedEntry.id));
     setShowDeleteModal(false);
     setSelectedEntry(null);
-    showToast('Ledger entry deleted successfully', 'success');
+    showToast('Ledger entry archived successfully', 'success');
     
     // Refetch to ensure deleted entry doesn't reappear
     fetchLedgerEntries();
     
   } catch (error) {
     console.error('Error deleting ledger entry:', error);
-    showToast('Failed to delete ledger entry', 'error');
+    showToast('Failed to archive ledger entry', 'error');
   }
 };
 
@@ -2310,7 +2310,7 @@ const getTypeAmountColor = (type) => {
               onClick={handleDeleteEntry}
               className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white"
             >
-              Delete Entry
+              Archive Entry
             </Button>
           </div>
         </div>

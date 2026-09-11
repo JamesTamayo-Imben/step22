@@ -330,11 +330,11 @@ class ProjectController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            // if (!Auth::user()?->hasPermission('projects.edit')) {
-            //     return response()->json([
-            //         'message' => 'You do not have permission to edit projects.',
-            //     ], 403);
-            // }
+            if (!Auth::user()?->hasPermission('projects.edit')) {
+                return response()->json([
+                    'message' => 'You do not have permission to edit projects.',
+                ], 403);
+            }
 
             $project = Project::find($id);
             

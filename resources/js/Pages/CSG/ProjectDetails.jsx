@@ -2791,8 +2791,8 @@ function maskUserName(fullName) {
         open={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteProject}
-        title="Delete Project"
-        description="Are you sure you want to delete this project? This action cannot be undone."
+        title="Archive Project"
+        description="Are you sure you want to archive this project? This action cannot be undone."
       />
       
       {/* Ledger Delete Confirmation Modal */}
@@ -2804,8 +2804,8 @@ function maskUserName(fullName) {
         }}
         onConfirm={handleDeleteLedgerEntry}
         isDeleting={isDeleting}
-        title="Delete Ledger Entry"
-        description="Are you sure you want to delete this ledger entry? This action cannot be undone."
+        title="Archive Ledger Entry"
+        description="Are you sure you want to archive this ledger entry? This action cannot be undone."
       />
 
       <SubmitLedgerConfirmModal
