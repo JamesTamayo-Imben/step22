@@ -158,7 +158,7 @@ export default function SuperAdminLoginPage() {
           <div className="flex justify-center mb-2">
             <div className="w-20 overflow-hidden px-2">
               <img
-                src="/images/Logo.png" alt="Step Logo"
+                src="/images/Logo.svg" alt="Step Logo"
                 className="w-full object-cover"
               />
             </div>

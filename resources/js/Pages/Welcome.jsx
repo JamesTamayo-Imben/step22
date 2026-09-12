@@ -304,7 +304,7 @@ export default function Welcome() {
               <span className="text-xl text-[#2563EB]">STEP</span> */}
               <div className="w-16 flex items-center justify-center">
                 <img
-              src="/images/steplogo.png" alt="STEP Logo"
+              src="/images/steplogoDark.svg" alt="STEP Logo"
               className="w-full object-cover"/>
               </div>
               
@@ -702,7 +702,7 @@ export default function Welcome() {
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-16 flex items-center justify-center">
                 <img
-              src="/images/steplogo.png" alt="STEP Logo"
+              src="/images/steplogoLight.svg" alt="STEP Logo"
               className="w-full object-cover"/>
               </div>
               </div>

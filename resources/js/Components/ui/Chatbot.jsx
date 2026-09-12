@@ -308,9 +308,11 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
           <div className="flex items-center justify-between bg-gradient-to-r from-blue-800 to-blue-600 px-4 py-4 text-white">
             <div className="flex items-center gap-2">
               {/* <ShieldCheck className="w-5 h-5 text-blue-400" /> */}
-              <img src="/images/chatbot.png" alt="STEPH Icon" className="w-5 h-5" />
+              <img src="/images/chatbot.svg" alt="STEPH Icon" className="w-5 h-5" />
               <div>
-                <p className="text-sm font-bold leading-none">STEPH</p>
+                <p className="text-[#ffffff] font-normal leading-none text-[12px]"
+                      style={{ fontFamily: '"Ethnocentric", "Segoe UI", sans-serif', margin: 0 }}
+                    >STEPH</p>
                 <p className="text-[10px] text-blue-300 mt-1 uppercase tracking-widest font-medium">School Transparency and Engagement Portal Helper</p>
               </div>
             </div>

@@ -280,7 +280,7 @@ export default function OAuthCallback() {
           <div className="bg-white rounded-2xl shadow-2xl p-8">
             {/* Header */}
             <div className="text-center mb-6">
-              <img src="/images/Logo.png" alt="STEP Logo" className="w-14 h-14 object-contain mx-auto mb-3" />
+              <img src="/images/Logo.svg" alt="STEP Logo" className="w-14 h-14 object-contain mx-auto mb-3" />
               <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
               <p className="text-sm text-gray-500 mt-1">We just need a few more details to get you started.</p>
             </div>
@@ -403,7 +403,7 @@ export default function OAuthCallback() {
               <div className="relative inline-block">
                 <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-white border-r-white animate-spin"></div>
                 <div className="relative w-24 h-24 flex items-center justify-center">
-                  <img src="/images/Logo.png" alt="STEP Logo" className="w-20 h-20 object-contain drop-shadow-lg" />
+                  <img src="/images/Logo.svg" alt="STEP Logo" className="w-20 h-20 object-contain drop-shadow-lg" />
                 </div>
               </div>
             </div>
@@ -423,7 +423,7 @@ export default function OAuthCallback() {
           <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-12 shadow-2xl border border-white/20 max-w-md">
             <div className="mb-8">
               <div className="animate-pulse">
-                <img src="/images/Logo.png" alt="STEP Logo" className="w-20 h-20 object-contain drop-shadow-lg mx-auto" />
+                <img src="/images/Logo.svg" alt="STEP Logo" className="w-20 h-20 object-contain drop-shadow-lg mx-auto" />
               </div>
             </div>
             <h1 className="text-2xl font-bold text-white mb-2">Success!</h1>

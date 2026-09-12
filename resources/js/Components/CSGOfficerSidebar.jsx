@@ -134,11 +134,10 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 overflow-hidden">
-            <img src="/images/Logo.png" alt="Step Logo" className="w-full object-cover" />
-          </div>
-          <div className="w-10">
-            <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
+          <div className="w-20 h-20 rounded-lg flex items-center justify-center">
+            <img
+              src="/images/steplogoDark.svg" alt="Step Logo"
+              className="w-full object-cover"/>
           </div>
         </div>
         <Avatar className="w-8 h-8">
@@ -181,13 +180,18 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 overflow-hidden">
-                <img src="/images/Logo.png" alt="Step Logo" className="w-full object-cover" />
+                <img src="/images/Logo.svg" alt="Step Logo" className="w-full object-cover" />
               </div>
-              <div className="flex-1">
-                <div className="w-10">
-                  <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
+              <div className="flex-1 leading-none">
+                <div className="w-10 leading-none">
+                  <h1
+                      className="text-[#1F34B3] font-normal leading-none text-[14px]"
+                      style={{ fontFamily: '"Ethnocentric", "Segoe UI", sans-serif', margin: 0 }}
+                    >
+                      STEP
+                    </h1>
                 </div>
-                <p className="text-xs text-gray-500">CSG Officer</p>
+                <p className="text-[10px] text-gray-500 leading-none mt-1">CSG Officer</p>
               </div>
             </div>
             
@@ -301,13 +305,18 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 overflow-hidden">
-                <img src="/images/Logo.png" alt="Step Logo" className="w-full object-cover" />
+                <img src="/images/Logo.svg" alt="Step Logo" className="w-full object-cover" />
               </div>
-              <div>
-                <div className="w-10">
-                  <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
+              <div className="leading-none">
+                <div className="w-10 leading-none">
+                  <h1
+                      className="text-[#1F34B3] font-normal leading-none text-[14px]"
+                      style={{ fontFamily: '"Ethnocentric", "Segoe UI", sans-serif', margin: 0 }}
+                    >
+                      STEP
+                    </h1>
                 </div>
-                <p className="text-xs text-gray-500">CSG Officer</p>
+                <p className="text-[10px] text-gray-500 leading-none mt-1">CSG Officer</p>
               </div>
             </div>
             

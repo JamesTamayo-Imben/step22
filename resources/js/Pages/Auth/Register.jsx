@@ -310,20 +310,20 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
       {/* RIGHT PANEL */}
       <div className="flex-1 bg-[#F5F6F8] p-6 relative overflow-y-auto ">
 
- <div className="absolute top-2 left-6">
+ <div className="absolute top-6 left-6">
   <Link href="/" className="text-blue-600 hover:underline flex items-center gap-1">
     <ArrowLeftIcon className="w-4 h-4" />
     <span>Go back to Home</span>
   </Link>
 </div>
 
-        <div className="w-full max-w-lg mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm p-10 mt-6 md:mt-6 fade-in-container">
+        <div className="w-full max-w-lg mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm p-10 mt-11 md:mt-11 fade-in-container">
 
           {/* Logo */}
           <div className="flex justify-center mb-2">
             <div className="w-20 overflow-hidden px-2">
               <img
-                src="/images/Logo.png"
+                src="/images/Logo.svg"
                 alt="Step Logo"
                 className="w-full object-cover"
               />

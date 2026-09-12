@@ -111,13 +111,10 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+          <div className="w-20 h-20 rounded-lg flex items-center justify-center">
             <img
-              src="/images/Logo.png" alt="Step Logo"
+              src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
-          </div>
-          <div className="w-10">
-            <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
           </div>
         </div>
         <Avatar className="w-8 h-8">
@@ -140,15 +137,20 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
           <div className="flex items-center gap-3">
             <div className="w-8 rounded-xl flex items-center justify-center">
               <img
-              src="/images/Logo.png" alt="Step Logo"
+              src="/images/Logo.svg" alt="Step Logo"
               className="w-full object-cover"/>
             </div>
-            <div className="w-full">
-                <div className="w-8">
-                    <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
+            <div className="w-full leading-none">
+                <div className="w-8 leading-none">
+                    <h1
+                      className="text-[#1F34B3] font-normal leading-none text-[14px]"
+                      style={{ fontFamily: '"Ethnocentric", "Segoe UI", sans-serif', margin: 0 }}
+                    >
+                      STEP
+                    </h1>
                 </div>
               
-              <p className="text-xs text-gray-500">Super Admin</p>
+              <p className="text-[10px] text-gray-500 leading-none mt-1">Super Admin</p>
             </div>
           </div>
         </div>
@@ -197,15 +199,20 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center">
               <img
-              src="/images/Logo.png" alt="Step Logo"
+              src="/images/Logo.svg" alt="Step Logo"
               className="w-full object-cover"/>
             </div>
-            <div className="w-full">
-                <div className="w-10">
-                    <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
+            <div className="w-full leading-none">
+                <div className="w-10 leading-none">
+                    <h2
+                      className="text-[#1F34B3] font-normal leading-none text-[14px]"
+                      style={{ fontFamily: '"Ethnocentric", "Segoe UI", sans-serif', margin: 0 }}
+                    >
+                      STEP
+                    </h2>
                 </div>
               
-              <p className="text-xs text-gray-500">Super Admin</p>
+              <p className="text-[10px] text-gray-500 leading-none mt-1">Super Admin</p>
             </div>
           </div>
         </div>

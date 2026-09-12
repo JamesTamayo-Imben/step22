@@ -109,7 +109,7 @@ export function StudentNavbar({
               <div className="w-14 h-14 rounded-xl flex items-center justify-center">
                 {/* <span className="text-white">S</span> */}
                 <img
-              src="/images/steplogo.png" alt="Step Logo"
+              src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
               </div>
               <div className='w-10'>
@@ -289,7 +289,7 @@ export function StudentNavbar({
         <div className="flex items-center gap-2">
           <div className="w-14 h-14 rounded-lg flex items-center justify-center">
             <img
-              src="/images/steplogo.png" alt="Step Logo"
+              src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
           </div>
          
@@ -318,12 +318,17 @@ export function StudentNavbar({
           <div className="flex items-center gap-3">
             <div className="w-8 rounded-xl flex items-center justify-center">
               <img
-                src="/images/Logo.png" alt="Step Logo"
+                src="/images/Logo.svg" alt="Step Logo"
                 className="w-full object-cover"/>
             </div>
             <div className="w-full">
-              <h1 className="text-[#3CC3FC] font-bold">STEP</h1>
-              <p className="text-xs text-gray-500">Super Admin</p>
+              <h1
+                      className="text-[#1F34B3] font-normal leading-none text-[14px]"
+                      style={{ fontFamily: '"Ethnocentric", "Segoe UI", sans-serif', margin: 0 }}
+                    >
+                      STEP
+                    </h1>
+              <p className="text-xs text-gray-500">{roleName}</p>
             </div>
           </div>
         </div>
