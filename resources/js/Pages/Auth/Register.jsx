@@ -536,7 +536,9 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
                 onChange={(e) => handleChange("agree", e.target.checked)}
                 className="rounded border-gray-300"
               />
-              I agree to the Terms and Privacy Policy
+             <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                I agree to the Terms and Privacy Policy
+              </a>
             </label>
 
             {/* Button */}
