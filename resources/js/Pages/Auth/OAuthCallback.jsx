@@ -42,6 +42,7 @@ export default function OAuthCallback() {
 
           const response = await fetch('/api/oauth/google-login', {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
@@ -84,7 +85,10 @@ export default function OAuthCallback() {
             console.log('📋 Profile incomplete, fetching dropdown data...');
 
             try {
-              const cRes = await fetch('/api/onboarding/courses', { headers: { 'Accept': 'application/json' } });
+              const cRes = await fetch('/api/onboarding/courses', {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' },
+              });
               const cType = cRes.headers.get('content-type') || '';
               const cData = cType.includes('application/json') ? await cRes.json() : { courses: [] };
               setCourseList(cData.courses || []);
@@ -159,6 +163,7 @@ export default function OAuthCallback() {
 
       const response = await fetch('/api/onboarding/complete', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -216,6 +221,7 @@ export default function OAuthCallback() {
       // Call API endpoint to send welcome email and skip onboarding
       const response = await fetch('/api/onboarding/skip', {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',

@@ -98,6 +98,7 @@ export default function SetPasswordModal({
 
       const response = await fetch("/api/onboarding/set-password", {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "Accept": "application/json",
           "Content-Type": "application/json",

@@ -311,7 +311,7 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
               <img src="/images/chatbot.svg" alt="STEPH Icon" className="w-5 h-5" />
               <div>
                 <p className="text-[#ffffff] font-normal leading-none text-[12px]"
-                      style={{ fontFamily: '"Ethnocentric", "Segoe UI", sans-serif', margin: 0 }}
+                      style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
                     >STEPH</p>
                 <p className="text-[10px] text-blue-300 mt-1 uppercase tracking-widest font-medium">School Transparency and Engagement Portal Helper</p>
               </div>

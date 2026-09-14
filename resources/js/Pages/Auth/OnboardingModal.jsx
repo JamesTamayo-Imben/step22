@@ -108,6 +108,7 @@ export default function OnboardingModal({
 
       const response = await fetch("/api/onboarding/complete", {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "Accept": "application/json",
           "Content-Type": "application/json",

@@ -12,22 +12,6 @@ import react from '@vitejs/plugin-react';
 //step 7 matulog na tayo 
 
 // ngrok testing 
-// export default defineConfig({
-//     plugins: [
-//         laravel({
-//             input: 'resources/js/app.jsx',
-//             refresh: true,
-//         }),
-//         react(),
-//     ],
-//     server: {
-//         host: '0.0.0.0',
-//         port: 5173,
-//         allowedHosts: ['yauld-biparty-bert.ngrok-free.dev'],
-//     },
-// });
-
-// deafult config
 export default defineConfig({
     plugins: [
         laravel({
@@ -36,7 +20,23 @@ export default defineConfig({
         }),
         react(),
     ],
+    server: {
+        host: '0.0.0.0',
+        port: 5173,
+        allowedHosts: ['.ngrok-free.dev'],
+    },
 });
+
+// deafult config
+// export default defineConfig({
+//     plugins: [
+//         laravel({
+//             input: 'resources/js/app.jsx',
+//             refresh: true,
+//         }),
+//         react(),
+//     ],
+// });
 
 
 //di nagana pero wag burahin 

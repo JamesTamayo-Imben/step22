@@ -323,11 +323,11 @@ export function StudentNavbar({
             </div>
             <div className="w-full">
               <h1
-                      className="text-[#1F34B3] font-normal leading-none text-[14px]"
-                      style={{ fontFamily: '"Ethnocentric", "Segoe UI", sans-serif', margin: 0 }}
-                    >
-                      STEP
-                    </h1>
+                className="text-[#1F34B3] font-normal leading-none text-[14px]"
+                style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
+                >
+                  STEP
+              </h1>
               <p className="text-xs text-gray-500">{roleName}</p>
             </div>
           </div>

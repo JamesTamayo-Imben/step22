@@ -154,7 +154,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
               <div className="w-8 leading-none">
                 <h1
                       className="text-[#1F34B3] font-normal leading-none text-[14px]"
-                      style={{ fontFamily: '"Ethnocentric", "Segoe UI", sans-serif', margin: 0 }}
+                      style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
                     >
                       STEP
                     </h1>
@@ -240,7 +240,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                 <div className="w-10 leading-none">
               <h1
                       className="text-[#1F34B3] font-normal leading-none text-[14px]"
-                      style={{ fontFamily: '"Ethnocentric", "Segoe UI", sans-serif', margin: 0 }}
+                      style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
                     >
                       STEP
                     </h1>
