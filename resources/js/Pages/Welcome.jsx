@@ -418,8 +418,8 @@ export default function Welcome() {
 
             {/* Feature 3 */}
             <div className="p-8 rounded-[20px] shadow-lg hover:shadow-xl transition-shadow bg-white flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
-                <Users className="w-8 h-8 text-purple-600" />
+              <div className="w-16 h-16 bg-yellow-100 rounded-xl flex items-center justify-center mb-6">
+                <Users className="w-8 h-8 text-yellow-600" />
               </div>
               <h3 className="text-xl text-gray-900 mb-3">Student Engagement & Ratings</h3>
               <p className="text-gray-600 leading-relaxed">

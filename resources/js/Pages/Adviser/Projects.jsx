@@ -39,6 +39,10 @@ const approvalBadgeClass = (status) => {
   }
 };
 
+const isApprovedProject = (project) => (
+  (project.approval_status || project.approvalStatus) === 'Approved'
+);
+
 const formatCurrency = (value) => {
   const amount = Number(value ?? 0);
   return new Intl.NumberFormat('en-PH', {
@@ -179,7 +183,7 @@ export default function AdviserProjectsPage() {
   };
 
   const stats = useMemo(() => {
-    const computedProjects = projects.map((project) => ({
+    const computedProjects = projects.filter(isApprovedProject).map((project) => ({
       ...project,
       computedStatus: getCalculatedStatus(project),
     }));
@@ -188,14 +192,13 @@ export default function AdviserProjectsPage() {
       total: computedProjects.length,
       ongoing: computedProjects.filter((project) => project.computedStatus === 'Ongoing').length,
       completed: computedProjects.filter((project) => project.computedStatus === 'Completed').length,
-      rejected: computedProjects.filter((project) => project.approval_status === 'Rejected').length,
     };
   }, [projects]);
 
   const recommendedProjects = useMemo(() => {
     const now = new Date();
     return projects
-      .filter((project) => project.approval_status === 'Approved')
+      .filter(isApprovedProject)
       .filter((project) => getCalculatedStatus(project) === 'Completed')
       .filter((project) => getAverageRatingValue(project) > 0)
       .filter((project) => getProjectMonthDistance(project, now) <= 1)
@@ -215,6 +218,7 @@ export default function AdviserProjectsPage() {
 
   const filteredProjects = useMemo(() => {
     const filtered = projects.filter((p) => {
+      if (!isApprovedProject(p)) return false;
       const matchesSearch = p.title?.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesSearch;
     });
@@ -246,7 +250,7 @@ export default function AdviserProjectsPage() {
 
           {/* <p>weyt lang - nakalimutan ko ano gagawen dto</p> */}
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="rounded-[20px] p-4 border-0 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
@@ -277,17 +281,6 @@ export default function AdviserProjectsPage() {
                 </div>
                 <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
                   <FolderKanban className="w-8 h-8 text-green-600" />
-                </div>
-              </div>
-            </Card>
-            <Card className="rounded-[20px] p-4 border-0 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">Rejected Projects</p>
-                  <p className="text-2xl text-gray-900">{stats.rejected}</p>
-                </div>
-                <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
-                  <FolderKanban className="w-8 h-8 text-red-600" />
                 </div>
               </div>
             </Card>
@@ -333,7 +326,7 @@ export default function AdviserProjectsPage() {
                       key={project.id}
                       role="button"
                       tabIndex={0}
-                      onClick={() => handleProjectClick(project)}
+                      // onClick={() => handleProjectClick(project)}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') handleProjectClick(project);
                       }}
@@ -357,6 +350,14 @@ export default function AdviserProjectsPage() {
                           <span className="font-semibold text-blue-700">{formatTimeline(project)}</span>
                         </div>
                       </div>
+                     
+                      <button
+                        type="button"
+                        onClick={() => handleProjectClick(project)}
+                        className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition"
+                      >
+                        View Details
+                      </button>
                     </Card>
                   ))}
                 </div>
@@ -444,6 +445,13 @@ export default function AdviserProjectsPage() {
                         {averageRating ? `${averageRating.count} review${averageRating.count > 1 ? 's' : ''}` : 'Be the first to rate'}
                       </span>
                     </div>
+                     <button
+                        type="button"
+                        onClick={() => handleProjectClick(project)}
+                        className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition"
+                      >
+                        View Details
+                      </button>
                   </Card>
                 );
               })

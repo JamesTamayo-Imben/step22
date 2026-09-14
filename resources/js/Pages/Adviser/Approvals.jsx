@@ -515,13 +515,13 @@ export default function AdviserApprovalsPage() {
           </Card>
 
           <div className="space-y-6">
-            <div className="bg-white w-full rounded-xl p-2 shadow-sm grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="flex w-full max-w-full flex-nowrap gap-2 overflow-x-auto overscroll-x-contain rounded-xl bg-white p-2 shadow-sm">
               {['project proposals', 'ledger entries', 'Change Requests', 'approved items', 'rejected items'].map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setTab(t)}
-                  className={`justify-center gap-2 flex items-center text-sm md:text-base gap-2 px-3 py-2 rounded-lg transition-colors ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  className={`flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors md:text-base ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
                 >
                   <span className="capitalize">{t}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${tab === t ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>{counts[t]}</span>
@@ -770,30 +770,29 @@ export default function AdviserApprovalsPage() {
               <div className="col-span-2">
                 <p className="text-sm text-gray-500 mb-1">Proof Document *</p>
                 {selectedItem.project_proof || selectedItem.ledger_proof ? (
-                    <div className="flex items-center justify-between">
-                                     <div className="flex items-center gap-3">
-                                       <FileText className="w-8 h-8 text-blue-600" />
-                                       <div>
-                                         <p className="text-sm font-medium text-gray-900">
-                                           {getProofFileName(selectedItem.project_proof || selectedItem.ledger_proof)}
-                                         </p>
-                                         <p className="text-xs text-gray-500">
-                                           {getProofExtension(selectedItem.project_proof || selectedItem.ledger_proof)} file
-                                         </p>
-                                       </div>
-                                     </div>
-                                     <Button 
-                                       variant="outline" 
-                                       size="sm" 
-                                       onClick={() => {
-                                         setSelectedItem(selectedItem);
-                                         setShowLedgerProofViewer(true);
-                                       }}
-                                       className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
-                                     >
-                                       <Eye className="w-4 h-4 mr-1" /> View
-                                     </Button>
-                                   </div>
+                  <div className="rounded-xl border border-green-200 bg-green-50 p-3">
+                    {(() => {
+                      const proofPath = selectedItem.project_proof || selectedItem.ledger_proof;
+                      const proofUrl = getProofUrl(proofPath);
+                      const proofExtension = getProofExtension(proofPath).toLowerCase();
+                      const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+                      if (imageExtensions.includes(proofExtension)) {
+                        return <img src={proofUrl} alt="Uploaded proof" className="max-h-64 w-full rounded-lg object-contain" />;
+                      }
+
+                      if (proofExtension === 'pdf') {
+                        return <iframe src={proofUrl} title="Uploaded proof" className="h-64 w-full rounded-lg border-0" />;
+                      }
+
+                      return (
+                        <a href={proofUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 text-sm text-blue-600 underline">
+                          <FileText className="h-5 w-5 flex-shrink-0 text-green-600" />
+                          {getProofFileName(proofPath)}
+                        </a>
+                      );
+                    })()}
+                  </div>
                 ) : (
                   <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
                     <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0" />
@@ -922,30 +921,28 @@ export default function AdviserApprovalsPage() {
               <div className="col-span-2">
                 <p className="text-sm text-gray-500 mb-1">Proof Document *</p>
                 {selectedItem?.ledger_proof ? (
-                   <div className="flex items-center justify-between">
-                                     <div className="flex items-center gap-3 min-w-0">
-                                       <FileText className="w-8 h-8 text-blue-600" />
-                                       <div className="min-w-0">
-                                         <p className="text-sm font-medium text-gray-900 truncate">
-                                           {getProofFileName(selectedItem.ledger_proof)}
-                                         </p>
-                                         <p className="text-xs text-gray-500">
-                                           {getProofExtension(selectedItem.ledger_proof)} file
-                                         </p>
-                                       </div>
-                                     </div>
-                                     <Button 
-                                       variant="outline" 
-                                       size="sm" 
-                                       onClick={() => {
-                                         setSelectedItem(selectedItem);
-                                         setShowLedgerProofViewer(true);
-                                       }}
-                                       className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
-                                     >
-                                       <Eye className="w-4 h-4 mr-1" /> View
-                                     </Button>
-                                   </div>
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                    {(() => {
+                      const proofUrl = getProofUrl(selectedItem.ledger_proof);
+                      const proofExtension = getProofExtension(selectedItem.ledger_proof).toLowerCase();
+                      const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+                      if (imageExtensions.includes(proofExtension)) {
+                        return <img src={proofUrl} alt="Uploaded ledger proof" className="max-h-64 w-full rounded-lg object-contain" />;
+                      }
+
+                      if (proofExtension === 'pdf') {
+                        return <iframe src={proofUrl} title="Uploaded ledger proof" className="h-64 w-full rounded-lg border-0" />;
+                      }
+
+                      return (
+                        <a href={proofUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 text-sm text-blue-600 underline">
+                          <FileText className="h-5 w-5 flex-shrink-0 text-green-600" />
+                          {getProofFileName(selectedItem.ledger_proof)}
+                        </a>
+                      );
+                    })()}
+                  </div>
                 ) : (
                   <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
                     <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0" />
@@ -1003,6 +1000,41 @@ export default function AdviserApprovalsPage() {
         placeholder="Enter approval notes (required)..."
         className={`w-full rounded-xl border ${!approvalNotes.trim() ? 'border-gray-300 bg-gray-50' : 'border-gray-300 bg-gray-50'} focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none transition`}
       />
+      {(selectedItem?.project_proof || selectedItem?.ledger_proof) && (
+        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
+          {(() => {
+            const proofPath = selectedItem.project_proof || selectedItem.ledger_proof;
+            const proofUrl = getProofUrl(proofPath);
+            const proofExtension = getProofExtension(proofPath).toLowerCase();
+            const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+            if (imageExtensions.includes(proofExtension)) {
+              return (
+                <div>
+                  <p className="mb-2 text-xs font-medium text-blue-800">Currently uploaded proof: {getProofFileName(proofPath)}</p>
+                  <img src={proofUrl} alt="Currently uploaded proof" className="max-h-64 w-full rounded-lg object-contain" />
+                </div>
+              );
+            }
+
+            if (proofExtension === 'pdf') {
+              return (
+                <div>
+                  <p className="mb-2 text-xs font-medium text-blue-800">Currently uploaded proof: {getProofFileName(proofPath)}</p>
+                  <iframe src={proofUrl} title="Currently uploaded proof" className="h-64 w-full rounded-lg border-0" />
+                </div>
+              );
+            }
+
+            return (
+              <a href={proofUrl} target="_blank" rel="noreferrer" className="flex items-center gap-3 text-sm text-blue-600 underline">
+                <FileText className="h-5 w-5 flex-shrink-0 text-blue-600" />
+                {getProofFileName(proofPath)}
+              </a>
+            );
+          })()}
+        </div>
+      )}
       {selectedItem?.approvalType === 'project' && (
         <>
           <p className="text-sm text-gray-600 mb-2">Upload the final approved proposal PDF <span className="text-red-500">*</span></p>
@@ -1021,7 +1053,7 @@ export default function AdviserApprovalsPage() {
               Browse Files
             </label>
             {approvalFile ? (
-              <p className="mt-2 text-sm text-green-700">Selected: {approvalFile.name}</p>
+              <p className="mt-2 text-sm text-blue-700">Selected: {approvalFile.name}</p>
             ) : (
               <p className="mt-2 text-sm text-gray-500">No file selected yet</p>
             )}
@@ -1042,7 +1074,7 @@ export default function AdviserApprovalsPage() {
           }
           runApprove(selectedItem, approvalNotes,);
         }}
-        disabled={!approvalNotes.trim() || (selectedItem?.approvalType === 'project' && !approvalFile) }
+        disabled={!approvalNotes.trim() || (selectedItem?.approvalType === 'project' && !approvalFile && !selectedItem?.project_proof) }
       >
         Confirm Approval
       </Button>

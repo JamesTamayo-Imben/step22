@@ -289,7 +289,7 @@ export function AdminAdviserDashboard({
                   title={`${item.label} ${item.date}: ${formatHeatmapTooltip(item)}`}
                 >
                   <span className="text-[11px] uppercase tracking-[0.08em]">{item.day}</span>
-                  <span className="text-lg font-semibold">{item.tamperingCount + item.activityCount} <span className="text-xs font-normal">events</span></span>
+                  <span className="text-lg font-semibold">{item.tamperingCount + item.activityCount} <span className="hidden md:flex text-xs font-normal">events</span></span>
                 </div>
               );
             })}

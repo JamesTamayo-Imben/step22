@@ -97,6 +97,13 @@ function getMinimumEndDate(startDate) {
   return minEndDate.toISOString().split('T')[0];
 }
 
+function getProofDetails(value) {
+  const url = new URL(value, window.location.origin);
+  const fileName = decodeURIComponent(url.pathname.split('/').pop() || 'Current proof document');
+  const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
+  return { url: url.toString(), fileName, extension };
+}
+
 // ─── Edit Project Modal ──────────────────────────────────────────────────────
 
 export function EditProjectModal({
@@ -516,6 +523,41 @@ export function EditProjectModal({
                 >
                   <X className="w-4 h-4" />
                 </Button>
+              </div>
+            )}
+            {editForm.projectProof && !selectedFile && (
+              <div className="w-full rounded-xl border border-green-200 bg-green-50 p-3">
+                {(() => {
+                  const { url, fileName, extension } = getProofDetails(editForm.projectProof);
+                  const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+                  if (imageExtensions.includes(extension)) {
+                    return (
+                      <div>
+                        <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof: {fileName}</p>
+                        <img src={url} alt="Current project proof" className="max-h-64 w-full rounded-lg object-contain" />
+                      </div>
+                    );
+                  }
+
+                  if (extension === 'pdf') {
+                    return (
+                      <div>
+                        <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof: {fileName}</p>
+                        <iframe src={url} title="Current project proof" className="h-64 w-full rounded-lg border-0" />
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 flex-shrink-0 text-green-600" />
+                      <a href={url} target="_blank" rel="noreferrer" className="truncate text-sm text-blue-600 underline">
+                        {fileName}
+                      </a>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>

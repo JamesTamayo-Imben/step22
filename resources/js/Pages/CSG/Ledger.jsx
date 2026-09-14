@@ -33,6 +33,7 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  MoreVertical,
 } from 'lucide-react';
 
 function proofDetails(value) {
@@ -1263,7 +1264,8 @@ const getTypeAmountColor = (type) => {
           const isInitialEntry = ['initial', 'initial transfer'].includes((entry.type || '').toLowerCase()) || (entry.type || '').toLowerCase() === 'transfer';
          const entryLocked = isProjectLocked(entry.project_id) && !isInitialEntry;
           return (
-         <Card key={entry.id} className={`rounded-xl border-0 shadow-sm transition-all duration-200 overflow-x-auto ${
+         <div key={entry.id} className="relative">
+         <Card className={`rounded-xl border-0 shadow-sm transition-all duration-200 overflow-x-auto ${
            entry.verificationState?.tampered ? 'ring-2 ring-red-200 bg-red-50' : ''
          } ${entryLocked ? 'opacity-70 pointer-events-none' : 'hover:shadow-md'}`}>
              <div className="p-4 min-w-0">
@@ -1324,19 +1326,20 @@ const getTypeAmountColor = (type) => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap gap-1 justify-end">
+                <div className="hidden sm:flex flex-wrap gap-1 justify-end">
                   {canViewLedgers && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedEntry(entry);
-                      setShowDetailsModal(true);
-                    }}
-                    className="h-7 text-xs rounded-md hover:bg-gray-100 px-2"
-                  >
-                    <Eye className="w-3.5 h-3.5 mr-1" /> 
-                  </Button>
+                 <Button
+  variant="ghost"
+  size="sm"
+  onClick={() => {
+    setSelectedEntry(entry);
+    setShowDetailsModal(true);
+  }}
+  className="h-7 text-xs rounded-md hover:bg-gray-100 px-2"
+  title="View Details"
+>
+  <Eye className="w-3.5 h-3.5" /> 
+</Button>
                   )}
                   
                   {(entry.status === 'Draft' || entry.status === 'Rejected') && !isInitialEntry && (
@@ -1356,6 +1359,7 @@ const getTypeAmountColor = (type) => {
                             project_id: entry.project_id,
                             referenceNumber: entry.referenceNumber || '',
                             requiresProof: entry.requiresProof || false,
+                            existingProof: entry.ledger_proof || entry.proofFiles?.[0]?.url || entry.proofFiles?.[0]?.path || '',
                           });
                           setEditBudgetItems(entry.budgetBreakdown || [{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
                           setShowEditModal(true);
@@ -1396,14 +1400,51 @@ const getTypeAmountColor = (type) => {
                     </>
                   )}
                 </div>
+
               </div>
             </div>
           </Card>
+          <details className="absolute right-2 top-2 z-30 sm:hidden">
+            <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md bg-white text-gray-600 shadow-sm ring-1 ring-gray-200 hover:bg-gray-100 [&::-webkit-details-marker]:hidden">
+              <span className="sr-only">Open ledger actions</span>
+              <MoreVertical className="h-4 w-4" />
+            </summary>
+            <div className="absolute right-0 top-9 min-w-40 rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
+              {canViewLedgers && (
+                <button type="button" onClick={() => { setSelectedEntry(entry); setShowDetailsModal(true); }} className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
+                  <Eye className="mr-2 h-4 w-4" /> View details
+                </button>
+              )}
+              {(entry.status === 'Draft' || entry.status === 'Rejected') && !isInitialEntry && (
+                <>
+                  {isEditable(entry) && canEditLedgers && (
+                    <button type="button" onClick={() => {
+                      setSelectedEntry(entry);
+                            setLedgerForm({ type: entry.type, amount: entry.amount, description: entry.description, category: entry.category || '', project_id: entry.project_id, referenceNumber: entry.referenceNumber || '', requiresProof: entry.requiresProof || false, existingProof: entry.ledger_proof || entry.proofFiles?.[0]?.url || entry.proofFiles?.[0]?.path || '' });
+                      setEditBudgetItems(entry.budgetBreakdown || [{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
+                      setShowEditModal(true);
+                    }} disabled={entryLocked} className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50">
+                      <Edit className="mr-2 h-4 w-4" /> Edit
+                    </button>
+                  )}
+                  {canDeleteLedgers && (
+                    <button type="button" onClick={() => { setSelectedEntry(entry); setShowDeleteModal(true); }} disabled={entryLocked} className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">
+                      <Trash2 className="mr-2 h-4 w-4" /> Delete
+                    </button>
+                  )}
+                  {canSubmitLedgers && (
+                    <button type="button" onClick={() => handleSubmitForApproval(entry.id)} disabled={entryLocked} className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50">
+                      <Send className="mr-2 h-4 w-4" /> Submit
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </details>
+          </div>
           );
         })}
       </div>
-
-      
 
       {filteredEntries.length === 0 && (
         <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
@@ -2018,14 +2059,38 @@ const getTypeAmountColor = (type) => {
                                 </div>
                               )}
                               {ledgerForm.existingProof && !selectedFile && (
-                                <div className="w-full p-4 bg-gray-50 rounded-xl flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <FileText className="w-5 h-5 text-green-600" />
-                                    <div>
-                                      <p className="text-sm font-medium text-gray-900">Existing Proof Document</p>
-                                      <p className="text-xs text-gray-500">Current file will be kept unless replaced</p>
-                                    </div>
-                                  </div>
+                                <div className="w-full rounded-xl border border-blue-200 bg-blue-50 p-3">
+                                  {(() => {
+                                    const { url, fileName, extension } = proofDetails(ledgerForm.existingProof);
+                                    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+                                    if (imageExtensions.includes(extension)) {
+                                      return (
+                                        <div>
+                                          <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof: </p>
+                                          <img src={url} alt="Current ledger proof" className="max-h-64 w-full rounded-lg object-contain" />
+                                        </div>
+                                      );
+                                    }
+
+                                    if (extension === 'pdf') {
+                                      return (
+                                        <div>
+                                          <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof: </p>
+                                          <iframe src={url} title="Current ledger proof" className="h-64 w-full rounded-lg border-0" />
+                                        </div>
+                                      );
+                                    }
+
+                                    return (
+                                      <div className="flex items-center gap-3">
+                                        <FileText className="h-5 w-5 flex-shrink-0 text-green-600" />
+                                        <a href={url} target="_blank" rel="noreferrer" className="truncate text-sm text-blue-600 underline">
+                                          
+                                        </a>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               )}
                             </div>
@@ -2144,35 +2209,44 @@ const getTypeAmountColor = (type) => {
         <div className="col-span-2">
           <p className="text-sm text-gray-500 mb-1">Proof *</p>
           {selectedEntry.ledger_proof ? (
-           <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-3">
-                     <FileText className="w-8 h-8 text-blue-600" />
-                     <div>
-                       <p className="text-sm font-medium text-gray-900 truncate max-w-[200px] md:max-w-[400px">
-                         {proofDetails(selectedEntry.ledger_proof).fileName}
-                       </p>
-                       <p className="text-xs text-gray-500">
-                         {proofDetails(selectedEntry.ledger_proof).extension.toUpperCase()} file
-                       </p>
-                     </div>
-                   </div>
-                   <Button 
-                     variant="outline" 
-                     size="sm" 
-                     onClick={() => {
-                       setSelectedEntry(selectedEntry);
-                       setShowLedgerProofViewer(true);
-                     }}
-                     className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
-                   >
-                     <Eye className="w-4 h-4 mr-1" /> View
-                   </Button>
-                 </div>
+            <div className="w-full rounded-xl border border-blue-200 bg-blue-50 p-3">
+              {(() => {
+                const { url, fileName, extension } = proofDetails(selectedEntry.ledger_proof);
+                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+                if (imageExtensions.includes(extension)) {
+                  return (
+                    <div>
+                      <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof:</p>
+                      <img src={url} alt="Current ledger proof" className="max-h-64 w-full rounded-lg object-contain" />
+                    </div>
+                  );
+                }
+
+                if (extension === 'pdf') {
+                  return (
+                    <div>
+                      <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof: </p>
+                      <iframe src={url} title="Current ledger proof" className="h-64 w-full rounded-lg border-0" />
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 flex-shrink-0 text-green-600" />
+                    <a href={url} target="_blank" rel="noreferrer" className="truncate text-sm text-blue-600 underline">
+                      
+                    </a>
+                  </div>
+                );
+              })()}
+            </div>
           ) : (
             <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                               <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-                               <p className="text-yellow-700 text-sm flex-1">No proof document provided</p>
-                             </div>
+              <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+              <p className="text-yellow-700 text-sm flex-1">No proof document provided</p>
+            </div>
           )}
         </div>
 

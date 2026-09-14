@@ -317,7 +317,7 @@ export default function RolePermissionEditor({
                 : 'This role has fixed permissions and cannot be modified'}
             </p>
           </div>
-          {current.isEditable && (
+          {/* {current.isEditable && (
             <div className="flex items-center gap-3">
               <Button
                 type="button"
@@ -339,8 +339,31 @@ export default function RolePermissionEditor({
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
-          )}
+          )} */}
         </div>
+        {current.isEditable && (
+            <div className="flex mt-4 items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRestoreDefaults}
+                disabled={isRestoring || isSaving}
+                className="border border-[#d1d5db] bg-white text-[#374151] hover:bg-[#f3f4f6]"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reset to Default
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving || !isDirty}
+                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          )}
       </div>
 
       <div className="flex items-center justify-between px-6 py-5">

@@ -1008,6 +1008,7 @@ function maskUserName(fullName) {
     createdBy: raw.createdBy || raw.created_by,
     updatedBy: raw.updated_by || raw.updatedBy,
     approvedAt: raw.approved_at || raw.approvedAt,
+    existingProof: raw.ledger_proof || raw.proofFiles?.[0]?.url || raw.proofFiles?.[0]?.path || '',
   });
   
   const handleEditProject = (updatedProject) => {
@@ -1376,7 +1377,7 @@ function maskUserName(fullName) {
       category: entry.category || '',
       referenceNumber: entry.referenceNumber || entry.reference_number || '',
       requiresProof: !!entry.ledger_proof,
-      existingProof: !!entry.ledger_proof,
+      existingProof: entry.ledger_proof || entry.ledgerProof || '',
       budgetBreakdown: breakdown,
       approval_status: entry.approval_status || 'Draft',
     };
@@ -1638,10 +1639,10 @@ function maskUserName(fullName) {
       </Card>
       
       {/* Tab Navigation */}
-      <div className="flex flex-wrap gap-2 bg-white rounded-xl p-1 shadow-sm">
+      <div className="flex max-w-full flex-nowrap gap-2 overflow-x-auto overscroll-x-contain p-2 rounded-xl bg-white shadow-sm">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+          className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium rounded-lg transition-all ${
             activeTab === 'overview' 
               ? 'bg-blue-600 text-white' 
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -1655,7 +1656,7 @@ function maskUserName(fullName) {
           <>
             <button
               onClick={() => setActiveTab('ledger')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                 activeTab === 'ledger' 
                   ? 'bg-blue-600 text-white' 
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -1666,7 +1667,7 @@ function maskUserName(fullName) {
             
             <button
               onClick={() => setActiveTab('proof')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                 activeTab === 'proof' 
                   ? 'bg-blue-600 text-white' 
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -1677,7 +1678,7 @@ function maskUserName(fullName) {
             
             <button
               onClick={() => setActiveTab('status')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+              className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                 activeTab === 'status' 
                   ? 'bg-blue-600 text-white' 
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -2076,13 +2077,13 @@ function maskUserName(fullName) {
             <p className="text-sm text-gray-700">{entry.description}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg flex-1">
+            <Button variant="outline" size="sm" onClick={() => { setSelectedLedger(entry); setShowLedgerDetails(true); }} className="rounded-lg flex-1 text-white bg-blue-600 hover:bg-blue-700">
               <Eye className="w-4 h-4 mr-1" />View
             </Button>
             {/* Only show action buttons if entry is Draft AND NOT disabled */}
             {canManageEntry && (
               <>
-                <Button variant="outline" size="sm" onClick={() => { console.log('🖱️ Mobile edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
+                <Button variant="outline" size="sm" onClick={() => { console.log('Mobile edit button clicked for entry:', entry.id); openEditLedgerModal(entry); }} className="rounded-lg">
                   <Edit className="w-4 h-4" />
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => { setLedgerToSubmit(entry); setShowSubmitLedgerModal(true); }} className="rounded-lg">
@@ -2500,27 +2501,37 @@ function maskUserName(fullName) {
   <p className="text-sm text-gray-500 mb-1">Proof Document *</p>
   {selectedLedger.ledger_proof ? (
     <div className="bg-gray-50 rounded-lg p-3 mt-1">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <FileText className="w-8 h-8 text-blue-600" />
-          <div>
-            <p className="text-sm font-medium text-gray-900 truncate max-w-[200px] md:max-w-[400px]">
-              {proofDetails(selectedLedger.ledger_proof).fileName}
-            </p>
-            <p className="text-xs text-gray-500">
-              {proofDetails(selectedLedger.ledger_proof).extension.toUpperCase()} file
-            </p>
+      {(() => {
+        const { url, fileName, extension } = proofDetails(selectedLedger.ledger_proof);
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+        if (imageExtensions.includes(extension)) {
+          return (
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof</p>
+              <img src={url} alt="Ledger proof" className="max-h-96 w-full rounded-lg object-contain" />
+            </div>
+          );
+        }
+
+        if (extension === 'pdf') {
+          return (
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof</p>
+              <iframe src={url} title="Ledger proof" className="h-96 w-full rounded-lg border-0" />
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex items-center gap-3">
+            <FileText className="h-8 w-8 flex-shrink-0 text-blue-600" />
+            <a href={url} target="_blank" rel="noreferrer" className="truncate text-sm text-blue-600 underline">
+              Current uploaded proof
+            </a>
           </div>
-        </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => setShowLedgerProofViewer(true)}
-          className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Eye className="w-4 h-4 mr-1" /> View
-        </Button>
-      </div>
+        );
+      })()}
     </div>
   ) : (
     <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">

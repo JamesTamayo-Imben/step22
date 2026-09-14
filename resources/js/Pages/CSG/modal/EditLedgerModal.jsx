@@ -68,6 +68,13 @@ function FieldLabel({ children }) {
   return <label className="block text-sm text-gray-700 mb-1">{children}</label>;
 }
 
+function getProofDetails(value) {
+  const url = new URL(value, window.location.origin);
+  const fileName = decodeURIComponent(url.pathname.split('/').pop() || 'Current proof document');
+  const extension = fileName.includes('.') ? fileName.split('.').pop().toLowerCase() : '';
+  return { url: url.toString(), fileName, extension };
+}
+
 // ─── Edit Ledger Entry Modal ─────────────────────────────────────────────────
 
 export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSave }) {
@@ -417,14 +424,38 @@ export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSa
                 </div>
               )}
               {ledgerForm.existingProof && !selectedFile && (
-                <div className="w-full p-4 bg-gray-50 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-green-600" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Existing Proof Document</p>
-                      <p className="text-xs text-gray-500">Current file will be kept unless replaced</p>
-                    </div>
-                  </div>
+                <div className="w-full rounded-xl border border-blue-200 bg-blue-50 p-3">
+                  {(() => {
+                    const { url, fileName, extension } = getProofDetails(ledgerForm.existingProof);
+                    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+                    if (imageExtensions.includes(extension)) {
+                      return (
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof:</p>
+                          <img src={url} alt="Current ledger proof" className="max-h-64 w-full rounded-lg object-contain" />
+                        </div>
+                      );
+                    }
+
+                    if (extension === 'pdf') {
+                      return (
+                        <div>
+                          <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof:</p>
+                          <iframe src={url} title="Current ledger proof" className="h-64 w-full rounded-lg border-0" />
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-5 w-5 flex-shrink-0 text-green-600" />
+                        <a href={url} target="_blank" rel="noreferrer" className="truncate text-sm text-blue-600 underline">
+                          Current uploaded proof
+                        </a>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

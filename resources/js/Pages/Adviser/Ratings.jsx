@@ -383,22 +383,22 @@ export function RatingsAnalyticsPage() {
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <p className="text-xs text-blue-600 font-medium mb-1">Satisfaction</p>
                     <div className="flex items-center gap-2">
-                      <span className="text-lg font-semibold text-blue-900">{project.satisfactionRating.toFixed(1)}</span>
-                      <div className="flex gap-0.5">{renderSmallStars(project.satisfactionRating)}</div>
+                      <span className="text-base md:text-lg font-semibold text-blue-900">{project.satisfactionRating.toFixed(1)}</span>
+                      <div className="flex">{renderSmallStars(project.satisfactionRating)}</div>
                     </div>
                   </div>
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <p className="text-xs text-blue-600 font-medium mb-1">Completeness</p>
                     <div className="flex items-center gap-2">
-                      <span className="text-lg font-semibold text-blue-900">{project.completenessRating.toFixed(1)}</span>
-                      <div className="flex gap-0.5">{renderSmallStars(project.completenessRating)}</div>
+                      <span className="text-base md:text-lg font-semibold text-blue-900">{project.completenessRating.toFixed(1)}</span>
+                      <div className="flex">{renderSmallStars(project.completenessRating)}</div>
                     </div>
                   </div>
                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                     <p className="text-xs text-blue-600 font-medium mb-1">Engagement</p>
                     <div className="flex items-center gap-2">
-                      <span className="text-lg font-semibold text-blue-900">{project.engagementRating.toFixed(1)}</span>
-                      <div className="flex gap-0.5">{renderSmallStars(project.engagementRating)}</div>
+                      <span className="text-base md:text-lg font-semibold text-blue-900">{project.engagementRating.toFixed(1)}</span>
+                      <div className="flex">{renderSmallStars(project.engagementRating)}</div>
                     </div>
                   </div>
                 </div>
