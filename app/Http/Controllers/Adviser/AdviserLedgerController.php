@@ -140,6 +140,7 @@ class AdviserLedgerController extends Controller
         ->get();
 
     $chainBlocks = [];
+    $chainBlocksByLedgerId = [];
     $projectVerifications = [];
     $uniqueProjectIds = $entries->pluck('project_id')->unique();
 
@@ -152,6 +153,21 @@ class AdviserLedgerController extends Controller
             $chainBlocks[$projectId] = $latestBlock;
             $projectVerifications[$projectId] = \App\Support\BlockchainService::verifyChain($projectId);
         }
+
+        Chain::where('project_id', $projectId)
+            ->orderBy('block_index')
+            ->get()
+            ->each(function ($block) use (&$chainBlocksByLedgerId) {
+                $snapshot = $block->data_snapshot;
+                if (is_string($snapshot)) {
+                    $snapshot = json_decode($snapshot, true) ?: [];
+                }
+
+                $ledgerId = $snapshot['ledger_id'] ?? null;
+                if ($ledgerId !== null) {
+                    $chainBlocksByLedgerId[$ledgerId] = $block;
+                }
+            });
     }
 
     $rows = [];
@@ -209,8 +225,8 @@ class AdviserLedgerController extends Controller
             'budgetBreakdown' => $entry->budget_breakdown
                 ? (is_string($entry->budget_breakdown) ? json_decode($entry->budget_breakdown, true) : $entry->budget_breakdown)
                 : [],
-            'ledgerHash' => $chainBlocks[$entry->project_id]->block_hash ?? null,
-            'predecessorHash' => $prev ? ($chainBlocks[$prev->project_id]->block_hash ?? null) : null,
+            'ledgerHash' => $chainBlocksByLedgerId[$entry->id]->hash ?? null,
+            'predecessorHash' => $chainBlocksByLedgerId[$entry->id]->prev_hash ?? null,
             'proofAttached' => $proofAttached,
             'proofFiles' => $proofFiles,
             'verificationState' => $verificationState,

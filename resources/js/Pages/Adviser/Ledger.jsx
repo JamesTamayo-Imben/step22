@@ -1104,11 +1104,11 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Ledger Hash (SHA256)</p>
-                  <code className="text-xs bg-blue-50 px-2 py-1 rounded block break-all">{selectedEntry.ledgerHash}</code>
+                  <code className="text-xs text-blue-600 px-2 py-1 rounded block break-all">{selectedEntry.ledgerHash}</code>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Predecessor Hash</p>
-                  <code className="text-xs bg-gray-50 px-2 py-1 rounded block break-all">{selectedEntry.predecessorHash || '—'}</code>
+                  <code className="text-xs text-blue-600 px-2 py-1 rounded block break-all">{selectedEntry.predecessorHash || '—'}</code>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>

@@ -314,13 +314,15 @@ export function StudentNavbar({
 
       {/* Mobile Drawer */}
       <aside
-        className={`lg:hidden fixed top-0 left-0 h-full w-72 bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
+        className={`lg:hidden fixed top-0 left-0 h-full w-72 flex flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
+          <div 
+           onClick={() => router.visit('/adviser/dashboard')}
+          className="flex items-center gap-3">
             <div className="w-8 rounded-xl flex items-center justify-center">
               <img
                 src="/images/Logo.svg" alt="Step Logo"
@@ -339,7 +341,7 @@ export function StudentNavbar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 overflow-y-auto h-[calc(100vh-270px)]">
+        <nav className="flex-1 min-h-0 p-4 overflow-y-auto">
           <ul className="space-y-2">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -411,8 +413,8 @@ export function StudentNavbar({
         </nav>
 
         {/* Profile & Actions */}
-        <div className="p-4 border-t border-gray-200 space-y-2">
-          <div className="flex items-center gap-3 px-4 py-2 mb-2">
+        <div className="shrink-0 p-4 border-t border-gray-200 space-y-2">
+          <div className="hidden sm:flex flex items-center gap-3 px-4 py-2 mb-2">
             {profilePicture ? (
               <img 
                 src={profilePicture} 
@@ -442,6 +444,7 @@ export function StudentNavbar({
             </button>
           )} */}
           <button
+            type="button"
             onClick={() => {
               setIsMobileMenuOpen(false);
               // Try callback first, then Supabase logout
@@ -451,7 +454,7 @@ export function StudentNavbar({
                 supabaseLogout();
               }
             }}
-            className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-all"
+            className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all"
           >
             <LogOut className="w-4 h-4" />
             <span>Logout</span>

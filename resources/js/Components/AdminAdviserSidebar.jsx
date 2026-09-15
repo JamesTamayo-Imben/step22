@@ -146,10 +146,13 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
+          <div 
+        
+          className="flex items-center gap-3">
             <div className="w-8 rounded-xl flex items-center justify-center">
               {/* <span className="text-white">S</span> */}
               <img
+               onClick={() => router.visit('/adviser/dashboard')}
               src="/images/Logo.svg" alt="Step Logo"
               className="w-full object-cover"/>
             </div>
@@ -233,9 +236,12 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 flex-col shadow-sm z-40">
         <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
+          <div 
+           onClick={() => router.visit('/adviser/dashboard')}
+          className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center">
               <img
+              
               src="/images/Logo.svg" alt="Step Logo"
               className="w-full object-cover"/>
             </div>
@@ -296,7 +302,9 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
         </nav>
 
         <div className="p-4 border-t border-gray-200 space-y-2">
-          <div className="flex items-center gap-3 px-4 py-2">
+          <div 
+           onClick={() => router.visit('/adviser/profile')}
+          className="flex items-center gap-3 px-4 py-2">
             <Avatar className="w-8 h-8">
               <AvatarFallback className="bg-[#2563EB] text-white text-xs">{getInitials(user?.name)}</AvatarFallback>
             </Avatar>
