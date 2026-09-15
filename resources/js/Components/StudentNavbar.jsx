@@ -108,7 +108,9 @@ export function StudentNavbar({
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 rounded-xl flex items-center justify-center">
                 {/* <span className="text-white">S</span> */}
+              
                 <img
+                  onClick={() => router.visit('/dashboard')}
               src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
               </div>
@@ -289,12 +291,15 @@ export function StudentNavbar({
         <div className="flex items-center gap-2">
           <div className="w-14 h-14 rounded-lg flex items-center justify-center">
             <img
+              onClick={() => router.visit('/dashboard')}
               src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
           </div>
          
         </div>
-        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">
+        <div
+          onClick={() => router.visit('/user/profile')}
+        className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">
           ST
         </div>
       </div>

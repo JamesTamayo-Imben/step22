@@ -121,12 +121,15 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
         <div className="flex items-center gap-2">
           <div className="w-20 h-20 rounded-lg flex items-center justify-center">
             <img
+              onClick={() => router.visit('/adviser/dashboard')}
               src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
           </div>
         </div>
         <Avatar className="w-8 h-8">
-          <AvatarFallback className="bg-[#2563EB] text-white text-xs">{getInitials(user?.name)}</AvatarFallback>
+          <AvatarFallback 
+           onClick={() => router.visit('/adviser/profile')}
+          className="bg-[#2563EB] text-white text-xs">{getInitials(user?.name)}</AvatarFallback>
         </Avatar>
       </div>
 

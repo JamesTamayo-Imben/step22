@@ -136,12 +136,15 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
         <div className="flex items-center gap-2">
           <div className="w-20 h-20 rounded-lg flex items-center justify-center">
             <img
+             onClick={() => router.visit('/csg/dashboard')}
               src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
           </div>
         </div>
         <Avatar className="w-8 h-8">
-          <AvatarFallback className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md text-xs">{getInitials(user?.name)}</AvatarFallback>
+          <AvatarFallback 
+           onClick={() => router.visit('/csg/profile')}
+          className="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md text-xs">{getInitials(user?.name)}</AvatarFallback>
         </Avatar>
       </div>
 
