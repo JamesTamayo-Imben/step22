@@ -182,7 +182,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
       )}
 
       {/* Mobile Drawer */}
-      <aside className={`lg:hidden fixed top-0 bottom-0 left-0 flex h-auto min-h-0 w-72 flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
+      <aside className={`lg:hidden fixed top-0 left-0 h-dvh flex w-72 flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* Logo */}

@@ -880,7 +880,7 @@ const computedBudgetFromLedger = ledgerEntries
             linkedTransaction: entry.id,
             uploadDate: entry.created_at ? entry.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
             fileType: proof.extension.toUpperCase(),
-            fileSize: 'Unknown',
+            fileSize: entry.file_size || 'Unknown',
             status: entry.approval_status,
             hash: entry.id,
             filePath: proof.url,

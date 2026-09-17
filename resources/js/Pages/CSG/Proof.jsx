@@ -232,7 +232,7 @@ function CSGProofPageInner() {
 
   const handleDownloadTemplate = () => {
     const link = document.createElement('a');
-    link.href = '/storage/proof_template/proof_template.pdf';
+    link.href = '/proof_template/proof_template.pdf';
     link.download = 'proof_template.pdf';
     document.body.appendChild(link);
     link.click();

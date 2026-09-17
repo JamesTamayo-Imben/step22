@@ -112,6 +112,7 @@ public function uploadProof(Request $request, $id)
         $entryData['updated_by'] = $this->getUserName($entryData['updated_by']);
     }
 
+                $entryData['file_size'] = $this->getProofFileSize($entry->ledger_proof);
                 $entryData['ledger_proof'] = $entry->resolveLedgerProof();
                 $entryData['note'] = $entry->getDisplayNote();
                 
@@ -123,6 +124,32 @@ public function uploadProof(Request $request, $id)
             return response()->json([
                 'message' => 'Failed to fetch ledger entries',
             ], 500);
+        }
+    }
+
+    private function getProofFileSize(?string $path): ?string
+    {
+        if (empty($path)) {
+            return null;
+        }
+
+        try {
+            $key = str_starts_with($path, 'storage/')
+                ? substr($path, strlen('storage/'))
+                : $path;
+
+            if (!Storage::disk('supabase')->exists($key)) {
+                return null;
+            }
+
+            return number_format(Storage::disk('supabase')->size($key) / (1024 * 1024), 2) . ' MB';
+        } catch (\Throwable $e) {
+            Log::warning('Unable to determine proof file size', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
         }
     }
 
@@ -886,17 +913,7 @@ public function uploadProof(Request $request, $id)
                 $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
                 $fileType = in_array(strtolower($fileExtension), ['pdf']) ? 'PDF' : 'Image';
 
-                // Calculate file size
-                $fileSize = 'Unknown';
-                try {
-                    $fullPath = storage_path('app/public/ledger_proofs/' . $fileName);
-                    if (file_exists($fullPath)) {
-                        $fileSizeBytes = filesize($fullPath);
-                        $fileSize = round($fileSizeBytes / (1024 * 1024), 2) . ' MB';
-                    }
-                } catch (\Exception $e) {
-                    // Keep default 'Unknown'
-                }
+                $fileSize = $this->getProofFileSize($entry->ledger_proof) ?? 'Unknown';
 
                 $proofDocuments[] = [
                     'id' => 'PROOF-' . substr($entry->id, 0, 8),

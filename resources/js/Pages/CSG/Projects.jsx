@@ -454,8 +454,8 @@ function CSGProjectsPageInner() {
 
    const handleDownloadTemplate = () => {
     const link = document.createElement('a');
-      link.href = '/storage/project_template/project_template.pdf';
-      link.download = 'project_template.pdf';
+    link.href = '/project_template/project_template.pdf';
+    link.download = 'project_template.pdf';
     document.body.appendChild(link);
     link.click();
     link.remove();

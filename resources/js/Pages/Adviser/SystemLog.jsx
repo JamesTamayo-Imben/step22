@@ -357,7 +357,7 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
   <div className="flex items-center justify-between border-t border-gray-200 mt-4 pt-4">
     <div className="flex flex-1 justify-between sm:hidden">
       <Button
-        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+        onClick={() => handlePageChange(currentPage - 1)}
         disabled={currentPage === 1}
         variant="outline"
         className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
@@ -365,7 +365,7 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
         Previous
       </Button>
       <Button
-        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+        onClick={() => handlePageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         variant="outline"
         className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
@@ -380,7 +380,7 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
       </p>
       <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Notifications pagination">
         <Button
-          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+          onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
           variant="outline"
           className="relative inline-flex items-center rounded-l-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -395,7 +395,7 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
             return (
               <Button
                 key={page}
-                onClick={() => setCurrentPage(page)}
+                onClick={() => handlePageChange(page)}
                 variant="outline"
                 className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
                   isCurrentPage
@@ -417,7 +417,7 @@ export function SystemLogsPage({ logs: initialLogs = { data: [] }, modules = [],
           return null;
         })}
         <Button
-          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+          onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
           variant="outline"
           className="relative inline-flex items-center rounded-r-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"

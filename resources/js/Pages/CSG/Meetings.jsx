@@ -690,7 +690,7 @@ const renderAttendees = (attendees) => {
 
     const handleDownloadTemplate = () => {
     const link = document.createElement('a');
-      link.href = '/storage/meeting_template/meeting_minutes_template.pdf';
+      link.href = '/meeting_template/meeting_minutes_template.pdf';
       link.download = 'meeting_minutes_template.pdf';
     document.body.appendChild(link);
     link.click();
