@@ -1725,32 +1725,32 @@ function maskUserName(fullName) {
 
 
       {project.venue && (
-        <div>
+        <div className="col-span-2 md:col-span-1">
           <p className="text-sm text-gray-500 mb-1">Venue</p>
           <p className="text-gray-900">{project.venue}</p>
         </div>
       )}
-      <div>
+      <div className="col-span-2 md:col-span-1">
         <p className="text-sm text-gray-500 mb-1">Category</p>
         <p className="text-gray-900">{project.category || 'Not specified'}</p>
       </div>
-      <div>
+      <div className="col-span-2 md:col-span-1">
         <p className="text-sm text-gray-500 mb-1">Created On</p>
         <p className="text-gray-900">{formatDate(project.createdAt)}</p>
       </div>
-      <div>
+      <div className="col-span-2 md:col-span-1">
         <p className="text-sm text-gray-500 mb-1">Start Date</p>
         <p className="text-gray-900">{formatDate(project.startDate)}</p>
       </div>
-      <div>
+      <div className="col-span-2 md:col-span-1">
         <p className="text-sm text-gray-500 mb-1">End Date</p>
         <p className="text-gray-900">{formatDate(project.endDate)}</p>
       </div>
-      <div>
+      <div className="col-span-2 md:col-span-1">
         <p className="text-sm text-gray-500 mb-1">Created by:</p>
         <p className="text-gray-900">{project.createdBy || 'Not specified'}</p>
       </div>
-      <div>
+      <div className="col-span-2 md:col-span-1">
         <p className="text-sm text-gray-500 mb-1">Proposed by:</p>
         <p className="text-gray-900">{project.proposedBy || 'Not specified'}</p>
       </div>

@@ -177,6 +177,47 @@ class ProjectCreationTransferTest extends TestCase
         Storage::disk('supabase')->assertExists('ledger_proofs/' . $relativePath);
     }
 
+    public function test_project_creation_always_starts_project_and_ledgers_as_draft(): void
+    {
+        Storage::fake('supabase');
+        $user = $this->authorizedUser('csg');
+        Auth::login($user);
+
+        $request = Request::create('/api/projects', 'POST', [
+            'title' => 'Draft status project',
+            'description' => 'Creation must not approve records',
+            'objective' => 'Verify initial statuses',
+            'venue' => 'Main Hall',
+            'category' => 'Social',
+            'budget' => 100,
+            'has_budget' => 1,
+            'is_active' => 1,
+            'proposed_by' => 'Tester',
+            'status' => 'Approved',
+            'approval_status' => 'Approved',
+        ]);
+        $request->setUserResolver(fn () => $user);
+        $request->files->add([
+            'project_proof' => UploadedFile::fake()->create('proof.pdf', 120, 'application/pdf'),
+        ]);
+
+        $response = (new ProjectController())->store($request);
+
+        $this->assertEquals(201, $response->getStatusCode());
+
+        $payload = json_decode($response->getContent(), true);
+        $project = Project::find($payload['id']);
+
+        $this->assertEquals('Draft', $project->status);
+        $this->assertEquals('Draft', $project->approval_status);
+        $this->assertNotEmpty(LedgerEntry::where('project_id', $project->id)->get());
+        $this->assertTrue(
+            LedgerEntry::where('project_id', $project->id)
+                ->where('approval_status', '!=', 'Draft')
+                ->doesntExist()
+        );
+    }
+
     public function test_project_creation_can_transfer_budget_from_completed_project(): void
     {
         Storage::fake('supabase');

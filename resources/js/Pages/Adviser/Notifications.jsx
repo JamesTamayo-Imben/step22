@@ -45,6 +45,11 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
   const [currentPage, setCurrentPage] = useState(1);
   const [notice, setNotice] = useState({ title: '', message: '' });
 
+  useEffect(() => {
+    setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
+    setCurrentPage(1);
+  }, [notificationsData]);
+
 
   const filteredNotifications = selectedFilter === 'all'
     ? notifications

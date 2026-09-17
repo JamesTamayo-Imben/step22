@@ -87,6 +87,13 @@ export function StudentNavbar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     ...(canViewProjects ? [{ id: 'projects', label: 'Projects', icon: FolderKanban }] : []),
@@ -314,7 +321,7 @@ export function StudentNavbar({
 
       {/* Mobile Drawer */}
       <aside
-        className={`lg:hidden fixed top-0 left-0 h-full w-72 flex flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
+        className={`lg:hidden fixed top-0 bottom-0 left-0 flex h-auto min-h-0 w-72 flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -341,7 +348,7 @@ export function StudentNavbar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 min-h-0 p-4 overflow-y-auto">
+        <nav className="flex-1 min-h-0 overscroll-contain p-4 overflow-y-auto">
           <ul className="space-y-2">
             {navItems.map((item) => {
               const Icon = item.icon;

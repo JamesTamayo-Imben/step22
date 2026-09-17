@@ -69,6 +69,13 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     return () => window.removeEventListener('popstate', onPop);
   }, [url]);
 
+  useEffect(() => {
+    document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
+
   const viewToUrl = (viewId) => {
     const map = {
       dashboard: '/sadmin',
@@ -129,7 +136,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
 
       {/* Mobile Drawer */}
       <aside
-        className={`lg:hidden fixed top-0 left-0 h-full w-72 bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
+        className={`lg:hidden fixed top-0 bottom-0 left-0 flex h-auto min-h-0 w-72 flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -155,7 +162,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
           </div>
         </div>
 
-        <nav className="flex-1 p-4 overflow-y-auto h-[calc(100vh-180px)]">
+        <nav className="min-h-0 flex-1 overscroll-contain overflow-y-auto p-4">
           <ul className="space-y-2">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -181,7 +188,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
           </ul>
         </nav>
 
-        <div className="p-4 border-t border-gray-200">
+        <div className="shrink-0 p-4 border-t border-gray-200">
           <button
            type="button"
            onClick={() => router.post('/logout')}

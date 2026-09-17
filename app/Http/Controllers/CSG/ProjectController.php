@@ -130,9 +130,6 @@ class ProjectController extends Controller
             if ($hasBudget && $budgetSource === 'past_project' && $transferAmount > 0) {
                 $effectiveBudgetAmount = $transferAmount;
             }
-            $submittedStatus = $request->input('status');
-            $submittedApprovalStatus = $request->input('approval_status');
-
             if ($budgetSource === 'past_project') {
                 $request->validate([
                     'transfer_from_project_id' => 'required|string|exists:projects,id',
@@ -153,8 +150,10 @@ class ProjectController extends Controller
             $project->proposed_by = $request->proposed_by;
             $project->start_date = $request->start_date;
             $project->end_date = $request->end_date;
-            $project->status = $submittedStatus ?: ($isActive ? 'Ongoing' : 'Draft');
-            $project->approval_status = $submittedApprovalStatus ?: ($isActive ? 'Pending Adviser Approval' : 'Draft');
+            // A newly created project must always start as a draft. Approval is
+            // granted only through the adviser approval workflow.
+            $project->status = 'Draft';
+            $project->approval_status = 'Draft';
             $project->archive = 0;
             $project->is_initial = $request->is_initial ?? ($effectiveBudgetAmount > 0 ? 1 : 0);
             $project->created_by = Auth::id();

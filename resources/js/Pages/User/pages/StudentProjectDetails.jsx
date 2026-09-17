@@ -396,18 +396,20 @@ function maskUserName(fullName) {
         </div>
       </Card>
 
-      <div className="flex flex-wrap gap-2 bg-white rounded-xl p-2 shadow-sm border border-gray-100">
-        {['overview', 'ledger', 'proof', 'status timeline', canViewRatings && 'ratings'].filter(Boolean).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg font-medium transition-all capitalize ${
-              activeTab === tab ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="overflow-x-auto bg-white rounded-xl p-2 shadow-sm border border-gray-100">
+        <div className="flex w-max min-w-full gap-2">
+          {['overview', 'ledger', 'proof', 'status timeline', canViewRatings && 'ratings'].filter(Boolean).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`shrink-0 px-4 py-2 rounded-lg font-medium transition-all capitalize ${
+                activeTab === tab ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
       </div>
 
       {activeTab === 'overview' && (
@@ -421,19 +423,19 @@ function maskUserName(fullName) {
               <p className='text-sm text-gray-500 mb-1'>Project Objective *</p>
             <p className="text-gray-900">{currentProject.objective || 'No objective available.'}</p>
             </div>
-             <div className='mb-4'>
+             <div className='mb-4 col-span-2 md:col-span-1'>
               <p className='text-sm text-gray-500 mb-1'>Project Proposer *</p>
               <p className="text-gray-900">{currentProject.proposeBy || 'N/A'}</p>
             </div>
-             <div className='mb-4'>
+             <div className='mb-4 col-span-2 md:col-span-1'>
               <p className='text-sm text-gray-500 mb-1'>Approved By</p>
               <p className="text-gray-900">{currentProject.approvedBy || 'CSG Adviser'}</p>
             </div>
-              <div className="mb-4">
+              <div className="mb-4 col-span-2 md:col-span-1">
                 <p className="text-xs text-gray-500">Category</p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">{currentProject.category || 'General'}</p>
               </div>
-              <div className="mb-4">
+              <div className="mb-4 col-span-2 md:col-span-1">
                 <p className="text-xs text-gray-500">Venue</p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">{currentProject.venue || 'Not specified'}</p>
               </div>

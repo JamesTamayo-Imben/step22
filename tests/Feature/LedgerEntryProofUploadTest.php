@@ -134,4 +134,58 @@ class LedgerEntryProofUploadTest extends TestCase
         $this->assertStringContainsString('ledger_proofs/', $entry->ledger_proof);
         $this->assertNotNull($entry->file_content_hash);
     }
+
+    public function test_proof_documents_returns_one_draft_for_project_initial_proof(): void
+    {
+        Storage::fake('supabase');
+
+        $user = $this->authorizedUser('csg');
+        Auth::login($user);
+        $projectId = (string) Str::uuid();
+        $proofPath = 'ledger_proofs/project-proof.pdf';
+
+        Project::create([
+            'id' => $projectId,
+            'title' => 'Initial Proof Project',
+            'description' => 'Test project',
+            'objective' => 'Objective',
+            'venue' => 'Venue',
+            'category' => 'Social',
+            'budget' => 100,
+            'project_proof' => $proofPath,
+            'proposed_by' => 'Tester',
+            'approval_status' => 'Draft',
+            'status' => 'Draft',
+            'archive' => 0,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+
+        $entry = LedgerEntry::create([
+            'id' => (string) Str::uuid(),
+            'project_id' => $projectId,
+            'type' => 'Initial',
+            'amount' => 100,
+            'description' => 'Initial project budget baseline',
+            'category' => 'Project Budget Baseline',
+            'ledger_proof' => $proofPath,
+            'approval_status' => 'Draft',
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+            'archive' => 0,
+        ]);
+
+        Storage::disk('supabase')->put($proofPath, 'proof');
+
+        $documents = (new LedgerEntryController())->getProofDocuments()->getData(true);
+
+        $projectDocuments = array_values(array_filter(
+            $documents,
+            fn (array $document): bool => $document['linkedTransaction'] === $entry->id
+                || $document['linkedTransaction'] === $projectId
+        ));
+
+        $this->assertCount(1, $projectDocuments);
+        $this->assertEquals('Draft', $projectDocuments[0]['status']);
+    }
 }

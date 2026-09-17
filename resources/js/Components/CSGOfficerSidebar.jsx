@@ -117,6 +117,13 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
     return () => window.removeEventListener('popstate', onPop);
   }, [url]);
 
+  useEffect(() => {
+    document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen]);
+
   // Quick actions for mobile bottom bar
   const quickActions = [
     // { icon: Plus, label: 'New Project', color: 'bg-green-600' },
@@ -175,7 +182,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
       )}
 
       {/* Mobile Drawer */}
-      <aside className={`lg:hidden fixed top-0 left-0 h-full w-72 bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
+      <aside className={`lg:hidden fixed top-0 bottom-0 left-0 flex h-auto min-h-0 w-72 flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {/* Logo */}
@@ -229,7 +236,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
         </div>
         
         {/* Navigation */}
-        <nav className="flex-1 p-4 overflow-y-auto h-[calc(100vh-180px)]">
+        <nav className="min-h-0 flex-1 overscroll-contain overflow-y-auto p-4">
           <ul className="space-y-2">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -272,7 +279,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
         </nav>
 
         {/* Logout Button */}
-        <div className="p-4 border-t border-gray-200 space-y-2">
+        <div className="shrink-0 p-4 border-t border-gray-200 space-y-2">
           {/* Switch Role Button */}
           {onSwitchRole && userData?.canSwitch && (
             <div className="mb-2">

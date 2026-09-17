@@ -868,57 +868,9 @@ public function uploadProof(Request $request, $id)
         try {
             $proofDocuments = [];
 
-            // 1. Get initial proofs from projects
-            $projects = \App\Models\CSG\Project::where('archive', 0)
-                ->whereNotNull('project_proof')
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            foreach ($projects as $project) {
-                $fileName = basename($project->project_proof);
-                // $filePath = $project->project_proof;
-                $projectProofKey = str_starts_with($project->project_proof, 'storage/')
-                    ? substr($project->project_proof, strlen('storage/'))
-                    : $project->project_proof;
-                $filePath = Storage::disk('supabase')->temporaryUrl(
-                    $projectProofKey,
-                    now()->addMinutes(15)
-                );
-                $fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
-                $fileType = in_array(strtolower($fileExtension), ['pdf']) ? 'PDF' : 'Image';
-
-                // Calculate file size
-                $fileSize = 'Unknown';
-                try {
-                    $fullPath = storage_path('app/public/ledger_proofs/' . $fileName);
-                    if (file_exists($fullPath)) {
-                        $fileSizeBytes = filesize($fullPath);
-                        $fileSize = round($fileSizeBytes / (1024 * 1024), 2) . ' MB';
-                    }
-                } catch (\Exception $e) {
-                    // Keep default 'Unknown'
-                }
-
-                $proofDocuments[] = [
-                    'id' => 'PROOF-INITIAL-' . substr($project->id, 0, 8),
-                    'fileName' => $fileName,
-                    'linkedTransaction' => $project->id,
-                    'linkedProject' => $project->title,
-                    'uploadDate' => $project->created_at->format('Y-m-d'),
-                    'fileType' => $fileType,
-                    'fileSize' => $fileSize,
-                    'status' => 'Approved',
-                    // 'uploadedBy' => $project->created_by ? 'User ' . $project->created_by : 'Unknown',
-                   'uploadedBy' => $project->created_by
-    ? User::find($project->created_by)?->name ?? 'Unknown'
-    : 'Unknown',
-                    'hash' => 'N/A',
-                    'filePath' => $filePath,
-                    'description' => 'Initial Project Proof',
-                ];
-            }
-
-            // 2. Get ledger entry proofs
+            // Project proofs are stored on the initial ledger entry as well.
+            // Read only ledger entries here so one uploaded file is shown once
+            // with its actual approval status.
             $entries = LedgerEntry::where('archive', 0)
                 ->whereNotNull('ledger_proof')
                 ->with('project')
