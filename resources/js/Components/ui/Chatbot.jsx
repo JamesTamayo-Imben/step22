@@ -3,6 +3,17 @@ import { usePage } from '@inertiajs/react';
 import ReactDOM from 'react-dom';
 import { Send, MessageSquare, X, CircleQuestionMark, Info, ShieldCheck, ChartBarIcon, MessageCircleCheckIcon, Hash, Link, Database, FileCheck, ThumbsUp, Calendar, BookOpen, Search, Eye } from 'lucide-react';
 
+function showToast(message, type = 'success') {
+  const id = `chatbot-toast-${Date.now()}`;
+  const toast = document.createElement('div');
+  toast.id = id;
+  toast.className = 'fixed right-4 bottom-6 z-[60] max-w-sm px-4 py-3 rounded-lg shadow-lg text-white';
+  toast.style.background = type === 'success' ? '#0ea5e9' : '#ef4444';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
 const defaultMessages = [
   {
     id: 1,
@@ -55,6 +66,35 @@ const concernOption = {
   question: 'I have a concern about the System',
   icon: Info,
 };
+
+const inappropriateWords = [
+  'amputa', 'animal ka', 'bilat', 'binibrocha', 'bobo', 'bogo', 'boto', 'brocha',
+  'burat', 'bwesit', 'bwisit', 'demonyo ka', 'engot', 'etits', 'gaga', 'gagi',
+  'gago', 'habal', 'hayop ka', 'hayup', 'hinampak', 'hinayupak', 'hindot', 'hindutan',
+  'hudas', 'iniyot', 'inutel', 'inutil', 'iyot', 'kagaguhan', 'kagang', 'kantot',
+  'kantotan', 'kantut', 'kantutan', 'kaululan', 'kayat', 'kiki', 'kikinginamo',
+  'kingina', 'kupal', 'leche', 'leching', 'lechugas', 'lintik', 'nakakaburat',
+  'nimal', 'ogag', 'olok', 'pakingshet', 'pakshet', 'pakyu', 'pesteng yawa', 'poke',
+  'poki', 'pokpok', 'poyet', "pu'keng", 'pucha', 'puchanggala', 'puchangina',
+  'puke', 'puki', 'pukinangina', 'puking', 'punyeta', 'puta', 'putang', 'putang ina',
+  'putangina', 'putanginamo', 'putaragis', 'putragis', 'puyet', 'ratbu', 'shunga',
+  'sira ulo', 'siraulo', 'suso', 'susu', 'tae', 'taena', 'tamod', 'tanga', 'tangina',
+  'taragis', 'tarantado', 'tete', 'teti', 'timang', 'tinil', 'tite', 'titi', 'tungaw',
+  'ulol', 'ulul', 'ungas',
+];
+
+function containsInappropriateWords(value) {
+  const normalizedValue = value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return inappropriateWords.some((word) => {
+    const normalizedWord = word.replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim();
+    return ` ${normalizedValue} `.includes(` ${normalizedWord} `);
+  });
+}
 
 // The two concern-flow prompts that expect a free-text reply from the user,
 // followed by the automatic closing/thank-you message.
@@ -206,6 +246,25 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
     const userMessage = { id: Date.now(), role: 'user', text: trimmed };
 
     if (concernStep === 0) {
+      if (containsInappropriateWords(trimmed)) {
+        const warningMessage = {
+          id: Date.now() + 1,
+          role: 'bot',
+          text: 'Please remove the inappropriate words from your concern and try again.',
+        };
+        const retryMessage = {
+          id: Date.now() + 2,
+          role: 'bot',
+          text: concernQuestions[0].question,
+        };
+
+        setMessages((current) => [...current, userMessage, warningMessage, retryMessage]);
+        setConcernDescription('');
+        setConcernStep(0);
+        setStage('concern');
+        return;
+      }
+
       setConcernDescription(trimmed);
       const botMessage = { id: Date.now() + 1, role: 'bot', text: concernQuestions[1].question };
       setMessages((current) => [...current, userMessage, botMessage]);
@@ -238,7 +297,24 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit concern');
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData?.errors?.concern?.[0] || errorData?.message || 'Unable to save your concern right now.';
+        const retryMessage = {
+          id: Date.now() + 1,
+          role: 'bot',
+          text: message,
+        };
+        const restartMessage = {
+          id: Date.now() + 2,
+          role: 'bot',
+          text: `${concernQuestions[0].question} Let's try again together.`,
+        };
+
+        setMessages((current) => [...current, retryMessage, restartMessage]);
+        setConcernDescription('');
+        setConcernStep(0);
+        setStage('concern');
+        return;
       }
 
       const botMessage = { id: Date.now() + 1, role: 'bot', text: concernQuestions[2].question };

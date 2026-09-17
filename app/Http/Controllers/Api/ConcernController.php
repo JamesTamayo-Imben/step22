@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Concern;
+use App\Support\ProfanityFilter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -62,6 +63,12 @@ class ConcernController extends Controller
             'concern' => 'required|string|max:1000',
             'contact_answer' => 'nullable|string|max:255',
         ]);
+
+        if (ProfanityFilter::contains($validated['concern'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'concern' => 'Please remove the inappropriate words.',
+            ]);
+        }
 
         try {
             $contactAnswer = strtolower(trim($validated['contact_answer'] ?? ''));

@@ -6,6 +6,17 @@ import { StudentModal } from '@/Components/ui/StudentModal';
 import { Chatbot } from '@/Components/ui/Chatbot';
 import { ArrowLeft, FolderKanban, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shield, XCircle } from 'lucide-react';
 
+function showToast(message, type = 'success') {
+  const id = `student-project-toast-${Date.now()}`;
+  const toast = document.createElement('div');
+  toast.id = id;
+  toast.className = 'fixed right-4 bottom-6 z-50 max-w-sm px-4 py-3 rounded-lg shadow-lg text-white';
+  toast.style.background = type === 'success' ? '#0ea5e9' : '#ef4444';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
 export default function StudentProjectDetails({ projectId, onBack, project }) {
   const { props } = usePage();
   const userPermissions = Array.isArray(props?.userPermissions)
@@ -215,6 +226,18 @@ function maskUserName(fullName) {
     .join(' ');
 }
 
+//dont let them rate if the project is not yet started disable the button
+const isProjectStarted = () => {
+  const startDate = currentProject.startDate || currentProject.start_date;
+  if (!startDate) return false;
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return today >= start;
+};
+
     const getTypeColor = (type) => {
   switch (type) {
     case 'Expense': return 'bg-red-100 text-red-700';
@@ -249,7 +272,10 @@ function maskUserName(fullName) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit rating');
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData?.errors?.comment?.[0] || errorData?.message || 'Unable to submit your rating right now.';
+        showToast(message, 'error');
+        return;
       }
 
       window.location.reload();
@@ -340,11 +366,11 @@ function maskUserName(fullName) {
               ) : null}
 
               {/* Rating Button*/}
-                {canSubmitRatings ? (
+                {canSubmitRatings && (
                   <div className="flex flex-col items-end gap-2">
                     <button
                       onClick={() => setShowRatingModal(true)}
-                      disabled={isRatingDisabled}
+                      disabled={isRatingDisabled || !isProjectStarted()}
                       className={`flex items-center gap-2 px-4 py-2 
                          disabled:bg-gray-400 disabled:hover:bg-gray-400 
        disabled:text-gray-200
@@ -353,13 +379,13 @@ function maskUserName(fullName) {
                       <Star className="w-4 h-4" />
                       {isRatingDisabled ? 'Already Rated' : 'Rate this Project'}
                     </button>
-                    {isRatingDisabled && (
+                    {/* {isRatingDisabled && (
                       <p className="text-xs text-yellow-600">
                         You have already rated this project. Thank you!
                       </p>
-                    )}
+                    )} */}
                   </div>
-                ) : null}
+                )}
             
             </div>
           </div>
@@ -379,7 +405,7 @@ function maskUserName(fullName) {
          <div className="bg-blue-50 rounded-xl p-4">
   <Wallet className="w-5 h-5 text-blue-600 mb-2" />
   <p className="text-sm text-gray-600">Budget</p>
-  <p className={`text-2xl font-bold ${Number(currentProject.budget || 0) < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+  <p className={`text-2xl font-bold ${Number(currentProject.budget || 0) < 0 ? 'text-red-600' : 'text-blue-600'}`}>
     ₱{Number(currentProject.budget || 0).toLocaleString()}
   </p>
   {Number(currentProject.budget || 0) < 0 && (

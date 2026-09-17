@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CSG\Meeting;
 use App\Models\User\Project;
 use App\Models\User\Rating;
+use App\Support\ProfanityFilter;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
@@ -306,6 +307,12 @@ class UserProjectController extends Controller
         'engagement_rating' => ['nullable', 'integer', 'min:1', 'max:5'],
         'comment' => ['nullable', 'string', 'max:1000'],
     ]);
+
+    if (ProfanityFilter::contains($validated['comment'] ?? null)) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            'comment' => 'Please remove the inappropriate words from your message and try again.',
+        ]);
+    }
 
     $project = Project::query()->where('archive', 0)->findOrFail($projectId);
     if (($project->approval_status ?? '') !== 'Approved') {
