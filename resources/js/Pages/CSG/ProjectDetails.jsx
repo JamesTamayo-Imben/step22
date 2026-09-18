@@ -1526,7 +1526,7 @@ function maskUserName(fullName) {
                   </Badge>
                 )}
               </div>
-              <p className="text-gray-600">{project.description}</p>
+              <p className="text-gray-600 whitespace-pre-wrap break-words overflow-wrap-anywhere">{project.description}</p>
             </div>
             {isApprovedOrPending && (
               <div>

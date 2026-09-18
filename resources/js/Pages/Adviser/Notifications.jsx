@@ -44,6 +44,7 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [notice, setNotice] = useState({ title: '', message: '' });
+  const [expandedMessages, setExpandedMessages] = useState({});
 
   useEffect(() => {
     setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
@@ -181,38 +182,94 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
                             </div>
               </Card>
             ) : (
-              paginatedNotifications.map((n) => (
-                <Card
-                  key={n.id}
-                  className={`rounded-[20px] border-0 shadow-sm p-4 flex gap-4 ${!n.isRead ? 'bg-blue-50/40' : ''}`}
-                >
-                  <div className="flex justify-between items-start w-full gap-4">
-                      <div className="w-10 h-10 rounded-full bg-gray-100 border flex items-center justify-center flex-shrink-0">
-                    {getIcon(n.icon)}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="text-sm font-semibold text-gray-900">{n.title}</h3>
-                      {!n.isRead && <Badge className="bg-blue-100 text-blue-800">New</Badge>}
+              paginatedNotifications.map((n) => {
+                const messageText = n.message || '—';
+                const expanded = Boolean(expandedMessages[n.id]);
+                const longText = messageText.trim().length > 80 || messageText.split(/\s+/).filter(Boolean).length > 8;
+                const showReadMore = longText;
+
+                return (
+                  <Card
+                    key={n.id}
+                    onClick={() => !n.isRead && markAsRead(n.id)}
+                    onKeyDown={(event) => {
+                      if (!n.isRead && (event.key === 'Enter' || event.key === ' ')) {
+                        event.preventDefault();
+                        markAsRead(n.id);
+                      }
+                    }}
+                    role={n.isRead ? undefined : 'button'}
+                    tabIndex={n.isRead ? undefined : 0}
+                    className={`rounded-[20px] border p-4 shadow-sm transition-all gap-0 ${!n.isRead ? 'bg-white border-blue-100 shadow-blue-100/50 cursor-pointer hover:bg-blue-50/50' : 'bg-gray-50/70 border-gray-200 opacity-80'}`}
+                  >
+                    <div className="flex items-start justify-between gap-3 w-full">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <div className="relative w-10 h-10 rounded-full bg-gray-100 border flex items-center justify-center flex-shrink-0">
+                          {!n.isRead && (
+                            <span className="absolute -top-0 -left-0 h-2.5 w-2.5 rounded-full bg-blue-600" aria-label="Unread notification" />
+                          )}
+                          {getIcon(n.icon)}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-sm font-semibold text-gray-900 break-words">{n.title}</h3>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end text-xs text-gray-500 shrink-0">
+                        <span>{n.timestamp}</span>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{n.message || '—'}</p>
-                  </div>
-                    
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                      <span>{n.timestamp}</span>
-                      {/* {n.userId != null && n.userId !== '' && (
-                        <span className="font-mono">User: {String(n.userId).slice(0, 8)}…</span>
-                      )} */}
-                      {!n.isRead && (
-                        <button type="button" onClick={() => markAsRead(n.id)} className="text-blue-600 hover:underline">
-                          Mark read
+
+                    <div className="flex flex-col items-start pl-[52px]">
+                      <p
+                        className="text-sm text-gray-600 whitespace-pre-wrap break-words overflow-wrap-anywhere w-full"
+                        style={expanded ? {
+                          display: 'block',
+                          overflow: 'visible',
+                          maxHeight: 'none',
+                        } : {
+                          display: '-webkit-box',
+                          overflow: 'hidden',
+                          maxHeight: '5.4rem',
+                          WebkitLineClamp: 1,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
+                        {messageText}
+                      </p>
+
+                      {showReadMore && (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setExpandedMessages((prev) => ({ ...prev, [n.id]: !expanded }));
+                          }}
+                          className="mt-2 text-xs font-medium text-blue-600 hover:text-blue-700"
+                        >
+                          {expanded ? 'Show less' : 'More...'}
                         </button>
                       )}
+
+                      {!n.isRead && (
+                        <div className="mt-3 ml-auto">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              markAsRead(n.id);
+                            }}
+                            className="text-blue-600 hover:underline font-medium text-xs"
+                          >
+                            Mark read
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </Card>
-              ))
+                  </Card>
+                );
+              })
             )}
           </div>
           {totalPages > 1 && (

@@ -515,18 +515,27 @@ export default function AdviserApprovalsPage() {
           </Card>
 
           <div className="space-y-6">
-            <div className="flex w-full max-w-full flex-nowrap gap-2 overflow-x-auto overscroll-x-contain rounded-xl bg-white p-2 shadow-sm">
-              {['project proposals', 'ledger entries', 'Change Requests', 'approved items', 'rejected items'].map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTab(t)}
-                  className={`flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors md:text-base ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-                >
-                  <span className="capitalize">{t}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${tab === t ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>{counts[t]}</span>
-                </button>
-              ))}
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 hidden w-8 bg-gradient-to-l from-white via-white/90 to-transparent md:block" />
+              <div className="absolute right-2 top-1/2 z-20 hidden -translate-y-1/2 animate-[pulse_1.2s_ease-in-out_3] rounded-full bg-blue-600 p-1.5 text-white shadow-lg shadow-blue-600/30 md:hidden">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-4 w-4">
+                  <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div className="flex w-full max-w-full flex-nowrap gap-2 overflow-x-auto overscroll-x-contain rounded-xl bg-white p-2 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="pointer-events-none absolute inset-y-0 right-0 w-5 bg-gradient-to-l from-white via-white/80 to-transparent" />
+                {['project proposals', 'ledger entries', 'Change Requests', 'approved items', 'rejected items'].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTab(t)}
+                    className={`flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors md:text-base ${tab === t ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    <span className="capitalize">{t}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${tab === t ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>{counts[t]}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
