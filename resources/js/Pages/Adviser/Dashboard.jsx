@@ -224,23 +224,33 @@ export function AdminAdviserDashboard({
               <h2 className="text-gray-900">Integrity Heatmap</h2>
               <p className="text-sm text-gray-500">View tampering and CSG activity by month.</p>
             </div>
-            <div className="flex items-center gap-2">
-                <a
-                href={`/adviser?heatmap_month=${prevHeatmapMonth}`}
+            <div className="flex items-center gap-2 justify-between">
+              <button
+                type="button"
+                onClick={() => router.get('/adviser', { heatmap_month: prevHeatmapMonth }, {
+                  preserveScroll: true,
+                  preserveState: true,
+                  only: ['charts'],
+                })}
                 className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
               >
                 ← Prev
-              </a>
+              </button>
               <div className="rounded-md bg-slate-100 px-3 py-1 text-sm font-medium text-slate-800">
                 {heatmapLabel || heatmapMonth || 'This month'}
               </div>
               {canNavigateNext ? (
-                <a
-                  href={`/adviser?heatmap_month=${nextHeatmapMonth}`}
+                <button
+                  type="button"
+                  onClick={() => router.get('/adviser', { heatmap_month: nextHeatmapMonth }, {
+                    preserveScroll: true,
+                    preserveState: true,
+                    only: ['charts'],
+                  })}
                   className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
                 >
                   Next →
-                </a>
+                </button>
               ) : (
                 <span className="rounded-md bg-slate-100 px-3 py-1 text-sm text-slate-400 cursor-not-allowed">
                   Next →

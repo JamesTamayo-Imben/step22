@@ -848,7 +848,7 @@ const handleSetSaduAdviser = () => {
           <h1 className="text-blue-600 text-2xl font-semibold tracking-tight">Roles & Permissions</h1>
           <p className="mt-1 text-[15px] text-[#6b7280]">Configure role-based access control</p>
         </div>
-        <div className="flex items-center gap-2 rounded-xl border border-[#e5e7eb] bg-white p-1 shadow-sm">
+        <div className="grid sm:grid-cols-1 xl:grid-cols-2 gap-1 rounded-xl border border-[#e5e7eb] bg-white p-1 shadow-sm">
           {[
             { key: 'permissions', label: 'Permissions' },
             { key: 'assign', label: 'Assign Users' },
@@ -857,7 +857,7 @@ const handleSetSaduAdviser = () => {
               key={tab.key}
               type="button"
               onClick={() => setViewMode(tab.key)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              className={`min-w-[115px] rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                 viewMode === tab.key
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-[#374151] hover:bg-[#f3f4f6]'
@@ -947,7 +947,7 @@ const handleSetSaduAdviser = () => {
                       {superAdmins.length} account(s)
                     </span>
                   </div>
-                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-1 xl:grid-cols-2">
                     {superAdmins.map((admin) => (
                       <div key={admin.id} className="rounded-xl border border-[#dbeafe] bg-[#eff6ff] p-4">
                         <div className="flex items-center gap-3">
@@ -975,7 +975,7 @@ const handleSetSaduAdviser = () => {
                     <h2 className="text-xl font-semibold text-[#111827]">Council Adviser</h2>
                     <p className="text-sm text-[#6b7280]">Manage and assign council adviser role</p>
                   </div>
-                  <div className="grid gap-4 grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-1 xl:grid-cols-2">
                     {councilAdviser.map((adviser) => {
                       const isVacant = !adviser.name;
                       return (
@@ -1038,7 +1038,7 @@ const handleSetSaduAdviser = () => {
                     <h2 className="text-xl font-semibold text-[#111827]">SADU Admin</h2>
                     <p className="text-sm text-[#6b7280]">Manage and assign SADU Admin role</p>
                   </div>
-                  <div className="grid gap-4 grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-1 xl:grid-cols-2">
                     {councilSaduAdviser.map((adviser) => {
                       const isVacant = !adviser.name;
                       return (
@@ -1102,7 +1102,7 @@ const handleSetSaduAdviser = () => {
                       <h2 className="text-xl font-semibold text-[#111827]">CSG Council Officers</h2>
                       <p className="text-sm text-[#6b7280]">Manage and assign council officer positions</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="grid gap-2 sm:grid-cols-1 xl:grid-cols-2">
                       <Button onClick={openCouncilTermModal} className="bg-[#2563EB] hover:bg-blue-700 text-white">
                         Council Term
                       </Button>

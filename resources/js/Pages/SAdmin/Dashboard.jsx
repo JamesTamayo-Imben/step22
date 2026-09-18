@@ -1,6 +1,6 @@
 import React from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import {
   Users,
@@ -140,6 +140,16 @@ const AuditHeatmap = ({ data, heatmapLabel, prevHeatmapMonth, nextHeatmapMonth, 
     };
   };
 
+  const handleMonthChange = (month) => {
+    if (!month) return;
+
+    router.get('/sadmin', { heatmap_month: month }, {
+      preserveScroll: true,
+      preserveState: true,
+      only: ['charts'],
+    });
+  };
+
   return (
     <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
       <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -148,10 +158,22 @@ const AuditHeatmap = ({ data, heatmapLabel, prevHeatmapMonth, nextHeatmapMonth, 
           <p className="text-sm text-gray-500">System activity and tampering events by month.</p>
         </div>
         <div className="flex items-center gap-2">
-          <a href={`/sadmin?heatmap_month=${prevHeatmapMonth}`} className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50">← Prev</a>
+          <button
+            type="button"
+            onClick={() => handleMonthChange(prevHeatmapMonth)}
+            className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
+          >
+            ← Prev
+          </button>
           <div className="rounded-md bg-slate-100 px-3 py-1 text-sm font-medium text-slate-800">{heatmapLabel || 'This month'}</div>
           {canNavigateNext ? (
-            <a href={`/sadmin?heatmap_month=${nextHeatmapMonth}`} className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50">Next →</a>
+            <button
+              type="button"
+              onClick={() => handleMonthChange(nextHeatmapMonth)}
+              className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              Next →
+            </button>
           ) : (
             <span className="rounded-md bg-slate-100 px-3 py-1 text-sm text-slate-400 cursor-not-allowed">Next →</span>
           )}
@@ -164,22 +186,43 @@ const AuditHeatmap = ({ data, heatmapLabel, prevHeatmapMonth, nextHeatmapMonth, 
         <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-slate-200 border border-slate-300" /> No activity</span>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 text-[11px] text-center text-gray-600">
+      <div className="grid grid-cols-7 gap-1 sm:gap-2 text-[11px] text-center text-gray-600">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <div key={day}>{day}</div>)}
       </div>
-      <div className="grid grid-cols-7 gap-2 mt-2">
+      <div className="grid grid-cols-7 gap-1 sm:gap-2 mt-2">
         {Array.from({ length: data[0]?.weekday || 0 }, (_, index) => <div key={`blank-${index}`} className="h-20" />)}
-        {data.map((item) => (
-          <div
-            key={item.date}
-            className={`${getCellStyles(item).className} rounded-xl p-2 h-20 flex flex-col justify-between transition-all`}
-            style={getCellStyles(item).style}
-            title={`${item.label} ${item.date}: ${item.tamperingCount} tampering event${item.tamperingCount !== 1 ? 's' : ''}, ${item.activityCount} system activit${item.activityCount !== 1 ? 'ies' : 'y'}`}
-          >
-            <span className="text-[11px] uppercase tracking-[0.08em]">{item.day}</span>
-            <span className="text-lg font-semibold">{item.tamperingCount + item.activityCount} <span className="text-xs font-normal">events</span></span>
-          </div>
-        ))}
+        {data.map((item) => {
+          const total = Number(item.tamperingCount || 0) + Number(item.activityCount || 0);
+          const hasActivity = total > 0;
+
+          return (
+            <div
+              key={item.date}
+              className={`${getCellStyles(item).className} rounded-xl p-2 h-20 flex flex-col justify-between transition-all ${!hasActivity ? 'opacity-90' : ''}`}
+              style={getCellStyles(item).style}
+              title={`${item.label} ${item.date}: ${item.tamperingCount} tampering event${item.tamperingCount !== 1 ? 's' : ''}, ${item.activityCount} system activit${item.activityCount !== 1 ? 'ies' : 'y'}`}
+            >
+              <span className="text-[11px] uppercase tracking-[0.08em]">{item.day}</span>
+              {hasActivity ? (
+                <span className="flex items-center justify-center text-lg font-semibold">
+                  {item.tamperingCount > 0 && item.activityCount > 0 ? (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-base">⚠</span>
+                      <span className="text-sm">{total}</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-base">{item.tamperingCount > 0 ? '⚠' : '✓'}</span>
+                      <span className="text-sm">{total}</span>
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-500">—</span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </Card>
   );
