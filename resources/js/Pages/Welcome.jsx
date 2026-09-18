@@ -499,7 +499,7 @@ export default function Welcome() {
                   <button className="lg:w-20 lg:h-20 w-14 h-14 bg-white rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-lg">
                     <Play className="lg:w-8 lg:h-8 w-5 h-5 text-blue-600 ml-1" />
                   </button>
-                  <p className="text-white text-lg mt-4">Watch STEP Tutorial</p>
+                  <p className="text-white text-lg mt-4">Watch STEP Introduction</p>
                 </div>
               </div>
             ) : (

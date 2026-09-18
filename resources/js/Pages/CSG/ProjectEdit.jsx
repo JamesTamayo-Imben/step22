@@ -148,7 +148,7 @@ export function DeleteConfirmModal({ open, onClose, onConfirm, title = 'Delete i
       <div className="pt-6">
         <div className="flex gap-3">
           <Button variant="outline" onClick={onClose} className="flex-1 rounded-xl">Cancel</Button>
-          <Button onClick={onConfirm} className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white">Delete</Button>
+          <Button onClick={onConfirm} className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white">Archive</Button>
         </div>
       </div>
     </Modal>
@@ -1142,13 +1142,13 @@ export function EditActionButtons({ onSubmit, onEdit, onDelete }) {
       </Button>
       )}
       {canEditProjects && (
-        <Button onClick={onEdit} variant="outline" className="rounded-xl">
+        <Button onClick={onEdit} variant="outline" className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
           <Edit className="w-4 h-4 mr-2" />Edit Project
         </Button>
       )}
       {canDeleteProjects && (
-        <Button onClick={onDelete} variant="outline" className="rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50">
-          <Trash2 className="w-4 h-4 mr-2" />Delete Project
+        <Button onClick={onDelete} variant="outline" className="rounded-xl border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 hover:bg-red-50">
+          <Trash2 className="w-4 h-4 mr-2" />Archive Project
         </Button>
       )}
     </div>

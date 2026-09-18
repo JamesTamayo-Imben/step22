@@ -368,19 +368,19 @@ function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry, password, onPa
             <p className="mt-1 text-xs text-gray-500">Your password is required to verify this sensitive action.</p>
           </div>
           
-          <div className="flex justify-end space-x-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-            >
-              Cancel
-            </button>
+          <div className="grid grid-cols-2 justify-end space-x-3">
             <button
               onClick={onConfirm}
               disabled={!password}
               className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
             >
               Restore Entry
+            </button>
+             <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              Close
             </button>
           </div>
         </div>
@@ -1065,7 +1065,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                       <p className="text-sm text-red-700 mt-1">
                         This entry has been modified after approval. You can restore it to its approved state using the blockchain snapshot. This includes restoring all fields such as amount, description, type, and budget breakdown.
                       </p>
-                      <div className="flex items-center gap-2">
+                      <div className="grid md:grid-cols-2 grid-cols-1 items-center gap-2">
                         <button
                         type="button"
                         onClick={() => handleFixTampered(selectedEntry)}
@@ -1077,7 +1077,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                               onClick={downloadReport}
                               
                               variant="outline"
-                              className="mt-3 rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-60 text-white w-full sm:w-auto"
+                              className=" md:mt-3 mt-0 rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-60 text-white w-full sm:w-auto"
                             >
                               <Download className="w-4 h-4 mr-2" />
                               Download Report
@@ -1372,17 +1372,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
             />
           </div>
 
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setIsBudgetMismatchModalOpen(false);
-                setBudgetMismatchPassword('');
-              }}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-            >
-              Close
-            </button>
+          <div className="grid md:grid-cols-3 grid-cols-1 justify-end gap-2">
             <button
               type="button"
               onClick={handleFixBudgetMismatch}
@@ -1400,6 +1390,16 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                               <Download className="w-4 h-4 mr-2" />
                               Download Report
                             </Button>
+                            <button
+              type="button"
+              onClick={() => {
+                setIsBudgetMismatchModalOpen(false);
+                setBudgetMismatchPassword('');
+              }}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
       </Modal>
