@@ -527,7 +527,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
                 ))}
               </select>
             </div>
-
+ 
             {/* Terms */}
             <label className="flex items-center gap-2 text-sm text-gray-600">
               <input

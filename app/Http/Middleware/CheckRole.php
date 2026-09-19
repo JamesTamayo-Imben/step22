@@ -50,9 +50,16 @@ class CheckRole
                 ], Response::HTTP_FORBIDDEN);
             }
 
-            // Redirect back to the previous page with error message
-            return redirect()->back()
-                ->with('error', 'You do not have permission to access this resource. Your role (' . ucfirst($userRole ?? 'unknown') . ') is not authorized for this action.');
+            $dashboardRoute = match ($userRole) {
+                'superadmin' => 'sadmin.dashboard',
+                'admin', 'admin-sadu' => 'adviser.dashboard',
+                'csg' => 'csg.dashboard',
+                'student', 'teacher' => 'user.dashboard',
+                default => 'dashboard',
+            };
+
+            return redirect()->route($dashboardRoute)
+                ->with('error', 'Your role has changed. You were redirected to the correct dashboard.');
         }
 
         return $next($request);

@@ -93,6 +93,15 @@ Route::get('/dashboard', function (Request $request) {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+Route::get('/auth/current-role', function (Request $request) {
+    $user = $request->user();
+    $user->load('role');
+
+    return response()->json([
+        'role' => $user->role?->slug,
+    ]);
+})->middleware(['auth', 'verified'])->name('auth.current-role');
+
 // ========== SUPER ADMIN ROUTES (Temporarily without middleware for testing) ==========
 Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function ()  {
     // Super Admin Dashboard

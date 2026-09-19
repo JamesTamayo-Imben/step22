@@ -106,39 +106,39 @@ export default function SuperAdminLoginPage() {
     <div className="min-h-screen flex">
 
       {/* LEFT PANEL */}
-      <div className="hidden md:flex w-2/5 bg-gradient-to-br from-[#155DFC] to-[#193CB8] text-white p-12 flex-col justify-between relative overflow-hidden">
+      <div className="hidden md:flex w-2/5 bg-gradient-to-br from-[#155DFC] to-[#193CB8] h-screen text-white p-12 flex-col justify-between relative overflow-hidden">
 
-        {/* Decorative Circles */}
         <div className="absolute -top-40 -right-40 w-72 h-72 bg-white/10 rounded-full"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-white/10 rounded-full"></div>
 
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="w-8 h-8" />
-            <h1 className="text-3xl font-bold">STEP SuperAdmin</h1>
-          </div>
-          <p className="text-lg text-blue-100">Administrative Access Portal</p>
+          <h1 className="text-4xl font-bold">Welcome to STEP</h1>
+          <p className="text-sm">Administrative Access Portal</p>
 
-          <div className="relative z-10 mt-10 flex justify-center">
-            <div className="mt-20 space-y-4 w-1/2">
+            <div className="relative z-10 mt-10 flex justify-center mb-10">
+            <div className="mt-44 space-y-4 w-1/2">
               <h2 className="text-4xl font-semibold leading-tight">
-                System.<br />
-                Control.<br />
-                Authority.
+                Transparent.<br />
+                Accountable.<br />
+                Trustworthy.
               </h2>
-              <p className="text-white/80 max-w-md">
-                Exclusive administrative interface for system superadministrators
-                and platform management.
-              </p>
+              {/* <p className="text-white/80 max-w-md">
+                Empowering students and organizations with financial transparency
+                and collaborative decision-making.
+              </p> */}
             </div>
 
-            <div className="gap-2 overflow-hidden">
-              <img
-                src="/images/login-bg.png" alt="Login Background"
-                className="w-full object-cover"
-              />
+            <div className="mt-20 gap-2 overflow-hidden">
+              <img src="/images/login-bg.png" alt="Login Background" className="w-full object-cover rounded-[24px] drop-shadow-lg" />
             </div>
+
           </div>
+           <div>
+              <p className="text-white/80 max-w-md">
+                Empowering students and organizations with financial transparency
+                and collaborative decision making. 
+              </p> 
+            </div>
         </div>
       </div>
 
