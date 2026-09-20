@@ -292,7 +292,7 @@ export default function Welcome() {
             <div className="w-10 h-10 rounded-full flex items-center justify-center">
               <span className="rounded-full overflow-hidden">
                 <img
-              src="/images/kldlogo.png" alt="KLD Logo"
+              src="/images/kldlogo.svg" alt="KLD Logo"
               className="w-full object-cover"/></span>
             </div>
             <div className="hidden sm:block border-l border-gray-300 h-8"></div>
