@@ -1,227 +1,189 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
-import { Button } from '@/Components/ui/button';
-import { Input } from '@/Components/ui/input';
-import {
-  Bell,
-  AlertCircle,
-  CheckCircle,
-  Info,
-  Trash2,
-  Search,
-} from 'lucide-react';
+import { Bell, Star, AlertCircle, Calendar, FolderKanban, Award, TrendingUp, FileText, DollarSign, Check } from 'lucide-react';
 
-function showToast(message, type = 'success') {
-  const id = `simple-toast-${Date.now()}`;
-  const el = document.createElement('div');
-  el.id = id;
-  el.className = 'fixed right-4 bottom-6 z-50 px-4 py-2 rounded shadow text-white transition-all';
-  el.style.background = type === 'success' ? '#0ea5e9' : type === 'error' ? '#ef4444' : '#f59e0b';
-  el.textContent = message;
-  document.body.appendChild(el);
-  setTimeout(() => {
-    const e = document.getElementById(id);
-    if (e) e.remove();
-  }, 2200);
-}
+const filters = [
+  { id: 'all', label: 'All' },
+  { id: 'project', label: 'Projects' },
+  { id: 'meeting', label: 'Meetings' },
+  { id: 'system', label: 'System' },
+];
+
+const getIcon = (icon) => {
+  switch (icon) {
+    case 'star':
+      return <Star className="w-5 h-5 text-yellow-600" />;
+    case 'calendar':
+      return <Calendar className="w-5 h-5 text-blue-600" />;
+    case 'project':
+      return <FolderKanban className="w-5 h-5 text-blue-600" />;
+    case 'badge':
+      return <Award className="w-5 h-5 text-purple-600" />;
+    case 'points':
+      return <TrendingUp className="w-5 h-5 text-green-600" />;
+    case 'file':
+      return <FileText className="w-5 h-5 text-gray-600" />;
+    case 'dollar':
+      return <DollarSign className="w-5 h-5 text-blue-600" />;
+    default:
+      return <AlertCircle className="w-5 h-5 text-red-600" />;
+  }
+};
+
+const formatNotificationDate = (value) => {
+  if (!value) return '—';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const month = date.toLocaleString('en-US', { month: 'short' });
+  const day = date.getDate();
+  const year = date.getFullYear();
+  const hour = date.getHours() % 12 || 12;
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  const meridiem = date.getHours() >= 12 ? 'PM' : 'AM';
+
+  return `${month} ${day}, ${year} ${String(hour).padStart(2, '0')}:${minute} ${meridiem}`;
+};
 
 export default function NotificationsPage() {
-  // 1. Get real data from our Laravel Middleware Connection
   const { auth } = usePage().props;
-  const initialNotifications = auth.notifications || [];
+  const [notifications, setNotifications] = useState([]);
+  const [selectedFilter, setSelectedFilter] = useState('all');
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('All');
-  const [showUnread, setShowUnread] = useState(false);
+  useEffect(() => {
+    setNotifications(Array.isArray(auth?.notifications) ? auth.notifications.map((n) => ({
+      ...n,
+      isRead: Boolean(n.isRead ?? n.is_read ?? n.read_at),
+      type: String(n.type || 'system').toLowerCase(),
+    })) : []);
+  }, [auth]);
 
-  // Categories based on your DB "type" column
-  const categories = ['All', 'alert', 'info', 'success', 'warning'];
+  const filteredNotifications = selectedFilter === 'all'
+    ? notifications
+    : notifications.filter((n) => String(n.type || 'system').toLowerCase() === selectedFilter);
 
-  const filteredNotifications = initialNotifications.filter((notif) => {
-    const matchesSearch = notif.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          notif.message?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === 'All' || notif.type === filterCategory.toLowerCase();
-    const matchesReadStatus = !showUnread || notif.is_read === 0;
-    return matchesSearch && matchesCategory && matchesReadStatus;
-  });
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  const unreadCount = initialNotifications.filter((n) => n.is_read === 0).length;
-
-  // 2. Real Logic: Mark as Read in Database
   const handleMarkAsRead = (id) => {
     router.post(`/sadmin/notifications/read/${id}`, {}, {
       preserveScroll: true,
-      onSuccess: () => showToast('Marked as read', 'success'),
+      onSuccess: () => {
+        setNotifications((current) => current.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+        router.reload({ preserveScroll: true });
+      },
     });
   };
 
   const handleMarkAllAsRead = () => {
     router.post('/sadmin/notifications/mark-all-read', {}, {
-      onSuccess: () => showToast('All notifications marked as read', 'success'),
-    });
-  };
-
-  // 3. Real Logic: Archive (instead of hard delete)
-  const handleDelete = (id) => {
-    router.post(`/sadmin/notifications/archive/${id}`, {}, {
       preserveScroll: true,
-      onSuccess: () => showToast('Notification archived', 'success'),
+      onSuccess: () => {
+        setNotifications((current) => current.map((n) => ({ ...n, isRead: true })));
+        router.reload({ preserveScroll: true });
+      },
     });
-  };
-
-  const getIconAndColor = (type) => {
-    switch (type) {
-      case 'alert':
-        return { icon: AlertCircle, bg: 'bg-red-100', text: 'text-red-600' };
-      case 'warning':
-        return { icon: AlertCircle, bg: 'bg-yellow-100', text: 'text-yellow-600' };
-      case 'success':
-        return { icon: CheckCircle, bg: 'bg-green-100', text: 'text-green-600' };
-      case 'info':
-        return { icon: Info, bg: 'bg-blue-100', text: 'text-blue-600' };
-      default:
-        return { icon: Bell, bg: 'bg-gray-100', text: 'text-gray-600' };
-    }
   };
 
   return (
-    <AuthenticatedLayout 
-        user={auth.user}
-        header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Notifications</h2>}
-    >
+    <AuthenticatedLayout user={auth.user} header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Notifications</h2>}>
       <Head title="Notifications" />
-      <div className="py-8 px-4 lg:px-0 md:px-0">
-        <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Notifications</h1>
-                {/* <p className="text-gray-500">System-wide alerts for {auth.user.name}</p> */}
-                <p className="text-gray-500">System-wide alerts for {auth.user?.name || 'Admin'}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {unreadCount > 0 && (
-                  <Button variant="outline" onClick={handleMarkAllAsRead} className="rounded-xl">
-                    Mark All Read
-                  </Button>
-                )}
-              </div>
-            </div>
 
-            {/* Unread Badge */}
-            {unreadCount > 0 && (
-              <Card className="rounded-[20px] border-0 shadow-sm p-4 bg-blue-50 border-l-4 border-blue-600">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-blue-900">
-                      You have {unreadCount} new notification{unreadCount > 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <Bell className="w-5 h-5 text-blue-600" />
-                </div>
-              </Card>
-            )}
+      <div className="space-y-6 pb-6 px-4 py-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-blue-600 text-2xl font-semibold">Notifications</h1>
+            <p className="text-gray-500">
+              {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
+            </p>
+          </div>
 
-            {/* Search and Filter */}
-            <Card className="rounded-[20px] border-0 shadow-sm p-6">
-              <div className="space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search by title or message..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 h-10 rounded-xl border border-gray-300 bg-gray-50"
-                  />
-                </div>
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={handleMarkAllAsRead}
+              className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 whitespace-nowrap"
+            >
+              <Check className="w-4 h-4" />
+              Mark all as read
+            </button>
+          )}
+        </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setFilterCategory(cat)}
-                      className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-all ${
-                        filterCategory === cat
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </button>
-                  ))}
-                </div>
+        <div className="relative flex items-center gap-2 overflow-x-auto pb-2 sm:pb-2">
+          {selectedFilter && (
+            <div className="pointer-events-none absolute right-0 top-0 hidden h-full w-12 bg-gradient-to-l from-gray-100 via-gray-200/60 to-transparent sm:block" />
+          )}
+          {filters.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => setSelectedFilter(filter.id)}
+              className={`relative px-4 py-2 rounded-full w-[100px] whitespace-nowrap transition-all ${
+                selectedFilter === filter.id
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-3">
+          {filteredNotifications.length === 0 ? (
+            <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
+              <div className="text-center">
+                <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">No notifications found</p>
+                <p className="text-xs text-gray-400 mt-1">No notifications match your filters</p>
               </div>
             </Card>
+          ) : (
+            filteredNotifications.map((notification) => (
+              <Card
+                key={notification.id}
+                className={`rounded-[20px] border-0 shadow-sm p-4 transition-all hover:shadow-md cursor-pointer ${
+                  !notification.isRead ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+                }`}
+                onClick={() => {
+                  if (!notification.isRead) {
+                    handleMarkAsRead(notification.id);
+                  }
+                }}
+              >
+                <div className="flex gap-4">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    !notification.isRead ? 'bg-white shadow-sm' : 'bg-gray-100'
+                  }`}>
+                    {getIcon(notification.icon)}
+                  </div>
 
-            {/* Notifications List */}
-            <div className="space-y-3">
-              {filteredNotifications.length > 0 ? (
-                filteredNotifications.map((notif) => {
-                  const { icon: Icon, bg, text } = getIconAndColor(notif.type);
-                  return (
-                    <Card
-                      key={notif.id}
-                      className={`rounded-[20px] border-0 shadow-sm p-4 transition-all ${
-                        notif.is_read === 0 ? 'bg-blue-50 border-l-2 border-blue-400' : 'bg-white hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${bg}`}>
-                          <Icon className={`w-5 h-5 ${text}`} />
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-semibold text-gray-900">
-                            {notif.title}
-                            {notif.is_read === 0 && (
-                              <span className="ml-2 inline-block w-2 h-2 bg-blue-600 rounded-full"></span>
-                            )}
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">{notif.message}</p>
-                          <div className="flex items-center gap-3 mt-2">
-                            <span className="text-xs text-gray-500">
-                                {new Date(notif.created_at).toLocaleDateString()}
-                            </span>
-                            <span className="inline-block px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded-full italic">
-                              {notif.type}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {notif.is_read === 0 && (
-                            <button
-                              onClick={() => handleMarkAsRead(notif.id)}
-                              className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"
-                              title="Mark as read"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDelete(notif.id)}
-                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg"
-                            title="Archive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <h3 className="text-gray-900 font-semibold">{notification.title}</h3>
+                      {!notification.isRead && (
+                        <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-2" />
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">{notification.message}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <span>{formatNotificationDate(notification.timestamp || notification.created_at)}</span>
                       </div>
-                    </Card>
-                  );
-                })
-              ) : (
-                <div className="text-center py-12">
-                   <Bell className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                   <p className="text-gray-500">No notifications found.</p>
+                      {!notification.isRead && (
+                        <span className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors">
+                          Mark as read
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
+              </Card>
+            ))
+          )}
         </div>
       </div>
     </AuthenticatedLayout>

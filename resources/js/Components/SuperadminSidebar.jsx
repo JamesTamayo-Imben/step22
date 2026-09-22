@@ -13,6 +13,9 @@ import {
   Settings,
   X,
   LogOut,
+  MoreHorizontal,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 
@@ -27,7 +30,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     { id: 'archived-projects', label: 'Archived Items', icon: Archive },
     // { id: 'ledger-entries', label: 'Ledger Entries', icon: BookOpenText },
     // { id: 'meetings', label: 'Meetings', icon: CalendarDays },
-    { id: 'system-logs', label: 'System Logs', icon: FileText },
+    { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
     { id: 'system-settings', label: 'Blockchain', icon: Settings },
     // { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
     // { id: 'data-backup', label: 'Data & Backup', icon: Database },
@@ -38,6 +41,15 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     // { id: 'profile', label: 'Profile', icon: User },
   ];
 
+  const otherNavItems = [
+    { id: 'master-data', label: 'Master Data', icon: BookOpenText },
+    { id: 'global-reports', label: 'Global Reports', icon: FileText },
+    { id: 'notifications', label: 'Notifications', icon: CalendarDays },
+    { id: 'profile', label: 'Profile', icon: Users },
+  ];
+
+  const [isOthersOpen, setIsOthersOpen] = useState(false);
+
   function getViewFromPath() {
     if (typeof window === 'undefined') return 'dashboard';
     const p = window.location.pathname;
@@ -47,12 +59,12 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     if (p.startsWith('/sadmin/archived-projects')) return 'archived-projects';
     if (p.startsWith('/sadmin/ledger-entries')) return 'ledger-entries';
     if (p.startsWith('/sadmin/meetings')) return 'meetings';
-    if (p.startsWith('/sadmin/system-logs')) return 'system-logs';
-    if (p.startsWith('/sadmin/settings')) return 'system-settings';
     if (p.startsWith('/sadmin/audit-logs')) return 'audit-logs';
+    if (p.startsWith('/sadmin/settings')) return 'system-settings';
     if (p.startsWith('/sadmin/data-backup')) return 'data-backup';
     if (p.startsWith('/sadmin/engagement-rules')) return 'engagement-rules';
     if (p.startsWith('/sadmin/master-data')) return 'master-data';
+    if (p.startsWith('/sadmin/organizations')) return 'organizations';
     if (p.startsWith('/sadmin/global-reports')) return 'global-reports';
     if (p.startsWith('/sadmin/notifications')) return 'notifications';
     if (p.startsWith('/sadmin/profile')) return 'profile';
@@ -70,6 +82,12 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
   }, [url]);
 
   useEffect(() => {
+    if (otherNavItems.some((item) => item.id === selectedView)) {
+      setIsOthersOpen(true);
+    }
+  }, [selectedView]);
+
+  useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
     return () => {
       document.body.style.overflow = '';
@@ -84,12 +102,12 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
       'archived-projects': '/sadmin/archived-projects',
       'ledger-entries': '/sadmin/ledger-entries',
       meetings: '/sadmin/meetings',
-      'system-logs': '/sadmin/system-logs',
-      'system-settings': '/sadmin/settings',
       'audit-logs': '/sadmin/audit-logs',
+      'system-settings': '/sadmin/settings',
       'data-backup': '/sadmin/data-backup',
       'engagement-rules': '/sadmin/engagement-rules',
       'master-data': '/sadmin/master-data',
+      organizations: '/sadmin/organizations',
       'global-reports': '/sadmin/global-reports',
       notifications: '/sadmin/notifications',
       profile: '/sadmin/profile',
@@ -185,6 +203,47 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
                 </li>
               );
             })}
+
+            <li>
+              <button
+                type="button"
+                onClick={() => setIsOthersOpen((v) => !v)}
+                className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-gray-600 transition-all hover:bg-blue-50"
+              >
+                <span className="flex items-center gap-3">
+                  <MoreHorizontal className="w-5 h-5" />
+                  <span>Others</span>
+                </span>
+                {isOthersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {isOthersOpen && (
+                <ul className="mt-2 space-y-1 pl-4">
+                  {otherNavItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = (currentView ? currentView === item.id : selectedView === item.id);
+                    return (
+                      <li key={item.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            setIsOthersOpen(true);
+                            handleNavigate(item.id);
+                          }}
+                          className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all ${
+                            isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-blue-50'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span>{item.label}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </li>
           </ul>
         </nav>
 
@@ -244,6 +303,46 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
                 </li>
               );
             })}
+
+            <li>
+              <button
+                type="button"
+                onClick={() => setIsOthersOpen((v) => !v)}
+                className="w-full flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-gray-600 transition-all hover:bg-blue-50"
+              >
+                <span className="flex items-center gap-3">
+                  <MoreHorizontal className="w-5 h-5" />
+                  <span>Others</span>
+                </span>
+                {isOthersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {isOthersOpen && (
+                <ul className="mt-2 space-y-1 pl-4">
+                  {otherNavItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = (currentView ? currentView === item.id : selectedView === item.id);
+                    return (
+                      <li key={item.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsOthersOpen(true);
+                            handleNavigate(item.id);
+                          }}
+                          className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all ${
+                            isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-blue-50'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span>{item.label}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </li>
           </ul>
         </nav>
 

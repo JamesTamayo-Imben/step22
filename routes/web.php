@@ -7,7 +7,7 @@ use App\Http\Controllers\Adviser\AdviserLedgerController;
 use App\Http\Controllers\Adviser\AdviserNotificationController;
 use App\Http\Controllers\Adviser\AdviserPermissionController;
 use App\Http\Controllers\Adviser\AdviserRatingsController;
-use App\Http\Controllers\Adviser\AdviserSystemLogsController;
+use App\Http\Controllers\Adviser\AdviserAuditLogsController;
 use App\Http\Controllers\BlockchainController;
 use App\Http\Controllers\CSG\CSGDashboardController;
 use App\Http\Controllers\CSG\CSGNotificationController;
@@ -20,8 +20,10 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\SAdmin\SAdminDashboardController;
 use App\Http\Controllers\SAdmin\SAdminArchivedItemsController;
-use App\Http\Controllers\SAdmin\SAdminSystemLogsController;
+use App\Http\Controllers\SAdmin\SAdminAuditLogsController;
 use App\Http\Controllers\SAdmin\SAdminBlockchainController;
+use App\Http\Controllers\SAdmin\SAdminGlobalReportsController;
+use App\Http\Controllers\SAdmin\SAdminMasterDataController;
 use App\Http\Controllers\SAdmin\UserManagementController;
 use App\Http\Controllers\User\UserProjectController;
 use App\Models\AuditLog;
@@ -147,8 +149,8 @@ Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function ()  {
         ]);
     })->name('sadmin.meetings');
 
-    Route::get('/sadmin/system-logs', [SAdminSystemLogsController::class, 'index'])->name('sadmin.system-logs');
-    Route::get('/sadmin/system-logs/export', [SAdminSystemLogsController::class, 'export'])->name('sadmin.system-logs.export');
+    Route::get('/sadmin/audit-logs', [SAdminAuditLogsController::class, 'index'])->name('sadmin.audit-logs');
+    Route::get('/sadmin/audit-logs/export', [SAdminAuditLogsController::class, 'export'])->name('sadmin.audit-logs.export');
 
     // Admin Pages
     Route::get('/sadmin/data-backup', function () {
@@ -162,21 +164,24 @@ Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function ()  {
     Route::get('/sadmin/settings', [SAdminBlockchainController::class, 'index'])->name('sadmin.settings');
     Route::get('/sadmin/settings/blockchain/verify', [SAdminBlockchainController::class, 'verify'])->name('sadmin.settings.blockchain.verify');
 
-    Route::get('/sadmin/audit-logs', function () {
-        return Inertia::render('SAdmin/AuditLogs');
-    })->name('sadmin.audit-logs');
-
     Route::get('/sadmin/engagement-rules', function () {
         return Inertia::render('SAdmin/EngagementRules');
     })->name('sadmin.engagement-rules');
 
-    Route::get('/sadmin/master-data', function () {
-        return Inertia::render('SAdmin/MasterData');
-    })->name('sadmin.master-data');
+    Route::get('/sadmin/master-data', [SAdminMasterDataController::class, 'index'])->name('sadmin.master-data');
+    Route::post('/sadmin/master-data/institutes', [SAdminMasterDataController::class, 'storeInstitute'])->name('sadmin.master-data.institutes.store');
+    Route::put('/sadmin/master-data/institutes/{id}', [SAdminMasterDataController::class, 'updateInstitute'])->name('sadmin.master-data.institutes.update');
+    Route::delete('/sadmin/master-data/institutes/{id}', [SAdminMasterDataController::class, 'destroyInstitute'])->name('sadmin.master-data.institutes.destroy');
 
-    Route::get('/sadmin/global-reports', function () {
-        return Inertia::render('SAdmin/GlobalReports');
-    })->name('sadmin.global-reports');
+    Route::post('/sadmin/master-data/courses', [SAdminMasterDataController::class, 'storeCourse'])->name('sadmin.master-data.courses.store');
+    Route::put('/sadmin/master-data/courses/{id}', [SAdminMasterDataController::class, 'updateCourse'])->name('sadmin.master-data.courses.update');
+    Route::delete('/sadmin/master-data/courses/{id}', [SAdminMasterDataController::class, 'destroyCourse'])->name('sadmin.master-data.courses.destroy');
+
+    Route::post('/sadmin/master-data/positions', [SAdminMasterDataController::class, 'storePosition'])->name('sadmin.master-data.positions.store');
+    Route::put('/sadmin/master-data/positions/{id}', [SAdminMasterDataController::class, 'updatePosition'])->name('sadmin.master-data.positions.update');
+    Route::delete('/sadmin/master-data/positions/{id}', [SAdminMasterDataController::class, 'destroyPosition'])->name('sadmin.master-data.positions.destroy');
+
+    Route::get('/sadmin/global-reports', [SAdminGlobalReportsController::class, 'index'])->name('sadmin.global-reports');
 
     Route::get('/sadmin/notifications', function () {
         return Inertia::render('SAdmin/Notifications');
@@ -257,9 +262,9 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
     Route::post('/adviser/notifications/read/{id}', [AdviserNotificationController::class, 'markRead'])->name('adviser.notifications.read');
     Route::post('/adviser/notifications/mark-all-read', [AdviserNotificationController::class, 'markAllRead'])->name('adviser.notifications.mark-all-read');
 
-    // System Pages
-    Route::get('/adviser/system-logs', [AdviserSystemLogsController::class, 'index'])->name('adviser.system-logs');
-    Route::get('/adviser/system-logs/export', [AdviserSystemLogsController::class, 'export'])->name('adviser.system-logs.export');
+    // Audit Pages
+    Route::get('/adviser/audit-logs', [AdviserAuditLogsController::class, 'index'])->name('adviser.audit-logs');
+    Route::get('/adviser/audit-logs/export', [AdviserAuditLogsController::class, 'export'])->name('adviser.audit-logs.export');
 
     // Recent Activity
     Route::get('/adviser/recent-activity', function (Request $request) {

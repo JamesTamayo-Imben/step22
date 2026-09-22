@@ -240,49 +240,57 @@ const getStatusColor = (status) => {
       )}
 
       {canViewProjects && (
-        <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
+        <div className="text-card-foreground flex flex-col gap-6 p-6 rounded-[20px] border-0 shadow-sm bg-white">
+          <div className="flex flex-col gap-6 mb-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-gray-900">Project Calendar</h2>
+              <h2 className="text-gray-900 font-semibold">Project Calendar</h2>
               <p className="text-sm text-gray-500">Track project start and end dates.</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full items-center justify-between gap-1.5 sm:w-auto sm:justify-center">
               <button
                 type="button"
                 onClick={() => shiftCalendarMonth(-1)}
-                className="p-2 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50"
+                className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
                 aria-label="Previous month"
               >
-                <ChevronLeft className="w-4 h-4" />
+               ← Prev
               </button>
-              <span className="min-w-32 text-center text-sm font-medium text-gray-800">{calendarMonthLabel}</span>
+              <div className="flex-1 rounded-md bg-slate-100 px-3 py-1 text-center text-sm font-medium text-slate-800 sm:flex-none">
+                {calendarMonthLabel}
+              </div>
               <button
                 type="button"
                 onClick={() => shiftCalendarMonth(1)}
-                className="p-2 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50"
+                className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
                 aria-label="Next month"
               >
-                <ChevronRight className="w-4 h-4" />
+                Next →
               </button>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 mb-4 text-xs text-gray-600">
+          <div className="flex gap-3 text-xs text-gray-600 mb-4 w-full items-center justify-between sm:w-auto sm:justify-start">
             <span className="inline-flex items-center gap-2">
               <span className="h-3 w-3 rounded-sm bg-blue-600" /> Project starts
             </span>
             <span className="inline-flex items-center gap-2">
               <span className="h-3 w-3 rounded-sm bg-amber-500" /> Project ends
             </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-3 w-3 rounded-sm bg-slate-200 border border-slate-300" /> No activity
+            </span>
           </div>
 
-          <div className="grid grid-cols-7 gap-2 text-[11px] text-center text-gray-500 mb-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 text-[11px] text-center text-gray-600">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <div key={day}>{day}</div>)}
           </div>
 
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-1 sm:gap-2 mt-2">
+            {Array.from({ length: calendarDays[0]?.key?.startsWith('blank-') ? calendarDays.filter((cell) => cell.key.startsWith('blank-')).length : 0 }, (_, index) => (
+              <div key={`blank-${index}`} className="h-20 rounded-xl bg-transparent" />
+            ))}
             {calendarDays.map((cell) => {
-              if (!cell.day) return <div key={cell.key} className="min-h-20 rounded-xl bg-transparent" />;
+              if (!cell.day) return <div key={cell.key} className="h-20 rounded-xl bg-transparent" />;
 
               const hasStart = cell.projectsStarting.length > 0;
               const hasEnd = cell.projectsEnding.length > 0;
@@ -294,21 +302,42 @@ const getStatusColor = (status) => {
               return (
                 <div
                   key={cell.key}
-                  className={`min-h-20 rounded-xl p-2 border flex flex-col gap-1 ${
+                  className={`h-20 rounded-xl p-2 flex flex-col justify-between transition-all ${
                     hasStart && hasEnd
-                      ? 'bg-gradient-to-br from-blue-50 to-amber-50 border-blue-200'
+                      ? 'bg-gradient-to-br from-blue-50 to-amber-50 border border-blue-200'
                       : hasStart
-                      ? 'bg-blue-50 border-blue-200'
+                      ? 'bg-blue-50 border border-blue-200'
                       : hasEnd
-                      ? 'bg-amber-50 border-amber-200'
-                      : 'bg-gray-50 border-gray-100'
+                      ? 'bg-amber-50 border border-amber-200'
+                      : 'bg-slate-200 text-slate-700 border border-slate-300 opacity-90'
                   }`}
                   title={projectNames.join(' | ') || undefined}
                 >
-                  <span className="text-xs font-semibold text-gray-700">{cell.day}</span>
-                  {hasStart && <span className="truncate rounded bg-blue-600 px-1 py-0.5 text-[10px] text-white">Start</span>}
-                  {hasEnd && <span className="truncate rounded bg-amber-500 px-1 py-0.5 text-[10px] text-white">End</span>}
-                  {projectNames.length > 0 && <span className={`${hasStart ? 'bg-blue-600' : 'bg-amber-500'} text-white px-1 py-0.5 text-[10px] rounded`}>{projectNames[0].replace(/^(Starts|Ends): /, '')}</span>}
+                  <span className="text-[11px] uppercase tracking-[0.08em] text-gray-700">{cell.day}</span>
+                  {projectNames.length > 0 ? (
+                    <div className="flex h-full items-center justify-center">
+                      <div className="flex flex-col items-center justify-center text-center gap-0.5 sm:gap-1">
+                        <span className="inline-flex items-center gap-1 text-sm font-semibold leading-none text-gray-700">
+                          {hasStart && hasEnd ? (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="text-base">✓</span>
+                              <span>{projectNames.length}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="text-base">{hasStart ? '✓' : '•'}</span>
+                              <span>{projectNames.length}</span>
+                            </span>
+                          )}
+                        </span>
+                        <span className="hidden text-[10px] font-medium leading-none text-gray-600 sm:block">
+                          {hasStart && hasEnd ? 'starts & ends' : hasStart ? 'starts' : 'ends'}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-slate-500">—</span>
+                  )}
                 </div>
               );
             })}

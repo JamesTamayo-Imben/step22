@@ -59,7 +59,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
     { id: 'feedback-review', label: 'Role & Permissions', icon: ShieldCheck },
     // { id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp },
     ...(canRatings ? [{ id: 'ratings-analytics', label: 'Ratings & Analytics', icon: TrendingUp }] : []),
-    { id: 'system-logs', label: 'System Logs', icon: FileText },
+    { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
     //  { id: 'notifications', label: 'Notifications', icon: Bell },
     ...(canNotifications ? [{ id: 'notifications', label: 'Notifications', icon: Bell }] : []),
     { id: 'profile', label: 'Profile', icon: User },
@@ -76,7 +76,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
     if (p.startsWith('/adviser/notifications')) return 'notifications';
     if (p.startsWith('/adviser/role-permissions')) return 'feedback-review';
     if (p.startsWith('/adviser/ratings')) return 'ratings-analytics';
-    if (p.startsWith('/adviser/system-logs')) return 'system-logs';
+    if (p.startsWith('/adviser/audit-logs')) return 'audit-logs';
     if (p.startsWith('/adviser/profile')) return 'profile';
     if (p === '/adviser' || p.startsWith('/adviser')) return 'dashboard';
     return 'dashboard';
@@ -201,7 +201,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                             notifications: '/adviser/notifications',
                             'feedback-review': '/adviser/role-permissions',
                             'ratings-analytics': '/adviser/ratings',
-                            'system-logs': '/adviser/system-logs',
+                            'audit-logs': '/adviser/audit-logs',
                             profile: '/adviser/profile',
                           };
                           const url = map[item.id] || '/adviser';
@@ -288,7 +288,7 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
                         notifications: '/adviser/notifications',
                         'feedback-review': '/adviser/role-permissions',
                         'ratings-analytics': '/adviser/ratings',
-                        'system-logs': '/adviser/system-logs',
+                        'audit-logs': '/adviser/audit-logs',
                         profile: '/adviser/profile',
                       };
                       const url = map[item.id] || '/adviser';

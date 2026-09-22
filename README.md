@@ -263,7 +263,7 @@ lint (Pint + ESLint) → test (PHPUnit + npm test) → build (composer + vite) �
 | Signal | Where to find it |
 |---|---|
 | Application logs | `storage/logs/laravel.log` (`tail -f storage/logs/laravel.log`), or live-stream via `php artisan pail` |
-| Domain audit trail | `audit_logs` table (`AuditLog` model) — user actions, module, IP, browser info; queryable by Superadmin at `/sadmin/system-logs` |
+| Domain audit trail | `audit_logs` table (`AuditLog` model) — user actions, module, IP, browser info; queryable by Superadmin at `/sadmin/audit-logs` |
 | Ledger integrity | Per-project chain verification via `BlockchainController@verify` — recomputes hashes and reports whether the chain is intact |
 | Queue health | No dashboard today — inspect the `jobs` / `failed_jobs` tables directly, or run `php artisan queue:failed` |
 | Errors | Laravel's default exception handler + `storage/logs` — no external error tracker (Sentry/Bugsnag) wired up today |
