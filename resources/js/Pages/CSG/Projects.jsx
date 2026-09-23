@@ -99,7 +99,7 @@ const normalizeProject = (p) => ({
   createdAt: p.created_at || p.createdAt || '',
   proposedBy: p.proposed_by || p.proposedBy || '',
   note: p.note || '',
-  approveBy: p.approveBy || p.approve_by || '',
+  approveBy: p.approveBy || p.approverName || (p.approver && p.approver.name) || (!/^\d+$/.test(String(p.approve_by || '')) && !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(p.approve_by || '')) ? p.approve_by : '') || '',
   projectProof: p.project_proof || p.projectProof || null,
   createdBy: p.createdBy || p.created_by || null,
   updatedBy: p.updated_by || p.updatedBy || null,

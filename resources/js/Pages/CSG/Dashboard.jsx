@@ -38,6 +38,7 @@ import {
   Calendar1,
   ArrowUp,
   ArrowDown,
+  MoreHorizontal,
 } from 'lucide-react';
 
 import ProjectsPage from './Projects';
@@ -234,6 +235,8 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   const canViewLedgers = userPermissions.includes('ledger.view');
   const canViewMeetings = userPermissions.includes('meetings.view');
   const canViewProjects = userPermissions.includes('projects.view');
+
+  const [recommendationMenuOpen, setRecommendationMenuOpen] = useState(null);
 
   const [ledgerForm, setLedgerForm] = useState({
     type: 'Expense',
@@ -865,7 +868,7 @@ const formatHeatmapTooltip = (item) => {
     createdAt: p.created_at || p.createdAt || '',
     proposedBy: p.proposed_by || p.proposedBy || '',
     note: p.note || '',
-    approveBy: p.approve_by || p.approveBy || '',
+    approveBy: p.approveBy || p.approverName || (p.approver && p.approver.name) || (!/^\d+$/.test(String(p.approve_by || '')) && !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(String(p.approve_by || '')) ? p.approve_by : '') || '',
     projectProof: p.project_proof || p.projectProof || null,
     createdBy: p.created_by || p.createdBy || null,
     updatedBy: p.updated_by || p.updatedBy || null,
@@ -1214,7 +1217,7 @@ const formatHeatmapTooltip = (item) => {
           iconBg="bg-blue-50"
           iconColor="text-blue-600"
           cardName="activeProjects"
-          onClick={handleStatCardClick}
+          onClick={() => router.visit('/csg/projects')}
         />
         <StatsCard
           title="Avg. Net Per Project"
@@ -1224,7 +1227,7 @@ const formatHeatmapTooltip = (item) => {
           iconBg="bg-green-50"
           iconColor="text-green-600"
           cardName="avgNetPerProject"
-          onClick={handleStatCardClick}
+          onClick={() => router.visit('/csg/ledger')}
         />
         <StatsCard
           title="Upcoming Meetings"
@@ -1234,7 +1237,7 @@ const formatHeatmapTooltip = (item) => {
           iconBg="bg-gray-50"
           iconColor="text-gray-600"
           cardName="upcomingMeetings"
-          onClick={handleStatCardClick}
+          onClick={() => router.visit('/csg/meetings')}
         />
         <StatsCard
           title="Avg. Rating"
@@ -1244,58 +1247,189 @@ const formatHeatmapTooltip = (item) => {
           iconBg="bg-yellow-50"
           iconColor="text-yellow-600"
           cardName="avgRating"
-          onClick={handleStatCardClick}
+          onClick={() => router.visit('/csg/ratings')}
         />
       </div>
 
       {/* Project recommendations */}
-      <div className="">
-        <div className="bg-white border p-4 rounded-xl">
-          <h1 className="text-blue-700">Project Recommendations</h1>
-
-          {recommendedProjects.length === 0 ? (
-            <p className="text-base text-gray-700">There are no recommended projects as of now because the cycle has not begun yet.</p>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-base text-gray-700">Recommended from best-performing past projects near the current month.</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {recommendedProjects.map((project, index, projects) => {
-                  const highestRating = Math.max(...projects.map((item) => Number(item.averageRating) || 0), 0);
-                  const highestIncome = Math.max(...projects.map((item) => Number(item.income) || 0), 0);
-                  const recommendationReason = Number(project.averageRating) === highestRating
-                    ? 'Recommended because this project has the highest rating.'
-                    : Number(project.income) === highestIncome
-                      ? 'Recommended because this project has the highest income.'
-                      : 'Recommended based on strong recent performance.';
-
-                  return (
-                  <Card key={project.id} className="rounded-[20px] border border-blue-500 bg-white p-4 shadow-sm">
-                    <div className="">
-                      <h2 className="text-sm font-semibold text-gray-900 line-clamp-2">{project.title || 'Untitled Project'}</h2>
-                      <p className="text-xs text-gray-500">{project.category || project.venue || 'Recommended project'}</p>
-                    </div>
-                    <div className="text-sm text-gray-600 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span>Average Rating</span>
-                        <span className="font-semibold text-blue-700">{project.averageRating.toFixed(1)}/5</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>Income</span>
-                        <span className="font-semibold text-blue-700">₱{project.income.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>Timeline</span>
-                        <span className="font-semibold text-blue-700">{formatTimeline(project)}</span>
-                      </div>
-                      <p className="pt-2 text-xs text-blue-500">Note: {recommendationReason}</p>
-                    </div>
-                  </Card>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+      <div className="rounded-[20px] border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-blue-700">Project Recommendations</h2>
+            <p className="text-sm text-gray-500">Best-performing project picks by key success metrics.</p>
+          </div>
         </div>
+
+        {recommendedProjects.length === 0 ? (
+          <p className="text-sm text-gray-600">There are no recommended projects as of now because the cycle has not begun yet.</p>
+        ) : (
+          (() => {
+            const safeProjects = recommendedProjects.filter(Boolean);
+            if (!safeProjects.length) {
+              return <p className="text-sm text-gray-600">No recommendation data is available yet.</p>;
+            }
+
+            const highestRatingProject = safeProjects.reduce((best, current) => {
+              const bestScore = Number(best?.averageRating || 0);
+              const currentScore = Number(current?.averageRating || 0);
+              return currentScore > bestScore ? current : best;
+            }, safeProjects[0]);
+
+            const highestIncomeProject = safeProjects.reduce((best, current) => {
+              const bestScore = Number(best?.income || 0);
+              const currentScore = Number(current?.income || 0);
+              return currentScore > bestScore ? current : best;
+            }, safeProjects[0]);
+
+            const bestTimelineProject = safeProjects.reduce((best, current) => {
+              const now = new Date();
+              const getTimelineScore = (project) => {
+                const start = project?.start_date ? new Date(project.start_date) : null;
+                const end = project?.end_date ? new Date(project.end_date) : null;
+                if (!start || !end) return 0;
+
+                const durationDays = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
+                const started = start <= now;
+                const ended = end < now;
+                const progress = started && !ended ? Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100)) : ended ? 100 : 0;
+                return progress + (durationDays > 0 ? Math.min(durationDays / 90, 30) : 0);
+              };
+
+              return getTimelineScore(current) > getTimelineScore(best) ? current : best;
+            }, safeProjects[0]);
+
+            const overallWinner = safeProjects.reduce((best, current) => {
+              const getOverallScore = (project) => {
+                const ratingScore = Number(project?.averageRating || 0) * 40;
+                const incomeScore = Math.min(Number(project?.income || 0) / 1000, 200);
+                const timelineScore = (() => {
+                  const start = project?.start_date ? new Date(project.start_date) : null;
+                  const end = project?.end_date ? new Date(project.end_date) : null;
+                  if (!start || !end) return 0;
+                  const duration = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
+                  return Math.min(duration / 10, 50);
+                })();
+
+                return ratingScore + incomeScore + timelineScore;
+              };
+
+              return getOverallScore(current) > getOverallScore(best) ? current : best;
+            }, safeProjects[0]);
+
+            const cards = [
+              {
+                key: 'overall',
+                title: 'Highest Overall',
+                project: overallWinner,
+                valueLabel: 'Overall',
+                value: `${Number(overallWinner.averageRating || 0).toFixed(1)}/5 • ₱${Number(overallWinner.income || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                reason: 'Recommended because it performs best across rating, income, and timeline.',
+                accent: 'bg-violet-50 text-violet-700 border-violet-200',
+                valueClass: 'text-violet-700',
+              },
+              {
+                key: 'rating',
+                title: 'Average Rating',
+                project: highestRatingProject,
+                valueLabel: 'Rating',
+                value: `${Number(highestRatingProject.averageRating || 0).toFixed(1)}/5`,
+                reason: 'Recommended because it has the strongest average student rating.',
+                accent: 'bg-amber-50 text-amber-700 border-amber-200',
+                valueClass: 'text-amber-700',
+              },
+              {
+                key: 'income',
+                title: 'Income',
+                project: highestIncomeProject,
+                valueLabel: 'Income',
+                value: `₱${Number(highestIncomeProject.income || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                reason: 'Recommended because it generated the highest project income.',
+                accent: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                valueClass: 'text-emerald-700',
+              },
+              {
+                key: 'timeline',
+                title: 'Timeline',
+                project: bestTimelineProject,
+                valueLabel: 'Timeline',
+                value: formatTimeline(bestTimelineProject),
+                reason: 'Recommended because it has the most balanced and active schedule.',
+                accent: 'bg-sky-50 text-sky-700 border-sky-200',
+                valueClass: 'text-sky-700',
+              },
+            ];
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {cards.map((card) => (
+                  <div key={card.key} className="rounded-[20px] border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className={`inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${card.accent}`}>
+                        {card.title}
+                      </span>
+
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setRecommendationMenuOpen(recommendationMenuOpen === card.key ? null : card.key)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-600 transition hover:bg-gray-100"
+                          aria-label={`Open actions for ${card.title}`}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+
+                        {recommendationMenuOpen === card.key && (
+                          <div className="absolute right-0 z-10 mt-2 w-40 rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                router.visit(`/csg/projects/${card.project.id}`);
+                                setRecommendationMenuOpen(null);
+                              }}
+                              className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              Open
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const copied = `${card.project.title || 'Untitled Project'} • ${card.value}`;
+                                navigator.clipboard?.writeText(copied);
+                                showToast('Recommendation copied', 'success');
+                                setRecommendationMenuOpen(null);
+                              }}
+                              className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                              Make Copy
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mb-3">
+                      <h3 className="text-base font-semibold text-gray-900 line-clamp-2">{card.project.title || 'Untitled Project'}</h3>
+                      <p className="text-xs text-gray-500 mt-1">{card.project.category || card.project.venue || 'Recommended project'}</p>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-gray-500">{card.valueLabel}</span>
+                        <span className={`font-semibold text-right ${card.valueClass}`}>{card.value}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-gray-500">Period</span>
+                        <span className="text-right text-gray-700">{formatTimeline(card.project)}</span>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-xs text-gray-600">{card.reason}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()
+        )}
       </div>
             
 
@@ -1303,7 +1437,8 @@ const formatHeatmapTooltip = (item) => {
       {/* Active Projects  - Now only shows approved projects */}
 
       {canViewProjects && (   
-      <Card id="active-projects-card" className="p-6 rounded-2xl border-0 shadow-sm bg-white">
+      <Card id="active-projects-card" className="p-6 rounded-2xl border-0 shadow-sm bg-white"
+      onClick={() => router.visit(`/csg/projects`)}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-gray-900">Active Projects</h2>
         </div>

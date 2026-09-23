@@ -53,6 +53,7 @@ class ProjectController extends Controller
             $projectData['project_proof_url'] = $proofPath ? $this->storageUrlForPath($proofPath) : null;
             $projectData['tamperedAlerts'] = $tamperedCount;
             $projectData['approveBy'] = $project->approver?->name ?? null;
+            $projectData['approverName'] = $project->approver?->name ?? null;
             $projectData['createdBy'] = $project->creator?->name ?? null;
 
             $initialTransferLedger = LedgerEntry::where('project_id', $project->id)

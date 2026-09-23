@@ -2133,7 +2133,7 @@ const getTypeAmountColor = (type) => {
     <div className="space-y-4 pt-6">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <p className="text-sm text-gray-500 mb-1">Transaction ID *</p>
+          <p className="text-sm text-gray-500 mb-1">Project Title *</p>
           <p className="font-semibold text-sm text-blue-700 break-all">{selectedEntry.project}</p>
         </div>
         <div>

@@ -237,6 +237,29 @@ const getStatusColor = (status) => {
   }
 };
 
+const isLikelyUuid = (value) => {
+  if (value === null || value === undefined) return false;
+  const str = String(value).trim();
+  if (!str) return false;
+
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(str)
+    || /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(str)
+    || /^[0-9a-fA-F]{32}$/.test(str.replace(/-/g, ''));
+};
+
+const getDisplayUserName = (value) => {
+  if (value === null || value === undefined) return 'Not assigned';
+
+  const str = String(value).trim();
+  if (!str) return 'Not assigned';
+
+  if (isLikelyUuid(str) || /^\d+$/.test(str)) {
+    return 'Not assigned';
+  }
+
+  return str;
+};
+
 const getLedgerStatusColor = (status) => {
   switch (status) {
     case 'Draft': return 'bg-gray-100 text-gray-700';
@@ -385,6 +408,7 @@ export function CSGProjectDetailsPage({
       return {
         ...defaultProject,
         ...initialProject,
+        approveBy: initialProject.approveBy || initialProject.approverName || initialProject.approver?.name || initialProject.approve_by || '',
         budgetBreakdown: initialProject.budgetBreakdown || [],
         objective: initialProject.objective || '',
         venue: initialProject.venue || '',
@@ -708,7 +732,7 @@ const formatDate = (dateString) => {
             createdAt: data.created_at || data.createdAt || '',
             proposedBy: data.proposed_by || data.proposedBy || '',
             note: data.note || '',
-            approveBy: data.approveBy || data.approve_by || '',
+            approveBy: data.approveBy || data.approverName || data.approver?.name || (!isLikelyUuid(data.approve_by) ? data.approve_by : ''),
             projectProof: data.project_proof_url || data.project_proof || data.projectProof || null,
             createdBy: data.createdBy || data.created_by || null,
             updatedBy: data.updated_by || data.updatedBy || null,
@@ -873,11 +897,21 @@ const computedBudgetFromLedger = ledgerEntries
         .filter(entry => entry.ledger_proof)
         .map(entry => {
           const proof = proofDetails(entry.ledger_proof);
+          const uploaderName = getDisplayUserName(
+            entry.created_by ||
+            entry.createdBy ||
+            entry.user?.name ||
+            project.createdBy ||
+            project.proposedBy ||
+            'Project Team'
+          );
 
           return {
             id: entry.id,
             fileName: proof.fileName,
             linkedTransaction: entry.id,
+            linkedProject: project.title || 'Project',
+            uploadedBy: uploaderName,
             uploadDate: entry.created_at ? entry.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
             fileType: proof.extension.toUpperCase(),
             fileSize: entry.file_size || 'Unknown',
@@ -1001,7 +1035,7 @@ function maskUserName(fullName) {
     endDate: raw.end_date || raw.endDate,
     proposedBy: raw.proposed_by || raw.proposedBy,
     note: raw.note,
-    approveBy: raw.approveBy || raw.approve_by,
+    approveBy: raw.approveBy || raw.approverName || (raw.approver && raw.approver.name) || (!isLikelyUuid(raw.approve_by) ? raw.approve_by : ''),
     projectProof: raw.project_proof_url || raw.project_proof || raw.projectProof,
     createdAt: raw.created_at || raw.createdAt,
     archive: raw.archive || 0,
@@ -1853,7 +1887,14 @@ function maskUserName(fullName) {
           <p className={`text-xs ${
             project.approvalStatus === 'Rejected' ? 'text-red-600' : 'text-blue-600'
           }`}>
-            - {project.approveBy || 'Not assigned'}
+            - {getDisplayUserName(
+              project.approveBy ||
+              project.approverName ||
+              project.approver?.name ||
+              project.approve_by ||
+              project.approvedBy ||
+              'Not assigned'
+            )}
           </p>
           <p className={`text-xs ${
             project.approvalStatus === 'Rejected' ? 'text-red-600' : 'text-blue-600'
@@ -1953,7 +1994,7 @@ function maskUserName(fullName) {
   <table className={`w-full ${isLedgerDisabled ? 'opacity-60 pointer-events-none' : ''}`}>
     <thead>
       <tr className="border-b border-gray-200 bg-blue-50">
-        {['ID', 'Type', 'Amount', 'Description', 'Status', 'Actions'].map((h) => (
+        {['Type', 'Amount', 'Description', 'Status', 'Actions'].map((h) => (
           <th key={h} className="text-left py-3 px-4 text-sm font-semibold text-gray-600">{h}</th>
         ))}
       </tr>
@@ -1969,7 +2010,7 @@ function maskUserName(fullName) {
             key={entry.id}
             className={`${entryIsTampered ? 'border-b border-red-200 bg-red-50' : 'border-b border-gray-100 hover:bg-gray-50'}`}
           >
-            <td className="py-3 px-4 font-mono text-sm text-gray-600">{entry.id.substring(0, 8)}...</td>
+            {/* <td className="py-3 px-4 font-mono text-sm text-gray-600">{entry.id.substring(0, 8)}...</td> */}
             <td className="py-3 px-4">
               <Badge className={getTypeColor(entry.type)}>
                 {entry.type}
@@ -2231,27 +2272,48 @@ function maskUserName(fullName) {
              <p className="text-xs text-gray-400 mt-1 mb-4">Add your first proof document to get started</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {proofDocuments.map((proof) => (
-                  <Card key={proof.id} className="rounded-xl p-4 border shadow-sm hover:shadow-md transition-all">
+                  <Card key={proof.id} className="rounded-[20px] border-0 shadow-sm p-4 hover:shadow-md transition-all">
+                    <div className="h-32 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl flex items-center justify-center mb-4">
+                      {proof.fileType === 'PDF' ? (
+                        <FileText className="w-8 h-8 text-red-600" />
+                      ) : (
+                        <FileText className="w-8 h-8 text-blue-600" />
+                      )}
+                    </div>
+
                     <div className="space-y-3">
-                      <div className="h-32 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center">
-                        <FileText className="w-12 h-12 text-blue-600" />
-                      </div>
                       <div>
-                        <h3 className="font-medium text-gray-900 truncate mb-1">{proof.fileName}</h3>
-                        <p className="text-xs text-gray-500">{proof.fileType} • {proof.fileSize}</p>
+                        <h3 className="font-semibold text-blue-600 truncate">{proof.linkedProject || project.title}</h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {proof.fileType} • {proof.fileSize}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                        <span className="text-xs text-gray-600 font-mono truncate">{proof.linkedTransaction.substring(0, 8)}...</span>
+
+                      <div className="space-y-1">
+                        <p className="text-xs text-gray-400">Uploaded by {proof.uploadedBy || 'Project Team'}</p>
                       </div>
-                      <Badge className={`rounded-lg ${proof.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {proof.status}
-                      </Badge>
-                      <p className="text-xs text-gray-400">Uploaded: {proof.uploadDate}</p>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => { setSelectedProof(proof); setShowProofViewer(true); }} className="flex-1 rounded-lg bg-blue-500 text-white hover:bg-blue-600">
+
+                      <div>
+                        <div className="flex items-center gap-1">
+                          {getStatusIcon(proof.status)}
+                          <span className={`text-xs font-medium px-2 py-1 rounded-lg ${getStatusColor(proof.status)}`}>
+                            {proof.status}
+                          </span>
+                        </div>
+                        <div className="mt-1">
+                          <span className="text-xs text-gray-400">{proof.uploadDate}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
+                          onClick={() => { setSelectedProof(proof); setShowProofViewer(true); }}
+                        >
                           <Eye className="w-4 h-4 mr-1" />View
                         </Button>
                       </div>
@@ -2417,9 +2479,13 @@ function maskUserName(fullName) {
   {selectedLedger && (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
-        <div>
+        {/* <div>
           <p className="text-sm text-gray-500 mb-1">Transaction ID *</p>
           <p className="font-mono text-sm text-gray-900 break-all">{selectedLedger.id}</p>
+        </div> */}
+        <div className="col-span-2">
+          <p className="text-sm text-gray-500 mb-1">Description *</p>
+          <p className="text-gray-900">{selectedLedger.description}</p>
         </div>
         <div>
           <p className="text-sm text-gray-500 mb-1">Type *</p>
@@ -2441,10 +2507,6 @@ function maskUserName(fullName) {
           </div>
         </div>
         
-        <div className="col-span-2">
-          <p className="text-sm text-gray-500 mb-1">Description *</p>
-          <p className="text-gray-900">{selectedLedger.description}</p>
-        </div>
         <div>
           <p className="text-sm text-gray-500 mb-1">Created By *</p>
           <p className="text-sm text-gray-900">{selectedLedger.created_by || 'N/A'}</p>
@@ -2560,7 +2622,7 @@ function maskUserName(fullName) {
               <p className={`text-xs mt-2 ${
                 selectedLedger.approval_status === 'Rejected' ? 'text-red-600' : 'text-blue-600'
               }`}>
-                - {selectedLedger.approved_by || 'Not assigned'}
+                - {getDisplayUserName(selectedLedger.approved_by || 'Not assigned')}
               </p>
               <p className={`text-xs mt-1 ${
                 selectedLedger.approval_status === 'Rejected' ? 'text-red-600' : 'text-blue-600'
@@ -2635,10 +2697,10 @@ function maskUserName(fullName) {
                 }
               })()}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            {/* <div className="grid grid-cols-2 gap-4">
               <div><p className="text-sm text-gray-500 mb-1">Linked Transaction</p><p className="font-mono text-sm text-gray-900 break-all">{selectedProof.linkedTransaction}</p></div>
               <div><p className="text-sm text-gray-500 mb-1">Upload Date</p><p className="text-gray-900">{selectedProof.uploadDate}</p></div>
-            </div>
+            </div> */}
             <div className="flex gap-3 pt-4">
               <Button 
                 onClick={() => {
