@@ -28,6 +28,13 @@ class SecurityHeaders
         $response->header('X-XSS-Protection', '1; mode=block');
         $response->header('Referrer-Policy', 'strict-origin-when-cross-origin');
 
+        // Prevent browsers and proxy caches from replaying authenticated/Inertia responses.
+        if ($request->user() || $request->headers->has('X-Inertia')) {
+            $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            $response->header('Pragma', 'no-cache');
+            $response->header('Expires', '0');
+        }
+
         return $response;
     }
 }

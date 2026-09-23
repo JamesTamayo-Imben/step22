@@ -12,7 +12,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
   const [users, setUsers] = useState(initialUsers || []);
   const [roles, setRoles] = useState(initialRoles || []);
   const [statuses, setStatuses] = useState(initialStatuses || []);
-  const [pagination, setPagination] = useState(initialPagination || { current_page: 1, per_page: 5, total: 0, last_page: 1 });
+  const [pagination, setPagination] = useState(initialPagination || { current_page: 1, per_page: 20, total: 0, last_page: 1 });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -41,6 +41,12 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
   const [searchQuery, setSearchQuery] = useState(initialFilters?.search || '');
   const [filterRole, setFilterRole] = useState(initialFilters?.role || 'all');
   const [filterStatus, setFilterStatus] = useState(initialFilters?.status || 'all');
+
+  // Filter out superadmin users from being displayed
+  const visibleUsers = users.filter(u => {
+    const roleName = (typeof u.role === 'object' ? u.role?.name : u.role)?.toLowerCase();
+    return !['superadmin', 'super admin'].includes(roleName);
+  });
 
   // Debounce timer for search
   const searchTimeoutRef = useRef(null);
@@ -529,7 +535,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((u) => (
+                    {visibleUsers.map((u) => (
                       <tr key={u.id} className="border-b last:border-0">
                         <td className="py-4 pr-4">
                           <div className="text-gray-900">{u.name}</div>
@@ -541,9 +547,15 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                         <td className="py-4 pr-4">
                           <Badge className={statusBadge(u.status)}>{u.status}</Badge>
                         </td>
-                        <td className="py-4 pr-4 text-gray-600">{u.createdAt}</td>
-                        <td className="py-4 pr-4 text-gray-600">{u.lastLogin || '—'}</td>
-                        <td className="py-4">
+                        <td className="py-4 pr-4 text-gray-600">
+                          <div className="max-w-[300px] truncate">
+   {u.createdAt}
+  </div></td>
+<td className="py-4 pr-4 text-gray-600">
+  <div className="max-w-[300px] truncate">
+    {u.lastLogin || '—'}
+  </div>
+</td>                        <td className="py-4">
                           <div className="flex items-center gap-2 flex-wrap">
                             {u.status?.toLowerCase() !== 'archived' && (
                               <>
@@ -576,7 +588,7 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
                         </td>
                       </tr>
                     ))}
-                    {!users.length ? (
+                    {!visibleUsers.length ? (
                       <tr>
                         <td colSpan={6} className="py-10 text-center text-gray-500">
                           No users found.

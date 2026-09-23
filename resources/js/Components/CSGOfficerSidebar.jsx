@@ -511,7 +511,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                       <p className="text-sm text-gray-500">{officer.name}</p>
                       <p className="text-xs text-gray-400">{officer.position}</p>
                     </div>
-                    <span className="text-xs text-gray-400">Logged out</span>
+                    <span className="text-xs text-gray-400">Offline</span>
                   </div>
                 ))}
               </div>

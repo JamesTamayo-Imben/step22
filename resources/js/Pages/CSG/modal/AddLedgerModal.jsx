@@ -348,44 +348,49 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
             <FieldLabel>Budget Breakdown (₱)</FieldLabel>
             <div className="space-y-3">
               {budgetItems.map((item) => (
-                <div key={item.id} className="flex gap-2 items-start">
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:border-0 sm:bg-transparent sm:p-0"
+                >
                   <Input
                     placeholder="Item name"
                     value={item.item}
                     onChange={(e) => updateBudgetItem(item.id, 'item', e.target.value)}
-                    className="flex-1 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                    className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
                   />
-                  <Input
-                    type="number"
-                    placeholder="Qty"
-                    min="1"
-                    value={item.qty}
-                    onChange={(e) => updateBudgetItem(item.id, 'qty', e.target.value)}
-                    className="w-20 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Unit Price"
-                    min="1"
-                    // step="0.01"
-                    value={item.unitPrice}
-                    onChange={(e) => updateBudgetItem(item.id, 'unitPrice', e.target.value)}
-                    className="w-28 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                  />
-                  <div className="w-28 h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium">
-                    ₱{(item.amount || 0).toLocaleString()}
+
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto] gap-2 sm:items-start">
+                    <Input
+                      type="number"
+                      placeholder="Qty"
+                      min="1"
+                      value={item.qty}
+                      onChange={(e) => updateBudgetItem(item.id, 'qty', e.target.value)}
+                      className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Unit Price"
+                      min="1"
+                      value={item.unitPrice}
+                      onChange={(e) => updateBudgetItem(item.id, 'unitPrice', e.target.value)}
+                      className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                    />
+                    <div className="h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium whitespace-nowrap">
+                      ₱{(item.amount || 0).toLocaleString()}
+                    </div>
+                    {budgetItems.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeBudgetItem(item.id)}
+                        className="h-10 w-10 rounded-lg p-0 text-red-600 hover:bg-red-50 shrink-0 self-start"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
-                  {budgetItems.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeBudgetItem(item.id)}
-                      className="rounded-lg text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
                 </div>
               ))}
               <Button

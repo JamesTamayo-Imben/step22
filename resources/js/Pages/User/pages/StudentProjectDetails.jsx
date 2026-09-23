@@ -972,7 +972,7 @@ const isProjectStarted = () => {
           {/* Comment */}
           <div>
             <label className="text-sm text-gray-600 mb-2 block">
-              Comment (Optional)
+              Comment <span className="text-red-500">*</span>
             </label>
             <textarea
               placeholder="Share your thoughts about this project..."
@@ -987,7 +987,7 @@ const isProjectStarted = () => {
           <div className="flex gap-3">
             <button
               onClick={handleSubmitRating}
-              disabled={!canSubmitRatings || satisfactionRating === 0 || isSubmitting}
+              disabled={!canSubmitRatings || satisfactionRating === 0 || completenessRating === 0 || engagementRating === 0 || comment.trim().length === 0 || isSubmitting}
               className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl transition-colors font-medium"
             >
               {isSubmitting ? 'Submitting...' : 'Submit Rating'}

@@ -10,7 +10,7 @@ import {
   Download,
   Eye,
   Inbox,
-  CheckCircle2, 
+  CheckCircle2,
   XCircle,
   AlertTriangle,
   Hash,
@@ -65,12 +65,12 @@ function getProofUrl(filePath) {
 // Helper function to parse budget breakdown (handles both string and object formats)
 function parseBudgetBreakdown(budgetBreakdown) {
   if (!budgetBreakdown) return null;
-  
+
   // If it's already an array
   if (Array.isArray(budgetBreakdown)) {
     return budgetBreakdown;
   }
-  
+
   // If it's a string, try to parse it
   if (typeof budgetBreakdown === 'string') {
     try {
@@ -80,7 +80,7 @@ function parseBudgetBreakdown(budgetBreakdown) {
       return null;
     }
   }
-  
+
   // If it's an object but not array
   if (typeof budgetBreakdown === 'object') {
     // Check if it has items property
@@ -92,14 +92,14 @@ function parseBudgetBreakdown(budgetBreakdown) {
       return [budgetBreakdown];
     }
   }
-  
+
   return null;
 }
 
 // Budget Breakdown Display Component
 function BudgetBreakdownDisplay({ breakdown }) {
   const parsedBreakdown = parseBudgetBreakdown(breakdown);
-  
+
   if (!parsedBreakdown || parsedBreakdown.length === 0) {
     return (
       <div className="p-4 bg-gray-50 rounded-lg">
@@ -109,9 +109,9 @@ function BudgetBreakdownDisplay({ breakdown }) {
   }
 
   const totalAmount = parsedBreakdown.reduce((sum, item) => {
-    const amount = parseFloat(item.amount) || 
-                   (parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0) ||
-                   0;
+    const amount = parseFloat(item.amount) ||
+      (parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0) ||
+      0;
     return sum + amount;
   }, 0);
 
@@ -122,7 +122,7 @@ function BudgetBreakdownDisplay({ breakdown }) {
         <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Item (Unit Price × Quantity)</span>
         <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
       </div>
-      
+
       {/* Items */}
       <div className="space-y-2">
         {parsedBreakdown.map((item, index) => {
@@ -130,7 +130,7 @@ function BudgetBreakdownDisplay({ breakdown }) {
           const qty = parseFloat(item.qty) || parseFloat(item.quantity) || 1;
           const unitPrice = parseFloat(item.unitPrice) || parseFloat(item.rate) || 0;
           const amount = parseFloat(item.amount) || (qty * unitPrice) || 0;
-          
+
           return (
             <div key={item.id || index} className="flex justify-between items-center py-1">
               <div className="flex-1">
@@ -148,7 +148,7 @@ function BudgetBreakdownDisplay({ breakdown }) {
           );
         })}
       </div>
-      
+
       {/* Total */}
       <div className="flex justify-between pt-3 mt-3 border-t border-gray-200 font-semibold">
         <span className="text-gray-700">Total</span>
@@ -325,7 +325,7 @@ function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry, password, onPa
               </svg>
             </button>
           </div>
-          
+
           <div className="mb-6">
             <p className="text-gray-700 mb-2">
               This will restore the ledger entry to its approved blockchain state.
@@ -347,9 +347,9 @@ function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry, password, onPa
               </div>
             )}
           </div>
-           <p className="text-red-600 font-sm mb-2">
+          <p className="text-red-600 font-sm mb-2">
             * We advise that you take a screenshot of this tampering, which can be used as proof.
-            </p>
+          </p>
 
           <div className="mb-6">
             <label htmlFor="restore-account-password" className="block text-sm font-medium text-gray-700 mb-2">
@@ -367,7 +367,7 @@ function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry, password, onPa
             />
             <p className="mt-1 text-xs text-gray-500">Your password is required to verify this sensitive action.</p>
           </div>
-          
+
           <div className="grid grid-cols-2 justify-end space-x-3">
             <button
               onClick={onConfirm}
@@ -376,7 +376,7 @@ function ConfirmRestoreModal({ isOpen, onClose, onConfirm, entry, password, onPa
             >
               Restore Entry
             </button>
-             <button
+            <button
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
@@ -427,7 +427,7 @@ export default function LedgerApprovalsPage() {
 
   const [ledgerPage, setLedgerPage] = useState(1);
   const [showLedgerProofViewer, setShowLedgerProofViewer] = useState(false);
-  
+
   useEffect(() => {
     setLedgerPage(1);
   }, [filterProject, filterStatus, searchQuery, filterCategory]);
@@ -501,9 +501,9 @@ export default function LedgerApprovalsPage() {
     }
   };
 
-const downloadReport = () => {
-  const report = buildIncidentReport(ledgerEntries, stats, preparedBy);
-  const url = URL.createObjectURL(reportToPdfBlob(report));
+  const downloadReport = () => {
+    const report = buildIncidentReport(ledgerEntries, stats, preparedBy);
+    const url = URL.createObjectURL(reportToPdfBlob(report));
     const link = document.createElement('a');
     link.href = url;
     link.download = `step-confidential-incident-report-${new Date().toISOString().slice(0, 10)}.pdf`;
@@ -570,7 +570,7 @@ const downloadReport = () => {
       showToast('Please enter your account password', 'error');
       return;
     }
-    
+
     router.post(route('adviser.ledger.fix-tampered', selectedEntry.id), { current_password: restorePassword }, {
       preserveScroll: true,
       onSuccess: () => {
@@ -605,10 +605,10 @@ const downloadReport = () => {
     });
   };
 
-//dont show the ledger entry if the status is pending, rejected or draft, only show approved and corrected entries
-// const isVisibleEntry = (entry) => {
-//   return entry.status === 'Approved' || entry.status === 'Corrected';
-// };
+  //dont show the ledger entry if the status is pending, rejected or draft, only show approved and corrected entries
+  // const isVisibleEntry = (entry) => {
+  //   return entry.status === 'Approved' || entry.status === 'Corrected';
+  // };
 
   const handleFixBudgetMismatch = () => {
     if (!budgetMismatchPassword) {
@@ -630,7 +630,7 @@ const downloadReport = () => {
   const getStatusBadge = (status) => {
     const baseClasses = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium';
     switch (status) {
-      case 'Approved': return <span className={`${baseClasses} bg-green-100 text-green-700 gap-2`}> <CheckCircle className="w-4 h-4 text-green-600"/> Approved</span>;
+      case 'Approved': return <span className={`${baseClasses} bg-green-100 text-green-700 gap-2`}> <CheckCircle className="w-4 h-4 text-green-600" /> Approved</span>;
       case 'Pending Adviser Approval': return <span className={`${baseClasses} bg-yellow-100 text-yellow-700 gap-2`}> <Clock className="w-4 h-4 text-yellow-600" /> Pending Adviser Approval</span>;
       case 'Rejected': return <span className={`${baseClasses} bg-red-100 text-red-700 gap-2`}> <AlertCircle className="w-4 h-4 text-red-600" /> Rejected</span>;
       // case 'Corrected': return <span className={`${baseClasses} bg-purple-100 text-purple-700`}> <Pencil className="w-4 h-4 text-purple-600" /> Corrected</span>;
@@ -731,33 +731,33 @@ const downloadReport = () => {
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
           <div className="flex justify-between items-center">
             <div>
-             <div className="flex items-center gap-2">
-               <h1 className="text-2xl font-semibold text-blue-600">Admin Ledger Entries Center</h1>
-               { hasTamperAlert ? (
-                 <Badge className="bg-red-100 text-red-700 rounded-lg">
-                   <AlertCircle className="w-3 h-3 mr-1" />
-                   {integrityBadgeLabel}
-                 </Badge>
-               ) : (
-                 <Badge className="bg-green-100 text-green-700 rounded-lg">
-                   <Shield className="w-3 h-3 mr-1" />
-                   {integrityBadgeLabel}
-                 </Badge>
-               )}
-             </div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-semibold text-blue-600">Admin Ledger Entries Center</h1>
+                {hasTamperAlert ? (
+                  <Badge className="bg-red-100 text-red-700 rounded-lg">
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    {integrityBadgeLabel}
+                  </Badge>
+                ) : (
+                  <Badge className="bg-green-100 text-green-700 rounded-lg">
+                    <Shield className="w-3 h-3 mr-1" />
+                    {integrityBadgeLabel}
+                  </Badge>
+                )}
+              </div>
               <p className="text-gray-500 mt-1">Review and verify financial ledger entries</p>
 
-            
+
             </div>
-           <div className="flex items-center gap-2">
-             <button
-              type="button"
-              onClick={handleExport}
-className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-colors"            >
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
-            </button>
-             {/* <Button
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExport}
+                className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg-blue-600 rounded-xl text-sm font-medium text-white hover:bg-blue-700 transition-colors"            >
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </button>
+              {/* <Button
                               onClick={downloadReport}
                               
                               variant="outline"
@@ -766,25 +766,25 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                               <Download className="w-4 h-4 mr-2" />
                               Download Report
                             </Button> */}
-           </div>
+            </div>
           </div>
 
-            {hasTamperAlert && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-red-800">
-                        {tamperedEntriesCount > 0 ? 'Security Alert.' : 'Budget Alert.'}
-                        <span className="text-xs text-red-600 ml-2">
-                          {integrityAlertMessage}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
+          {hasTamperAlert && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">
+                    {tamperedEntriesCount > 0 ? 'Security Alert.' : 'Budget Alert.'}
+                    <span className="text-xs text-red-600 ml-2">
+                      {integrityAlertMessage}
+                    </span>
+                  </p>
                 </div>
-              )}
-          
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
               <div className="flex items-center justify-between">
@@ -842,20 +842,20 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                 </div>
               </div>
             </div>
-             <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-  <div className="flex items-center justify-between">
-    <div>
-      <p className="text-sm text-gray-500">Project Shortfall</p>
-      <p className={`text-2xl mt-1 ${stats.totalProjectShortfall > 0.01 ? 'text-red-600' : 'text-gray-800'}`}>
-        ₱{formatLimitedNumber(stats.totalProjectShortfall, { maxFractionDigits: 2 })}
-      </p>
-      <p className="text-xs text-gray-500 mt-1">Across all projects</p>
-    </div>
-    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stats.totalProjectShortfall > 0.01 ? 'bg-red-100' : 'bg-gray-100'}`}>
-      <Wallet className={`w-6 h-6 ${stats.totalProjectShortfall > 0.01 ? 'text-red-600' : 'text-gray-600'}`} />
-    </div>
-  </div>
-</div>
+            <div className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Project Shortfall</p>
+                  <p className={`text-2xl mt-1 ${stats.totalProjectShortfall > 0.01 ? 'text-red-600' : 'text-gray-800'}`}>
+                    ₱{formatLimitedNumber(stats.totalProjectShortfall, { maxFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Across all projects</p>
+                </div>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stats.totalProjectShortfall > 0.01 ? 'bg-red-100' : 'bg-gray-100'}`}>
+                  <Wallet className={`w-6 h-6 ${stats.totalProjectShortfall > 0.01 ? 'text-red-600' : 'text-gray-600'}`} />
+                </div>
+              </div>
+            </div>
           </div>
 
           <>
@@ -872,21 +872,21 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                   />
                 </div>
 
-                    <select
+                <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
                   className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                 >
                   <option value="all" disabled>Select Type</option>
-             <option value="all">All</option>
-            <option value="Income">Income</option>
-            <option value="Expense">Expense</option>
-            <option value="Donation">Donation</option>
-            <option value="Sponsorship">Sponsorship</option>
-            <option value="Canvas">Canvas</option>
-            <option value="Initial">Initial</option>
-            <option value="Initial Transfer">Initial Transfer</option>
-             <option value="Transfer">Transfer</option>
+                  <option value="all">All</option>
+                  <option value="Income">Income</option>
+                  <option value="Expense">Expense</option>
+                  <option value="Donation">Donation</option>
+                  <option value="Sponsorship">Sponsorship</option>
+                  <option value="Canvas">Canvas</option>
+                  <option value="Initial">Initial</option>
+                  <option value="Initial Transfer">Initial Transfer</option>
+                  <option value="Transfer">Transfer</option>
                 </select>
 
                 <select
@@ -901,7 +901,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                   <option value="Rejected">Rejected</option>
                 </select>
 
-   <select
+                <select
                   value={filterProject}
                   onChange={(e) => setFilterProject(e.target.value)}
                   className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
@@ -911,7 +911,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                     <option key={name} value={name}>{name}</option>
                   ))}
                 </select>
-              
+
               </div>
             </div>
 
@@ -939,11 +939,11 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                       {pagedLedger.length === 0 ? (
                         <tr>
                           <td colSpan={canViewLedger ? 10 : 9} className="px-6 py-4 text-center">
-                             <div className="text-center py-4">
-                                                             <Inbox className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                                             <p className="text-sm text-gray-500">No recent activity found</p>
-                                                             <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
-                                                           </div>
+                            <div className="text-center py-4">
+                              <Inbox className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                              <p className="text-sm text-gray-500">No recent activity found</p>
+                              <p className="text-xs text-gray-400 mt-1">Check back later for updates.</p>
+                            </div>
                           </td>
                         </tr>
                       ) : (
@@ -954,8 +954,8 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                                 <span className="text-sm text-blue-600 truncate">{entry.id}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <p className="text-sm text-gray-900">{entry.projectName}</p>
+                            <td className="px-6 py-4 max-w-[300px]">
+                              <p className="max-w-[300px] truncate text-sm text-gray-900">{entry.projectName}</p>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <p className="text-sm text-gray-900">{entry.enteredBy}</p>
@@ -965,7 +965,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                                 ₱{formatLimitedNumber(Number(entry.amount))}
                               </p>
                             </td>
-                    
+
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getTypeColor(entry.transactionType)}`}>
                                 {entry.transactionType}
@@ -974,11 +974,11 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                             <td className="px-6 py-4 whitespace-nowrap">
                               <p className="text-sm text-gray-600">{entry.date ? new Date(entry.date).toLocaleDateString() : '—'}</p>
                             </td>
-                           {/* {isVisibleEntry(entry) && ( */}
+                            {/* {isVisibleEntry(entry) && ( */}
                             <td className="px-6 py-4 whitespace-nowrap">
                               {getStatusBadge(entry.status)}
                             </td>
-                           {/* )
+                            {/* )
 
         } */}
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -1067,28 +1067,28 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                       </p>
                       <div className="grid md:grid-cols-2 grid-cols-1 items-center gap-2">
                         <button
-                        type="button"
-                        onClick={() => handleFixTampered(selectedEntry)}
-                        className="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors"
-                      >
-                        <RotateCcw className="w-4 h-4 mr-2 inline" /> Fix Tampered Data
-                      </button>
-                       <Button
-                              onClick={downloadReport}
-                              
-                              variant="outline"
-                              className=" md:mt-3 mt-0 rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-60 text-white w-full sm:w-auto"
-                            >
-                              <Download className="w-4 h-4 mr-2" />
-                              Download Report
-                            </Button>
+                          type="button"
+                          onClick={() => handleFixTampered(selectedEntry)}
+                          className="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-2 inline" /> Fix Tampered Data
+                        </button>
+                        <Button
+                          onClick={downloadReport}
+
+                          variant="outline"
+                          className=" md:mt-3 mt-0 rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-60 text-white w-full sm:w-auto"
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Download Report
+                        </Button>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-            
+
             <div>
               <h4 className="text-sm font-medium text-gray-500 mb-3">Basic Information</h4>
               <div className="space-y-3 pt-3">
@@ -1144,7 +1144,7 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                   <p className="text-xs text-gray-500">Description</p>
                   <p className="text-sm text-gray-700">{selectedEntry.description}</p>
                 </div>
-                
+
                 {/* Budget Breakdown Section */}
                 {(selectedEntry.budgetBreakdown || selectedEntry.budget_breakdown) && (
                   <div>
@@ -1170,27 +1170,27 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                           </div>
                         </div>
                         {canViewProof && (
-                          <Button 
-                                             variant="outline" 
-                                             size="sm" 
-                                             onClick={() => {
-                                               setSelectedEntry(selectedEntry);
-                                               setShowLedgerProofViewer(true);
-                                             }}
-                                             className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
-                                           >
-                                             <Eye className="w-4 h-4 mr-1" /> View
-                                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedEntry(selectedEntry);
+                              setShowLedgerProofViewer(true);
+                            }}
+                            className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            <Eye className="w-4 h-4 mr-1" /> View
+                          </Button>
                         )}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                 <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                                    <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-                                    <p className="text-yellow-700 text-sm flex-1">No proof document provided</p>
-                                  </div>
+                <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
+                  <FileText className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+                  <p className="text-yellow-700 text-sm flex-1">No proof document provided</p>
+                </div>
               )}
             </div>
 
@@ -1214,16 +1214,15 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
                   </div>
                 )}
                 <div className="flex items-start gap-3">
-                  <div className={`w-2 h-2 rounded-full mt-1.5 ${
-                    selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.tampered ? 'bg-red-600' :
-                    selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.blockchainValid ? 'bg-green-600' : 'bg-gray-400'
-                  }`} />
+                  <div className={`w-2 h-2 rounded-full mt-1.5 ${selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.tampered ? 'bg-red-600' :
+                      selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.blockchainValid ? 'bg-green-600' : 'bg-gray-400'
+                    }`} />
                   <div>
                     <p className="text-sm font-medium">Blockchain Verification</p>
                     <p className="text-xs text-gray-500">
                       {selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.tampered ? 'Data integrity compromised' :
-                       selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.blockchainValid ? 'Verified and secure' :
-                       'No blockchain record'}
+                        selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.blockchainValid ? 'Verified and secure' :
+                          'No blockchain record'}
                     </p>
                   </div>
                 </div>
@@ -1381,16 +1380,16 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
             >
               Fix Budget Mismatch
             </button>
-             <Button
-                              onClick={downloadReport}
-                              
-                              variant="outline"
-                              className="rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-60 text-white w-full sm:w-auto"
-                            >
-                              <Download className="w-4 h-4 mr-2" />
-                              Download Report
-                            </Button>
-                            <button
+            <Button
+              onClick={downloadReport}
+
+              variant="outline"
+              className="rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-60 text-white w-full sm:w-auto"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download Report
+            </Button>
+            <button
               type="button"
               onClick={() => {
                 setIsBudgetMismatchModalOpen(false);
@@ -1404,84 +1403,84 @@ className="hidden md:inline-flex items-center justify-center px-4 py-2 border bg
         </div>
       </Modal>
 
-       {/* Modal for Ledger Proof Document Viewer */}
-                  <Modal open={showLedgerProofViewer} onClose={() => { setShowLedgerProofViewer(false); }} title="Proof Document">
-                    {selectedEntry?.proofAttached && selectedEntry?.proofFiles && selectedEntry?.proofFiles[0] && (
-                      <div className="space-y-4 pt-6">
-                        <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
-                          {(() => {
-                            const file = selectedEntry.proofFiles[0];
-                            const proofUrl = getProofUrl(file.url || file.path || '#');
-                            const fileName = file.name || file.filename || '';
-                            const fileExtension = (fileName.split('.').pop() || '').toLowerCase();
-                            const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+      {/* Modal for Ledger Proof Document Viewer */}
+      <Modal open={showLedgerProofViewer} onClose={() => { setShowLedgerProofViewer(false); }} title="Proof Document">
+        {selectedEntry?.proofAttached && selectedEntry?.proofFiles && selectedEntry?.proofFiles[0] && (
+          <div className="space-y-4 pt-6">
+            <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
+              {(() => {
+                const file = selectedEntry.proofFiles[0];
+                const proofUrl = getProofUrl(file.url || file.path || '#');
+                const fileName = file.name || file.filename || '';
+                const fileExtension = (fileName.split('.').pop() || '').toLowerCase();
+                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
 
-                            if (imageExtensions.includes(fileExtension)) {
-                              return (
-                                <img
-                                  src={proofUrl}
-                                  alt="Proof Document"
-                                  className="max-w-full max-h-96 object-contain rounded-lg"
-                                  onError={() => {
-                                    console.error('Failed to load image:', proofUrl);
-                                  }}
-                                />
-                              );
-                            } else if (fileExtension === 'pdf') {
-                              return (
-                                <iframe
-                                  src={proofUrl}
-                                  className="w-full h-96 rounded-lg border-0"
-                                  title="PDF Preview"
-                                />
-                              );
-                            } else {
-                              return (
-                                <div className="text-center">
-                                  <FileText className="w-16 h-16 text-blue-600 mb-4 mx-auto" />
-                                  <p className="text-gray-600 mb-2 font-medium">
-                                    {fileName}
-                                  </p>
-                                  <p className="text-sm text-gray-500">
-                                    {fileExtension ? fileExtension.toUpperCase() : 'FILE'} file
-                                  </p>
-                                </div>
-                              );
-                            }
-                          })()}
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">Transaction ID</p>
-                            <p className="font-mono text-sm text-gray-900 break-all">{selectedEntry.id}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500 mb-1">Amount</p>
-                            <p className="text-gray-900">₱{formatLimitedNumber(parseFloat(selectedEntry.amount) || 0)}</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-3 pt-4">
-                          <Button
-                            className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-                            onClick={() => {
-                              const file = selectedEntry.proofFiles[0];
-                              const proofUrl = getProofUrl(file.url || file.path || '#');
-                              window.open(proofUrl, '_blank');
-                            }}
-                          >
-                            <Download className="w-4 h-4 mr-2" />Download
-                          </Button>
-                          <Button onClick={() => setShowLedgerProofViewer(false)} variant="outline" className="flex-1 rounded-xl">Close</Button>
-                        </div>
-                      </div>
-                    )}
-                    {(!selectedEntry?.proofAttached || !selectedEntry?.proofFiles || !selectedEntry?.proofFiles[0]) && (
-                      <div className="pt-6 text-center">
-                        <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-600">No proof document available for this entry.</p>
-                      </div>
-                    )}
-                  </Modal>
+                if (imageExtensions.includes(fileExtension)) {
+                  return (
+                    <img
+                      src={proofUrl}
+                      alt="Proof Document"
+                      className="max-w-full max-h-96 object-contain rounded-lg"
+                      onError={() => {
+                        console.error('Failed to load image:', proofUrl);
+                      }}
+                    />
+                  );
+                } else if (fileExtension === 'pdf') {
+                  return (
+                    <iframe
+                      src={proofUrl}
+                      className="w-full h-96 rounded-lg border-0"
+                      title="PDF Preview"
+                    />
+                  );
+                } else {
+                  return (
+                    <div className="text-center">
+                      <FileText className="w-16 h-16 text-blue-600 mb-4 mx-auto" />
+                      <p className="text-gray-600 mb-2 font-medium">
+                        {fileName}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {fileExtension ? fileExtension.toUpperCase() : 'FILE'} file
+                      </p>
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Transaction ID</p>
+                <p className="font-mono text-sm text-gray-900 break-all">{selectedEntry.id}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Amount</p>
+                <p className="text-gray-900">₱{formatLimitedNumber(parseFloat(selectedEntry.amount) || 0)}</p>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-4">
+              <Button
+                className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => {
+                  const file = selectedEntry.proofFiles[0];
+                  const proofUrl = getProofUrl(file.url || file.path || '#');
+                  window.open(proofUrl, '_blank');
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />Download
+              </Button>
+              <Button onClick={() => setShowLedgerProofViewer(false)} variant="outline" className="flex-1 rounded-xl">Close</Button>
+            </div>
+          </div>
+        )}
+        {(!selectedEntry?.proofAttached || !selectedEntry?.proofFiles || !selectedEntry?.proofFiles[0]) && (
+          <div className="pt-6 text-center">
+            <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-600">No proof document available for this entry.</p>
+          </div>
+        )}
+      </Modal>
 
       {/* Restore Confirmation Modal */}
       <ConfirmRestoreModal

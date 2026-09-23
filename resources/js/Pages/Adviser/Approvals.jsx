@@ -279,7 +279,7 @@ export default function AdviserApprovalsPage() {
     switch (approvalType) {
       case 'project': return <FolderKanban className="w-5 h-5 text-blue-600" />;
       case 'ledger': return <DollarSign className="w-5 h-5 text-green-600" />;
-      case 'date_change': return <Calendar className="w-5 h-5 text-purple-600" />;
+      case 'date_change': return <Calendar className="w-5 h-5 text-yellow-600" />;
       default: return <FileText className="w-5 h-5 text-gray-600" />;
     }
   };
@@ -378,43 +378,33 @@ export default function AdviserApprovalsPage() {
   }, [page.url, pendingProjects, rejectedItems]);
 
   const renderItem = (item) => (
-    <Card key={`${item.approvalType}-${item.id}`} className="flex h-full min-h-[240px] rounded-[20px] border-0 shadow-sm p-4 hover:shadow-md transition-all">
-      <div className="flex h-full items-start gap-4">
-        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">{getTypeIcon(item.approvalType)}</div>
-        <div className="flex flex-1 min-w-0 flex-col">
+    <Card key={`${item.approvalType}-${item.id}`} className="flex h-full min-h-[190px] rounded-[18px] border-0 shadow-sm p-3.5 hover:shadow-md transition-all">
+      <div className="flex h-full w-full items-start gap-3">
+        <div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">{getTypeIcon(item.approvalType)}</div>
+        <div className="flex flex-1 min-w-0 flex-col h-full">
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="flex-1 min-w-0">
-              <h3 className="text-gray-900 mb-1 truncate">{item.title}</h3>
-              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+              <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2">{item.title}</h3>
+              <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
                 {getApprovalTypeLabel(item.approvalType)}
               </span>
-              <p className="text-xs text-gray-500">ID: {item.id}</p>
+              <p className="text-[11px] text-gray-500 mt-1">ID: {item.id}</p>
             </div>
-            <div className={`text-xs px-3 py-1 rounded-full ${getApprovalStatusColor(item.status)}`}>
+            <div className={`text-[10px] px-2.5 py-1 rounded-full ${getApprovalStatusColor(item.status)}`}>
               {item.status}
             </div>
           </div>
 
-          <div className="space-y-1 mb-3">
-            <p className="text-sm text-gray-600">Submitted by: {item.submittedBy}</p>
-            <p className="text-sm text-gray-600">Date: {item.submittedDate || item.created_at}</p>
-            {item.project && <p className="text-sm text-gray-600">Project Title: {item.project}</p>}
-            
-            {/* Show date details for date change requests */}
-            {/* {item.approvalType === 'date_change' && (
-              <div className="mt-2 p-2 bg-purple-50 rounded border border-purple-200">
-                <p className="text-sm font-medium text-purple-900 mb-1">Date Change Details:</p>
-                <p className="text-xs text-purple-700">Current: {item.currentStartDate} to {item.currentEndDate}</p>
-                <p className="text-xs text-purple-700">Proposed: {item.proposedStartDate} to {item.proposedEndDate}</p>
-                <p className="text-xs text-purple-600 mt-1 italic">Reason: {item.reason}</p>
-              </div>
-            )} */}
+          <div className="space-y-1 mb-3 text-sm text-gray-600 flex-1">
+            <p>Submitted by: {item.submittedBy}</p>
+            <p>Date: {item.submittedDate || item.created_at}</p>
+            {item.project && <p className="truncate">Project Title: {item.project}</p>}
           </div>
 
-          <div className="mt-auto flex min-h-8 gap-2">
+          <div className="mt-auto pt-2">
             {(item.status === 'Pending Approval' || item.status === 'Pending Adviser Approval' || item.status === 'Rejected') && (
-              <Button variant="outline" size="sm" className="flex-1 rounded-xl bg-blue-600 text-white hover:bg-blue-700" onClick={() => { setSelectedItem(item); setShowReview(true); }}>
-                <Eye className="w-4 h-4 mr-1" /> {item.status === 'Rejected' ? 'View' : 'Review'}
+              <Button variant="outline" size="sm" className="w-full h-9 rounded-lg bg-blue-600 text-white hover:bg-blue-700 border-blue-600 text-sm font-medium" onClick={() => { setSelectedItem(item); setShowReview(true); }}>
+                <Eye className="w-4 h-4 mr-1.5" /> {item.status === 'Rejected' ? 'View' : 'Review'}
               </Button>
             )}
           </div>
@@ -538,7 +528,7 @@ export default function AdviserApprovalsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {currentItems.length === 0 ? (
                 <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center md:col-span-2">
                   <div className="text-center py-4">
@@ -691,18 +681,16 @@ export default function AdviserApprovalsPage() {
         )}
          
               <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1 rounded-xl"  onClick={() => setShowReview(false)} >
+                <Button variant="outline" className="flex-1 h-10 rounded-xl text-sm font-medium" onClick={() => setShowReview(false)} >
                   Cancel
                 </Button>
                 {canRejectProjects && (
-                <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }} >
-                   {/* <XCircle className="w-4 h-4 text-red-600" /> */}
+                <Button variant="outline" className="flex-1 h-10 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }} >
                   Reject
                 </Button>
                 )}
                 {canApproveProjects && (
-                <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
-                  {/* <CheckCircle className="w-4 h-4 text-white-600" /> */}
+                <Button className="text-white flex-1 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-medium" onClick={handleApproveClick}>
                   Approve
                 </Button>
                 )}
@@ -772,6 +760,15 @@ export default function AdviserApprovalsPage() {
                 <p className="text-sm text-gray-500 mb-1">Proposed By *</p>
                 <p className="text-gray-900">{selectedItem.proposed_by || 'Not specified'}</p>
               </div>
+
+              {selectedItem.status === 'Rejected' && (
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-500 mb-1">Rejection Notes *</p>
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                    <p className="text-sm text-red-700 whitespace-pre-wrap">{selectedItem.note || selectedItem.rejection_reason || 'No rejection notes provided.'}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Proof */}
@@ -815,19 +812,16 @@ export default function AdviserApprovalsPage() {
             {/* Action Buttons */}
             {(selectedItem.status === 'Pending Approval' || selectedItem.status === 'Pending Adviser Approval') && (
               <div className="flex gap-3 pt-4 border-t">
-                
-                <Button variant="outline" className="flex-1 rounded-xl"  onClick={() => setShowReview(false)}>
+                <Button variant="outline" className="flex-1 h-10 rounded-xl text-sm font-medium" onClick={() => setShowReview(false)}>
                   Cancel
                 </Button>
                 {canRejectProjects && (
-                  <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
-                    <XCircle className="w-4 h-4 text-red-600" />
+                  <Button variant="outline" className="flex-1 h-10 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
                     Reject
                   </Button>
                 )}
                 {canApproveProjects && (
-                  <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
-                    <CheckCircle className="w-4 h-4 text-white-600" />
+                  <Button className="text-white flex-1 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-medium" onClick={handleApproveClick}>
                     Approve
                   </Button>
                 )}
@@ -925,6 +919,15 @@ export default function AdviserApprovalsPage() {
     <p className="text-sm text-gray-500 mb-1">Created At *</p>
     <p className="text-sm text-gray-900">{selectedItem.created_at || 'N/A'}</p>
   </div>
+
+  {selectedItem.status === 'Rejected' && (
+    <div className="col-span-2">
+      <p className="text-sm text-gray-500 mb-1">Rejection Notes *</p>
+      <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+        <p className="text-sm text-red-700 whitespace-pre-wrap">{selectedItem.note || selectedItem.rejection_reason || 'No rejection notes provided.'}</p>
+      </div>
+    </div>
+  )}
 </div>
 
               <div className="col-span-2">
@@ -963,16 +966,16 @@ export default function AdviserApprovalsPage() {
             {/* Action Buttons */}
             {(selectedItem.status === 'Pending Approval' || selectedItem.status === 'Pending Adviser Approval') && (
               <div className="flex gap-3 pt-4 border-t">
-                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowReview(false)}>
+                <Button variant="outline" className="flex-1 h-10 rounded-xl text-sm font-medium" onClick={() => setShowReview(false)}>
                   Cancel
                 </Button>
                 {canRejectLedger && (
-                  <Button variant="outline" className="flex-1 rounded-xl text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
+                  <Button variant="outline" className="flex-1 h-10 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50" onClick={() => { setShowReview(false); setShowReject(true); }}>
                     Reject
                   </Button>
                 )}
                 {canApproveLedger && (
-                  <Button className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700" onClick={handleApproveClick}>
+                  <Button className="text-white flex-1 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-medium" onClick={handleApproveClick}>
                     Approve
                   </Button>
                 )}
@@ -987,8 +990,8 @@ export default function AdviserApprovalsPage() {
           <p className="text-sm text-gray-600">Please provide a reason for rejecting this submission.</p>
           <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={4} className="w-full rounded-xl border border-gray-300 bg-gray-50 focus:border-blue-300 focus:ring-2 focus:ring-blue-200 outline-none transition" />
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowReject(false); setRejectReason(''); }}>Cancel</Button>
-            <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={handleRejectClick} disabled={!rejectReason.trim()}>
+            <Button variant="outline" className="flex-1 h-10 rounded-xl text-sm font-medium" onClick={() => { setShowReject(false); setRejectReason(''); }}>Cancel</Button>
+            <Button className="text-white flex-1 h-10 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-medium" onClick={handleRejectClick} disabled={!rejectReason.trim()}>
               Continue
             </Button>
           </div>
@@ -1071,11 +1074,11 @@ export default function AdviserApprovalsPage() {
       )}
     </div>
     <div className="flex gap-3">
-      <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setShowApprove(false); setApprovalNotes('');  }}>
+      <Button variant="outline" className="flex-1 h-10 rounded-xl text-sm font-medium" onClick={() => { setShowApprove(false); setApprovalNotes('');  }}>
         Cancel
       </Button>
       <Button 
-        className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" 
+        className="text-white flex-1 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium" 
         onClick={() => {
           if (!approvalNotes.trim()) {
             showToast('Please provide approval notes before confirming', 'error');
@@ -1148,7 +1151,7 @@ export default function AdviserApprovalsPage() {
                   </div>
                   <div className="flex gap-3 pt-4">
                     <Button 
-                      className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                      className="flex-1 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium"
                       onClick={() => {
                         const proofPath = selectedItem?.approvalType === 'ledger' ? selectedItem?.ledger_proof : selectedItem?.project_proof;
                         const proofUrl = getProofUrl(proofPath);
@@ -1157,7 +1160,7 @@ export default function AdviserApprovalsPage() {
                     >
                       <Download className="w-4 h-4 mr-2" />Download
                     </Button>
-                    <Button onClick={() => setShowLedgerProofViewer(false)} variant="outline" className="flex-1 rounded-xl">Close</Button>
+                    <Button onClick={() => setShowLedgerProofViewer(false)} variant="outline" className="flex-1 h-10 rounded-xl text-sm font-medium">Close</Button>
                   </div>
                 </div>
               )}
@@ -1175,10 +1178,10 @@ export default function AdviserApprovalsPage() {
           </span>
         </p>
     <div className="flex gap-3 mt-4">
-      <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowConfirmReject(false)}>
+      <Button variant="outline" className="flex-1 h-10 rounded-xl text-sm font-medium" onClick={() => setShowConfirmReject(false)}>
         Cancel
       </Button>
-      <Button className="text-white flex-1 rounded-xl bg-red-600 hover:bg-red-700" onClick={runReject}>
+      <Button className="text-white flex-1 h-10 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-medium" onClick={runReject}>
         Yes, Reject It
       </Button>
     </div>

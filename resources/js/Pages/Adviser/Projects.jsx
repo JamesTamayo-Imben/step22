@@ -326,35 +326,34 @@ export default function AdviserProjectsPage() {
                       key={project.id}
                       role="button"
                       tabIndex={0}
-                      // onClick={() => handleProjectClick(project)}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') handleProjectClick(project);
                       }}
-                      className="rounded-[20px] border border-blue-500 bg-white p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                      className="h-full rounded-[20px] border border-blue-500 bg-white p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow flex flex-col"
                     >
                       <div className="mb-3">
                         <h2 className="text-sm font-semibold text-gray-900 line-clamp-2">{project.title || 'Untitled Project'}</h2>
                         <p className="text-xs text-gray-500">{project.category || 'Uncategorized'}</p>
                       </div>
-                      <div className="text-sm text-gray-600 space-y-2">
-                        <div className="flex items-center justify-between">
+                      <div className="flex-1 text-sm text-gray-600 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
                           <span>Average Rating</span>
                           <span className="font-semibold text-blue-700">{project.averageRating.toFixed(1)}/5</span>
                         </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <span>Income</span>
                           <span className="font-semibold text-blue-700">{formatCurrency(project.income ?? getProjectIncome(project))}</span>
                         </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <span>Timeline</span>
                           <span className="font-semibold text-blue-700">{formatTimeline(project)}</span>
                         </div>
                       </div>
-                     
+
                       <button
                         type="button"
                         onClick={() => handleProjectClick(project)}
-                        className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition"
+                        className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors duration-200 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200"
                       >
                         View Details
                       </button>
@@ -391,7 +390,7 @@ export default function AdviserProjectsPage() {
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') handleProjectClick(project);
                     }}
-                    className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all flex flex-col gap-4 cursor-pointer"
+                    className="h-full rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all flex flex-col gap-4 cursor-pointer"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -410,7 +409,7 @@ export default function AdviserProjectsPage() {
                     </div>
 
                     <p
-                      className="text-sm text-gray-600"
+                      className="text-sm text-gray-600 flex-1"
                       style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
                       title={project.description}
                     >
@@ -445,13 +444,13 @@ export default function AdviserProjectsPage() {
                         {averageRating ? `${averageRating.count} review${averageRating.count > 1 ? 's' : ''}` : 'Be the first to rate'}
                       </span>
                     </div>
-                     <button
-                        type="button"
-                        onClick={() => handleProjectClick(project)}
-                        className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition"
-                      >
-                        View Details
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => handleProjectClick(project)}
+                      className="mt-auto w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors duration-200 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    >
+                      View Details
+                    </button>
                   </Card>
                 );
               })

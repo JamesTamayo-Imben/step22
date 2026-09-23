@@ -26,7 +26,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
       const width = window.innerWidth;
       if (width >= 1024) setCardsPerPage(6);
       else if (width >= 768) setCardsPerPage(4);
-      else setCardsPerPage(1);
+      else setCardsPerPage(5);
     };
 
     updateCardsPerPage();

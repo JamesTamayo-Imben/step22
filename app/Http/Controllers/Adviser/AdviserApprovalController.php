@@ -89,7 +89,30 @@ class AdviserApprovalController extends Controller
             })
             ->map(fn (Meeting $m) => $this->serializeMeeting($m, 'Rejected'));
 
-        $rejectedItems = $rejectedProjects->concat($rejectedLedger)->concat($rejectedMeetings)->sortByDesc(fn ($i) => $i['submittedDate'] ?? '')->values();
+        $rejectedDateChangeRequests = DateChangeRequest::where('status', 'rejected')
+            ->with(['project:id,title', 'requestedByUser:id,name'])
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(function ($dcr) {
+                return [
+                    'id' => $dcr->id,
+                    'approvalType' => 'date_change',
+                    'title' => 'Date Change Request - ' . $dcr->project?->title,
+                    'project' => $dcr->project?->title,
+                    'submittedBy' => $dcr->requestedByUser?->name ?? 'Unknown',
+                    'submittedDate' => $dcr->created_at?->format('Y-m-d H:i:s'),
+                    'status' => 'Rejected',
+                    'description' => $dcr->reason,
+                    'currentStartDate' => $dcr->current_start_date,
+                    'currentEndDate' => $dcr->current_end_date,
+                    'proposedStartDate' => $dcr->proposed_start_date,
+                    'proposedEndDate' => $dcr->proposed_end_date,
+                    'reason' => $dcr->reason,
+                    'projectId' => $dcr->project_id,
+                ];
+            })->values();
+
+        $rejectedItems = $rejectedProjects->concat($rejectedLedger)->concat($rejectedMeetings)->concat($rejectedDateChangeRequests)->sortByDesc(fn ($i) => $i['submittedDate'] ?? '')->values();
 
         // Fetch approved items
         $approvedProjects = Project::query()
@@ -123,10 +146,33 @@ class AdviserApprovalController extends Controller
             })
             ->map(fn (Meeting $m) => $this->serializeMeeting($m, 'Approved'));
 
-        $approvedItems = $approvedProjects->concat($approvedLedger)->concat($approvedMeetings)->sortByDesc(fn ($i) => $i['submittedDate'] ?? '')->values();
+        $approvedDateChangeRequests = DateChangeRequest::where('status', 'approved')
+            ->with(['project:id,title', 'requestedByUser:id,name'])
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(function ($dcr) {
+                return [
+                    'id' => $dcr->id,
+                    'approvalType' => 'date_change',
+                    'title' => 'Date Change Request - ' . $dcr->project?->title,
+                    'project' => $dcr->project?->title,
+                    'submittedBy' => $dcr->requestedByUser?->name ?? 'Unknown',
+                    'submittedDate' => $dcr->created_at?->format('Y-m-d H:i:s'),
+                    'status' => 'Approved',
+                    'description' => $dcr->reason,
+                    'currentStartDate' => $dcr->current_start_date,
+                    'currentEndDate' => $dcr->current_end_date,
+                    'proposedStartDate' => $dcr->proposed_start_date,
+                    'proposedEndDate' => $dcr->proposed_end_date,
+                    'reason' => $dcr->reason,
+                    'projectId' => $dcr->project_id,
+                ];
+            })->values();
+
+        $approvedItems = $approvedProjects->concat($approvedLedger)->concat($approvedMeetings)->concat($approvedDateChangeRequests)->sortByDesc(fn ($i) => $i['submittedDate'] ?? '')->values();
 
         // Fetch pending date change requests
-        $dateChangeRequests = \App\Models\CSG\DateChangeRequest::where('status', 'pending')
+        $dateChangeRequests = DateChangeRequest::where('status', 'pending')
             ->with(['project:id,title', 'requestedByUser:id,name'])
             ->orderByDesc('created_at')
             ->get()
@@ -216,11 +262,13 @@ class AdviserApprovalController extends Controller
             abort(403, 'You do not have permission to reject this item.');
         }
 
+        $userId = Auth::id();
+
         match ($type) {
-            'project' => $this->rejectProject($data['id'], $data['reason']),
-            'ledger', 'proof' => $this->rejectLedger($data['id'], $data['reason']),
+            'project' => $this->rejectProject($data['id'], $data['reason'], $userId),
+            'ledger', 'proof' => $this->rejectLedger($data['id'], $data['reason'], $userId),
             'meeting' => $this->rejectMeeting($data['id'], $data['reason']),
-            'change_date' => $this->rejectDateChangeRequest($data['id'], $data['reason']),
+            'change_date' => $this->rejectDateChangeRequest($data['id'], $data['reason'], $userId),
         };
 
         return back();
@@ -328,7 +376,8 @@ class AdviserApprovalController extends Controller
             $project->id,
             'project',
             'Approved project: '.($project->title ?? $project->id),
-            'approvals'
+            'approvals',
+            $userId
         );
 
         $this->createNotification(
@@ -342,23 +391,25 @@ class AdviserApprovalController extends Controller
         );
     }
 
-    private function rejectProject(string $id, string $reason): void
+    private function rejectProject(string $id, string $reason, ?string $userId = null): void
     {
         $project = Project::where('id', $id)->where('archive', false)->firstOrFail();
+        $userId = $userId ?? Auth::id();
         $project->update([
             'approval_status' => 'Rejected',
             'note' => $reason,
-            'updated_by' => Auth::id(),
+            'updated_by' => $userId,
         ]);
 
-        $this->syncProjectLedgerApprovalStatus($project, 'Rejected', Auth::id());
+        $this->syncProjectLedgerApprovalStatus($project, 'Rejected', $userId);
 
         $this->writeAudit(
             'Project Rejected',
             $project->id,
             'project',
             'Rejected project: '.($project->title ?? $project->id).' — '.$reason,
-            'approvals'
+            'approvals',
+            $userId
         );
 
         $this->createNotification(
@@ -380,9 +431,8 @@ class AdviserApprovalController extends Controller
 
         $request->update([
             'status' => 'approved',
-            'approved_by' => $userId,
-            'approved_at' => now(),
-            'updated_by' => $userId,
+            'reviewed_by' => $userId,
+            'reviewed_at' => now(),
             'rejection_reason' => $notes,
         ]);
 
@@ -400,7 +450,8 @@ class AdviserApprovalController extends Controller
             $request->id,
             'date_change_request',
             'Approved date change request for project: '.($request->project?->title ?? $request->project_id),
-            'approvals'
+            'approvals',
+            $userId
         );
 
         $this->createNotification(
@@ -416,14 +467,14 @@ class AdviserApprovalController extends Controller
     }
 
     //reject change date request
-    private function rejectDateChangeRequest(string $id, string $reason): void
+    private function rejectDateChangeRequest(string $id, string $reason, ?string $userId = null): void
     {
         $request = DateChangeRequest::where('id', $id)->firstOrFail();
+        $userId = $userId ?? Auth::id();
         $request->update([
             'status' => 'rejected',
-            'rejected_by' => Auth::id(),
-            'rejected_at' => now(),
-            'updated_by' => Auth::id(),
+            'reviewed_by' => $userId,
+            'reviewed_at' => now(),
             'rejection_reason' => $reason,
         ]);
 
@@ -432,7 +483,8 @@ class AdviserApprovalController extends Controller
             $request->id,
             'date_change_request',
             'Rejected date change request for project: '.($request->project?->title ?? $request->project_id).' — '.$reason,
-            'approvals'
+            'approvals',
+            $userId
         );
 
         $this->createNotification(
@@ -517,7 +569,8 @@ class AdviserApprovalController extends Controller
             $entry->id,
             'ledger_entry',
             $details,
-            'ledger'
+            'ledger',
+            $userId
         );
 
         $this->createNotification(
@@ -581,14 +634,15 @@ class AdviserApprovalController extends Controller
         });
     }
 
-    private function rejectLedger(string $id, string $reason): void
+    private function rejectLedger(string $id, string $reason, ?string $userId = null): void
     {
         $entry = LedgerEntry::where('id', $id)->firstOrFail();
+        $userId = $userId ?? Auth::id();
         $entry->update([
             'approval_status' => 'Rejected',
             'note' => $reason,
             'rejected_at' => now(),
-            'updated_by' => Auth::id(),
+            'updated_by' => $userId,
             'approved_by' => null,
             'approved_at' => null,
         ]);
@@ -598,7 +652,8 @@ class AdviserApprovalController extends Controller
             $entry->id,
             'ledger_entry',
             ($entry->description ?? '').' — '.$reason,
-            'ledger'
+            'ledger',
+            $userId
         );
 
         $this->createNotification(
@@ -827,6 +882,7 @@ class AdviserApprovalController extends Controller
             'submittedBy' => $submittedBy,
             'submittedDate' => optional($p->updated_at)->format('Y-m-d') ?? '',
             'status' => $status,
+            'note' => $p->note ?? null,
             'category' => $p->category ?? '',
             'amount' => $p->budget !== null ? (float) $p->budget : null,
             'type' => 'project',
@@ -867,6 +923,7 @@ class AdviserApprovalController extends Controller
         'submittedBy' => $this->userName($e->created_by),
         'submittedDate' => optional($e->created_at)->format('Y-m-d') ?? '',
         'status' => $status === 'Rejected' ? 'Rejected' : 'Pending Approval',
+        'note' => $e->note ?? null,
         'amount' => (float) $e->amount,
         'project' => $e->project?->title ?? '',
         'hash' => substr($e->project_id ?? $e->id, 0, 32),
@@ -924,11 +981,11 @@ class AdviserApprovalController extends Controller
         ];
     }
 
-    private function writeAudit(string $action, ?string $actionableId, ?string $actionableType, string $details, string $module): void
+    private function writeAudit(string $action, ?string $actionableId, ?string $actionableType, string $details, string $module, ?string $userId = null): void
     {
         AuditLog::create([
             'id' => (string) Str::uuid(),
-            'user_id' => Auth::id(),
+            'user_id' => $userId ?? Auth::id(),
             'actionable_id' => $actionableId,
             'actionable_type' => $actionableType,
             'action' => $action,

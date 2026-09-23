@@ -247,7 +247,7 @@ export function StudentNavbar({
                       onClick={() => { onNavigate('notifications'); setIsProfileMenuOpen(false); }}
                       className="w-full flex items-center gap-2 px-4 py-3 hover:bg-gray-50 text-left"
                     >
-                      <Award className="w-4 h-4" />
+                      <Bell className="w-4 h-4" />
                       Notifications
                     </button>
                     )}

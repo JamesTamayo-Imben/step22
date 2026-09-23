@@ -156,14 +156,14 @@ export default function ProfileCompletionModal({ isOpen, user, onComplete, onSki
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-4">
-              <button
+              {/* <button
                 type="button"
                 onClick={handleSkip}
                 disabled={isLoading}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
                 Skip for Now
-              </button>
+              </button> */}
               <button
                 type="submit"
                 disabled={isLoading}

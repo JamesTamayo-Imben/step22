@@ -363,14 +363,14 @@ export default function OAuthCallback() {
               </button>
 
               {/* Skip */}
-              <button
+              {/* <button
                 type="button"
                 onClick={handleSkipOnboarding}
                 disabled={submitting}
                 className="w-full py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Processing...' : 'Skip for now'}
-              </button>
+              </button> */}
             </form>
           </div>
         </div>

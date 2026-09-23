@@ -25,7 +25,7 @@ class UserManagementController extends Controller
     {
         $users = User::with('role')
             ->orderBy('created_at', 'desc')
-            ->paginate(5);
+            ->paginate(20);
 
         $roles = Role::all();
         $statuses = [
@@ -101,7 +101,7 @@ class UserManagementController extends Controller
             $query->where('status', $status);
         }
 
-        $users = $query->orderBy('created_at', 'desc')->paginate(5, ['*'], 'page', $page);
+$users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $page);
 
         // Format the users for frontend
         $formattedUsers = $users->items();

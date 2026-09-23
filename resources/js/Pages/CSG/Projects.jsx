@@ -831,9 +831,9 @@ function CSGProjectsPageInner() {
       </div>
 
       {/* Projects Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 auto-rows-fr gap-6">
         {currentItems.map((project) => (
-          <Card key={project.id} className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all">
+          <Card key={project.id} className="h-full rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all">
             {/* Header */}
             <div className="mb-4">
               <div className="flex items-start justify-between mb-2">
@@ -848,7 +848,7 @@ function CSGProjectsPageInner() {
             </div>
 
             {/* Description */}
-            <p className="text-sm text-gray-600 mb-4 whitespace-pre-wrap break-words overflow-wrap-anywhere">{project.description}</p>
+            <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
 
             {/* Progress */}
             <div className="mb-4">
@@ -870,7 +870,9 @@ function CSGProjectsPageInner() {
             </div>
 
             {/* Action Buttons */}
-            {getProjectButton(project)}
+            <div className="mt-auto min-h-10 flex items-end">
+              {getProjectButton(project)}
+            </div>
           </Card>
         ))}
       </div>

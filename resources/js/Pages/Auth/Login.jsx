@@ -35,7 +35,7 @@ const animationStyles = `
   }
 `;
 
-export default function LoginPage({ onLogin, onNavigateToRegister }) {
+export default function LoginPage({ onLogin, onNavigateToRegister, archivedMessage }) {
   const { signIn, signInWithGoogle } = useSupabase(); // ✅ re-enabled
 
   const [username, setUsername] = useState("");
@@ -43,7 +43,8 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(archivedMessage || "");
+  const [showArchivedModal, setShowArchivedModal] = useState(Boolean(archivedMessage));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -125,6 +126,31 @@ export default function LoginPage({ onLogin, onNavigateToRegister }) {
   return (
     <div className="min-h-screen flex">
       <style>{animationStyles}</style>
+
+      {showArchivedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="archived-account-title">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600">
+                !
+              </div>
+              <h2 id="archived-account-title" className="text-lg font-semibold text-gray-900">
+                Account Archived
+              </h2>
+            </div>
+            <p className="text-sm leading-6 text-gray-600">
+              Your account has been archived from the system. Please contact the authorities.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowArchivedModal(false)}
+              className="mt-6 w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* LEFT PANEL */}
       <div className="hidden md:flex w-2/5 bg-gradient-to-br from-[#155DFC] to-[#193CB8] text-white p-12 flex-col justify-between relative overflow-hidden">

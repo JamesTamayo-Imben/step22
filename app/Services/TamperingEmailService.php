@@ -119,8 +119,8 @@ class TamperingEmailService
             ->where('archive', false)
             ->whereNotNull('email')
             ->whereHas('role', fn ($query) => $query->whereIn('slug', [
-                'student',
-                'teacher',
+                // 'student',
+                // 'teacher',
                 'csg',
                 'admin',
                 'admin-sadu',

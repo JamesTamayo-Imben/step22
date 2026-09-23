@@ -4,10 +4,10 @@ namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
-use App\Models\User\Notification;
 use App\Services\CsgOnlineStatusService;
 use App\Services\RolePermissionService;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -35,14 +35,26 @@ class HandleInertiaRequests extends Middleware
                 $permissions = [];
             }
         }
-        
+
+        $authUser = $user ? [
+    'id' => $user->id,
+    'name' => $user->name,
+    'email' => $user->email,
+    'avatar_url' => $user->avatar_url,
+    'role' => $user->role ? [
+        'id' => $user->role->id,
+        'name' => $user->role->name,
+        'slug' => $user->role->slug,
+    ] : null,
+] : null;
+
         return [
-            ...parent::share($request),
-            'auth' => [
-                'user' => $user,
-                'permissions' => $permissions,
-                'notifications' => $user
-                    ? DB::table('notifications')
+    ...parent::share($request),
+    'auth' => [
+        'user' => $authUser,
+        'permissions' => $permissions,
+        'notifications' => $user
+            ? DB::table('notifications')
                         ->leftJoin('notification_reads as notification_read_state', function ($join) use ($user) {
                             $join->on('notifications.id', '=', 'notification_read_state.notification_id')
                                 ->where('notification_read_state.user_id', $user->id);
@@ -57,9 +69,9 @@ class HandleInertiaRequests extends Middleware
                     : [],
             ],
             'userPermissions' => $permissions,
-            'onlineOfficers' => fn () => $user && $user->hasRole('CSG Officer')
-                ? app(CsgOnlineStatusService::class)->getOfficersStatus()
-                : [],
+    'onlineOfficers' => $user && $user->hasRole('CSG Officer')
+        ? app(CsgOnlineStatusService::class)->getOfficersStatus()
+        : [],
         ];
     }
 }

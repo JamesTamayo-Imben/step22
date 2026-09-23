@@ -760,6 +760,13 @@ public function uploadProof(Request $request, $id)
                     'message' => 'Initial baseline entries are submitted automatically with project approval.',
                 ], 403);
             }
+
+            if (empty($entry->resolveLedgerProof())) {
+                return response()->json([
+                    'message' => 'Proof is required before submitting a ledger entry for approval.',
+                    'errors' => ['ledger_proof' => ['Attach a proof document before submitting this ledger entry.']],
+                ], 422);
+            }
             
             // Update approval status to Pending Adviser Approval
             $entry->approval_status = 'Pending Adviser Approval';

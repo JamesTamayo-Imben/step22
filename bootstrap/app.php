@@ -19,6 +19,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            \App\Http\Middleware\LogoutArchivedUsers::class,
+        ]);
+
+        $middleware->api(append: [
+            \App\Http\Middleware\LogoutArchivedUsers::class,
         ]);
 
         // Register role-based access control middleware

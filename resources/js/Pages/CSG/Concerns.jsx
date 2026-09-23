@@ -1,10 +1,50 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
+import ReactDOM from 'react-dom';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import { Search, Info, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+
+function Modal({ open, onClose, title, description, children }) {
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalStyle;
+    };
+  }, [open]);
+
+  if (!open) return null;
+
+  return ReactDOM.createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="relative w-full max-w-2xl bg-white rounded-2xl shadow-lg flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between p-6 border-b">
+          <div>
+            <h3 className="text-lg font-semibold">{title}</h3>
+            {description ? <p className="text-sm text-gray-500 mt-1">{description}</p> : null}
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700" aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <div className="overflow-y-auto p-6 pt-0">{children}</div>
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 const STATUS_OPTIONS = ['All Concerns', 'This Week', 'This Month', 'This Year'];
 
@@ -41,6 +81,7 @@ export default function ConcernsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedConcern, setSelectedConcern] = useState(null);
   const itemsPerPage = 6;
   const [items, setItems] = useState(() =>
     Array.isArray(concerns) ? concerns.map((concern) => ({ ...concern, favorite: !!concern.favorite })) : []
@@ -94,7 +135,6 @@ export default function ConcernsPage() {
       return;
     }
 
-  
     const newState = !item.favorite;
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
@@ -122,6 +162,14 @@ export default function ConcernsPage() {
       console.error(error);
       alert('Could not update favorite status.');
     }
+  };
+
+  const openConcernDetails = (concern) => {
+    setSelectedConcern(concern);
+  };
+
+  const closeConcernDetails = () => {
+    setSelectedConcern(null);
   };
 
   return (
@@ -177,32 +225,47 @@ export default function ConcernsPage() {
               </Card>
             ) : (
               paginatedItems.map((concern) => (
-                <Card key={concern.id} className="rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all">
+                <Card
+                  key={concern.id}
+                  className="rounded-[20px] border-0 shadow-sm p-4 hover:shadow-md transition-all cursor-pointer h-full min-h-[220px]"
+                  onClick={() => openConcernDetails(concern)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openConcernDetails(concern);
+                    }
+                  }}
+                >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h3 className="font-semibold text-gray-900 truncate">Concern</h3>
-                      <p className="text-xs text-gray-500">Submitted {new Date(concern.created_at).toLocaleString()}</p>
+                      <p className="text-[11px] text-gray-500 mt-1">Submitted {new Date(concern.created_at).toLocaleString()}</p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => toggleFavorite(concern.id)}
-                      className="rounded-full border border-gray-200 bg-white p-2 text-gray-500 hover:text-yellow-500 hover:border-yellow-300 transition"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleFavorite(concern.id);
+                      }}
+                      className="rounded-full border border-gray-200 bg-white p-2 text-gray-500 hover:text-yellow-500 hover:border-yellow-300 transition flex-shrink-0"
                       aria-label={concern.favorite ? 'Remove favorite' : 'Mark favorite'}
                     >
-                      <Star className={`w-5 h-5 ${concern.favorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
+                      <Star className={`w-4 h-4 ${concern.favorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
                     </button>
                   </div>
 
-                  <div className="mb-2">
-                    <p className="text-sm text-gray-700 whitespace-pre-line">{concern.concern}</p>
-                    <p className="text-xs text-gray-400">Student Name: {concern.name ? concern.name : 'Anonymous'}</p>
+                  <div className="mt-3 mb-3 flex-1">
+                    <p className="text-sm text-gray-700 whitespace-pre-line line-clamp-4 leading-5">{concern.concern}</p>
+                    <p className="text-[11px] text-gray-400 mt-3">Student Name: {concern.name ? concern.name : 'Anonymous'}</p>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    <Badge className={`rounded-lg ${getFavoriteColor(concern)}`}>
+                  <div className="flex items-center justify-between gap-2 mt-auto pt-2 border-t border-gray-100">
+                    <Badge className={`rounded-lg text-[10px] px-2 py-1 ${getFavoriteColor(concern)}`}>
                       {concern.favorite ? 'Favorited' : 'Normal'}
                     </Badge>
-                    {/* <Badge className="bg-gray-100 text-gray-700 rounded-lg">{new Date(concern.created_at).toLocaleDateString()}</Badge> */}
+                    <span className="text-[11px] text-blue-600 underline">View details</span>
                   </div>
                 </Card>
               ))
@@ -294,6 +357,34 @@ export default function ConcernsPage() {
           )}
         </div>
       </div>
+
+      <Modal
+        open={!!selectedConcern}
+        onClose={closeConcernDetails}
+        title="Concern Details"
+        description="View the submitted concern and the time it was sent."
+      >
+        <div className="space-y-4 pt-6">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Submitted</p>
+            <p className="text-sm text-gray-900">
+              {selectedConcern?.created_at ? new Date(selectedConcern.created_at).toLocaleString() : 'Date not available'}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Student</p>
+            <p className="text-sm text-gray-900">{selectedConcern?.name ? selectedConcern.name : 'Anonymous'}</p>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Concern</p>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <p className="whitespace-pre-line text-sm text-gray-700">{selectedConcern?.concern || 'No concern details available.'}</p>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </AuthenticatedLayout>
   );
 }
