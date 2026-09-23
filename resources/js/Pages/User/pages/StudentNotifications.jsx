@@ -93,25 +93,27 @@ export default function StudentNotificationsPage({ onNavigate, notificationsData
             {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
           </p>
         </div>
-        {/* {unreadCount > 0 && ( */}
-          {/* <button
+        {unreadCount > 0 && (
+          <button
             onClick={markAllAsRead}
             className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 whitespace-nowrap"
           >
             <Check className="w-4 h-4" />
             Mark all as read
-          </button> */}
-        {/* )} */}
+          </button>
+        )}
       </div>
 
       {/* Filter Chips */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2">
-        {/* <Filter className="w-4 h-4 text-gray-500 flex-shrink-0" /> */}
+      <div className="relative flex items-center gap-2 overflow-x-auto pb-2 sm:pb-2">
+        {selectedFilter && (
+          <div className="pointer-events-none absolute right-0 top-0 hidden h-full w-12 bg-gradient-to-l from-gray-100 via-gray-200/60 to-transparent sm:block" />
+        )}
         {filters.map((filter) => (
           <button
             key={filter.id}
             onClick={() => setSelectedFilter(filter.id)}
-            className={`px-4 py-2 rounded-full w-[100px]  py-2 whitespace-nowrap transition-all ${
+            className={`relative px-4 py-2 rounded-full w-[100px] whitespace-nowrap transition-all ${
               selectedFilter === filter.id
                 ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -136,9 +138,14 @@ export default function StudentNotificationsPage({ onNavigate, notificationsData
           filteredNotifications.map((notification) => (
             <Card 
               key={notification.id} 
-              className={`rounded-[20px] border-0 shadow-sm p-4 transition-all hover:shadow-md ${
+              className={`rounded-[20px] border-0 shadow-sm p-4 transition-all hover:shadow-md cursor-pointer ${
                 !notification.isRead ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
               }`}
+              onClick={() => {
+                if (!notification.isRead) {
+                  markAsRead(notification.id);
+                }
+              }}
             >
               <div className="flex gap-4">
                 {/* Icon */}
@@ -160,13 +167,10 @@ export default function StudentNotificationsPage({ onNavigate, notificationsData
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-gray-500">{notification.timestamp}</p>
                     {!notification.isRead && (
-                      <button
-                        onClick={() => markAsRead(notification.id)}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                      >
+                      <span className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors">
                         Mark as read
-                      </button>
-                     )} *
+                      </span>
+                     )}
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -12,8 +12,6 @@ import {
   Building,
   Users,
   FolderKanban,
-  Tag,
-  DollarSign,
   X,
 } from 'lucide-react';
 
@@ -67,102 +65,46 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
-const mockDepartments = [
-  { id: 1, name: 'Computer Science', description: 'CS & IT programs' },
-  { id: 2, name: 'Engineering', description: 'All engineering disciplines' },
-  { id: 3, name: 'Business Administration', description: 'Business & Management' },
-  { id: 4, name: 'Arts & Sciences', description: 'Liberal arts programs' },
-];
-
-const mockPositions = [
-  { id: 1, name: 'President', description: 'Organization head' },
-  { id: 2, name: 'Vice President', description: 'Second in command' },
-  { id: 3, name: 'Secretary', description: 'Documentation officer' },
-  { id: 4, name: 'Treasurer', description: 'Financial officer' },
-  { id: 5, name: 'CSG Officer', description: 'General CSG officer' },
-];
-
-const mockOrgTypes = [
-  { id: 1, name: 'Central Student Government', description: 'Main student body' },
-  { id: 2, name: 'Academic Club', description: 'Subject-based organizations' },
-  { id: 3, name: 'Sports Club', description: 'Athletic organizations' },
-  { id: 4, name: 'Cultural Organization', description: 'Arts and culture groups' },
-];
-
-const mockProjectCategories = [
-  { id: 1, name: 'Community Outreach', description: 'Community service projects' },
-  { id: 2, name: 'Academic', description: 'Educational programs' },
-  { id: 3, name: 'Sports & Recreation', description: 'Athletic events' },
-  { id: 4, name: 'Wellness', description: 'Health and wellbeing' },
-  { id: 5, name: 'Cultural', description: 'Arts and cultural activities' },
-];
-
-const mockLedgerCategories = [
-  { id: 1, name: 'Transportation', description: 'Travel and logistics' },
-  { id: 2, name: 'Materials & Supplies', description: 'Consumables and equipment' },
-  { id: 3, name: 'Marketing', description: 'Promotional materials' },
-  { id: 4, name: 'Venue Rental', description: 'Facility costs' },
-  { id: 5, name: 'Food & Beverage', description: 'Catering expenses' },
-  { id: 6, name: 'Honorarium', description: 'Speaker fees' },
-];
-
 export default function MasterDataPage() {
-  const [departments, setDepartments] = useState(mockDepartments);
-  const [positions, setPositions] = useState(mockPositions);
-  const [orgTypes, setOrgTypes] = useState(mockOrgTypes);
-  const [projectCategories, setProjectCategories] = useState(mockProjectCategories);
-  const [ledgerCategories, setLedgerCategories] = useState(mockLedgerCategories);
+  const { institutes = [], courses = [], positions = [] } = usePage().props;
 
   const [showModal, setShowModal] = useState(false);
-  const [currentCategory, setCurrentCategory] = useState('departments');
+  const [currentCategory, setCurrentCategory] = useState('institutes');
   const [editingItem, setEditingItem] = useState(null);
-  const [formData, setFormData] = useState({ name: '', description: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', institute_id: '' });
+  const [searchQuery, setSearchQuery] = useState({ institutes: '', courses: '', positions: '' });
+  const [confirmModal, setConfirmModal] = useState({
+    open: false,
+    type: null,
+    category: null,
+    itemId: null,
+    itemName: '',
+    result: null,
+  });
 
-  const getDataByCategory = (category) => {
-    switch (category) {
-      case 'departments':
-        return departments;
-      case 'positions':
-        return positions;
-      case 'org-types':
-        return orgTypes;
-      case 'project-categories':
-        return projectCategories;
-      case 'ledger-categories':
-        return ledgerCategories;
-      default:
-        return [];
-    }
-  };
+  const dataByCategory = useMemo(
+    () => ({
+      institutes: institutes,
+      courses: courses,
+      positions: positions,
+    }),
+    [institutes, courses, positions]
+  );
 
-  const setDataByCategory = (category, data) => {
-    switch (category) {
-      case 'departments':
-        setDepartments(data);
-        break;
-      case 'positions':
-        setPositions(data);
-        break;
-      case 'org-types':
-        setOrgTypes(data);
-        break;
-      case 'project-categories':
-        setProjectCategories(data);
-        break;
-      case 'ledger-categories':
-        setLedgerCategories(data);
-        break;
-    }
-  };
+  const getDataByCategory = (category) => dataByCategory[category] || [];
 
   const handleOpenModal = (category, item) => {
     setCurrentCategory(category);
     if (item) {
       setEditingItem(item);
-      setFormData({ name: item.name, description: item.description || '' });
+      setFormData({
+        name: item.name,
+        description: item.description || '',
+        institute_id: item.institute_id || '',
+      });
     } else {
       setEditingItem(null);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', institute_id: '' });
     }
     setShowModal(true);
   };
@@ -173,104 +115,208 @@ export default function MasterDataPage() {
       return;
     }
 
-    const currentData = getDataByCategory(currentCategory);
+    const payload = {
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+    };
 
-    if (editingItem) {
-      const updatedData = currentData.map((item) =>
-        item.id === editingItem.id ? { ...item, ...formData } : item
-      );
-      setDataByCategory(currentCategory, updatedData);
-      showToast('Item updated successfully', 'success');
-    } else {
-      const newItem = {
-        id: currentData.length + 1,
-        ...formData,
-      };
-      setDataByCategory(currentCategory, [...currentData, newItem]);
-      showToast('Item created successfully', 'success');
+    if (currentCategory === 'courses') {
+      payload.institute_id = formData.institute_id || null;
     }
+
+    const routeName = {
+      institutes: editingItem ? route('sadmin.master-data.institutes.update', editingItem.id) : route('sadmin.master-data.institutes.store'),
+      courses: editingItem ? route('sadmin.master-data.courses.update', editingItem.id) : route('sadmin.master-data.courses.store'),
+      positions: editingItem ? route('sadmin.master-data.positions.update', editingItem.id) : route('sadmin.master-data.positions.store'),
+    }[currentCategory];
+
+    const method = editingItem ? 'put' : 'post';
+
+    router[method](routeName, payload, {
+      onSuccess: () => showToast(editingItem ? 'Item updated successfully' : 'Item created successfully', 'success'),
+      onError: (errors) => {
+        const firstError = Object.values(errors || {})[0];
+        showToast(Array.isArray(firstError) ? firstError[0] : (firstError || 'Unable to save item'), 'error');
+      },
+    });
 
     setShowModal(false);
     setEditingItem(null);
-    setFormData({ name: '', description: '' });
+    setFormData({ name: '', description: '', institute_id: '' });
   };
 
-  const handleDelete = (category, id) => {
-    const currentData = getDataByCategory(category);
-    setDataByCategory(category, currentData.filter((item) => item.id !== id));
-    showToast('Item deleted', 'success');
+  const openArchiveConfirm = (category, item) => {
+    setConfirmModal({
+      open: true,
+      type: 'archive',
+      category,
+      itemId: item.id,
+      itemName: item.name,
+      result: null,
+    });
   };
 
-  const getCategoryIcon = (category) => {
-    switch (category) {
-      case 'departments':
-        return <Building className="w-5 h-5" />;
-      case 'positions':
-        return <Users className="w-5 h-5" />;
-      case 'org-types':
-        return <FolderKanban className="w-5 h-5" />;
-      case 'project-categories':
-        return <Tag className="w-5 h-5" />;
-      case 'ledger-categories':
-        return <DollarSign className="w-5 h-5" />;
-      default:
-        return null;
-    }
+  const openRestoreConfirm = (category, item) => {
+    setConfirmModal({
+      open: true,
+      type: 'restore',
+      category,
+      itemId: item.id,
+      itemName: item.name,
+      result: null,
+    });
+  };
+
+  const executeArchiveRestore = (category, id) => {
+    const routeName = {
+      institutes: route('sadmin.master-data.institutes.destroy', id),
+      courses: route('sadmin.master-data.courses.destroy', id),
+      positions: route('sadmin.master-data.positions.destroy', id),
+    }[category];
+
+    if (!routeName) return;
+
+    const isRestoring = confirmModal.type === 'restore';
+
+    router.delete(routeName, {
+      onSuccess: () => {
+        setConfirmModal((prev) => ({ ...prev, result: 'success' }));
+        setTimeout(() => {
+          setConfirmModal({ open: false, type: null, category: null, itemId: null, itemName: '', result: null });
+          showToast(isRestoring ? 'Item restored successfully' : 'Item archived successfully', 'success');
+        }, 1200);
+      },
+      onError: () => {
+        setConfirmModal((prev) => ({ ...prev, result: 'error' }));
+        setTimeout(() => {
+          setConfirmModal({ open: false, type: null, category: null, itemId: null, itemName: '', result: null });
+          showToast('Unable to update item', 'error');
+        }, 1200);
+      },
+    });
   };
 
   const getCategoryLabel = (category) => {
     switch (category) {
-      case 'departments':
-        return 'Departments';
+      case 'institutes':
+        return 'Institutes';
       case 'positions':
         return 'Positions';
-      case 'org-types':
-        return 'Organization Types';
-      case 'project-categories':
-        return 'Project Categories';
-      case 'ledger-categories':
-        return 'Ledger Categories';
+      case 'courses':
+        return 'Courses';
       default:
         return '';
     }
   };
 
-  const renderDataTable = (category) => {
+  const getFilteredData = (category) => {
     const data = getDataByCategory(category);
+    const query = (searchQuery[category] || '').trim().toLowerCase();
+
+    if (!query) return data;
+
+    return data.filter((item) => {
+      const haystack = [
+        item.name,
+        item.description,
+        category === 'courses' ? item.institute_name : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  };
+
+  const renderDataTable = (category) => {
+    const data = getFilteredData(category);
 
     return (
-      <div className="space-y-3">
-        {data.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-          >
-            <div>
-              <p className="text-sm font-medium text-gray-900">{item.name}</p>
-              {item.description && <p className="text-xs text-gray-500 mt-1">{item.description}</p>}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleOpenModal(category, item)}
-                className="p-2 text-gray-600 hover:bg-white rounded-lg transition-colors"
-                title="Edit"
-              >
-                <Edit className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleDelete(category, item.id)}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Delete"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Input
+              type="search"
+              value={searchQuery[category] || ''}
+              onChange={(e) =>
+                setSearchQuery((prev) => ({
+                  ...prev,
+                  [category]: e.target.value,
+                }))
+              }
+              placeholder={`Search ${getCategoryLabel(category).toLowerCase()}...`}
+              className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition disabled:opacity-50"
+            />
+
+            <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                <circle cx="11" cy="11" r="6" />
+                <path d="M16 16L21 21" strokeLinecap="round" />
+              </svg>
             </div>
           </div>
-        ))}
 
-        {data.length === 0 && (
+          <Button
+            onClick={() => handleOpenModal(activeTab, null)}
+            className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap w-auto px-3"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add {getCategoryLabel(activeTab).slice(0, -1)}
+          </Button>
+        </div>
+
+
+        {data.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500">No items yet</p>
+            <p className="text-gray-500">No items found</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {data.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors border border-gray-200"
+              >
+                <div className="min-w-0 pr-3">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-gray-900 break-words">{item.name}</p>
+                    {item.archive && (
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                        Archived
+                      </span>
+                    )}
+                  </div>
+                  {item.description && <p className="text-xs text-gray-500 mt-1 break-words">{item.description}</p>}
+                  {category === 'courses' && item.institute_name && (
+                    <p className="text-[11px] text-gray-500 mt-1">Institute: {item.institute_name}</p>
+                  )}
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => handleOpenModal(category, item)}
+                    className="p-2 text-gray-600 hover:bg-white rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => (item.archive ? openRestoreConfirm(category, item) : openArchiveConfirm(category, item))}
+                    className={`p-2 rounded-lg transition-colors ${item.archive ? 'text-emerald-600 hover:bg-emerald-50' : 'text-red-600 hover:bg-red-50'}`}
+                    title={item.archive ? 'Restore' : 'Archive'}
+                  >
+                    {item.archive ? (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+                        <path d="M4 12c0-4.418 3.582-8 8-8s8 3.582 8 8-3.582 8-8 8-8-3.582-8-8Z" />
+                        <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -278,14 +324,12 @@ export default function MasterDataPage() {
   };
 
   const tabs = [
-    { id: 'departments', label: 'Departments', icon: Building },
+    { id: 'institutes', label: 'Institutes', icon: Building },
+    { id: 'courses', label: 'Courses', icon: FolderKanban },
     { id: 'positions', label: 'Positions', icon: Users },
-    { id: 'org-types', label: 'Org Types', icon: FolderKanban },
-    { id: 'project-categories', label: 'Projects', icon: Tag },
-    { id: 'ledger-categories', label: 'Ledger', icon: DollarSign },
   ];
 
-  const [activeTab, setActiveTab] = useState('departments');
+  const [activeTab, setActiveTab] = useState('institutes');
 
   return (
     <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800">Master Data</h2>}>
@@ -293,67 +337,13 @@ export default function MasterDataPage() {
       <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           <div className="space-y-6">
-            {/* Header */}
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">Master Data Management</h1>
-              <p className="text-gray-500">Manage system-wide reference data</p>
+              <p className="text-gray-500">Manage the live institute, course, and position reference data used by the system.</p>
             </div>
 
-            {/* Summary Cards */}
-            {/* <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <Card className="rounded-[20px] p-4 border-0 shadow-sm bg-blue-50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-blue-700">Departments</p>
-                    <p className="text-2xl text-blue-900 font-bold">{departments.length}</p>
-                  </div>
-                  <Building className="w-8 h-8 text-blue-600" />
-                </div>
-              </Card>
-
-              <Card className="rounded-[20px] p-4 border-0 shadow-sm bg-green-50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-green-700">Positions</p>
-                    <p className="text-2xl text-green-900 font-bold">{positions.length}</p>
-                  </div>
-                  <Users className="w-8 h-8 text-green-600" />
-                </div>
-              </Card>
-
-              <Card className="rounded-[20px] p-4 border-0 shadow-sm bg-purple-50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-purple-700">Org Types</p>
-                    <p className="text-2xl text-purple-900 font-bold">{orgTypes.length}</p>
-                  </div>
-                  <FolderKanban className="w-8 h-8 text-purple-600" />
-                </div>
-              </Card>
-
-              <Card className="rounded-[20px] p-4 border-0 shadow-sm bg-orange-50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-orange-700">Projects</p>
-                    <p className="text-2xl text-orange-900 font-bold">{projectCategories.length}</p>
-                  </div>
-                  <Tag className="w-8 h-8 text-orange-600" />
-                </div>
-              </Card>
-
-              <Card className="rounded-[20px] p-4 border-0 shadow-sm bg-yellow-50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-yellow-700">Ledger</p>
-                    <p className="text-2xl text-yellow-900 font-bold">{ledgerCategories.length}</p>
-                  </div>
-                  <DollarSign className="w-8 h-8 text-yellow-600" />
-                </div>
-              </Card>
-            </div> */}
-
             {/* Tabs */}
-            <Card className="rounded-[20px] border-0 shadow-sm">
+            <Card className="rounded-[20px] border-0 shadow-sm gap-2">
               <div className="flex overflow-x-auto border-b border-gray-200">
                 {tabs.map((tab) => {
                   const TabIcon = tab.icon;
@@ -376,22 +366,80 @@ export default function MasterDataPage() {
               </div>
 
               <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-semibold text-gray-900">{getCategoryLabel(activeTab)}</h2>
-                  <Button
-                    onClick={() => handleOpenModal(activeTab, null)}
-                    className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add {getCategoryLabel(activeTab).slice(0, -1)}
-                  </Button>
-                </div>
-                {renderDataTable(activeTab)}
+                  <div className="flex-1">
+                    {renderDataTable(activeTab)}
+                  </div>
               </div>
             </Card>
           </div>
         </div>
       </div>
+
+      <Modal
+        open={confirmModal.open}
+        onClose={() => !confirmModal.result && setConfirmModal({ open: false, type: null, category: null, itemId: null, itemName: '', result: null })}
+        title={confirmModal.result ? (confirmModal.result === 'success' ? 'Success' : 'Error') : 'Confirm Action'}
+      >
+        <div className="py-6 text-center">
+          {confirmModal.result === null && (
+            <>
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-yellow-100 text-yellow-600">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+                  <path d="M12 9v4" strokeLinecap="round" />
+                  <path d="M12 17h.01" strokeLinecap="round" />
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                </svg>
+              </div>
+              <p className="mt-4 text-gray-700">
+                {confirmModal.type === 'restore'
+                  ? `Are you sure you want to restore ${confirmModal.itemName}? It will be activated and shown again in active use.`
+                  : `Are you sure you want to archive ${confirmModal.itemName}? This will change its status to archived.`}
+              </p>
+              <div className="mt-6 flex justify-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmModal({ open: false, type: null, category: null, itemId: null, itemName: '', result: null })}
+                  className="rounded-lg"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => executeArchiveRestore(confirmModal.category, confirmModal.itemId)}
+                  className={`rounded-lg text-white ${confirmModal.type === 'restore' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}
+                >
+                  Confirm
+                </Button>
+              </div>
+            </>
+          )}
+
+          {confirmModal.result === 'success' && (
+            <div className="text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-600">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+                  <path d="m5 12 5 5L20 2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <p className="mt-4 text-gray-700">
+                {confirmModal.type === 'restore' ? 'Item restored successfully.' : 'Item archived successfully.'}
+              </p>
+            </div>
+          )}
+
+          {confirmModal.result === 'error' && (
+            <div className="text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+                  <path d="M12 8v4" strokeLinecap="round" />
+                  <path d="M12 16h.01" strokeLinecap="round" />
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                </svg>
+              </div>
+              <p className="mt-4 text-gray-700">Unable to update item. Please try again.</p>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Add/Edit Modal */}
       <Modal
@@ -409,6 +457,22 @@ export default function MasterDataPage() {
               className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300"
             />
           </div>
+
+          {currentCategory === 'courses' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">Institute</label>
+              <select
+                value={formData.institute_id}
+                onChange={(e) => setFormData({ ...formData, institute_id: e.target.value })}
+                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 px-3 focus:bg-white outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300"
+              >
+                <option value="">Select an institute</option>
+                {institutes.map((institute) => (
+                  <option key={institute.id} value={institute.id}>{institute.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">Description</label>

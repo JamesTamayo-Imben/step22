@@ -1,22 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
-import { Badge } from '@/Components/ui/badge';
-import { Button } from '@/Components/ui/button';
-import { Bell, AlertCircle, Star, Calendar, FolderKanban, Award, TrendingUp, FileText, DollarSign, Check, Filter, ChevronLeft, ChevronRight, Send } from 'lucide-react';
+import { Bell, Star, AlertCircle, Calendar, FolderKanban, Award, TrendingUp, FileText, DollarSign, Check } from 'lucide-react';
 
 const filters = [
   { id: 'all', label: 'All' },
   { id: 'project', label: 'Projects' },
   { id: 'meeting', label: 'Meetings' },
-  // { id: 'badge', label: 'Badges' },
-  // { id: 'points', label: 'Points' },
-  // { id: 'rating', label: 'Ratings' },
   { id: 'system', label: 'System' },
 ];
 
-function getIcon(icon) {
+const getIcon = (icon) => {
   switch (icon) {
     case 'star':
       return <Star className="w-5 h-5 text-yellow-600" />;
@@ -35,43 +30,32 @@ function getIcon(icon) {
     default:
       return <AlertCircle className="w-5 h-5 text-red-600" />;
   }
-}
-
-const ITEMS_PER_PAGE = 10;
+};
 
 export default function AdviserNotificationsPage({ notificationsData = [], unreadNotificationsCount = 0 }) {
-  const [notifications, setNotifications] = useState(notificationsData);
+  const [notifications, setNotifications] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
   const [notice, setNotice] = useState({ title: '', message: '' });
 
   useEffect(() => {
-    setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
-    setCurrentPage(1);
+    setNotifications(Array.isArray(notificationsData) ? notificationsData.map((n) => ({
+      ...n,
+      isRead: Boolean(n.isRead ?? n.is_read ?? n.read_at),
+      type: String(n.type || 'system').toLowerCase(),
+    })) : []);
   }, [notificationsData]);
-
 
   const filteredNotifications = selectedFilter === 'all'
     ? notifications
-    : notifications.filter((n) => n.type === selectedFilter);
+    : notifications.filter((n) => String(n.type || 'system').toLowerCase() === selectedFilter);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
-  const totalPages = Math.ceil(filteredNotifications.length / ITEMS_PER_PAGE);
-
-   useEffect(() => {
-    if (currentPage > totalPages) setCurrentPage(totalPages);
-  }, [totalPages]);
-
-  const paginatedNotifications = filteredNotifications.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
 
   const markAsRead = (id) => {
     router.post(route('adviser.notifications.read', id), {}, {
       preserveScroll: true,
       onSuccess: () => {
-        setNotifications(notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+        setNotifications((current) => current.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
         router.reload({ preserveScroll: true });
       },
     });
@@ -81,7 +65,7 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
     router.post(route('adviser.notifications.mark-all-read'), {}, {
       preserveScroll: true,
       onSuccess: () => {
-        setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
+        setNotifications((current) => current.map((n) => ({ ...n, isRead: true })));
         router.reload({ preserveScroll: true });
       },
     });
@@ -91,206 +75,140 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
     event.preventDefault();
     router.post(route('adviser.notifications.store'), notice, {
       preserveScroll: true,
-      onSuccess: () => setNotice({ title: '', message: '' }),
+      onSuccess: () => {
+        setNotice({ title: '', message: '' });
+        router.reload({ preserveScroll: true });
+      },
     });
   };
 
   return (
     <AuthenticatedLayout>
       <Head title="Adviser Notifications" />
-      <div className="py-8 px-4 lg:px-0 md:px-0">
-        <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-blue-600 text-2xl font-semibold">Notifications</h1>
-              <p className="text-gray-500">
-                System-wide notices (
-                {unreadNotificationsCount}
-                {' '}
-                unread)
-              </p>
-            </div>
-            {unreadNotificationsCount > 0 && (
-              <button
-                type="button"
-                onClick={markAllAsRead}
-                className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
-              >
-                <Check className="w-4 h-4" />
-                Mark all as read
-              </button>
-            )}
+
+      <div className="space-y-6 pb-6 px-4 py-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-blue-600 text-2xl font-semibold">Notifications</h1>
+            <p className="text-gray-500">
+              {unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
+            </p>
           </div>
 
-          <div className="bg-white mx-auto p-2 rounded-xl flex items-center gap-2 overflow-x-auto pb-2">
-            {/* <Filter className="w-4 h-4 text-gray-500 flex-shrink-0" /> */}
-            {filters.map((filter) => (
-             <button
-  key={filter.id}
-  type="button"
-  onClick={() => {
-    setSelectedFilter(filter.id);
-    setCurrentPage(1);
-  }}
-  className={`px-4 py-2 rounded-xl w-[200px]  py-2 whitespace-nowrap transition-all  ${
-                  selectedFilter === filter.id
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md'
-                    : 'bg-white text-gray-700 hover:bg-gray-200'
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={markAllAsRead}
+              className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 whitespace-nowrap"
+            >
+              <Check className="w-4 h-4" />
+              Mark all as read
+            </button>
+          )}
+        </div>
+
+        <form onSubmit={publishNotice} className="rounded-[20px] border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-gray-900">Create notification</h2>
+          </div>
+
+          <input
+            value={notice.title}
+            onChange={(event) => setNotice({ ...notice, title: event.target.value })}
+            placeholder="Notification title"
+            required
+            className="w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500"
+          />
+
+          <textarea
+            value={notice.message}
+            onChange={(event) => setNotice({ ...notice, message: event.target.value })}
+            placeholder="Write the notification message"
+            required
+            rows={3}
+            className="w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500"
+          />
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Send notification
+            </button>
+          </div>
+        </form>
+
+        <div className="relative flex items-center gap-2 overflow-x-auto pb-2 sm:pb-2">
+          {selectedFilter && (
+            <div className="pointer-events-none absolute right-0 top-0 hidden h-full w-12 bg-gradient-to-l from-gray-100 via-gray-200/60 to-transparent sm:block" />
+          )}
+          {filters.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => setSelectedFilter(filter.id)}
+              className={`relative px-4 py-2 rounded-full w-[100px] whitespace-nowrap transition-all ${
+                selectedFilter === filter.id
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-3">
+          {filteredNotifications.length === 0 ? (
+            <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
+              <div className="text-center">
+                <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">No notifications found</p>
+                <p className="text-xs text-gray-400 mt-1">No notifications match your filters</p>
+              </div>
+            </Card>
+          ) : (
+            filteredNotifications.map((notification) => (
+              <Card
+                key={notification.id}
+                className={`rounded-[20px] border-0 shadow-sm p-4 transition-all hover:shadow-md cursor-pointer ${
+                  !notification.isRead ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
                 }`}
->
-  {filter.label}
-</button>
-            ))}
-          </div> 
-
-          <form onSubmit={publishNotice} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
-            <div className="flex items-center gap-2">
-      
-              <h2 className="font-semibold text-gray-900">Publish a notice</h2>
-            </div>
-            <input
-              value={notice.title}
-              onChange={(event) => setNotice({ ...notice, title: event.target.value })}
-              placeholder="Notice title"
-              required
-              maxLength={150}
-              className="w-full rounded-lg border-gray-300"
-            />
-            <textarea
-              value={notice.message}
-              onChange={(event) => setNotice({ ...notice, message: event.target.value })}
-              placeholder="Write a calm update, such as: Project ABC is under investigation. Please do not panic."
-              required
-              maxLength={5000}
-              rows={3}
-              className="w-full rounded-lg border-gray-300"
-            />
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2">
-              Publish to all users
-            </Button>
-          </form>
-          
-
-          <div className="space-y-3">
-            {paginatedNotifications.length === 0 ? (
-              <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
-                   <div className="text-center">
-                              <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                              <p className="text-sm text-gray-500">No notifications found</p>
-                              <p className="text-xs text-gray-400 mt-1">No notifications match your filters</p>
-                            </div>
-              </Card>
-            ) : (
-              paginatedNotifications.map((n) => (
-                <Card
-                  key={n.id}
-                  className={`rounded-[20px] border-0 shadow-sm p-4 flex gap-4 ${!n.isRead ? 'bg-blue-50/40' : ''}`}
-                >
-                  <div className="flex justify-between items-start w-full gap-4">
-                      <div className="w-10 h-10 rounded-full bg-gray-100 border flex items-center justify-center flex-shrink-0">
-                    {getIcon(n.icon)}
+                onClick={() => {
+                  if (!notification.isRead) {
+                    markAsRead(notification.id);
+                  }
+                }}
+              >
+                <div className="flex gap-4">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    !notification.isRead ? 'bg-white shadow-sm' : 'bg-gray-100'
+                  }`}>
+                    {getIcon(notification.icon)}
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="text-sm font-semibold text-gray-900">{n.title}</h3>
-                      {!n.isRead && <Badge className="bg-blue-100 text-blue-800">New</Badge>}
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <h3 className="text-gray-900 font-semibold">{notification.title}</h3>
+                      {!notification.isRead && (
+                        <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-2" />
+                      )}
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{n.message || '—'}</p>
-                  </div>
-                    
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                      <span>{n.timestamp}</span>
-                      {/* {n.userId != null && n.userId !== '' && (
-                        <span className="font-mono">User: {String(n.userId).slice(0, 8)}…</span>
-                      )} */}
-                      {!n.isRead && (
-                        <button type="button" onClick={() => markAsRead(n.id)} className="text-blue-600 hover:underline">
-                          Mark read
-                        </button>
+                    <p className="text-sm text-gray-600 mb-2">{notification.message}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-gray-500">{notification.timestamp}</p>
+                      {!notification.isRead && (
+                        <span className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors">
+                          Mark as read
+                        </span>
                       )}
                     </div>
                   </div>
-                </Card>
-              ))
-            )}
-          </div>
-          {totalPages > 1 && (
-  <div className="flex items-center justify-between border-t border-gray-200 mt-4 pt-4">
-    <div className="flex flex-1 justify-between sm:hidden">
-      <Button
-        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-        disabled={currentPage === 1}
-        variant="outline"
-        className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Previous
-      </Button>
-      <Button
-        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-        disabled={currentPage === totalPages}
-        variant="outline"
-        className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Next
-      </Button>
-    </div>
-    <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-      <p className="text-sm text-gray-700">
-        Page <span className="font-medium">{currentPage}</span> of{' '}
-        <span className="font-medium">{totalPages}</span>
-      </p>
-      <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Notifications pagination">
-        <Button
-          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-          disabled={currentPage === 1}
-          variant="outline"
-          className="relative inline-flex items-center rounded-l-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <span className="sr-only">Previous</span>
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        {[...Array(totalPages)].map((_, i) => {
-          const page = i + 1;
-          const isCurrentPage = page === currentPage;
-          if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
-            return (
-              <Button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                variant="outline"
-                className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
-                  isCurrentPage
-                    ? 'z-10 bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {page}
-              </Button>
-            );
-          }
-          if (page === currentPage - 2 || page === currentPage + 2) {
-            return (
-              <span key={page} className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700">
-                ...
-              </span>
-            );
-          }
-          return null;
-        })}
-        <Button
-          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-          disabled={currentPage === totalPages}
-          variant="outline"
-          className="relative inline-flex items-center rounded-r-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <span className="sr-only">Next</span>
-          <ChevronRight className="h-5 w-5" />
-        </Button>
-      </nav>
-    </div>
-  </div>
-)}
+                </div>
+              </Card>
+            ))
+          )}
         </div>
       </div>
     </AuthenticatedLayout>

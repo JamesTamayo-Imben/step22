@@ -1135,21 +1135,33 @@ export function EditActionButtons({ onSubmit, onEdit, onDelete }) {
   const canSubmitProjects = userPermissions.includes('projects.submit');
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
       {canSubmitProjects && (
-      <Button onClick={onSubmit} className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
-        <Send className="w-4 h-4 mr-2" />Submit for Adviser Approval
-      </Button>
-      )}
-      {canEditProjects && (
-        <Button onClick={onEdit} variant="outline" className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
-          <Edit className="w-4 h-4 mr-2" />Edit Project
+        <Button
+          onClick={onSubmit}
+          className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white sm:w-auto"
+        >
+          <Send className="w-4 h-4 mr-2" />Submit for Adviser Approval
         </Button>
       )}
-      {canDeleteProjects && (
-        <Button onClick={onDelete} variant="outline" className="rounded-xl border border-red-300 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 hover:bg-red-50">
-          <Trash2 className="w-4 h-4 mr-2" />Archive Project
-        </Button>
+
+      {(canEditProjects || canDeleteProjects) && (
+        <div className="flex gap-3 w-full sm:w-auto">
+          {canEditProjects && (
+            <Button onClick={onEdit} variant="outline" className="flex-1 rounded-xl sm:flex-none">
+              <Edit className="w-4 h-4 mr-2" />Edit Project
+            </Button>
+          )}
+          {canDeleteProjects && (
+            <Button
+              onClick={onDelete}
+              variant="outline"
+              className="flex-1 rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50 sm:flex-none"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />Archive Project
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

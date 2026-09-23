@@ -7,8 +7,37 @@ use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-class SAdminSystemLogsController extends Controller
+class SAdminAuditLogsController extends Controller
 {
+    private function normalizeModule(?string $module): ?string
+    {
+        if ($module === null) {
+            return null;
+        }
+
+        return match (strtolower($module)) {
+            'projects', 'project' => 'project',
+            'ledgers', 'ledger' => 'ledger',
+            'meetings', 'meeting' => 'meeting',
+            default => strtolower($module),
+        };
+    }
+
+    private function normalizeActionType(?string $actionType): ?string
+    {
+        if ($actionType === null) {
+            return null;
+        }
+
+        return match (strtolower($actionType)) {
+            'archive' => 'archive',
+            'restore' => 'restore',
+            'alert' => 'alert',
+            'view' => 'view',
+            default => strtolower($actionType),
+        };
+    }
+
     private function logsQuery()
     {
         return AuditLog::with('user:id,name,role_id')
@@ -31,7 +60,8 @@ class SAdminSystemLogsController extends Controller
         }
 
         if ($request->filled('module') && $request->input('module') !== 'all') {
-            $query->where('module', $request->input('module'));
+            $module = $this->normalizeModule($request->input('module'));
+            $query->whereIn('module', array_values(array_unique([$module, $request->input('module')])));
         }
 
         if ($request->filled('status') && $request->input('status') !== 'all') {
@@ -39,39 +69,53 @@ class SAdminSystemLogsController extends Controller
         }
 
         if ($request->filled('actionType') && $request->input('actionType') !== 'all') {
-            $query->where('action_type', $request->input('actionType'));
+            $actionType = $this->normalizeActionType($request->input('actionType'));
+            $query->whereIn('action_type', array_values(array_unique([$actionType, $request->input('actionType')])));
         }
 
-        $logs = $query->paginate(10)->through(function (AuditLog $log) {
+        $logs = $query->paginate(5)->through(function (AuditLog $log) {
             return [
                 'id' => $log->id,
-                'timestamp' => $log->created_at->format('Y-m-d H:i:s'),
+                'timestamp' => $log->created_at->format('F j, Y - g:iA'),
                 'user' => $log->user?->name ?? 'System',
                 'action' => $log->action,
-                'module' => $log->module,
+                'actionType' => $log->action_type ?? 'unknown',
+                'module' => $this->normalizeModule($log->module) ?? $log->module,
                 'status' => $log->status ?? 'Success',
                 'ipAddress' => $log->ip_address ?? 'N/A',
                 'details' => $log->details,
                 'browserInfo' => $log->browser_info,
+                'actionableId' => $log->actionable_id,
+                'actionableType' => $log->actionable_type,
             ];
         });
 
         $modules = $this->logsQuery()
-            ->distinct()
-            ->pluck('module')
+            ->get()
+            ->map(fn (AuditLog $log) => $this->normalizeModule($log->module) ?? $log->module)
+            ->filter()
+            ->unique()
             ->sort()
             ->values();
 
-        return Inertia::render('SAdmin/SystemLog', [
+        $summary = [
+            'total' => $this->logsQuery()->count(),
+            'success' => $this->logsQuery()->where('status', 'Success')->count(),
+            'warning' => $this->logsQuery()->where('status', 'Warning')->count(),
+            'failed' => $this->logsQuery()->where('status', 'Failed')->count(),
+        ];
+
+        return Inertia::render('SAdmin/AuditLogs', [
             'logs' => $logs,
             'modules' => $modules,
+            'summary' => $summary,
             'filters' => [
                 'search' => $request->input('search', ''),
                 'module' => $request->input('module', 'all'),
                 'status' => $request->input('status', 'all'),
                 'actionType' => $request->input('actionType', 'all'),
             ],
-            'basePath' => '/sadmin/system-logs',
+            'basePath' => '/sadmin/audit-logs',
         ]);
     }
 
@@ -104,22 +148,26 @@ class SAdminSystemLogsController extends Controller
 
         $logs = $query->get();
 
-        $csvContent = "Timestamp,User,Action,Module,Status,IP Address,Details\n";
+        $csvContent = "Timestamp,User,Action,Module,Action Type,Actionable Type,Actionable ID,Status,IP Address,Browser Info,Details\n";
         foreach ($logs as $log) {
             $csvContent .= sprintf(
-                '"%s","%s","%s","%s","%s","%s","%s"' . "\n",
-                $log->created_at->format('Y-m-d H:i:s'),
+                '"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s"' . "\n",
+                $log->created_at->format('F j, Y - g:iA'),
                 $log->user?->name ?? 'System',
                 str_replace('"', '""', $log->action),
-                $log->module,
+                $this->normalizeModule($log->module) ?? $log->module,
+                $log->action_type ?? 'unknown',
+                $log->actionable_type ?? 'N/A',
+                $log->actionable_id ?? 'N/A',
                 $log->status ?? 'Success',
                 $log->ip_address ?? 'N/A',
+                str_replace('"', '""', (string) ($log->browser_info ?? 'N/A')),
                 str_replace('"', '""', $log->details ?? '')
             );
         }
 
         return response($csvContent)
             ->header('Content-Type', 'text/csv')
-            ->header('Content-Disposition', 'attachment; filename="sadmin-system-logs-' . now()->format('Y-m-d-H-i-s') . '.csv"');
+            ->header('Content-Disposition', 'attachment; filename="sadmin-audit-logs-' . now()->format('Y-m-d-H-i-s') . '.csv"');
     }
 }

@@ -152,12 +152,12 @@ const AuditHeatmap = ({ data, heatmapLabel, prevHeatmapMonth, nextHeatmapMonth, 
 
   return (
     <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
-      <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-6 mb-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-gray-900 font-semibold">Audit Activity</h2>
           <p className="text-sm text-gray-500">System activity and tampering events by month.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center justify-between gap-1.5 sm:w-auto sm:justify-center">
           <button
             type="button"
             onClick={() => handleMonthChange(prevHeatmapMonth)}
@@ -165,7 +165,7 @@ const AuditHeatmap = ({ data, heatmapLabel, prevHeatmapMonth, nextHeatmapMonth, 
           >
             ← Prev
           </button>
-          <div className="rounded-md bg-slate-100 px-3 py-1 text-sm font-medium text-slate-800">{heatmapLabel || 'This month'}</div>
+          <div className="flex-1 rounded-md bg-slate-100 px-3 py-1 text-center text-sm font-medium text-slate-800 sm:flex-none">{heatmapLabel || 'This month'}</div>
           {canNavigateNext ? (
             <button
               type="button"
@@ -179,8 +179,7 @@ const AuditHeatmap = ({ data, heatmapLabel, prevHeatmapMonth, nextHeatmapMonth, 
           )}
         </div>
       </div>
-
-      <div className="flex flex-wrap gap-3 text-xs text-gray-600 mb-4">
+      <div className="flex gap-3 text-xs text-gray-600 mb-4 w-full items-center justify-between sm:w-auto sm:justify-start">
         <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-red-600" /> Tampering</span>
         <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-emerald-500" /> System activity</span>
         <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-slate-200 border border-slate-300" /> No activity</span>
@@ -204,19 +203,31 @@ const AuditHeatmap = ({ data, heatmapLabel, prevHeatmapMonth, nextHeatmapMonth, 
             >
               <span className="text-[11px] uppercase tracking-[0.08em]">{item.day}</span>
               {hasActivity ? (
-                <span className="flex items-center justify-center text-lg font-semibold">
-                  {item.tamperingCount > 0 && item.activityCount > 0 ? (
-                    <span className="inline-flex items-center gap-1">
-                      <span className="text-base">⚠</span>
-                      <span className="text-sm">{total}</span>
+                <div className="flex h-full items-center justify-center">
+                  <div className="flex flex-col items-center justify-center text-center gap-0.5 sm:gap-1">
+                    <span className="flex items-center justify-center gap-1 text-lg font-semibold leading-none">
+                      {item.tamperingCount > 0 && item.activityCount > 0 ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="text-base">⚠</span>
+                          <span className="text-sm">{total}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="text-base">{item.tamperingCount > 0 ? '⚠' : '✓'}</span>
+                          <span className="text-sm">{total}</span>
+                        </span>
+                      )}
                     </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1">
-                      <span className="text-base">{item.tamperingCount > 0 ? '⚠' : '✓'}</span>
-                      <span className="text-sm">{total}</span>
+
+                    <span className="hidden text-[10px] font-medium leading-none text-white/90 sm:block">
+                      {item.tamperingCount > 0 && item.activityCount > 0
+                        ? `${item.activityCount} act / ${item.tamperingCount} tam`
+                        : item.tamperingCount > 0
+                          ? `${item.tamperingCount} tam`
+                          : `${item.activityCount} act`}
                     </span>
-                  )}
-                </span>
+                  </div>
+                </div>
               ) : (
                 <span className="text-[10px] text-slate-500">—</span>
               )}

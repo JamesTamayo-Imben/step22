@@ -828,23 +828,20 @@ const formatHeatmapTooltip = (item) => {
     return (
       <button
         onClick={() => onClick && onClick(cardName)}
-        className="w-full text-left hover:shadow-md transition-shadow"
+        className="w-full text-left"
       >
-        <div className="">
-<Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white cursor-pointer hover:shadow-lg transition-all">
-          <div className=" flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">{title}</p>
-              <p className="text-2xl text-gray-900 mt-1">{value}</p>
-              {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
-            </div>
-            <div className={`w-12 h-12 ${iconBg} rounded-xl flex items-center justify-center`}>
-              {icon && React.cloneElement(icon, { className: `w-6 h-6 ${iconColor}` })}
-            </div>
-          </div>
-        </Card>
-        </div>
-        
+          <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white cursor-pointer hover:shadow-lg transition-all">
+                    <div className=" flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500">{title}</p>
+                        <p className="text-2xl text-gray-900 mt-1">{value}</p>
+                        {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+                      </div>
+                      <div className={`w-12 h-12 ${iconBg} rounded-xl flex items-center justify-center`}>
+                        {icon && React.cloneElement(icon, { className: `w-6 h-6 ${iconColor}` })}
+                      </div>
+                    </div>
+          </Card>
       </button>
     );
   }

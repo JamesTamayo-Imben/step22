@@ -245,7 +245,7 @@ export default function DataBackupPage() {
                   {[
                     { key: 'proofUploads', title: 'Proof Uploads', bg: 'bg-blue-50', t1: 'text-blue-700', t2: 'text-blue-900', t3: 'text-blue-600' },
                     { key: 'userData', title: 'User Data', bg: 'bg-green-50', t1: 'text-green-700', t2: 'text-green-900', t3: 'text-green-600' },
-                    { key: 'systemLogs', title: 'System Logs', bg: 'bg-yellow-50', t1: 'text-yellow-700', t2: 'text-yellow-900', t3: 'text-yellow-600' },
+                    { key: 'systemLogs', title: 'Audit Logs', bg: 'bg-yellow-50', t1: 'text-yellow-700', t2: 'text-yellow-900', t3: 'text-yellow-600' },
                     { key: 'backups', title: 'Backups', bg: 'bg-purple-50', t1: 'text-purple-700', t2: 'text-purple-900', t3: 'text-purple-600' },
                   ].map((c) => {
                     const v = storageData[c.key];

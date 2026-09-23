@@ -321,7 +321,7 @@ function SAdminProfilePageInner({ user }) {
               <Activity className="w-5 h-5 text-white" />
             </div>
             <p className="text-2xl text-gray-900 mb-1">{activityStats.systemLogs}</p>
-            <p className="text-sm text-gray-600">System Logs</p>
+            <p className="text-sm text-gray-600">Audit Logs</p>
           </div>
 
           <div className="bg-cyan-50 rounded-xl p-4">

@@ -848,7 +848,7 @@ function CSGProjectsPageInner() {
             </div>
 
             {/* Description */}
-            <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
+            <p className="text-sm text-gray-600 mb-4 whitespace-pre-wrap break-words overflow-wrap-anywhere">{project.description}</p>
 
             {/* Progress */}
             <div className="mb-4">

@@ -18,7 +18,7 @@ function Badge({ children, className = '' }) {
 function ApprovalCenterPage() { return <Card className="p-8">Approval Center (placeholder)</Card>; }
 function RatingsAnalyticsPage() { return <Card className="p-8"> Analytics (placeholder)</Card>; }
 function OrganizationsPage() { return <Card className="p-8">Organizations / CSG Overview (placeholder)</Card>; }
-function SystemLogsPage() { return <Card className="p-8">System Logs (placeholder)</Card>; }
+function AuditLogsPage() { return <Card className="p-8">Audit Logs (placeholder)</Card>; }
 function AdminProfilePage() { return <Card className="p-8">Profile (placeholder)</Card>; }
 function LedgerOversightPage() { return <Card className="p-8">Ledger Oversight (placeholder)</Card>; }
 function RolePermissionsPage() { return <Card className="p-8">Role & Permissions (placeholder)</Card>; }
@@ -143,7 +143,7 @@ export function AdminAdviserDashboard({
   if (currentView === 'feedback-review') return <RolePermissionsPage />;
   if (currentView === 'ratings-analytics') return <RatingsAnalyticsPage />;
   if (currentView === 'organizations') return <OrganizationsPage />;
-  if (currentView === 'system-logs') return <SystemLogsPage />;
+  if (currentView === 'audit-logs') return <AuditLogsPage />;
   if (currentView === 'profile') return <AdminProfilePage />;
 
   // Default dashboard view
@@ -217,93 +217,106 @@ export function AdminAdviserDashboard({
         />
       </div>
 
-      <Card className="p-6 rounded-2xl border-0 shadow-sm bg-white">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-gray-900">Integrity Heatmap</h2>
-              <p className="text-sm text-gray-500">View tampering and CSG activity by month.</p>
+      <Card className="p-6 rounded-[20px] border-0 shadow-sm bg-white">
+        <div className="flex flex-col gap-6 mb-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-gray-900 font-semibold">Integrity Heatmap</h2>
+            <p className="text-sm text-gray-500">View tampering and CSG activity by month.</p>
+          </div>
+          <div className="flex w-full items-center justify-between gap-1.5 sm:w-auto sm:justify-center">
+            <button
+              type="button"
+              onClick={() => router.get('/adviser', { heatmap_month: prevHeatmapMonth }, {
+                preserveScroll: true,
+                preserveState: true,
+                only: ['charts'],
+              })}
+              className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              ← Prev
+            </button>
+            <div className="flex-1 rounded-md bg-slate-100 px-3 py-1 text-center text-sm font-medium text-slate-800 sm:flex-none">
+              {heatmapLabel || heatmapMonth || 'This month'}
             </div>
-            <div className="flex items-center gap-2 justify-between">
+            {canNavigateNext ? (
               <button
                 type="button"
-                onClick={() => router.get('/adviser', { heatmap_month: prevHeatmapMonth }, {
+                onClick={() => router.get('/adviser', { heatmap_month: nextHeatmapMonth }, {
                   preserveScroll: true,
                   preserveState: true,
                   only: ['charts'],
                 })}
                 className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
               >
-                ← Prev
+                Next →
               </button>
-              <div className="rounded-md bg-slate-100 px-3 py-1 text-sm font-medium text-slate-800">
-                {heatmapLabel || heatmapMonth || 'This month'}
+            ) : (
+              <span className="rounded-md bg-slate-100 px-3 py-1 text-sm text-slate-400 cursor-not-allowed">
+                Next →
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-3 text-xs text-gray-600 mb-4 w-full items-center justify-between sm:w-auto sm:justify-start">
+          <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-red-600" /> Tampering</span>
+          <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-emerald-500" /> System activity</span>
+          <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-sm bg-slate-200 border border-slate-300" /> No activity</span>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 sm:gap-2 text-[11px] text-center text-gray-600">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => <div key={day}>{day}</div>)}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 sm:gap-2 mt-2">
+          {(() => {
+            const firstWeekday = heatmapDaysData.length ? heatmapDaysData[0].weekday : 0;
+            return Array.from({ length: firstWeekday }, (_, index) => (
+              <div key={`blank-${index}`} className="h-20 rounded-xl bg-transparent" />
+            ));
+          })()}
+
+          {heatmapDaysData.map((item) => {
+            const styles = getHeatmapCellStyles(item);
+            return (
+              <div
+                key={item.date}
+                className={`${styles.className} rounded-xl p-2 h-20 flex flex-col justify-between transition-all`}
+                style={styles.style}
+                title={`${item.label} ${item.date}: ${formatHeatmapTooltip(item)}`}
+              >
+                <span className="text-[11px] uppercase tracking-[0.08em]">{item.day}</span>
+                {Number(item.tamperingCount || 0) + Number(item.activityCount || 0) > 0 ? (
+                  <div className="flex h-full items-center justify-center">
+                    <div className="flex flex-col items-center justify-center text-center gap-0.5 sm:gap-1">
+                      <span className="flex items-center justify-center gap-1 text-lg font-semibold leading-none">
+                        {item.tamperingCount > 0 && item.activityCount > 0 ? (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-base">⚠</span>
+                            <span className="text-sm">{item.tamperingCount + item.activityCount}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-base">{item.tamperingCount > 0 ? '⚠' : '✓'}</span>
+                            <span className="text-sm">{item.tamperingCount + item.activityCount}</span>
+                          </span>
+                        )}
+                      </span>
+                      <span className="hidden text-[10px] font-medium leading-none text-white/90 sm:block">
+                        {item.tamperingCount > 0 && item.activityCount > 0
+                          ? `${item.activityCount} act / ${item.tamperingCount} tam`
+                          : item.tamperingCount > 0
+                            ? `${item.tamperingCount} tam`
+                            : `${item.activityCount} act`}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-slate-500">—</span>
+                )}
               </div>
-              {canNavigateNext ? (
-                <button
-                  type="button"
-                  onClick={() => router.get('/adviser', { heatmap_month: nextHeatmapMonth }, {
-                    preserveScroll: true,
-                    preserveState: true,
-                    only: ['charts'],
-                  })}
-                  className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  Next →
-                </button>
-              ) : (
-                <span className="rounded-md bg-slate-100 px-3 py-1 text-sm text-slate-400 cursor-not-allowed">
-                  Next →
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-3 text-xs text-gray-600">
-            <span className="inline-flex items-center gap-2">
-              <span className="h-3 w-3 rounded-sm bg-red-600" /> Tampering
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="h-3 w-3 rounded-sm bg-emerald-500" /> CSG Activity
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="h-3 w-3 rounded-sm bg-slate-200 border border-slate-300" /> No activity
-            </span>
-          </div>
-
-          <div className="grid grid-cols-7 gap-2 text-[11px] text-center text-gray-600">
-            <div>Sun</div>
-            <div>Mon</div>
-            <div>Tue</div>
-            <div>Wed</div>
-            <div>Thu</div>
-            <div>Fri</div>
-            <div>Sat</div>
-          </div>
-
-          <div className="grid grid-cols-7 gap-2">
-            {(() => {
-              const firstWeekday = heatmapDaysData.length ? heatmapDaysData[0].weekday : 0;
-              return Array.from({ length: firstWeekday }, (_, index) => (
-                <div key={`blank-${index}`} className="h-20 rounded-xl bg-transparent" />
-              ));
-            })()}
-
-            {heatmapDaysData.map((item) => {
-              const styles = getHeatmapCellStyles(item);
-              return (
-                <div
-                  key={item.date}
-                  className={`${styles.className} rounded-xl p-2 h-20 flex flex-col justify-between transition-all`}
-                  style={styles.style}
-                  title={`${item.label} ${item.date}: ${formatHeatmapTooltip(item)}`}
-                >
-                  <span className="text-[11px] uppercase tracking-[0.08em]">{item.day}</span>
-                  <span className="text-lg font-semibold">{item.tamperingCount + item.activityCount} <span className="hidden md:flex text-xs font-normal">events</span></span>
-                </div>
-              );
-            })}
-          </div>
+            );
+          })}
         </div>
       </Card>
 

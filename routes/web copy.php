@@ -143,10 +143,10 @@ Route::get('/adviser/notifications', [AdviserNotificationController::class, 'ind
 Route::post('/adviser/notifications/read/{id}', [AdviserNotificationController::class, 'markRead'])->name('adviser.notifications.read');
 Route::post('/adviser/notifications/mark-all-read', [AdviserNotificationController::class, 'markAllRead'])->name('adviser.notifications.mark-all-read');
 
-// system-logs
-Route::get('/adviser/system-logs', function () {
-    return Inertia::render('Adviser/SystemLog');
-})->name('adviser.system-logs');
+// audit-logs
+Route::get('/adviser/audit-logs', function () {
+    return Inertia::render('Adviser/AuditLogs');
+})->name('adviser.audit-logs');
 
 Route::get('/adviser/profile', function () {
     return Inertia::render('Adviser/Profile');

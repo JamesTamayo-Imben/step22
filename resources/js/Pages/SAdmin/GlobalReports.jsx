@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
-import { Input } from '@/Components/ui/input';
 import {
   Download,
   Users,
@@ -14,7 +13,6 @@ import {
   BarChart3,
   Activity,
   FileText,
-  Award,
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -34,62 +32,52 @@ function showToast(message, type = 'success') {
 export default function GlobalReportsPage() {
   const [dateRange, setDateRange] = useState('month');
   const [exportFormat, setExportFormat] = useState('pdf');
+  const { reports = {} } = usePage().props;
 
-  const userReports = {
-    totalUsers: 1247,
-    activeUsers: 892,
-    newUsersThisMonth: 45,
-    byRole: {
-      students: 1150,
-      csgOfficers: 35,
-      admins: 12,
-      superadmins: 2,
-    },
-    monthlyActive: [
-      { month: 'Jun', count: 720 },
-      { month: 'Jul', count: 780 },
-      { month: 'Aug', count: 845 },
-      { month: 'Sep', count: 820 },
-      { month: 'Oct', count: 870 },
-      { month: 'Nov', count: 892 },
-    ],
-  };
+  const userReports = useMemo(() => ({
+    totalUsers: Number(reports.totalUsers ?? 0),
+    activeUsers: Number(reports.activeUsers ?? 0),
+    newUsersThisMonth: Number(reports.newUsersThisMonth ?? 0),
+    byRole: reports.byRole ?? {},
+    monthlyActive: reports.monthlyActive ?? [],
+  }), [reports]);
 
-  const projectReports = {
-    totalProjects: 48,
-    approved: 42,
-    pending: 4,
-    rejected: 2,
-    avgApprovalTime: '2.3 days',
-    byCategory: {
-      'Community Outreach': 15,
-      Academic: 12,
-      Sports: 8,
-      Wellness: 7,
-      Cultural: 6,
-    },
-    successRate: 87.5,
-  };
+  const projectReports = useMemo(() => ({
+    totalProjects: Number(reports.totalProjects ?? 0),
+    approved: Number(reports.approvedProjects ?? 0),
+    pending: Number(reports.pendingProjects ?? 0),
+    rejected: Number(reports.rejectedProjects ?? 0),
+    avgApprovalTime: `${Number(reports.avgApprovalTime ?? 0)} days`,
+    byCategory: reports.byCategory ?? {},
+    successRate: Number(reports.successRate ?? 0),
+  }), [reports]);
 
-  const ledgerReports = {
-    totalEntries: 245,
-    totalIncome: 850000,
-    totalExpense: 625000,
-    balance: 225000,
-    approved: 238,
-    pending: 7,
-    avgAccuracy: 98.4,
-    proofCompliance: 96.7,
-  };
+  const ledgerReports = useMemo(() => ({
+    totalEntries: Number(reports.totalLedgerEntries ?? 0),
+    totalIncome: Number(reports.totalIncome ?? 0),
+    totalExpense: Number(reports.totalExpense ?? 0),
+    balance: Number(reports.balance ?? 0),
+    approved: Number(reports.approvedLedgerEntries ?? 0),
+    pending: Number(reports.pendingLedgerEntries ?? 0),
+    avgAccuracy: Number(reports.avgAccuracy ?? 0),
+    proofCompliance: Number(reports.proofCompliance ?? 0),
+  }), [reports]);
 
-  const engagementReports = {
-    totalXP: 48500,
-    avgXPPerStudent: 42,
-    badgesUnlocked: 327,
-    totalRatings: 892,
-    avgRating: 4.6,
-    leaderboardEntries: 150,
-  };
+  const engagementReports = useMemo(() => ({
+    totalRatings: Number(reports.totalRatings ?? 0),
+    avgRating: Number(reports.avgRating ?? 0),
+  }), [reports]);
+
+  const staticProjectCategories = ['Social', 'Sports', 'Environmental', 'Technology', 'Cultural', 'Education', 'Health'];
+
+  const categoryList = useMemo(() => {
+    const byCategory = reports.byCategory ?? {};
+
+    return staticProjectCategories.map((category) => ({
+      category,
+      count: Number(byCategory[category] ?? 0),
+    }));
+  }, [reports.byCategory]);
 
   const handleExport = (reportType) => {
     showToast(`Exporting ${reportType} report as ${exportFormat.toUpperCase()}...`, 'success');
@@ -101,17 +89,20 @@ export default function GlobalReportsPage() {
       <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Global Reports</h1>
-                <p className="text-gray-500">Comprehensive system analytics and insights</p>
+            {/* Header grid grid-cols-1 xl:grid-cols-2 gap-4 */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className='relative flex-1'>
+                <div className="w-full">
+                  <h1 className="text-2xl font-semibold text-gray-900">Global Reports</h1>
+                  <p className="text-gray-500">Comprehensive system analytics and insights</p>
+                </div>
+                
               </div>
-              <div className="flex gap-3 w-full sm:w-auto">
+              <div className="flex flex-wrap gap-2 sm:justify-end">
                 <select
                   value={dateRange}
                   onChange={(e) => setDateRange(e.target.value)}
-                  className="px-3 py-2 h-10 border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 text-sm"
+                  className="px-3 py-2 border border-gray-200 rounded-xl bg-white min-w-[170px] w-full sm:w-[190px] h-10 border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition disabled:opacity-50"
                 >
                   <option value="week">Last Week</option>
                   <option value="month">Last Month</option>
@@ -122,7 +113,7 @@ export default function GlobalReportsPage() {
                 <select
                   value={exportFormat}
                   onChange={(e) => setExportFormat(e.target.value)}
-                  className="px-3 py-2 h-10 border border-gray-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 text-sm"
+                  className="px-3 py-2 border border-gray-200 rounded-xl bg-white min-w-[120px] w-full sm:w-[130px] h-10 border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition disabled:opacity-50"
                 >
                   <option value="pdf">PDF</option>
                   <option value="csv">CSV</option>
@@ -178,7 +169,7 @@ export default function GlobalReportsPage() {
                         <span className="text-sm text-gray-700 capitalize">
                           {role.replace(/([A-Z])/g, ' $1').trim()}
                         </span>
-                        <Badge variant="outline">{count}</Badge>
+                        <Badge variant="outline">{Number(count || 0)}</Badge>
                       </div>
                     ))}
                   </div>
@@ -187,19 +178,24 @@ export default function GlobalReportsPage() {
                 <div>
                   <h3 className="text-gray-900 font-semibold mb-4">Monthly Active Users</h3>
                   <div className="space-y-2">
-                    {userReports.monthlyActive.map((data) => (
-                      <div key={data.month} className="flex items-center gap-3">
-                        <span className="text-sm text-gray-600 w-12">{data.month}</span>
-                        <div className="flex-1 h-8 bg-gray-100 rounded-lg overflow-hidden">
-                          <div
-                            className="h-full bg-blue-500 rounded-lg flex items-center justify-end pr-2"
-                            style={{ width: `${(data.count / 1000) * 100}%` }}
-                          >
-                            <span className="text-xs text-white font-semibold">{data.count}</span>
+                    {userReports.monthlyActive.length ? userReports.monthlyActive.map((data) => {
+                      const maxCount = Math.max(...userReports.monthlyActive.map((item) => Number(item.count || 0)), 1);
+                      return (
+                        <div key={data.month} className="flex items-center gap-3">
+                          <span className="text-sm text-gray-600 w-12">{data.month}</span>
+                          <div className="flex-1 h-8 bg-gray-100 rounded-lg overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500 rounded-lg flex items-center justify-end pr-2"
+                              style={{ width: `${(Number(data.count || 0) / maxCount) * 100}%` }}
+                            >
+                              <span className="text-xs text-white font-semibold">{data.count}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    }) : (
+                      <p className="text-sm text-gray-500">No monthly user activity available.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -249,10 +245,10 @@ export default function GlobalReportsPage() {
                 <div>
                   <h3 className="text-gray-900 font-semibold mb-4">Projects by Category</h3>
                   <div className="space-y-3">
-                    {Object.entries(projectReports.byCategory).map(([category, count]) => (
+                    {categoryList.map(({ category, count }) => (
                       <div key={category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <span className="text-sm text-gray-700">{category}</span>
-                        <Badge variant="outline">{count} projects</Badge>
+                        <Badge variant="outline">{Number(count || 0)} projects</Badge>
                       </div>
                     ))}
                   </div>
@@ -268,7 +264,7 @@ export default function GlobalReportsPage() {
                     <div className="p-4 bg-green-50 rounded-xl">
                       <p className="text-sm text-green-700">Approval Rate</p>
                       <p className="text-xl text-green-900 mt-1">
-                        {Math.round((projectReports.approved / projectReports.totalProjects) * 100)}%
+                        {projectReports.totalProjects ? Math.round((projectReports.approved / projectReports.totalProjects) * 100) : 0}%
                       </p>
                     </div>
                   </div>
@@ -296,15 +292,15 @@ export default function GlobalReportsPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="p-4 bg-green-50 rounded-xl">
                   <p className="text-sm text-green-700">Total Income</p>
-                  <p className="text-xl text-green-900 mt-1">₱{(ledgerReports.totalIncome / 1000).toFixed(0)}K</p>
+                  <p className="text-xl text-green-900 mt-1">₱{Number(ledgerReports.totalIncome || 0).toLocaleString()}</p>
                 </div>
                 <div className="p-4 bg-red-50 rounded-xl">
                   <p className="text-sm text-red-700">Total Expense</p>
-                  <p className="text-xl text-red-900 mt-1">₱{(ledgerReports.totalExpense / 1000).toFixed(0)}K</p>
+                  <p className="text-xl text-red-900 mt-1">₱{Number(ledgerReports.totalExpense || 0).toLocaleString()}</p>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-xl">
                   <p className="text-sm text-blue-700">Balance</p>
-                  <p className="text-xl text-blue-900 mt-1">₱{(ledgerReports.balance / 1000).toFixed(0)}K</p>
+                  <p className="text-xl text-blue-900 mt-1">₱{Number(ledgerReports.balance || 0).toLocaleString()}</p>
                 </div>
                 <div className="p-4 bg-purple-50 rounded-xl">
                   <p className="text-sm text-purple-700">Total Entries</p>
@@ -340,63 +336,6 @@ export default function GlobalReportsPage() {
                 </div>
               </div>
             </Card>
-
-            {/* Engagement Reports */}
-            {/* <Card className="rounded-[20px] border-0 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <Award className="w-6 h-6 text-yellow-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Engagement Reports</h2>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => handleExport('engagement')}
-                  className="rounded-xl"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 bg-yellow-50 rounded-xl">
-                  <p className="text-sm text-yellow-700">Total XP</p>
-                  <p className="text-2xl text-yellow-900 mt-1">{engagementReports.totalXP.toLocaleString()}</p>
-                </div>
-                <div className="p-4 bg-orange-50 rounded-xl">
-                  <p className="text-sm text-orange-700">Avg XP/Student</p>
-                  <p className="text-2xl text-orange-900 mt-1">{engagementReports.avgXPPerStudent}</p>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-xl">
-                  <p className="text-sm text-purple-700">Badges Unlocked</p>
-                  <p className="text-2xl text-purple-900 mt-1">{engagementReports.badgesUnlocked}</p>
-                </div>
-                <div className="p-4 bg-blue-50 rounded-xl">
-                  <p className="text-sm text-blue-700">Total Ratings</p>
-                  <p className="text-2xl text-blue-900 mt-1">{engagementReports.totalRatings}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Award className="w-6 h-6 text-yellow-600" />
-                    <h3 className="text-gray-900 font-semibold">Average Rating</h3>
-                  </div>
-                  <p className="text-4xl text-gray-900 mb-2">{engagementReports.avgRating}</p>
-                  <p className="text-sm text-gray-600">out of 5.0 stars</p>
-                </div>
-
-                <div className="p-6 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border border-purple-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-6 h-6 text-purple-600" />
-                    <h3 className="text-gray-900 font-semibold">Leaderboard Activity</h3>
-                  </div>
-                  <p className="text-4xl text-gray-900 mb-2">{engagementReports.leaderboardEntries}</p>
-                  <p className="text-sm text-gray-600">active participants</p>
-                </div>
-              </div>
-            </Card> */}
 
             {/* Export Summary */}
             <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-r from-blue-50 to-blue-50">
