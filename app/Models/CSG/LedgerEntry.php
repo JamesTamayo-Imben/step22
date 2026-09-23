@@ -22,6 +22,7 @@ class LedgerEntry extends Model
         'description',
         'category',
         'ledger_proof',
+        'ledger_proof_original_name',
         'file_content_hash',
         'approval_status',
         'note',

@@ -57,6 +57,7 @@ public function uploadProof(Request $request, $id)
         // Store the web-accessible path and the content hash for auditing
         $entry->update([
             'ledger_proof' => $path,
+            'ledger_proof_original_name' => $file->getClientOriginalName(),
             'file_content_hash' => $fileHash, // Ensure this column exists in your table
             'updated_at' => now()
         ]);
@@ -220,6 +221,10 @@ public function uploadProof(Request $request, $id)
                     $entryData['approved_by'] = $this->getUserName($entryData['approved_by']);
                 }
 
+                if ($entryData['created_by']) {
+                    $entryData['created_by'] = $this->getUserName($entryData['created_by']);
+                }
+
                 $entryData['ledger_proof'] = $entry->resolveLedgerProof();
                 $entryData['note'] = $entry->getDisplayNote();
 
@@ -295,6 +300,7 @@ public function uploadProof(Request $request, $id)
                 
                 if ($filePath) {
                     $entry->ledger_proof = $filePath;
+                    $entry->ledger_proof_original_name = $file->getClientOriginalName();
                     $entry->file_content_hash = $fileHash;
                     Log::info('File stored: ' . $filePath . ' with hash: ' . $fileHash);
                 }
@@ -572,6 +578,8 @@ public function uploadProof(Request $request, $id)
 
                     if ($sharedProofPath) {
                         $entry->ledger_proof = $sharedProofPath;
+                        $entry->ledger_proof_original_name = $request->file('proof_file')?->getClientOriginalName()
+                            ?? $request->file('ledger_proof')?->getClientOriginalName();
                         $entry->file_content_hash = $sharedProofHash;
                     }
 
@@ -717,6 +725,7 @@ public function uploadProof(Request $request, $id)
 
             if ($filePath) {
                 $entry->ledger_proof = $filePath;
+                $entry->ledger_proof_original_name = $file->getClientOriginalName();
                 $entry->file_content_hash = $fileHash;
                 Log::info('Ledger entry ' . $entry->id . ' proof updated: ' . $filePath . ' hash: ' . $fileHash);
             }
@@ -927,6 +936,7 @@ public function uploadProof(Request $request, $id)
                     'fileName' => $fileName,
                     'linkedTransaction' => $entry->id,
                     'linkedProject' => $entry->project ? $entry->project->title : 'Unknown Project',
+                    'entryType' => $entry->type,
                     'uploadDate' => $entry->created_at->format('Y-m-d'),
                     'fileType' => $fileType,
                     'fileSize' => $fileSize,

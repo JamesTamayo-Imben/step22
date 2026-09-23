@@ -142,6 +142,7 @@ function CSGProjectsPageInner() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterApprovalStatus, setFilterApprovalStatus] = useState('all');
+  const [filterYear, setFilterYear] = useState('all');
   const [budgetItems, setBudgetItems] = useState([]);
   const [newProject, setNewProject] = useState({
     title: '',
@@ -505,6 +506,17 @@ function CSGProjectsPageInner() {
   };
 
   // Filter projects
+  const getProjectYear = (project) => {
+    const projectDate = project.startDate || project.createdAt;
+    if (!projectDate) return null;
+
+    const year = new Date(projectDate).getFullYear();
+    return Number.isNaN(year) ? null : String(year);
+  };
+
+  const projectYears = [...new Set(projects.map(getProjectYear).filter(Boolean))]
+    .sort((firstYear, secondYear) => Number(secondYear) - Number(firstYear));
+
   const filteredProjects = projects.filter((project) => {
     const matchesSearch =
       project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -514,7 +526,8 @@ function CSGProjectsPageInner() {
     const matchesStatus = filterStatus === 'all' || calculatedStatus === filterStatus;
     const matchesApprovalStatus = filterApprovalStatus === 'all' || project.approvalStatus === filterApprovalStatus;
     const matchesCategory = filterCategory === 'all' || project.category === filterCategory;
-    return matchesSearch && matchesStatus && matchesApprovalStatus && matchesCategory;
+    const matchesYear = filterYear === 'all' || getProjectYear(project) === filterYear;
+    return matchesSearch && matchesStatus && matchesApprovalStatus && matchesCategory && matchesYear;
   });
 
   // Pagination logic
@@ -525,7 +538,7 @@ function CSGProjectsPageInner() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterStatus, filterApprovalStatus]);
+  }, [searchQuery, filterStatus, filterApprovalStatus, filterCategory, filterYear]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -818,6 +831,14 @@ function CSGProjectsPageInner() {
                 <option value="Cultural ">Cultural</option>
                  <option value="Education">Education</option>
                   <option value="Health ">Health</option>
+            </Select>
+          </div>
+          <div className="w-full md:w-48">
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <option value="all">All Years</option>
+              {projectYears.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
             </Select>
           </div>
         </div>

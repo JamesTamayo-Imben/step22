@@ -144,6 +144,7 @@ class UserProjectController extends Controller
                     'description' => $entry->description,
                     'category' => $entry->category,
                     'ledgerProof' => $entry->resolveLedgerProof(),
+                    'ledgerProofOriginalName' => $entry->ledger_proof_original_name,
                     'approvalStatus' => $entry->approval_status ?: 'Draft',
                     'note' => $entry->getDisplayNote(),
                     'approvedBy' => $entry->approver?->name ?? 'Unknown',
@@ -158,7 +159,8 @@ class UserProjectController extends Controller
             ->map(function ($entry) {
                 return [
                     'id' => $entry['id'],
-                    'fileName' => basename(parse_url((string) $entry['ledgerProof'], PHP_URL_PATH) ?: (string) $entry['ledgerProof']),
+                    'fileName' => $entry['ledgerProofOriginalName']
+                        ?: basename(parse_url((string) $entry['ledgerProof'], PHP_URL_PATH) ?: (string) $entry['ledgerProof']),
                     'ledgerProof' => $entry['ledgerProof'],
                     'linkedTransaction' => $entry['id'],
                     'uploadDate' => $entry['createdAt'] ? substr((string) $entry['createdAt'], 0, 10) : null,

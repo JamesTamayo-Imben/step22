@@ -1259,7 +1259,16 @@ const formatHeatmapTooltip = (item) => {
             <div className="space-y-4">
               <p className="text-base text-gray-700">Recommended from best-performing past projects near the current month.</p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {recommendedProjects.map((project) => (
+                {recommendedProjects.map((project, index, projects) => {
+                  const highestRating = Math.max(...projects.map((item) => Number(item.averageRating) || 0), 0);
+                  const highestIncome = Math.max(...projects.map((item) => Number(item.income) || 0), 0);
+                  const recommendationReason = Number(project.averageRating) === highestRating
+                    ? 'Recommended because this project has the highest rating.'
+                    : Number(project.income) === highestIncome
+                      ? 'Recommended because this project has the highest income.'
+                      : 'Recommended based on strong recent performance.';
+
+                  return (
                   <Card key={project.id} className="rounded-[20px] border border-blue-500 bg-white p-4 shadow-sm">
                     <div className="">
                       <h2 className="text-sm font-semibold text-gray-900 line-clamp-2">{project.title || 'Untitled Project'}</h2>
@@ -1278,9 +1287,11 @@ const formatHeatmapTooltip = (item) => {
                         <span>Timeline</span>
                         <span className="font-semibold text-blue-700">{formatTimeline(project)}</span>
                       </div>
+                      <p className="pt-2 text-xs text-blue-500">Note: {recommendationReason}</p>
                     </div>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

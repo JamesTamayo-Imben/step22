@@ -705,8 +705,8 @@ export default function AdviserApprovalsPage() {
             {/* Header Info */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-500 mb-1">ID *</p>
-                <p className="font-mono text-sm text-gray-900 break-all">{selectedItem.id}</p>
+               <p className="text-sm text-gray-500 mb-1">Project Title *</p>
+                <p className="text-semibold text-blue-600">{selectedItem.title || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">Status *</p>
@@ -728,10 +728,10 @@ export default function AdviserApprovalsPage() {
 
             {/* Project Information */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+              {/* <div className="col-span-2">
                 <p className="text-sm text-gray-500 mb-1">Project Title *</p>
                 <p className="text-gray-900">{selectedItem.title || 'N/A'}</p>
-              </div>
+              </div> */}
               <div className="col-span-2">
                 <p className="text-sm text-gray-500 mb-1">Objective *</p>
                 <p className="text-gray-900">{selectedItem.objective || 'No objective provided'}</p>
@@ -838,8 +838,8 @@ export default function AdviserApprovalsPage() {
             {/* Header Info */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-500 mb-1">Transaction ID *</p>
-                <p className="font-mono text-sm text-gray-900 break-all">{selectedItem.id}</p>
+                 <p className="text-sm text-gray-500 mb-1">Project Title *</p>
+    <p className="text-blue-600 font-semibold">{selectedItem.project || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500 mb-1">Status *</p>
@@ -863,10 +863,10 @@ export default function AdviserApprovalsPage() {
 
             {/* Ledger Entry Information */}
 <div className="grid grid-cols-2 gap-4">
-  <div className="col-span-2">
+  {/* <div className="col-span-2">
     <p className="text-sm text-gray-500 mb-1">Project Title *</p>
     <p className="text-gray-900">{selectedItem.project || 'N/A'}</p>
-  </div>
+  </div> */}
   <div className="col-span-2">
     <p className="text-sm text-gray-500 mb-1">Description *</p>
     <p className="text-gray-900 whitespace-pre-wrap">{selectedItem.description || 'No description provided'}</p>
@@ -1023,7 +1023,7 @@ export default function AdviserApprovalsPage() {
             if (imageExtensions.includes(proofExtension)) {
               return (
                 <div>
-                  <p className="mb-2 text-xs font-medium text-blue-800">Currently uploaded proof: {getProofFileName(proofPath)}</p>
+                  {/* <p className="mb-2 text-xs font-medium text-blue-800">Currently uploaded proof: {getProofFileName(proofPath)}</p> */}
                   <img src={proofUrl} alt="Currently uploaded proof" className="max-h-64 w-full rounded-lg object-contain" />
                 </div>
               );
@@ -1032,7 +1032,7 @@ export default function AdviserApprovalsPage() {
             if (proofExtension === 'pdf') {
               return (
                 <div>
-                  <p className="mb-2 text-xs font-medium text-blue-800">Currently uploaded proof: {getProofFileName(proofPath)}</p>
+                  {/* <p className="mb-2 text-xs font-medium text-blue-800">Currently uploaded proof: {getProofFileName(proofPath)}</p> */}
                   <iframe src={proofUrl} title="Currently uploaded proof" className="h-64 w-full rounded-lg border-0" />
                 </div>
               );

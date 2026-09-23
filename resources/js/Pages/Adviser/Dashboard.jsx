@@ -292,12 +292,12 @@ export function AdminAdviserDashboard({
                       <span className="flex items-center justify-center gap-1 text-lg font-semibold leading-none">
                         {item.tamperingCount > 0 && item.activityCount > 0 ? (
                           <span className="inline-flex items-center gap-1">
-                            <span className="text-base">⚠</span>
+                            <span className="text-base">!</span>
                             <span className="text-sm">{item.tamperingCount + item.activityCount}</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1">
-                            <span className="text-base">{item.tamperingCount > 0 ? '⚠' : '✓'}</span>
+                            <span className="text-base">{item.tamperingCount > 0 ? '!' : '✓'}</span>
                             <span className="text-sm">{item.tamperingCount + item.activityCount}</span>
                           </span>
                         )}

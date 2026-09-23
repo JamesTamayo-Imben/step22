@@ -23,7 +23,16 @@ class CSGProjectController extends Controller
 
     private function getProjectsData()
     {
-        return Project::query()->where('archive', 0)->latest('created_at')->get();
+        return Project::with(['creator:id,name', 'approver:id,name'])
+            ->where('archive', 0)
+            ->latest('created_at')
+            ->get()
+            ->map(function (Project $project) {
+                return array_merge($project->toArray(), [
+                    'createdBy' => $project->creator?->name,
+                    'approveBy' => $project->approver?->name,
+                ]);
+            });
     }
 
     public function store(Request $request)

@@ -538,17 +538,17 @@ const isProjectStarted = () => {
                 } text-left hover:shadow-md transition-shadow`}
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
+                  {/* <div>
                     <p className="text-xs text-gray-500">Transaction ID</p>
                     <p className="font-mono text-xs text-gray-700">{entry.id}</p>
-                  </div>
-                  <Badge className={getTypeColor(entry.type)}>
-                    {entry.type}
-                  </Badge>
+                  </div> */}
+            
                 </div>
                 <div className="flex items-center gap-2 mb-2">
                   <Wallet className="w-4 h-4 text-gray-700" />
-                  <p className="text-lg font-bold text-gray-900">₱{Number(entry.amount || 0).toLocaleString()}</p>
+                  <p className="text-lg font-bold text-gray-900">₱{Number(entry.amount || 0).toLocaleString()} <Badge className={getTypeColor(entry.type)}>
+                    {entry.type}
+                  </Badge></p>
                 </div>
                 <p className="text-sm text-gray-700 mb-3 truncate">{entry.description || '-'}</p>
                 <div className="flex items-center justify-between text-xs">
@@ -789,7 +789,7 @@ const isProjectStarted = () => {
                 <Badge className="bg-white text-gray-700 border">{selectedLedgerEntry.approvalStatus || '-'}</Badge>
               </div>
               <p className="text-2xl font-bold text-gray-900 mt-2">₱{Number(selectedLedgerEntry.amount || 0).toLocaleString()}</p>
-              <p className="text-xs text-gray-600 mt-1">Transaction ID: {selectedLedgerEntry.id}</p>
+              {/* <p className="text-xs text-gray-600 mt-1">Transaction ID: {selectedLedgerEntry.id}</p> */}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">

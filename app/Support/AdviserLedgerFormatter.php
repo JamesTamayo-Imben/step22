@@ -114,7 +114,7 @@ class AdviserLedgerFormatter
             $verificationState['corrected'] = optional($entry->updated_at)->format('Y-m-d h:i A') ?? '';
         }
 
-        // Add blockchain verification status
+        // Add chain verification status
         $verification = $verification ?: [];
         $verificationState['blockchainStatus'] = $verification['status'] ?? 'no_chain';
         $verificationState['blockchainValid'] = !$isSpecificLedgerTampered && ($verification['isValid'] ?? false);

@@ -2134,7 +2134,7 @@ const getTypeAmountColor = (type) => {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="text-sm text-gray-500 mb-1">Transaction ID *</p>
-          <p className="font-mono text-sm text-gray-900 break-all">{selectedEntry.id}</p>
+          <p className="font-semibold text-sm text-blue-700 break-all">{selectedEntry.project}</p>
         </div>
         <div>
           <p className="text-sm text-gray-500 mb-1">Type *</p>
@@ -2155,10 +2155,10 @@ const getTypeAmountColor = (type) => {
             </Badge>
           </div>
         </div>
-        <div className="col-span-2">
+        {/* <div className="col-span-2">
           <p className="text-sm text-gray-500 mb-1">Project Title *</p>
           <p className="text-gray-900">{selectedEntry.project}</p>
-        </div>
+        </div> */}
         <div className="col-span-2">
           <p className="text-sm text-gray-500 mb-1">Description *</p>
           <p className="text-gray-900">{selectedEntry.description}</p>
@@ -2289,8 +2289,8 @@ const getTypeAmountColor = (type) => {
             
 
 
-        {/* Blockchain Verification Status */}
-        <div className="col-span-2">
+        {/* Chain Verification Status */}
+        {/* <div className="col-span-2">
           <p className="text-sm text-gray-500 mb-1">Blockchain Verification *</p>
           <div className={`rounded-lg p-4 ${
             selectedEntry.verificationState?.tampered ? 'bg-red-50 border border-red-200' :
@@ -2333,7 +2333,7 @@ const getTypeAmountColor = (type) => {
               )}
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Documents Section */}
         {selectedEntry.documents && selectedEntry.documents.length > 0 && (

@@ -756,10 +756,24 @@ class ProjectController extends Controller
             }
 
             $ledgerEntries = DB::table('ledger_entries')
-                ->where('project_id', $id)
-                ->where('archive', 0)
-                ->orderBy('created_at', 'asc')
-                ->get();
+                ->leftJoin('users as creators', 'ledger_entries.created_by', '=', 'creators.id')
+                ->leftJoin('users as approvers', 'ledger_entries.approved_by', '=', 'approvers.id')
+                ->where('ledger_entries.project_id', $id)
+                ->where('ledger_entries.archive', 0)
+                ->orderBy('ledger_entries.created_at', 'asc')
+                ->select('ledger_entries.*')
+                ->addSelect([
+                    'creators.name as created_by_name',
+                    'approvers.name as approved_by_name',
+                ])
+                ->get()
+                ->map(function ($entry) {
+                    $entry->created_by = $entry->created_by_name;
+                    $entry->approved_by = $entry->approved_by_name;
+                    unset($entry->created_by_name, $entry->approved_by_name);
+
+                    return $entry;
+                });
 
             return response()->json($ledgerEntries, 200);
         } catch (\Exception $e) {
@@ -855,6 +869,7 @@ class ProjectController extends Controller
         $proofPath = Storage::disk('supabase')->putFileAs('ledger_proofs', $file, $fileName);
 
         $initialLedger->ledger_proof = $proofPath;
+        $initialLedger->ledger_proof_original_name = $file->getClientOriginalName();
         $initialLedger->file_content_hash = $fileHash;
         $initialLedger->save();
 

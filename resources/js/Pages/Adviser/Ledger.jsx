@@ -222,7 +222,7 @@ Date of Tampering: ${formatReportDate(entry.date)}
 Time of Detection: ${formatReportDate(createdAt)}
 Current Status: Chain tampering detected
 Issues Found:
-- Ledger entry was flagged as tampered by blockchain verification.
+- Ledger entry was flagged as tampered by chain verification.
 - Transaction: ${entry.transactionType || 'Not available'}
 - Description: ${entry.description || 'Not available'}
 
@@ -921,7 +921,7 @@ export default function LedgerApprovalsPage() {
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Ledger ID</th>
+                        {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Ledger ID</th> */}
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Project</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Entered By</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Amount</th>
@@ -949,13 +949,13 @@ export default function LedgerApprovalsPage() {
                       ) : (
                         pagedLedger.map((entry) => (
                           <tr key={entry.id} className={`${getRowClass(entry)} hover:bg-gray-50 transition-colors`}>
-                            <td className="px-6 py-4">
+                            {/* <td className="px-6 py-4">
                               <div className="flex items-center gap-2 max-w-[100px]">
                                 <span className="text-sm text-blue-600 truncate">{entry.id}</span>
                               </div>
-                            </td>
+                            </td> */}
                             <td className="px-6 py-4 max-w-[300px]">
-                              <p className="max-w-[300px] truncate text-sm text-gray-900">{entry.projectName}</p>
+                              <p className="max-w-[300px] truncate text-semibold text-blue-600">{entry.projectName}</p>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <p className="text-sm text-gray-900">{entry.enteredBy}</p>
@@ -1093,23 +1093,23 @@ export default function LedgerApprovalsPage() {
               <h4 className="text-sm font-medium text-gray-500 mb-3">Basic Information</h4>
               <div className="space-y-3 pt-3">
                 <div className='grid grid-cols-2 gap-2'>
-                  <div>
+                  {/* <div>
                     <p className="text-xs text-gray-500">Ledger ID</p>
                     <p className="text-sm text-blue-600">{selectedEntry.id}</p>
-                  </div>
+                  </div> */}
                   <div>
                     <p className="text-xs text-gray-500">Project Title</p>
-                    <p className="text-sm text-blue-600">{selectedEntry.projectName}</p>
+                    <p className="text-sm font-semibold text-blue-600">{selectedEntry.projectName}</p>
                   </div>
                 </div>
-                <div>
+                {/* <div>
                   <p className="text-xs text-gray-500">Ledger Hash (SHA256)</p>
                   <code className="text-xs text-blue-600 px-2 py-1 rounded block break-all">{selectedEntry.ledgerHash}</code>
-                </div>
-                <div>
+                </div> */}
+                {/* <div>
                   <p className="text-xs text-gray-500">Predecessor Hash</p>
                   <code className="text-xs text-blue-600 px-2 py-1 rounded block break-all">{selectedEntry.predecessorHash || '—'}</code>
-                </div>
+                </div> */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-gray-500">Entered By</p>
@@ -1194,7 +1194,7 @@ export default function LedgerApprovalsPage() {
               )}
             </div>
 
-            <div className="border-t pt-6">
+            {/* <div className="border-t pt-6">
               <h4 className="text-sm font-medium text-gray-500 mb-3">Verification Timeline</h4>
               <div className="space-y-3 pt-3">
                 <div className="flex items-start gap-3">
@@ -1218,11 +1218,11 @@ export default function LedgerApprovalsPage() {
                       selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.blockchainValid ? 'bg-green-600' : 'bg-gray-400'
                     }`} />
                   <div>
-                    <p className="text-sm font-medium">Blockchain Verification</p>
+                    <p className="text-sm font-medium">Chain Verification</p>
                     <p className="text-xs text-gray-500">
                       {selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.tampered ? 'Data integrity compromised' :
                         selectedEntry && selectedEntry.verificationState && selectedEntry.verificationState.blockchainValid ? 'Verified and secure' :
-                          'No blockchain record'}
+                          'No chain record'}
                     </p>
                   </div>
                 </div>
@@ -1248,7 +1248,7 @@ export default function LedgerApprovalsPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </div> */}
           </div>
         )}
       </Modal>

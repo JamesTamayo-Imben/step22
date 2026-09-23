@@ -111,6 +111,7 @@ function CSGProofPageInner() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [filterLedgerType, setFilterLedgerType] = useState('all');
   const [filePreview, setFilePreview] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -146,7 +147,8 @@ function CSGProofPageInner() {
     const matchesStatus = filterStatus === 'all' || doc.status === filterStatus;
     const matchesProject = filterProject === 'all' || doc.linkedProject === filterProject;
     const matchesType = filterType === 'all' || doc.fileType === filterType;
-    return matchesSearch && matchesStatus && matchesProject && matchesType;
+    const matchesLedgerType = filterLedgerType === 'all' || doc.entryType === filterLedgerType;
+    return matchesSearch && matchesStatus && matchesProject && matchesType && matchesLedgerType;
   });
 
   // Pagination logic
@@ -158,7 +160,7 @@ function CSGProofPageInner() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterStatus, filterProject, filterType]);
+  }, [searchQuery, filterStatus, filterProject, filterType, filterLedgerType]);
 
   const stats = {
     totalDocuments: proofDocuments.length,
@@ -187,6 +189,26 @@ function CSGProofPageInner() {
         return 'bg-yellow-100 text-yellow-700';
       case 'Rejected':
         return 'bg-red-100 text-red-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  const getLedgerTypeColor = (type) => {
+    switch (type) {
+      case 'Income':
+        return 'bg-green-100 text-green-700';
+      case 'Expense':
+        return 'bg-red-100 text-red-700';
+      case 'Donation':
+        return 'bg-blue-100 text-blue-700';
+      case 'Sponsorship':
+        return 'bg-purple-100 text-purple-700';
+      case 'Transfer':
+        return 'bg-orange-100 text-orange-700';
+      case 'Initial':
+      case 'Initial Transfer':
+        return 'bg-indigo-100 text-indigo-700';
       default:
         return 'bg-gray-100 text-gray-700';
     }
@@ -358,6 +380,17 @@ function CSGProofPageInner() {
               <option value="Image">Image</option>
             </Select>
           </div>
+          <div className="w-full md:w-48">
+            <Select
+              value={filterLedgerType}
+              onChange={(e) => setFilterLedgerType(e.target.value)}
+            >
+              <option value="all">All Ledger Types</option>
+              {[...new Set(proofDocuments.map((doc) => doc.entryType).filter(Boolean))].map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </Select>
+          </div>
         </div>
       </Card>
 
@@ -379,7 +412,7 @@ function CSGProofPageInner() {
             {/* File Info */}
             <div className="space-y-3">
               <div>
-                <h3 className="font-semibold text-gray-900 truncate">{proof.fileName}</h3>
+                <h3 className="font-semibold text-blue-600 truncate">{proof.linkedProject}</h3>
                 <p className="text-xs text-gray-500 mt-1">
                   {proof.fileType} • {proof.fileSize}
                 </p>
@@ -390,7 +423,7 @@ function CSGProofPageInner() {
                   {/* <Hash className="w-3 h-3 text-blue-600 flex-shrink-0" /> */}
                   {/* <span className="font-mono truncate">{proof.linkedTransaction}</span> */}
                 </div>
-                <p className="text-xs text-gray-500 truncate">{proof.linkedProject}</p>
+                {/* <p className="text-xs text-gray-500 truncate">{proof.linkedProject}</p> */}
                 <p className="text-xs text-gray-400">Uploaded by {proof.uploadedBy}</p>
               </div>
 
@@ -400,6 +433,9 @@ function CSGProofPageInner() {
                   <span className={`text-xs font-medium px-2 py-1 rounded-lg ${getStatusColor(proof.status)}`}>
                     {proof.status}
                   </span>
+                   {/* <span className={`text-xs font-medium px-2 py-1 rounded-lg`}>
+                    entry type {proof.entryType}
+                  </span> */}
                 </div>
                 <div>
                    <span className="text-xs text-gray-400">{proof.uploadDate}</span>
@@ -677,7 +713,7 @@ function CSGProofPageInner() {
           setSelectedProof(null);
         }}
         title="Proof Document Details"
-        description={`Document ID: ${selectedProof?.id}`}
+        // description={`Document ID: ${selectedProof?.id}`}
       >
         {selectedProof && (
           <div className="space-y-6 pt-6">
@@ -691,7 +727,7 @@ function CSGProofPageInner() {
                   return (
                     <div className="text-center">
                       {getFileIcon(selectedProof.fileType)}
-                      <p className="text-gray-600 mt-4 font-medium">{selectedProof.fileName}</p>
+                      {/* <p className="text-gray-600 mt-4 font-medium">{selectedProof.fileName}</p> */}
                       <p className="text-xs text-gray-500 mt-2">{selectedProof.fileType} • {selectedProof.fileSize}</p>
                       <p className="text-xs text-gray-400 mt-4">No preview available</p>
                     </div>
@@ -739,6 +775,10 @@ function CSGProofPageInner() {
 
             {/* Document Info */}
             <div className="grid grid-cols-2 gap-4">
+               <div className="col-span-2">
+                <h4 className="text-sm font-medium text-gray-700 mb-1">Project</h4>
+                <p className="text-sm text-blue-600 font-semibold">{selectedProof.linkedProject}</p>
+              </div>
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Status</h4>
                 <div className="flex items-center gap-1">
@@ -748,6 +788,12 @@ function CSGProofPageInner() {
                   </span>
                 </div>
               </div>
+               <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-1">Ledger Type</h4>
+                <span className={`inline-flex text-xs font-medium px-2 py-1 rounded-lg ${getLedgerTypeColor(selectedProof.entryType)}`}>
+                  {selectedProof.entryType || 'Not specified'}
+                </span>
+              </div>
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Upload Date</h4>
                 <p className="text-sm text-gray-600">{selectedProof.uploadDate}</p>
@@ -756,24 +802,24 @@ function CSGProofPageInner() {
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Uploaded By</h4>
                 <p className="text-sm text-gray-600">{selectedProof.uploadedBy}</p>
               </div>
-              <div>
+              {/* <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Linked Transaction</h4>
                 <p className="text-sm font-mono text-gray-600">{selectedProof.linkedTransaction}</p>
-              </div>
-              <div className="col-span-2">
+              </div> */}
+              {/* <div className="col-span-2">
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Project</h4>
                 <p className="text-sm text-gray-600">{selectedProof.linkedProject}</p>
-              </div>
+              </div> */}
                <div className="col-span-2">
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Description</h4>
                 <p className="text-sm text-gray-600">{selectedProof.description}</p>
               </div>
-              <div className="col-span-2">
+              {/* <div className="col-span-2">
                 <h4 className="text-sm font-medium text-gray-700 mb-2">File Hash (SHA-256)</h4>
                 <div className="bg-gray-50 rounded-lg p-3 font-mono text-xs text-gray-700 break-all">
                   {selectedProof.hash}
                 </div>
-              </div>
+              </div> */}
             </div>
 
             <div className="flex gap-3 pt-4">

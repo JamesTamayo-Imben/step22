@@ -197,7 +197,7 @@ export default function AdviserProjectsPage() {
 
   const recommendedProjects = useMemo(() => {
     const now = new Date();
-    return projects
+    const candidates = projects
       .filter(isApprovedProject)
       .filter((project) => getCalculatedStatus(project) === 'Completed')
       .filter((project) => getAverageRatingValue(project) > 0)
@@ -205,6 +205,7 @@ export default function AdviserProjectsPage() {
       .map((project) => ({
         ...project,
         averageRating: getAverageRatingValue(project),
+        income: getProjectIncome(project),
         startTimestamp: getProjectStartTimestamp(project),
       }))
       .sort((a, b) => {
@@ -214,6 +215,18 @@ export default function AdviserProjectsPage() {
         return getProjectIncome(b) - getProjectIncome(a);
       })
       .slice(0, 3);
+
+    const highestRating = Math.max(...candidates.map((project) => project.averageRating), 0);
+    const highestIncome = Math.max(...candidates.map((project) => project.income), 0);
+
+    return candidates.map((project) => ({
+      ...project,
+      recommendationReason: project.averageRating === highestRating
+        ? 'Recommended because this project has the highest rating.'
+        : project.income === highestIncome
+          ? 'Recommended because this project has the highest income.'
+          : 'Recommended based on strong recent performance.',
+    }));
   }, [projects]);
 
   const filteredProjects = useMemo(() => {
@@ -348,12 +361,13 @@ export default function AdviserProjectsPage() {
                           <span>Timeline</span>
                           <span className="font-semibold text-blue-700">{formatTimeline(project)}</span>
                         </div>
+                        <p className="text-xs text-blue-500">Note: {project.recommendationReason}</p>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => handleProjectClick(project)}
-                        className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors duration-200 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors duration-200 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200"
                       >
                         View Details
                       </button>

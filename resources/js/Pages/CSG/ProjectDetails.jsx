@@ -922,7 +922,7 @@ const computedBudgetFromLedger = ledgerEntries
     }
   };
 
-  // Fetch blockchain verification status
+  // Fetch chain verification status
   const fetchVerificationStatus = async () => {
     if (!projectId) return;
     

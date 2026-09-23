@@ -398,6 +398,7 @@ class AdviserApprovalController extends Controller
         $project->update([
             'approval_status' => 'Rejected',
             'note' => $reason,
+            'approve_by' => $userId,
             'updated_by' => $userId,
         ]);
 
@@ -600,7 +601,7 @@ class AdviserApprovalController extends Controller
             $payload['approved_at'] = $updatedAt;
             $payload['rejected_at'] = null;
         } elseif ($approvalStatus === 'Rejected') {
-            $payload['approved_by'] = null;
+            $payload['approved_by'] = $userId;
             $payload['approved_at'] = null;
             $payload['rejected_at'] = $updatedAt;
         } else {
@@ -643,7 +644,7 @@ class AdviserApprovalController extends Controller
             'note' => $reason,
             'rejected_at' => now(),
             'updated_by' => $userId,
-            'approved_by' => null,
+            'approved_by' => $userId,
             'approved_at' => null,
         ]);
 
@@ -818,6 +819,7 @@ class AdviserApprovalController extends Controller
     // (covers the freshly-created case above). Never overwrite an existing one.
     if (empty($initialLedger->ledger_proof)) {
         $initialLedger->ledger_proof = $proofPath;
+        $initialLedger->ledger_proof_original_name = $file->getClientOriginalName();
         $initialLedger->file_content_hash = $fileHash;
         $initialLedger->save();
     }
