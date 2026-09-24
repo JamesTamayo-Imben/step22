@@ -8,6 +8,7 @@ import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Badge } from '@/Components/ui/badge';
+import AssetActionFields from '@/Components/AssetActionFields';
 import {
   Plus,
   Search,
@@ -24,6 +25,7 @@ import {
   TrendingUp,
   TrendingDown,
   X,
+  Folder,
   FileText,
   CheckCircle,
   Clock,
@@ -138,6 +140,8 @@ function Select({ className = '', children, ...props }) {
   );
 }
 
+const ASSET_CATEGORIES = ['Furniture', 'Electronic Devices', 'Tools', 'Office Equipment', 'Other'];
+
 function normalizeLedgerEntry(entry) {
   return {
     ...entry,
@@ -194,6 +198,8 @@ function LedgerPageInner() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showAssetsModal, setShowAssetsModal] = useState(false);
+  const [assetInventory, setAssetInventory] = useState([]);
   const [bulkProjectId, setBulkProjectId] = useState('');
   const [bulkCsvFile, setBulkCsvFile] = useState(null);
   const [bulkProofFile, setBulkProofFile] = useState(null);
@@ -246,6 +252,27 @@ function LedgerPageInner() {
   const [editBudgetItems, setEditBudgetItems] = useState([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
   const [isUploading, setIsUploading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchAssetInventory = async () => {
+    try {
+      const response = await fetch('/api/ledger-entries/assets?mode=return', {
+        headers: {
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch asset inventory');
+      }
+
+      const data = await response.json();
+      setAssetInventory(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load asset inventory', error);
+      setAssetInventory([]);
+    }
+  };
 
   const fetchLedgerEntries = () => {
     return fetch('/api/ledger-entries')
@@ -339,7 +366,7 @@ const totalShortfall = Math.max(0, -rawTotalBudget);
       }
       if (entry.type === 'Income') {
         acc[projectName].income += entry.amount || 0;
-      } else if (entry.type === 'Expense') {
+      } else if (entry.type === 'Expense' || entry.type === 'Asset') {
         acc[projectName].expense += entry.amount || 0;
       }
       acc[projectName].net = acc[projectName].income - acc[projectName].expense;
@@ -361,6 +388,8 @@ const totalShortfall = Math.max(0, -rawTotalBudget);
     referenceNumber: '',
     requiresProof: true,
   });
+  const [assetMode, setAssetMode] = useState('purchase');
+  const [assetUsages, setAssetUsages] = useState([]);
 
 
 
@@ -643,13 +672,14 @@ const handleAddEntry = async () => {
   }
 
   // Check if amount is valid (either from budget breakdown or manual entry)
-  const totalAmount = calculateTotalBudget();
-  if (totalAmount <= 0) {
+    const isAssetUsage = ledgerForm.type === 'Asset' && assetMode === 'use';
+    const totalAmount = calculateTotalBudget();
+    if (!isAssetUsage && totalAmount <= 0) {
     showToast('Please add at least one budget item with a valid amount', 'error');
     return;
   }
 
-  if (!selectedFile) {
+    if (!isAssetUsage && !selectedFile) {
     showToast('Please attach proof for this ledger entry', 'error');
     return;
   }
@@ -672,15 +702,23 @@ setIsLoading(true);
       unitPrice: item.unitPrice,
       amount: item.amount || 0
     }));
+    const submittedBudgetBreakdown = ledgerForm.type === 'Asset' && ['use', 'return'].includes(assetMode)
+      ? assetUsages.map((usage) => ({ item: usage.asset_name || 'Asset', qty: Number(usage.quantity) || 0, quantity: Number(usage.quantity) || 0, unitPrice: 0, amount: 0 }))
+      : budgetBreakdown.map((item) => ({
+          ...item,
+          asset_category: ledgerForm.type === 'Asset' && assetMode === 'purchase' ? (item.asset_category || 'Other') : undefined,
+        }));
 
     // Create form data for file upload
     const formData = new FormData();
     formData.append('project_id', projectId);
     formData.append('type', ledgerForm.type);
-    formData.append('amount', totalAmount.toString());
+    formData.append('amount', ledgerForm.type === 'Asset' && ['use', 'return'].includes(assetMode) ? '0' : totalAmount.toString());
     formData.append('description', ledgerForm.description);
     formData.append('approval_status', 'Draft');
-    formData.append('budget_breakdown', JSON.stringify(budgetBreakdown));
+    formData.append('asset_mode', assetMode);
+    formData.append('asset_usages', JSON.stringify(assetUsages));
+    formData.append('budget_breakdown', JSON.stringify(submittedBudgetBreakdown));
     
     formData.append('ledger_proof', selectedFile);
 
@@ -718,7 +756,7 @@ setIsLoading(true);
       referenceNumber: '',
       requiresProof: true,
     });
-    setBudgetItems([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
+    setBudgetItems([{ id: 1, item: '', qty: 1, asset_category: 'Furniture', unitPrice: '', amount: 0 }]);
     setFilePreview(null);
     setSelectedFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -1011,7 +1049,7 @@ const getTypeAmountColor = (type) => {
 
   // Budget items state for the ledger entry
   const [budgetItems, setBudgetItems] = useState([
-    { id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }
+    { id: 1, item: '', qty: 1, asset_category: 'Furniture', unitPrice: '', amount: 0 }
   ]);
 
   // Calculate item total
@@ -1038,6 +1076,7 @@ const getTypeAmountColor = (type) => {
       id: newId, 
       item: '', 
       qty: 1, 
+      asset_category: 'Furniture',
       unitPrice: '', 
       amount: 0 
     }]);
@@ -1117,6 +1156,20 @@ const getTypeAmountColor = (type) => {
             >
               <Upload className="w-4 h-4 mr-2" />
               Bulk Upload (CSV)
+            </Button>
+          )}
+          {canCreateLedgers && (
+            <Button
+              onClick={() => {
+                fetchAssetInventory();
+                setShowAssetsModal(true);
+              }}
+              variant="outline"
+              className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={allProjects.length === 0}
+              title={allProjects.length === 0 ? 'No projects available. Create a project first.' : 'View all recorded assets and their stock status'}
+            >
+              <Folder className="w-4 h-4 mr-2" />Assets List
             </Button>
           )}
           </div>
@@ -1222,6 +1275,7 @@ const getTypeAmountColor = (type) => {
              <option value="all">All</option>
             <option value="Income">Income</option>
             <option value="Expense">Expense</option>
+            <option value="Asset">Asset</option>
             <option value="Donation">Donation</option>
             <option value="Sponsorship">Sponsorship</option>
             <option value="Canvas">Canvas</option>
@@ -1586,11 +1640,16 @@ const getTypeAmountColor = (type) => {
               <option value="">Select Type</option>
             <option value="Income">Income</option>
             <option value="Expense">Expense</option>
+            <option value="Asset">Asset</option>
             <option value="Donation">Donation</option>
             <option value="Sponsorship">Sponsorship</option>
             <option value="Canvas">Canvas</option>
             </Select>
           </div>
+
+          {ledgerForm.type === 'Asset' && (
+            <AssetActionFields mode={assetMode} onModeChange={setAssetMode} usages={assetUsages} onUsagesChange={setAssetUsages} />
+          )}
 
           {/* Project Selection */}
           <div>
@@ -1620,6 +1679,7 @@ const getTypeAmountColor = (type) => {
           </div>
 
           {/* Budget Breakdown Section */}
+         {!(ledgerForm.type === 'Asset' && assetMode === 'use') && (
          <div className="grid grid-cols-1 gap-4">
             <div>
               <FieldLabel>Budget Breakdown (₱)</FieldLabel>
@@ -1635,6 +1695,18 @@ const getTypeAmountColor = (type) => {
                       onChange={(e) => updateBudgetItem(item.id, 'item', e.target.value)}
                       className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
                     />
+
+                    {ledgerForm.type === 'Asset' && assetMode === 'purchase' && (
+                      <Select
+                        value={item.asset_category || 'Other'}
+                        onChange={(e) => updateBudgetItem(item.id, 'asset_category', e.target.value)}
+                        className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                      >
+                        {ASSET_CATEGORIES.map((category) => (
+                          <option key={category} value={category}>{category}</option>
+                        ))}
+                      </Select>
+                    )}
 
                     <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto] gap-2 sm:items-start">
                       <Input
@@ -1656,7 +1728,7 @@ const getTypeAmountColor = (type) => {
                       />
                       <div className="h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium whitespace-nowrap">
                         ₱{formatLimitedNumber(item.amount || 0)}
-                      </div>
+                       </div>
                       {budgetItems.length > 1 && (
                         <Button
                           type="button"
@@ -1696,6 +1768,7 @@ const getTypeAmountColor = (type) => {
               </div>
             </div>
           </div>
+          )}
 
           {/* File Upload */}
           <div>
@@ -1762,6 +1835,63 @@ const getTypeAmountColor = (type) => {
               disabled={!ledgerForm.description || !ledgerForm.project_id || !ledgerForm.type || isLoading}
             >
               {isLoading ? 'Adding...' : 'Save Entry'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={showAssetsModal}
+        onClose={() => setShowAssetsModal(false)}
+        title="Recorded Assets"
+        description="Current asset inventory and available stock status"
+      >
+        <div className="space-y-4 pt-6">
+          {assetInventory.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
+              No recorded assets yet.
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-gray-200">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Asset Name</th>
+                      <th className="px-4 py-3 font-medium">Category</th>
+                      <th className="px-4 py-3 font-medium">Quantity Available</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {assetInventory.map((asset) => {
+                      const statusText = asset.status || (Number(asset.available_quantity || 0) > 0 ? 'Available' : 'Unavailable');
+                      const isAvailable = statusText.toLowerCase() === 'available';
+
+                      return (
+                        <tr key={asset.id} className="align-middle">
+                          <td className="px-4 py-3 font-medium text-gray-900">{asset.name}</td>
+                          <td className="px-4 py-3 text-gray-700">{asset.asset_category || 'Other'}</td>
+                          <td className="px-4 py-3 text-gray-700">{Number(asset.available_quantity || 0)}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                              isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {statusText}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={() => setShowAssetsModal(false)} className="rounded-xl">
+              Close
             </Button>
           </div>
         </div>

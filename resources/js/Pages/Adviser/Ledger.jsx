@@ -18,6 +18,7 @@ import {
   CheckCircle,
   RotateCcw,
   Search,
+  Folder,
   TrendingUp,
   TrendingDown,
   Activity,
@@ -407,6 +408,8 @@ export default function LedgerApprovalsPage() {
   };
 
   const [selectedEntry, setSelectedEntry] = useState(null);
+  const [showAssetModal, setShowAssetModal] = useState(false);
+  const [assetInventory, setAssetInventory] = useState([]);
 
   const canViewLedger = userPermissions.includes('ledger.view');
   const canViewProof = userPermissions.includes('proof-documents.view');
@@ -471,6 +474,27 @@ export default function LedgerApprovalsPage() {
       isBudgetTampered,
     };
   }, [ledgerEntries, totalProjectBudget]);
+
+  const fetchAssetInventory = async () => {
+    try {
+      const response = await fetch('/api/ledger-entries/assets?mode=return', {
+        headers: {
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch asset inventory');
+      }
+
+      const data = await response.json();
+      setAssetInventory(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load asset inventory', error);
+      setAssetInventory([]);
+    }
+  };
 
   const handleViewDetails = (entry) => {
     setSelectedEntry(entry);
@@ -727,6 +751,58 @@ export default function LedgerApprovalsPage() {
   return (
     <AuthenticatedLayout>
       <Head title="Ledger" />
+      <Modal open={showAssetModal} onClose={() => setShowAssetModal(false)} title="Recorded Assets">
+        <div className="space-y-4 pt-4">
+          {assetInventory.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
+              No recorded assets yet.
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-gray-200">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Asset Name</th>
+                      <th className="px-4 py-3 font-medium">Category</th>
+                      <th className="px-4 py-3 font-medium">Quantity Available</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {assetInventory.map((asset) => {
+                      const statusText = asset.status || (Number(asset.available_quantity || 0) > 0 ? 'Available' : 'Unavailable');
+                      const isAvailable = statusText.toLowerCase() === 'available';
+
+                      return (
+                        <tr key={asset.id} className="align-middle">
+                          <td className="px-4 py-3 font-medium text-gray-900">{asset.name}</td>
+                          <td className="px-4 py-3 text-gray-700">{asset.asset_category || 'Other'}</td>
+                          <td className="px-4 py-3 text-gray-700">{Number(asset.available_quantity || 0)}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                              isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {statusText}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={() => setShowAssetModal(false)} className="rounded-xl">
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       <div className="py-8 px-4 lg:px-0 md:px-0">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
           <div className="flex justify-between items-center">
@@ -757,15 +833,16 @@ export default function LedgerApprovalsPage() {
                 <Download className="w-4 h-4 mr-2" />
                 Export CSV
               </button>
-              {/* <Button
-                              onClick={downloadReport}
-                              
-                              variant="outline"
-                              className="rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-60 text-white w-full sm:w-auto"
-                            >
-                              <Download className="w-4 h-4 mr-2" />
-                              Download Report
-                            </Button> */}
+               <Button
+                            onClick={() => {
+                              fetchAssetInventory();
+                              setShowAssetModal(true);
+                            }}
+                            variant="outline"
+                            className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Folder className="w-4 h-4 mr-2" />Assets List
+                          </Button>
             </div>
           </div>
 
@@ -1158,33 +1235,54 @@ export default function LedgerApprovalsPage() {
             <div className="border-t pt-6">
               <h4 className="text-sm font-medium text-gray-500 mb-3">Proof Documents</h4>
               {selectedEntry.proofAttached ? (
-                <div className="space-y-3">
-                  {(selectedEntry.proofFiles || []).map((file) => (
-                    <div key={file.id} className="p-3 border rounded-xl">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                <div className="space-y-4">
+                  {(selectedEntry.proofFiles || []).map((file) => {
+                    const proofUrl = getProofUrl(file.url || file.path || '#');
+                    const fileName = file.name || file.filename || 'Proof Document';
+                    const fileExtension = (fileName.split('.').pop() || '').toLowerCase();
+                    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+
+                    return (
+                      <div key={file.id || file.name || file.url || file.path} className="p-3 border rounded-xl bg-gray-50">
+                        {/* <div className="flex items-start gap-2 flex-1 min-w-0">
                           <FileText className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{file.name}</p>
+                            <p className="text-sm font-medium truncate">{fileName}</p>
                             <p className="text-xs text-gray-500 mt-1">SHA-256: <code className="text-xs break-all">{file.hash}</code></p>
                           </div>
+                        </div> */}
+
+                        <div className="">
+                          {imageExtensions.includes(fileExtension) ? (
+                            <img
+                              src={proofUrl}
+                              alt={fileName}
+                              className="max-w-full max-h-80 object-contain rounded-lg mx-auto"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                const fallback = document.createElement('div');
+                                fallback.className = 'flex items-center justify-center min-h-[160px] text-gray-500 text-sm';
+                                fallback.textContent = 'Unable to load image preview';
+                                e.target.parentNode.appendChild(fallback);
+                              }}
+                            />
+                          ) : fileExtension === 'pdf' ? (
+                            <iframe
+                              src={proofUrl}
+                              className="w-full h-80 rounded-lg border-0"
+                              title={fileName}
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center min-h-[160px] text-center">
+                              <FileText className="w-10 h-10 text-gray-400 mb-3" />
+                              <p className="text-sm font-medium text-gray-700">{fileName}</p>
+                              <p className="text-xs text-gray-500 mt-1">{fileExtension ? fileExtension.toUpperCase() : 'FILE'} preview not available</p>
+                            </div>
+                          )}
                         </div>
-                        {canViewProof && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedEntry(selectedEntry);
-                              setShowLedgerProofViewer(true);
-                            }}
-                            className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            <Eye className="w-4 h-4 mr-1" /> View
-                          </Button>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
@@ -1401,85 +1499,6 @@ export default function LedgerApprovalsPage() {
             </button>
           </div>
         </div>
-      </Modal>
-
-      {/* Modal for Ledger Proof Document Viewer */}
-      <Modal open={showLedgerProofViewer} onClose={() => { setShowLedgerProofViewer(false); }} title="Proof Document">
-        {selectedEntry?.proofAttached && selectedEntry?.proofFiles && selectedEntry?.proofFiles[0] && (
-          <div className="space-y-4 pt-6">
-            <div className="bg-gray-100 rounded-xl p-6 flex flex-col items-center justify-center min-h-96 max-h-96 overflow-auto">
-              {(() => {
-                const file = selectedEntry.proofFiles[0];
-                const proofUrl = getProofUrl(file.url || file.path || '#');
-                const fileName = file.name || file.filename || '';
-                const fileExtension = (fileName.split('.').pop() || '').toLowerCase();
-                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
-
-                if (imageExtensions.includes(fileExtension)) {
-                  return (
-                    <img
-                      src={proofUrl}
-                      alt="Proof Document"
-                      className="max-w-full max-h-96 object-contain rounded-lg"
-                      onError={() => {
-                        console.error('Failed to load image:', proofUrl);
-                      }}
-                    />
-                  );
-                } else if (fileExtension === 'pdf') {
-                  return (
-                    <iframe
-                      src={proofUrl}
-                      className="w-full h-96 rounded-lg border-0"
-                      title="PDF Preview"
-                    />
-                  );
-                } else {
-                  return (
-                    <div className="text-center">
-                      <FileText className="w-16 h-16 text-blue-600 mb-4 mx-auto" />
-                      <p className="text-gray-600 mb-2 font-medium">
-                        {fileName}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {fileExtension ? fileExtension.toUpperCase() : 'FILE'} file
-                      </p>
-                    </div>
-                  );
-                }
-              })()}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Transaction ID</p>
-                <p className="font-mono text-sm text-gray-900 break-all">{selectedEntry.id}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Amount</p>
-                <p className="text-gray-900">₱{formatLimitedNumber(parseFloat(selectedEntry.amount) || 0)}</p>
-              </div>
-            </div>
-            <div className="flex gap-3 pt-4">
-              <Button
-                className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => {
-                  const file = selectedEntry.proofFiles[0];
-                  const proofUrl = getProofUrl(file.url || file.path || '#');
-                  window.open(proofUrl, '_blank');
-                }}
-              >
-                <Download className="w-4 h-4 mr-2" />Download
-              </Button>
-              <Button onClick={() => setShowLedgerProofViewer(false)} variant="outline" className="flex-1 rounded-xl">Close</Button>
-            </div>
-          </div>
-        )}
-        {(!selectedEntry?.proofAttached || !selectedEntry?.proofFiles || !selectedEntry?.proofFiles[0]) && (
-          <div className="pt-6 text-center">
-            <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-600">No proof document available for this entry.</p>
-          </div>
-        )}
       </Modal>
 
       {/* Restore Confirmation Modal */}

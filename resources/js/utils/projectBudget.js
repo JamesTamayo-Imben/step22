@@ -5,7 +5,7 @@ export function computeBudgetFromEntries(entries) {
 
     const isCredit = type.includes('initial')
       || ['income', 'donation', 'sponsorship'].includes(type);
-    const isDebit = type === 'expense'
+    const isDebit = ['expense', 'asset'].includes(type)
       || (type.includes('transfer') && !type.includes('initial'));
 
     if (isCredit) return sum + amount;

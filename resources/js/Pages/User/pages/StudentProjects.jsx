@@ -10,6 +10,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedYear, setSelectedYear] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [cardsPerPage, setCardsPerPage] = useState(6);
   const [ledgerEntries, setLedgerEntries] = useState([]);
@@ -100,20 +101,79 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
     return ['all', ...Array.from(values)];
   }, [projects]);
 
-  const filteredProjects = projects.filter((project) => {
-    const matchesSearch =
-      project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (project.description || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const projectCategory = (project.category || 'General').toLowerCase();
-    const projectStatus = getProjectStatus(project).toLowerCase();
-    const matchesCategory = selectedCategory === 'all' || projectCategory === selectedCategory.toLowerCase();
-    const matchesStatus = selectedStatus === 'all' || projectStatus === selectedStatus.toLowerCase();
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  const extractProjectYear = (project) => {
+    const candidates = [
+      project?.year,
+      project?.academic_year,
+      project?.startDate,
+      project?.start_date,
+      project?.endDate,
+      project?.end_date,
+      project?.created_at,
+    ];
+
+    for (const value of candidates) {
+      if (value === null || value === undefined || value === '') continue;
+
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return Number(value);
+      }
+
+      const str = String(value).trim();
+      const yearMatch = str.match(/(19|20)\d{2}/);
+      if (yearMatch) {
+        return Number(yearMatch[0]);
+      }
+
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.getFullYear();
+      }
+    }
+
+    return null;
+  };
+
+  const projectYears = useMemo(() => {
+    const years = new Set(
+      projects
+        .map((project) => extractProjectYear(project))
+        .filter((year) => Number.isInteger(year))
+        .map((year) => Number(year))
+    );
+
+    return ['all', ...Array.from(years).sort((a, b) => Number(b) - Number(a))];
+  }, [projects]);
+
+  const filteredProjects = useMemo(() => {
+    const nextProjects = projects.filter((project) => {
+      const matchesSearch =
+        project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (project.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const projectCategory = (project.category || 'General').toLowerCase();
+      const projectStatus = getProjectStatus(project).toLowerCase();
+      const projectYear = extractProjectYear(project);
+      const matchesCategory = selectedCategory === 'all' || projectCategory === selectedCategory.toLowerCase();
+      const matchesStatus = selectedStatus === 'all' || projectStatus === selectedStatus.toLowerCase();
+      const matchesYear = selectedYear === 'all' || Number(projectYear) === Number(selectedYear);
+      return matchesSearch && matchesCategory && matchesStatus && matchesYear;
+    });
+
+    return [...nextProjects].sort((a, b) => {
+      const yearA = extractProjectYear(a) ?? 0;
+      const yearB = extractProjectYear(b) ?? 0;
+
+      if (yearB !== yearA) {
+        return Number(yearB) - Number(yearA);
+      }
+
+      return String(b.title || '').localeCompare(String(a.title || ''));
+    });
+  }, [projects, searchQuery, selectedCategory, selectedStatus, selectedYear]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory, selectedStatus, cardsPerPage]);
+  }, [searchQuery, selectedCategory, selectedStatus, selectedYear, cardsPerPage]);
 
   const canViewRatings = userPermissions.includes('ratings.view');
 
@@ -155,7 +215,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
   const entryType = (entry.type || '').toLowerCase();
 
   const isCredit = entryType.includes('initial') || ['income', 'donation', 'sponsorship'].includes(entryType);
-  const isDebit = entryType === 'expense' || (entryType.includes('transfer') && !entryType.includes('initial'));
+  const isDebit = ['expense', 'asset'].includes(entryType) || (entryType.includes('transfer') && !entryType.includes('initial'));
 
   if (isCredit) return sum + amount;
   if (isDebit) return sum - amount;
@@ -210,7 +270,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
       </div>
 
       {/* Search and Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="md:col-span-2 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
@@ -247,6 +307,21 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
             .map((status) => (
               <option key={status} value={status}>
                 {status}
+              </option>
+            ))}
+        </select>
+
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(e.target.value)}
+          className="h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-blue-200 px-3"
+        >
+          <option value="all">All Years</option>
+          {projectYears
+            .filter((year) => year !== 'all')
+            .map((year) => (
+              <option key={year} value={year}>
+                {year}
               </option>
             ))}
         </select>

@@ -4,7 +4,7 @@ import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { StudentModal } from '@/Components/ui/StudentModal';
 import { Chatbot } from '@/Components/ui/Chatbot';
-import { ArrowLeft, FolderKanban, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shield, XCircle } from 'lucide-react';
+import { ArrowLeft, FolderKanban, Folder, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shield, XCircle } from 'lucide-react';
 
 function showToast(message, type = 'success') {
   const id = `student-project-toast-${Date.now()}`;
@@ -39,6 +39,8 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [activeRatingTab, setActiveRatingTab] = useState('satisfaction');
   const [selectedLedgerEntry, setSelectedLedgerEntry] = useState(null);
   const [selectedProofDocument, setSelectedProofDocument] = useState(null);
+  const [showAssetModal, setShowAssetModal] = useState(false);
+  const [assetInventory, setAssetInventory] = useState([]);
   const [showAllComments, setShowAllComments] = useState(false);
 
   const currentRoleName = props?.auth?.user?.role?.name || props?.auth?.user?.role_name || props?.role?.name || '';
@@ -115,6 +117,27 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
         <p className="text-xs text-gray-500 mt-1">This file type cannot be previewed inline.</p>
       </div>
     );
+  };
+
+  const fetchAssetInventory = async () => {
+    try {
+      const response = await fetch('/api/ledger-entries/assets?mode=return', {
+        headers: {
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch asset inventory');
+      }
+
+      const data = await response.json();
+      setAssetInventory(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load asset inventory', error);
+      setAssetInventory([]);
+    }
   };
 
   const getProjectApprovalProof = () => {
@@ -512,8 +535,20 @@ const isProjectStarted = () => {
       {activeTab === 'ledger' && (
         <Card className="rounded-[20px] border-0 shadow-sm p-6">
           
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Ledger Entries Record</h2>
-
+        <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Ledger Entries Record</h2>
+         <button
+                      type="button"
+                      onClick={() => {
+                        fetchAssetInventory();
+                        setShowAssetModal(true);
+                      }}
+                      className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      <Folder className="w-4 h-4 mr-2" />
+                      Assets List
+                    </button>
+        </div>
           {/* Tamper Alert */}
       {currentProject.tamperedAlerts > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -571,7 +606,7 @@ const isProjectStarted = () => {
       {activeTab === 'proof' && (
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-blue-50">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Project Transaction Proof</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {(currentProject.proofDocuments || []).map((proof) => (
               <button
                 key={proof.id}
@@ -582,7 +617,7 @@ const isProjectStarted = () => {
   <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
   <div className="min-w-0 flex-1">
     <p className="font-medium text-gray-900 truncate">{proof.fileName}</p>
-    <p className="text-xs text-gray-500 truncate">Linked: {proof.linkedTransaction}</p>
+    {/* <p className="text-xs text-gray-500 truncate">Linked: {proof.linkedTransaction}</p> */}
   </div>
 </div>
                 <div className="flex items-center justify-between">
@@ -714,36 +749,36 @@ const isProjectStarted = () => {
                     <h3 className="font-semibold text-gray-900">{maskUserName(review.user?.name) || 'Unknown User'}</h3>
                     
                     {/* Display all three ratings */}
-                    <div className="flex flex-wrap items-center gap-1 md:gap-2">
-  <div className="flex-1 min-w-[100px] md:flex-none flex items-center gap-2">
-    <span className="text-xs text-gray-500 font-semibold">Satisfaction:</span>
-    <div className="flex">
-      {[...Array(5)].map((_, i) => (
-        <Star key={i} className={`w-3 h-3 ${i < (review.satisfaction_rating || 0) ? 'fill-blue-400 text-blue-400' : 'text-gray-300'}`} />
-      ))}
-    </div>
-    {/* <span className="text-xs text-gray-600">{review.satisfaction_rating || 0}/5</span> */}
-  </div>
-  
-  <div className="flex-1 min-w-[100px] md:flex-none flex items-center gap-2">
-    <span className="text-xs text-gray-500 font-semibold">Completeness:</span>
-    <div className="flex">
-      {[...Array(5)].map((_, i) => (
-        <Star key={i} className={`w-3 h-3 ${i < (review.completeness_rating || 0) ? 'fill-green-400 text-green-400' : 'text-gray-300'}`} />
-      ))}
-    </div>
-    {/* <span className="text-xs text-gray-600">{review.completeness_rating || 0}/5</span> */}
-  </div>
-  
-  <div className="flex-1 min-w-[100px] md:flex-none flex items-center gap-2">
-    <span className="text-xs text-gray-500 font-semibold">Engagement:</span>
-    <div className="flex">
-      {[...Array(5)].map((_, i) => (
-        <Star key={i} className={`w-3 h-3 ${i < (review.engagement_rating || 0) ? 'fill-red-400 text-red-400' : 'text-gray-300'}`} />
-      ))}
-    </div>
-    {/* <span className="text-xs text-gray-600">{review.engagement_rating || 0}/5</span> */}
-  </div>
+                    <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:gap-2">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2 md:flex-1 md:min-w-[50px] md:flex-none">
+                        <span className="text-[11px] font-semibold text-gray-500 sm:text-xs">Satisfaction:</span>
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`h-3 w-3 ${i < (review.satisfaction_rating || 0) ? 'fill-blue-400 text-blue-400' : 'text-gray-300'}`} />
+                          ))}
+                        </div>
+                        {/* <span className="text-xs text-gray-600">{review.satisfaction_rating || 0}/5</span> */}
+                      </div>
+
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2 md:flex-1 md:min-w-[100px] md:flex-none">
+                        <span className="text-[11px] font-semibold text-gray-500 sm:text-xs">Completeness:</span>
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`h-3 w-3 ${i < (review.completeness_rating || 0) ? 'fill-green-400 text-green-400' : 'text-gray-300'}`} />
+                          ))}
+                        </div>
+                        {/* <span className="text-xs text-gray-600">{review.completeness_rating || 0}/5</span> */}
+                      </div>
+
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2 md:flex-1 md:min-w-[100px] md:flex-none">
+                        <span className="text-[11px] font-semibold text-gray-500 sm:text-xs">Engagement:</span>
+                        <div className="flex items-center gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`h-3 w-3 ${i < (review.engagement_rating || 0) ? 'fill-red-400 text-red-400' : 'text-gray-300'}`} />
+                          ))}
+                        </div>
+                        {/* <span className="text-xs text-gray-600">{review.engagement_rating || 0}/5</span> */}
+                      </div>
                     </div>
                     
                     <p className="text-xs text-gray-500 mt-2">{review.date || ''}</p>
@@ -775,6 +810,57 @@ const isProjectStarted = () => {
           </div>
         </Card>
       )}
+
+      <StudentModal
+        isOpen={showAssetModal}
+        onClose={() => setShowAssetModal(false)}
+        title="Recorded Assets"
+        description="This is a list of all the assets that have been recorded for this project. You can view the asset name, category, quantity available, and status."
+      >
+        <div className="space-y-4 pt-2">
+          {assetInventory.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
+              No recorded assets yet.
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-gray-200">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Asset Name</th>
+                      <th className="px-4 py-3 font-medium">Category</th>
+                      <th className="px-4 py-3 font-medium">Quantity Available</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {assetInventory.map((asset) => {
+                      const statusText = asset.status || (Number(asset.available_quantity || 0) > 0 ? 'Available' : 'Unavailable');
+                      const isAvailable = statusText.toLowerCase() === 'available';
+
+                      return (
+                        <tr key={asset.id} className="align-middle">
+                          <td className="px-4 py-3 font-medium text-gray-900">{asset.name}</td>
+                          <td className="px-4 py-3 text-gray-700">{asset.asset_category || 'Other'}</td>
+                          <td className="px-4 py-3 text-gray-700">{Number(asset.available_quantity || 0)}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                              isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {statusText}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </StudentModal>
 
       <StudentModal
         isOpen={!!selectedLedgerEntry}

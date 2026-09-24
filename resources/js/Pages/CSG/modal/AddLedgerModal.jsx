@@ -14,6 +14,8 @@ import {
   X,
 } from 'lucide-react';
 
+const ASSET_CATEGORIES = ['Furniture', 'Electronic Devices', 'Tools', 'Office Equipment', 'Other'];
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 export function showToast(message, type = 'success') {
@@ -92,10 +94,21 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
   const [filePreview, setFilePreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [availableAssets, setAvailableAssets] = useState([]);
+  const [assetMode, setAssetMode] = useState('purchase');
+  const [assetUsages, setAssetUsages] = useState([]);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch(`/api/ledger-entries/assets?mode=${assetMode}`, { headers: { Accept: 'application/json' } })
+      .then((response) => response.json())
+      .then((data) => setAvailableAssets(Array.isArray(data) ? data : []))
+      .catch(() => setAvailableAssets([]));
+  }, [open, assetMode]);
 
   // Budget items state for the ledger entry
   const [budgetItems, setBudgetItems] = useState([
-    { id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }
+    { id: 1, item: '', qty: 1, asset_category: 'Furniture', unitPrice: '', amount: 0 }
   ]);
 
   // Calculate item total
@@ -121,7 +134,8 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
     setBudgetItems([...budgetItems, {
       id: newId,
       item: '',
-      quantity: 1,
+      qty: 1,
+      asset_category: 'Furniture',
       unitPrice: '',
       amount: 0
     }]);
@@ -170,9 +184,11 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
 
   // Reset form
   const resetForm = () => {
-    setBudgetItems([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
+    setBudgetItems([{ id: 1, item: '', qty: 1, asset_category: 'Furniture', unitPrice: '', amount: 0 }]);
     setFilePreview(null);
     setSelectedFile(null);
+    setAssetMode('purchase');
+    setAssetUsages([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
     setLedgerForm({
       type: 'Expense',
@@ -191,8 +207,13 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
   const handleSave = async (e) => {
     if (e) e.preventDefault();
 
-    if (!selectedFile) {
+    if (!(ledgerForm.type === 'Asset' && ['use', 'return'].includes(assetMode)) && !selectedFile) {
       showToast('Please attach proof for this ledger entry', 'error');
+      return;
+    }
+
+    if (ledgerForm.type === 'Asset' && ['use', 'return'].includes(assetMode) && assetUsages.length === 0) {
+      showToast('Select at least one existing asset to use', 'error');
       return;
     }
 
@@ -203,19 +224,42 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
 
       // 1. Create FormData and append ALL necessary fields
       const formData = new FormData();
+      const isAssetUsage = ledgerForm.type === 'Asset' && ['use', 'return'].includes(assetMode);
+      const submittedBudgetBreakdown = isAssetUsage
+        ? assetUsages.map((usage) => {
+            const asset = availableAssets.find((item) => item.id === usage.asset_id);
+            return {
+              item: asset?.name || 'Asset',
+              qty: Number(usage.quantity) || 0,
+              quantity: Number(usage.quantity) || 0,
+              unitPrice: 0,
+              amount: 0,
+            };
+          })
+        : budgetItems.map((item) => ({
+            ...item,
+            qty: Number(item.qty) || 0,
+            unitPrice: Number(item.unitPrice) || 0,
+            amount: Number(item.amount) || 0,
+            asset_category: ledgerForm.type === 'Asset' && assetMode === 'purchase' ? (item.asset_category || 'Other') : undefined,
+          }));
       formData.append('project_id', projectId);
       formData.append('type', ledgerForm.type);
       formData.append('description', ledgerForm.description);
-      formData.append('amount', calculateTotalBudget().toString());
-      formData.append('budget_breakdown', JSON.stringify(budgetItems));
+      formData.append('amount', isAssetUsage ? '0' : calculateTotalBudget().toString());
+      formData.append('budget_breakdown', JSON.stringify(submittedBudgetBreakdown));
       formData.append('project_budget_breakdown', JSON.stringify(projectBudgetBreakdown || []));
       formData.append('date', ledgerForm.date || new Date().toISOString().split('T')[0]);
       formData.append('approval_status', 'Draft');
+      formData.append('asset_mode', assetMode);
+      formData.append('asset_usages', JSON.stringify(assetUsages));
 
       // 2. Attach the proof file using both supported field names so the Laravel
       // controller can persist it into the ledger entry's ledger_proof column.
-      formData.append('proof_file', selectedFile);
-      formData.append('ledger_proof', selectedFile);
+      if (selectedFile) {
+        formData.append('proof_file', selectedFile);
+        formData.append('ledger_proof', selectedFile);
+      }
 
       console.log('📤 Sending ledger entry to /api/ledger-entries...');
 
@@ -324,11 +368,44 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
             <option value="" disabled>Select Type</option>
             <option value="Income">Income</option>
             <option value="Expense">Expense</option>
+            <option value="Asset">Asset</option>
             <option value="Donation">Donation</option>
             <option value="Sponsorship">Sponsorship</option>
             <option value="Canvas">Canvas</option>
           </Select>
         </div>
+
+        {ledgerForm.type === 'Asset' && (
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 space-y-3">
+            <FieldLabel>Asset action</FieldLabel>
+            <Select value={assetMode} onValueChange={setAssetMode}>
+              <option value="purchase">Purchase/add new asset</option>
+              <option value="use">Use existing asset</option>
+            </Select>
+            {assetMode === 'use' && (
+              <div className="space-y-2">
+                <FieldLabel>Select assets to use</FieldLabel>
+                {availableAssets.filter((asset) => (assetMode === 'return' ? asset.returnable_quantity > 0 : asset.available_quantity > 0)).map((asset) => {
+                  const usage = assetUsages.find((item) => item.asset_id === asset.id);
+                  const selectableQuantity = assetMode === 'return' ? asset.returnable_quantity : asset.available_quantity;
+                  return (
+                    <div key={asset.id} className="flex items-center gap-2 rounded-lg bg-white p-2">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(usage)}
+                        onChange={(event) => setAssetUsages(event.target.checked
+                          ? [...assetUsages, { asset_id: asset.id, quantity: 1 }]
+                          : assetUsages.filter((item) => item.asset_id !== asset.id))}
+                      />
+                      <span className="flex-1 text-sm">{asset.name} ({selectableQuantity} {assetMode === 'return' ? 'in use' : 'available'})</span>
+                      {usage && <Input type="number" min="1" max={selectableQuantity} value={usage.quantity} onChange={(event) => setAssetUsages(assetUsages.map((item) => item.asset_id === asset.id ? { ...item, quantity: event.target.value } : item))} className="w-20 h-8" />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Description */}
         <div>
@@ -343,6 +420,7 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
         </div>
 
         {/* Budget Breakdown Section */}
+        {!(ledgerForm.type === 'Asset' && assetMode === 'use') && (
         <div className="grid grid-cols-1 gap-4">
           <div>
             <FieldLabel>Budget Breakdown (₱)</FieldLabel>
@@ -358,6 +436,21 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
                     onChange={(e) => updateBudgetItem(item.id, 'item', e.target.value)}
                     className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
                   />
+
+                  {ledgerForm.type === 'Asset' && assetMode === 'purchase' && (
+                    <div>
+                      <FieldLabel>Asset category</FieldLabel>
+                      <Select
+                        value={item.asset_category || 'Other'}
+                        onValueChange={(value) => updateBudgetItem(item.id, 'asset_category', value)}
+                        className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                      >
+                        {ASSET_CATEGORIES.map((category) => (
+                          <option key={category} value={category}>{category}</option>
+                        ))}
+                      </Select>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto] gap-2 sm:items-start">
                     <Input
@@ -419,6 +512,7 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
             </div>
           </div>
         </div>
+        )}
 
         {/* File Upload */}
         <div>
@@ -473,7 +567,7 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
           <Button
             onClick={handleSave}
             className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
-            disabled={!ledgerForm.description || budgetItems.some(item => !item.item || !item.unitPrice || item.qty <= 0) || !selectedFile || isUploading}
+            disabled={!ledgerForm.description || ((ledgerForm.type !== 'Asset' || assetMode !== 'use') && (budgetItems.some(item => !item.item || !item.unitPrice || item.qty <= 0) || !selectedFile)) || isUploading}
           >
             {isUploading ? 'Saving...' : 'Save Entry'}
           </Button>

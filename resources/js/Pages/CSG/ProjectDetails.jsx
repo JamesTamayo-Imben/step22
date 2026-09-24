@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Plus,
   Upload,
+  Folder,
   FolderKanban,
   ChevronLeft,
   ChevronRight,
@@ -492,6 +493,8 @@ export function CSGProjectDetailsPage({
   const [showEditLedgerModal, setShowEditLedgerModal] = useState(false);
   const [showUploadProofModal, setShowUploadProofModal] = useState(false);
   const [showChangeDatesModal, setShowChangeDatesModal] = useState(false);
+  const [showAssetsModal, setShowAssetsModal] = useState(false);
+  const [assetInventory, setAssetInventory] = useState([]);
   const [proposedStartDate, setProposedStartDate] = useState('');
   const [proposedEndDate, setProposedEndDate] = useState('');
   const [dateChangeReason, setDateChangeReason] = useState('');
@@ -526,6 +529,27 @@ export function CSGProjectDetailsPage({
   const showToastMessage = (message, type = 'success') => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: '', type: '' }), 3000);
+  };
+
+  const fetchAssetInventory = async () => {
+    try {
+      const response = await fetch('/api/ledger-entries/assets?mode=return', {
+        headers: {
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch asset inventory');
+      }
+
+      const data = await response.json();
+      setAssetInventory(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load asset inventory', error);
+      setAssetInventory([]);
+    }
   };
   
   // Derived flags
@@ -785,7 +809,7 @@ const computedBudgetFromLedger = ledgerEntries
     const amount = parseFloat(entry.amount) || 0;
     const type = (entry.type || '').toLowerCase();
     
-    if (type === 'expense' || type === 'transfer') {
+    if (type === 'expense' || type === 'asset' || type === 'transfer') {
       // If amount is negative, it effectively adds to budget
       // If amount is positive, it subtracts from budget
       return sum - amount;
@@ -1928,7 +1952,8 @@ function maskUserName(fullName) {
                   {verificationStatus.status === 'tampering_detected' ? 'Tampered Alert' : 'Verified'}
                 </Badge>
               </div>
-            {canCreateLedgers && (
+          <div className="flex flex-wrap gap-2">
+              {canCreateLedgers && (
  <Button 
   onClick={() => setShowAddLedgerModal(true)} 
   className={`rounded-xl transition-all ${
@@ -1942,6 +1967,16 @@ function maskUserName(fullName) {
   Add Ledger Entry
 </Button>
             )}
+            <Button onClick={() => {
+              fetchAssetInventory();
+              setShowAssetsModal(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md rounded-xl transition-all"
+            >
+              <Folder className="w-4 h-4 mr-2" />
+              Assets List
+            </Button>
+          </div>
             </div>
             
             {loading ? (
@@ -2639,6 +2674,58 @@ function maskUserName(fullName) {
     </div>
   )}
 </Modal>
+
+      <Modal open={showAssetsModal} onClose={() => setShowAssetsModal(false)} title="Recorded Assets" description="Current asset inventory and available stock status">
+        <div className="space-y-4 pt-6">
+          {assetInventory.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
+              No recorded assets yet.
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-gray-200">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Asset Name</th>
+                      <th className="px-4 py-3 font-medium">Category</th>
+                      <th className="px-4 py-3 font-medium">Quantity Available</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {assetInventory.map((asset) => {
+                      const statusText = asset.status || (Number(asset.available_quantity || 0) > 0 ? 'Available' : 'Unavailable');
+                      const isAvailable = statusText.toLowerCase() === 'available';
+
+                      return (
+                        <tr key={asset.id} className="align-middle">
+                          <td className="px-4 py-3 font-medium text-gray-900">{asset.name}</td>
+                          <td className="px-4 py-3 text-gray-700">{asset.asset_category || 'Other'}</td>
+                          <td className="px-4 py-3 text-gray-700">{Number(asset.available_quantity || 0)}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                              isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {statusText}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={() => setShowAssetsModal(false)} className="rounded-xl">
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={showProofViewer} onClose={() => { setShowProofViewer(false); setSelectedProof(null); }} title="Proof Document">
         {selectedProof && (

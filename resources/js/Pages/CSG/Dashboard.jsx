@@ -8,6 +8,7 @@ import { Card } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { canPermission } from '@/lib/permissions';
+import AssetActionFields from '@/Components/AssetActionFields';
 
 import { 
   FolderKanban,
@@ -184,6 +185,8 @@ function Select({ className = '', children, value, onValueChange, ...props }) {
   );
 }
 
+const ASSET_CATEGORIES = ['Furniture', 'Electronic Devices', 'Tools', 'Office Equipment', 'Other'];
+
 // Placeholder sub-pages
 function ProofPage() { return <Card className="p-8">Proof Documents (placeholder)</Card>; }
 function MeetingsPage() { return <Card className="p-8">Meetings (placeholder)</Card>; }
@@ -200,7 +203,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   const [showStatCardPointer, setShowStatCardPointer] = useState(false);
   const [highlightedStatCard, setHighlightedStatCard] = useState(null);
   const [budgetItems, setBudgetItems] = useState([
-    { id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }
+    { id: 1, item: '', qty: 1, asset_category: 'Furniture', unitPrice: '', amount: 0 }
   ]);
   const [newProject, setNewProject] = useState({
     title: '',
@@ -247,6 +250,8 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
     requiresProof: false, // Changed to false to make proof optional by default
   });
   const [selectedLedgerFile, setSelectedLedgerFile] = useState(null);
+  const [assetMode, setAssetMode] = useState('purchase');
+  const [assetUsages, setAssetUsages] = useState([]);
 
   const isApprovedOrActiveProject = (project) => {
     const status = String(project.approval_status || project.status || '').trim().toLowerCase();
@@ -288,7 +293,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   const entryType = (entry.type || '').toLowerCase();
 
   const isCredit = entryType.includes('initial') || ['income', 'donation', 'sponsorship'].includes(entryType);
-  const isDebit = entryType === 'expense' || (entryType.includes('transfer') && !entryType.includes('initial'));
+  const isDebit = ['expense', 'asset'].includes(entryType) || (entryType.includes('transfer') && !entryType.includes('initial'));
 
   if (isCredit) return sum + amount;
   if (isDebit) return sum - amount;
@@ -533,14 +538,20 @@ const formatHeatmapTooltip = (item) => {
     }
 
     // Check if amount is valid (either from budget breakdown or manual entry)
+    const isAssetUsage = ledgerForm.type === 'Asset' && assetMode === 'use';
     const totalAmount = calculateTotalBudget();
-    if (totalAmount <= 0) {
+    if (!isAssetUsage && totalAmount <= 0) {
       showToast('Please add at least one budget item with a valid amount', 'error');
       return;
     }
 
-    if (!selectedLedgerFile) {
+    if (!isAssetUsage && !selectedLedgerFile) {
       showToast('Please attach proof for this ledger entry', 'error');
+      return;
+    }
+
+    if (isAssetUsage && assetUsages.length === 0) {
+      showToast('Select at least one existing asset to use', 'error');
       return;
     }
 
@@ -561,19 +572,25 @@ const formatHeatmapTooltip = (item) => {
       // Prepare budget breakdown
       const budgetBreakdown = budgetItems.map(item => ({
         item: item.item,
-        qty: item.quantity || item.qty || 1,
+        qty: item.qty || 1,
         unitPrice: item.unitPrice,
-        amount: item.amount || 0
+        amount: item.amount || 0,
+        asset_category: ledgerForm.type === 'Asset' && assetMode === 'purchase' ? (item.asset_category || 'Other') : undefined,
       }));
+      const submittedBudgetBreakdown = ledgerForm.type === 'Asset' && ['use', 'return'].includes(assetMode)
+        ? assetUsages.map((usage) => ({ item: usage.asset_name || 'Asset', qty: Number(usage.quantity) || 0, quantity: Number(usage.quantity) || 0, unitPrice: 0, amount: 0 }))
+        : budgetBreakdown;
 
       // Create form data for file upload
       const formData = new FormData();
       formData.append('project_id', projectId);
       formData.append('type', ledgerForm.type);
-      formData.append('amount', totalAmount.toString());
+      formData.append('amount', ledgerForm.type === 'Asset' && ['use', 'return'].includes(assetMode) ? '0' : totalAmount.toString());
       formData.append('description', ledgerForm.description);
       formData.append('approval_status', 'Draft');
-      formData.append('budget_breakdown', JSON.stringify(budgetBreakdown));
+      formData.append('asset_mode', assetMode);
+      formData.append('asset_usages', JSON.stringify(assetUsages));
+      formData.append('budget_breakdown', JSON.stringify(submittedBudgetBreakdown));
       
       formData.append('ledger_proof', selectedLedgerFile);
 
@@ -625,7 +642,7 @@ const formatHeatmapTooltip = (item) => {
         referenceNumber: '',
         requiresProof: false,
       });
-      setBudgetItems([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
+      setBudgetItems([{ id: 1, item: '', qty: 1, asset_category: 'Furniture', unitPrice: '', amount: 0 }]);
       setLedgerFilePreview(null);
       setSelectedLedgerFile(null);
       if (ledgerFileInputRef.current) ledgerFileInputRef.current.value = '';
@@ -675,7 +692,7 @@ const formatHeatmapTooltip = (item) => {
     const newId = budgetItems.length > 0 
       ? Math.max(...budgetItems.map(item => item.id)) + 1 
       : 1;
-    setBudgetItems([...budgetItems, { id: newId, item: '', qty: 1, unitPrice: '', amount: 0 }]);
+    setBudgetItems([...budgetItems, { id: newId, item: '', qty: 1, asset_category: 'Furniture', unitPrice: '', amount: 0 }]);
   };
 
   const removeBudgetItem = (id) => {
@@ -943,7 +960,7 @@ const formatHeatmapTooltip = (item) => {
             referenceNumber: '',
             requiresProof: false,
           });
-          setBudgetItems([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
+          setBudgetItems([{ id: 1, item: '', qty: 1, asset_category: 'Furniture', unitPrice: '', amount: 0 }]);
           setLedgerFilePreview(null);
           setSelectedLedgerFile(null);
           if (ledgerFileInputRef.current) ledgerFileInputRef.current.value = '';
@@ -963,11 +980,15 @@ const formatHeatmapTooltip = (item) => {
               <option value="">Select Type</option>
             <option value="Income">Income</option>
             <option value="Expense">Expense</option>
+            <option value="Asset">Asset</option>
             <option value="Donation">Donation</option>
             <option value="Sponsorship">Sponsorship</option>
             <option value="Canvas">Canvas</option>
             </Select>
           </div>
+        {ledgerForm.type === 'Asset' && (
+          <AssetActionFields mode={assetMode} onModeChange={setAssetMode} usages={assetUsages} onUsagesChange={setAssetUsages} />
+        )}
 
           {/* Project Selection - Only shows approved projects */}
           <div>
@@ -999,49 +1020,68 @@ const formatHeatmapTooltip = (item) => {
           </div>
 
           {/* Budget Breakdown Section */}
+          {!(ledgerForm.type === 'Asset' && assetMode === 'use') && (
           <div className="grid grid-cols-1 gap-4">
             <div>
               <FieldLabel>Budget Breakdown (₱)</FieldLabel>
               <div className="space-y-3">
                 {budgetItems.map((item) => (
-                  <div key={item.id} className="flex gap-2 items-start">
+                  <div
+                    key={item.id}
+                    className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:border-0 sm:bg-transparent sm:p-0"
+                  >
                     <Input
                       placeholder="Item name"
                       value={item.item}
                       onChange={(e) => updateBudgetItem(item.id, 'item', e.target.value)}
-                      className="flex-1 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                      className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
                     />
-                    <Input
-                      type="number"
-                      placeholder="Qty"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateBudgetItem(item.id, 'quantity', e.target.value)}
-                      className="w-20 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Unit Price"
-                      min="0"
-                      step="0.01"
-                      value={item.unitPrice}
-                      onChange={(e) => updateBudgetItem(item.id, 'unitPrice', e.target.value)}
-                      className="w-28 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                    />
-                    <div className="w-28 h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium">
-                      ₱{(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                    {budgetItems.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeBudgetItem(item.id)}
-                        className="rounded-lg text-red-600 hover:bg-red-50"
+
+                    {ledgerForm.type === 'Asset' && assetMode === 'purchase' && (
+                      <Select
+                        value={item.asset_category || 'Other'}
+                        onValueChange={(value) => updateBudgetItem(item.id, 'asset_category', value)}
+                        className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                        {ASSET_CATEGORIES.map((category) => (
+                          <option key={category} value={category}>{category}</option>
+                        ))}
+                      </Select>
                     )}
+
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_auto] gap-2 sm:items-start">
+                      <Input
+                        type="number"
+                        placeholder="Qty"
+                        min="1"
+                        value={item.qty}
+                        onChange={(e) => updateBudgetItem(item.id, 'qty', e.target.value)}
+                        className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Unit Price"
+                        min="0"
+                        step="0.01"
+                        value={item.unitPrice}
+                        onChange={(e) => updateBudgetItem(item.id, 'unitPrice', e.target.value)}
+                        className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                      />
+                      <div className="h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium whitespace-nowrap">
+                        ₱{(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      {budgetItems.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeBudgetItem(item.id)}
+                          className="h-10 w-10 rounded-lg p-0 text-red-600 hover:bg-red-50 shrink-0 self-start"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
                 <Button
@@ -1056,7 +1096,7 @@ const formatHeatmapTooltip = (item) => {
                 </Button>
               </div>
             </div>
-            
+
             <div>
               <FieldLabel>Total Amount (₱)</FieldLabel>
               <div className="bg-blue-50 rounded-xl p-4 mt-1">
@@ -1069,6 +1109,7 @@ const formatHeatmapTooltip = (item) => {
               </div>
             </div>
           </div>
+          )}
 
           {/* STEP 6.7: File Upload Section */}
           <div>
@@ -1140,7 +1181,7 @@ const formatHeatmapTooltip = (item) => {
             </Button>
             <Button
               onClick={handleAddLedgerEntry}
-              disabled={!ledgerForm.description || !ledgerForm.project_id || !ledgerForm.type || calculateTotalBudget() <= 0 || isProjectLocked(ledgerForm.project_id)}
+              disabled={!ledgerForm.description || !ledgerForm.project_id || !ledgerForm.type || ((ledgerForm.type !== 'Asset' || assetMode !== 'use') && calculateTotalBudget() <= 0) || (ledgerForm.type === 'Asset' && assetMode === 'use' && assetUsages.length === 0) || isProjectLocked(ledgerForm.project_id)}
               className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
             >
               Save Entry
@@ -1281,83 +1322,31 @@ const formatHeatmapTooltip = (item) => {
               return currentScore > bestScore ? current : best;
             }, safeProjects[0]);
 
-            const bestTimelineProject = safeProjects.reduce((best, current) => {
-              const now = new Date();
-              const getTimelineScore = (project) => {
-                const start = project?.start_date ? new Date(project.start_date) : null;
-                const end = project?.end_date ? new Date(project.end_date) : null;
-                if (!start || !end) return 0;
-
-                const durationDays = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
-                const started = start <= now;
-                const ended = end < now;
-                const progress = started && !ended ? Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100)) : ended ? 100 : 0;
-                return progress + (durationDays > 0 ? Math.min(durationDays / 90, 30) : 0);
-              };
-
-              return getTimelineScore(current) > getTimelineScore(best) ? current : best;
-            }, safeProjects[0]);
-
-            const overallWinner = safeProjects.reduce((best, current) => {
-              const getOverallScore = (project) => {
-                const ratingScore = Number(project?.averageRating || 0) * 40;
-                const incomeScore = Math.min(Number(project?.income || 0) / 1000, 200);
-                const timelineScore = (() => {
-                  const start = project?.start_date ? new Date(project.start_date) : null;
-                  const end = project?.end_date ? new Date(project.end_date) : null;
-                  if (!start || !end) return 0;
-                  const duration = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
-                  return Math.min(duration / 10, 50);
-                })();
-
-                return ratingScore + incomeScore + timelineScore;
-              };
-
-              return getOverallScore(current) > getOverallScore(best) ? current : best;
-            }, safeProjects[0]);
-
             const cards = [
               {
-                key: 'overall',
-                title: 'Highest Overall',
-                project: overallWinner,
-                valueLabel: 'Overall',
-                value: `${Number(overallWinner.averageRating || 0).toFixed(1)}/5 • ₱${Number(overallWinner.income || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                reason: 'Recommended because it performs best across rating, income, and timeline.',
-                accent: 'bg-violet-50 text-violet-700 border-violet-200',
-                valueClass: 'text-violet-700',
-              },
-              {
                 key: 'rating',
-                title: 'Average Rating',
+                title: 'Highest Rating',
                 project: highestRatingProject,
                 valueLabel: 'Rating',
                 value: `${Number(highestRatingProject.averageRating || 0).toFixed(1)}/5`,
                 reason: 'Recommended because it has the strongest average student rating.',
-                accent: 'bg-amber-50 text-amber-700 border-amber-200',
-                valueClass: 'text-amber-700',
+                accent: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                valueClass: 'text-yellow-700',
               },
               {
                 key: 'income',
-                title: 'Income',
+                title: 'Highest Income',
                 project: highestIncomeProject,
                 valueLabel: 'Income',
                 value: `₱${Number(highestIncomeProject.income || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                 reason: 'Recommended because it generated the highest project income.',
-                accent: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                valueClass: 'text-emerald-700',
+                accent: 'bg-green-50 text-green-700 border-green-200',
+                valueClass: 'text-green-700',
               },
-              {
-                key: 'timeline',
-                title: 'Timeline',
-                project: bestTimelineProject,
-                valueLabel: 'Timeline',
-                value: formatTimeline(bestTimelineProject),
-                reason: 'Recommended because it has the most balanced and active schedule.',
-                accent: 'bg-sky-50 text-sky-700 border-sky-200',
-                valueClass: 'text-sky-700',
-              },
-            ];
+            ].filter((card, index, arr) => {
+              const sameProjectId = arr.findIndex((item) => item.project?.id === card.project?.id);
+              return sameProjectId === index;
+            });
 
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1390,18 +1379,6 @@ const formatHeatmapTooltip = (item) => {
                             >
                               Open
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const copied = `${card.project.title || 'Untitled Project'} • ${card.value}`;
-                                navigator.clipboard?.writeText(copied);
-                                showToast('Recommendation copied', 'success');
-                                setRecommendationMenuOpen(null);
-                              }}
-                              className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                            >
-                              Make Copy
-                            </button>
                           </div>
                         )}
                       </div>
@@ -1423,7 +1400,7 @@ const formatHeatmapTooltip = (item) => {
                       </div>
                     </div>
 
-                    <p className="mt-3 text-xs text-gray-600">{card.reason}</p>
+                    <p className="mt-3 text-xs text-blue-600">{card.reason}</p>
                   </div>
                 ))}
               </div>

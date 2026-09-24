@@ -34,6 +34,13 @@ class AdviserAuditLogsController extends Controller
             'restore' => 'restore',
             'alert' => 'alert',
             'view' => 'view',
+            'approve' => 'approve',
+            'approved' => 'approve',
+            'reject' => 'reject',
+            'rejected' => 'reject',
+            'create' => 'create',
+            'update' => 'update',
+            'delete' => 'delete',
             default => strtolower($actionType),
         };
     }

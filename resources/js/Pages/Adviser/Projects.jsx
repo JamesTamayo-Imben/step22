@@ -207,26 +207,43 @@ export default function AdviserProjectsPage() {
         averageRating: getAverageRatingValue(project),
         income: getProjectIncome(project),
         startTimestamp: getProjectStartTimestamp(project),
-      }))
-      .sort((a, b) => {
-        if (b.averageRating !== a.averageRating) {
-          return b.averageRating - a.averageRating;
-        }
-        return getProjectIncome(b) - getProjectIncome(a);
-      })
-      .slice(0, 3);
+      }));
 
-    const highestRating = Math.max(...candidates.map((project) => project.averageRating), 0);
-    const highestIncome = Math.max(...candidates.map((project) => project.income), 0);
+    if (!candidates.length) {
+      return [];
+    }
 
-    return candidates.map((project) => ({
-      ...project,
-      recommendationReason: project.averageRating === highestRating
-        ? 'Recommended because this project has the highest rating.'
-        : project.income === highestIncome
-          ? 'Recommended because this project has the highest income.'
-          : 'Recommended based on strong recent performance.',
-    }));
+    const highestRatingProject = candidates.reduce((best, current) => (
+      Number(current.averageRating) > Number(best.averageRating) ? current : best
+    ), candidates[0]);
+
+    const highestIncomeProject = candidates.reduce((best, current) => (
+      Number(current.income) > Number(best.income) ? current : best
+    ), candidates[0]);
+
+    return [
+      {
+        ...highestRatingProject,
+        titleTag: 'Highest Rating',
+        valueLabel: 'Rating',
+        value: `${Number(highestRatingProject.averageRating || 0).toFixed(1)}/5`,
+        accent: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+        valueClass: 'text-yellow-700',
+        recommendationReason: 'Recommended because this project has the strongest average student rating.',
+      },
+      {
+        ...highestIncomeProject,
+        titleTag: 'Highest Income',
+        valueLabel: 'Income',
+        value: formatCurrency(highestIncomeProject.income ?? getProjectIncome(highestIncomeProject)),
+        accent: 'bg-green-50 text-green-700 border-green-200',
+        valueClass: 'text-green-700',
+        recommendationReason: 'Recommended because this project has the highest project income.',
+      },
+    ].filter((project, index, arr) => {
+      const sameProjectId = arr.findIndex((item) => item.id === project.id);
+      return sameProjectId === index;
+    });
   }, [projects]);
 
   const filteredProjects = useMemo(() => {
@@ -332,36 +349,38 @@ export default function AdviserProjectsPage() {
               <p className="text-base text-gray-700">There are no recommended projects as of now because the cycle has not begun yet.</p>
             ) : (
               <div className="space-y-4">
-                <p className="text-base text-gray-700">Recommended from best-performing past projects near the current month.</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   {recommendedProjects.map((project) => (
                     <Card
-                      key={project.id}
+                      key={`${project.id}-${project.titleTag}`}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') handleProjectClick(project);
                       }}
-                      className="h-full rounded-[20px] border border-blue-500 bg-white p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow flex flex-col"
+                      className="h-full rounded-[20px] border border-gray-200 bg-white p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow flex flex-col"
                     >
-                      <div className="mb-3">
+                      <div className="flex items-center justify-between">
+                        <span className={`inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${project.accent}`}>
+                          {project.titleTag}
+                        </span>
+                      </div>
+
+                      <div className="">
                         <h2 className="text-sm font-semibold text-gray-900 line-clamp-2">{project.title || 'Untitled Project'}</h2>
                         <p className="text-xs text-gray-500">{project.category || 'Uncategorized'}</p>
                       </div>
+
                       <div className="flex-1 text-sm text-gray-600 space-y-2">
                         <div className="flex items-center justify-between gap-2">
-                          <span>Average Rating</span>
-                          <span className="font-semibold text-blue-700">{project.averageRating.toFixed(1)}/5</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span>Income</span>
-                          <span className="font-semibold text-blue-700">{formatCurrency(project.income ?? getProjectIncome(project))}</span>
+                          <span>{project.valueLabel}</span>
+                          <span className={`font-semibold ${project.valueClass}`}>{project.value}</span>
                         </div>
                         <div className="flex items-center justify-between gap-2">
                           <span>Timeline</span>
-                          <span className="font-semibold text-blue-700">{formatTimeline(project)}</span>
+                          <span className="font-semibold text-gray-700">{formatTimeline(project)}</span>
                         </div>
-                        <p className="text-xs text-blue-500">Note: {project.recommendationReason}</p>
+                        <p className="text-xs text-blue-600">Note: {project.recommendationReason}</p>
                       </div>
 
                       <button
@@ -404,7 +423,7 @@ export default function AdviserProjectsPage() {
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') handleProjectClick(project);
                     }}
-                    className="h-full rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all flex flex-col gap-4 cursor-pointer"
+                    className="h-full min-h-[360px] rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all flex flex-col gap-4 cursor-pointer"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -423,7 +442,7 @@ export default function AdviserProjectsPage() {
                     </div>
 
                     <p
-                      className="text-sm text-gray-600 flex-1"
+                      className="text-sm text-gray-600 flex-1 min-h-[60px]"
                       style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
                       title={project.description}
                     >
@@ -447,7 +466,7 @@ export default function AdviserProjectsPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-gray-100 p-3 flex items-center justify-between">
+                    <div className="rounded-xl border border-gray-100 p-3 flex items-center justify-between min-h-[56px]">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Star className="w-4 h-4 text-amber-500 fill-current" />
                         <span>
@@ -492,7 +511,7 @@ export default function AdviserProjectsPage() {
               <div><p className="text-xs text-gray-500">Budget</p><p className="mt-1 text-sm text-gray-900">{formatCurrency(selectedProject.budget)}</p></div>
               <div><p className="text-xs text-gray-500">Timeline</p><p className="mt-1 text-sm text-gray-900">{formatTimeline(selectedProject)}</p></div>
               <div><p className="text-xs text-gray-500">Venue</p><p className="mt-1 text-sm text-gray-900">{selectedProject.venue || 'Not specified'}</p></div>
-              <div><p className="text-xs text-gray-500">Created By</p><p className="mt-1 text-sm text-gray-900">{selectedProject.created_by || selectedProject.proposed_by || 'Unknown'}</p></div>
+              <div><p className="text-xs text-gray-500">Created By</p><p className="mt-1 text-sm text-gray-900">{selectedProject.creator?.name || selectedProject.created_by_name || selectedProject.created_by || selectedProject.proposed_by || 'Unknown'}</p></div>
               <div className="sm:col-span-2"><p className="text-xs text-gray-500">Objective</p><p className="mt-1 whitespace-pre-wrap text-sm text-gray-900">{selectedProject.objective || 'No objective provided'}</p></div>
               <div className="sm:col-span-2"><p className="text-xs text-gray-500">Description</p><p className="mt-1 whitespace-pre-wrap text-sm text-gray-900">{selectedProject.description || 'No description provided'}</p></div>
             </div>

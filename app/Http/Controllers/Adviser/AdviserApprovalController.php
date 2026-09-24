@@ -452,7 +452,8 @@ class AdviserApprovalController extends Controller
             'date_change_request',
             'Approved date change request for project: '.($request->project?->title ?? $request->project_id),
             'approvals',
-            $userId
+            $userId,
+            'approve'
         );
 
         $this->createNotification(
@@ -485,7 +486,8 @@ class AdviserApprovalController extends Controller
             'date_change_request',
             'Rejected date change request for project: '.($request->project?->title ?? $request->project_id).' — '.$reason,
             'approvals',
-            $userId
+            $userId,
+            'reject'
         );
 
         $this->createNotification(
@@ -536,7 +538,7 @@ class AdviserApprovalController extends Controller
                     }
                 } else {
                     // Non-transfer behaviour (legacy)
-                    if ($entry->type === 'Expense') {
+                    if (in_array($entry->type, ['Expense', 'Asset'], true)) {
                         $entry->project->budget = (float) $entry->project->budget - $amount;
                     } elseif (in_array($entry->type, ['Income', 'Donation', 'Sponsorship'], true)) {
                         $entry->project->budget = (float) $entry->project->budget + $amount;
@@ -571,7 +573,8 @@ class AdviserApprovalController extends Controller
             'ledger_entry',
             $details,
             'ledger',
-            $userId
+            $userId,
+            'approve'
         );
 
         $this->createNotification(
@@ -654,7 +657,8 @@ class AdviserApprovalController extends Controller
             'ledger_entry',
             ($entry->description ?? '').' — '.$reason,
             'ledger',
-            $userId
+            $userId,
+            'reject'
         );
 
         $this->createNotification(
@@ -983,8 +987,18 @@ class AdviserApprovalController extends Controller
         ];
     }
 
-    private function writeAudit(string $action, ?string $actionableId, ?string $actionableType, string $details, string $module, ?string $userId = null): void
+    private function writeAudit(string $action, ?string $actionableId, ?string $actionableType, string $details, string $module, ?string $userId = null, ?string $actionType = null): void
     {
+        $resolvedActionType = $actionType ?? match (strtolower($action)) {
+            'date change request approved' => 'approve',
+            'date change request rejected' => 'reject',
+            'ledger entry approved' => 'approve',
+            'ledger entry rejected' => 'reject',
+            'meeting minutes approved' => 'approve',
+            'meeting minutes rejected' => 'reject',
+            default => 'update',
+        };
+
         AuditLog::create([
             'id' => (string) Str::uuid(),
             'user_id' => $userId ?? Auth::id(),
@@ -992,6 +1006,7 @@ class AdviserApprovalController extends Controller
             'actionable_type' => $actionableType,
             'action' => $action,
             'module' => $module,
+            'action_type' => $resolvedActionType,
             'details' => $details,
             'ip_address' => request()->ip(),
             'browser_info' => substr((string) request()->userAgent(), 0, 500),

@@ -212,23 +212,19 @@ export function CreateProjectModal({
     }
 
     if (newProject.hasBudget && newProject.budgetSource === 'past_project') {
-      if (!newProject.transferFromProjectId) {
-        showToast('Please select a completed project to transfer budget from', 'error');
-        return;
-      }
-
       if (!newProject.transferAmount || parseFloat(newProject.transferAmount) <= 0) {
         showToast('Please enter a transfer amount greater than zero', 'error');
         return;
       }
 
-      //also dont add the tamper check for transfer amount exceeding remaining balance
-      const selectedProject = completedProjects.find((project) => String(project.id) === String(newProject.transferFromProjectId));
-      const remainingBalance = Number(selectedProject?.budget || 0);
       const transferAmount = Number(newProject.transferAmount || 0);
+      const availableRemainingBudget = completedProjects.reduce(
+        (total, project) => total + Math.max(0, Number(project?.budget || 0)),
+        0,
+      );
 
-      if (transferAmount > remainingBalance) {
-        showToast(`Transfer amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString('en-PH', { maximumFractionDigits: 2 })}`, 'error');
+      if (transferAmount > availableRemainingBudget) {
+        showToast(`Transfer amount cannot exceed the overall available budget of ₱${availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}`, 'error');
         return;
       }
     }
@@ -255,7 +251,7 @@ export function CreateProjectModal({
     formData.append('has_budget', newProject.hasBudget ? '1' : '0');
     formData.append('is_active', '0');
     formData.append('budget_source', newProject.hasBudget ? (newProject.budgetSource || 'none') : 'none');
-    formData.append('transfer_from_project_id', newProject.transferFromProjectId || '');
+    formData.append('transfer_from_project_id', '');
     formData.append('transfer_amount', newProject.transferAmount || '');
     formData.append('status', 'Draft');
     formData.append('proposed_by', newProject.proposedBy);
@@ -450,7 +446,7 @@ export function CreateProjectModal({
                   checked={newProject.budgetSource === 'none'}
                   onChange={() => setNewProject({ ...newProject, budgetSource: 'none', transferFromProjectId: '', transferAmount: '' })}
                 />
-                Use a newly created budget
+                Use a new budget
               </label>
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
@@ -459,7 +455,7 @@ export function CreateProjectModal({
                   checked={newProject.budgetSource === 'past_project'}
                   onChange={() => setNewProject({ ...newProject, budgetSource: 'past_project', transferFromProjectId: '', transferAmount: '' })}
                 />
-                Use remaining budget from a completed project
+                Use remaining budget
               </label>
             </div>
 
@@ -486,24 +482,16 @@ export function CreateProjectModal({
                     );
                   }
 
+                  const availableRemainingBudget = eligibleProjects.reduce(
+                    (total, project) => total + Math.max(0, Number(project?.budget || 0)),
+                    0,
+                  );
+
                   return (
                     <>
-                      <div>
-                        <FieldLabel>Completed Project *</FieldLabel>
-                        <Select
-                          value={newProject.transferFromProjectId || ''}
-                          onValueChange={(value) => setNewProject({ ...newProject, transferFromProjectId: value })}
-                        >
-                          <option value="">Select a completed project</option>
-                          {eligibleProjects.map((project) => {
-                            const remainingBalance = Number(project?.budget || 0);
-                            return (
-                              <option key={project.id} value={project.id}>
-                                {project.title} — Balance: ₱{remainingBalance.toLocaleString('en-PH', { maximumFractionDigits: 2 })}
-                              </option>
-                            );
-                          })}
-                        </Select>
+                      <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                        Overall available remaining budget: <strong>₱{availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}</strong>
+                        <p className="mt-1 text-xs text-green-700">Funds will be combined automatically from completed projects when needed.</p>
                       </div>
 
                       <div>

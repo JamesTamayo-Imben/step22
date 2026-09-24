@@ -9,12 +9,15 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\CSG\Approval;
 use App\Models\CSG\LedgerEntry;
+use App\Models\CSG\Asset;
+use App\Models\CSG\AssetUsage;
 use App\Models\CSG\Project;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -251,10 +254,12 @@ public function uploadProof(Request $request, $id)
                 ], 403);
             }
 
+            DB::beginTransaction();
+
             // Validate the request
             $validated = $request->validate([
                 'project_id' => 'required|exists:projects,id',
-                'type' => 'required|in:Income,Expense,Canvas,Donation,Sponsorship',
+                'type' => 'required|in:Income,Expense,Asset,Canvas,Donation,Sponsorship',
                 'description' => 'required|string|max:1000',
                 'amount' => 'required|numeric|min:0',
                 'budget_breakdown' => 'nullable|json',
@@ -262,9 +267,18 @@ public function uploadProof(Request $request, $id)
                 'ledger_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
                 'approval_status' => 'nullable|string',
                 'created_by' => 'nullable|exists:users,id',
+                'asset_usages' => 'nullable|json',
+                'asset_mode' => 'nullable|in:purchase,use,return',
             ]);
 
-            if (!$request->hasFile('proof_file') && !$request->hasFile('ledger_proof')) {
+            $assetMode = $request->input('asset_mode', 'purchase');
+            if ($request->type !== 'Asset' || $assetMode === 'purchase') {
+                $requiresProof = true;
+            } else {
+                $requiresProof = false;
+            }
+
+            if ($requiresProof && !$request->hasFile('proof_file') && !$request->hasFile('ledger_proof')) {
                 return response()->json([
                     'message' => 'Proof is required when creating a ledger entry.',
                     'errors' => ['ledger_proof' => ['Proof is required when creating a ledger entry.']],
@@ -276,10 +290,18 @@ public function uploadProof(Request $request, $id)
             $entry->id = Str::uuid()->toString();
             $entry->project_id = $request->project_id;
             $entry->type = $request->type;
-            $entry->amount = $request->amount;
+            $entry->amount = $request->type === 'Asset' && $assetMode === 'use' ? 0 : $request->amount;
             $entry->description = $request->description;
             $entry->approval_status = $request->approval_status ?? 'Draft';
             $entry->created_by = Auth::id();
+
+            $assetUsages = $request->filled('asset_usages')
+                ? json_decode($request->input('asset_usages'), true)
+                : [];
+
+            if ($entry->type === 'Asset' && !is_array($assetUsages)) {
+                $assetUsages = [];
+            }
             
             // Handle budget breakdown (store as JSON)
             if ($request->has('budget_breakdown')) {
@@ -310,6 +332,91 @@ public function uploadProof(Request $request, $id)
             $entry->updated_at = now();
             
             $entry->save();
+
+            if ($entry->type === 'Asset' && in_array($assetMode, ['use', 'return'], true) && count($assetUsages) > 0) {
+                foreach ($assetUsages as $usage) {
+                    $asset = Asset::where('id', $usage['asset_id'] ?? '')
+                        ->where('archive', 0)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+                    $quantity = (int) ($usage['quantity'] ?? 0);
+                    if ($assetMode === 'use' && ($quantity < 1 || $quantity > $asset->available_quantity)) {
+                        throw new \RuntimeException('Asset quantity exceeds the available quantity.');
+                    }
+                    if ($assetMode === 'use') {
+                        AssetUsage::create([
+                            'asset_id' => $asset->id,
+                            'project_id' => $entry->project_id,
+                            'ledger_entry_id' => $entry->id,
+                            'quantity' => $quantity,
+                            'status' => 'assigned',
+                            'assigned_at' => now(),
+                            'returned_quantity' => 0,
+                        ]);
+                        $asset->available_quantity -= $quantity;
+                    } else {
+                        $remaining = $quantity;
+                        $usages = AssetUsage::where('asset_id', $asset->id)
+                            ->whereColumn('returned_quantity', '<', 'quantity')
+                            ->orderBy('created_at')
+                            ->lockForUpdate()
+                            ->get();
+                        foreach ($usages as $assetUsage) {
+                            if ($remaining <= 0) break;
+                            $outstanding = $assetUsage->quantity - $assetUsage->returned_quantity;
+                            $returned = min($remaining, $outstanding);
+                            $assetUsage->returned_quantity += $returned;
+                            $assetUsage->returned_at = now();
+                            $assetUsage->returned_by = Auth::id();
+                            $assetUsage->status = 'returned';
+                            $assetUsage->save();
+                            $remaining -= $returned;
+                        }
+                        if ($remaining > 0) {
+                            throw new \RuntimeException('Return quantity exceeds the quantity currently in use.');
+                        }
+                        $asset->available_quantity += $quantity;
+                    }
+                    $asset->status = $asset->available_quantity > 0 ? 'available' : 'unavailable';
+                    $asset->save();
+                }
+            }
+
+            if ($entry->type === 'Asset' && $assetMode === 'purchase') {
+                if (Schema::hasTable('assets') && !Schema::hasColumn('assets', 'asset_category')) {
+                    Schema::table('assets', function ($table): void {
+                        $table->string('asset_category')->nullable()->after('name');
+                    });
+                }
+
+                $breakdown = json_decode((string) $entry->budget_breakdown, true) ?: [];
+                foreach ($breakdown as $item) {
+                    $quantity = max(1, (int) ($item['qty'] ?? $item['quantity'] ?? 1));
+                    $unitCost = (float) ($item['unitPrice'] ?? $item['unit_price'] ?? 0);
+
+                    $asset = Asset::create([
+                        'source_ledger_entry_id' => $entry->id,
+                        'project_id' => $entry->project_id,
+                        'name' => $item['item'] ?? 'Asset',
+                        'asset_category' => $item['asset_category'] ?? $item['category'] ?? 'Other',
+                        'description' => $entry->description,
+                        'quantity' => $quantity,
+                        'available_quantity' => 0,
+                        'unit_cost' => $unitCost,
+                        'status' => 'unavailable',
+                    ]);
+
+                    AssetUsage::create([
+                        'asset_id' => $asset->id,
+                        'project_id' => $entry->project_id,
+                        'ledger_entry_id' => $entry->id,
+                        'quantity' => $quantity,
+                        'status' => 'assigned',
+                        'assigned_at' => now(),
+                        'returned_quantity' => 0,
+                    ]);
+                }
+            }
             
             Log::info('Ledger entry created with ID: ' . $entry->id);
 
@@ -327,6 +434,8 @@ public function uploadProof(Request $request, $id)
                 'browser_info' => substr((string) $request->userAgent(), 0, 500),
                 'archive' => 0,
             ]);
+
+            DB::commit();
             
             // Return simple response - extremely minimal to avoid issues
             return response()->json([
@@ -336,6 +445,7 @@ public function uploadProof(Request $request, $id)
             ], 201);
             
         } catch (ValidationException $e) {
+            DB::rollBack();
             Log::warning('Ledger entry validation failed: ' . json_encode($e->errors()));
             return response()->json([
                 'success' => false,
@@ -343,6 +453,7 @@ public function uploadProof(Request $request, $id)
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Ledger entry creation failed: ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
@@ -350,6 +461,28 @@ public function uploadProof(Request $request, $id)
             ], 500);
         }
     }
+
+    public function assets(Request $request)
+    {
+        return response()->json(
+            Asset::with(['project:id,title', 'usages'])
+                ->where('archive', 0)
+                ->when($request->input('mode') !== 'return', fn ($query) => $query->where('available_quantity', '>', 0))
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Asset $asset) => [
+                    'id' => $asset->id,
+                    'name' => $asset->name,
+                    'asset_category' => $asset->asset_category ?? 'Other',
+                    'available_quantity' => $asset->available_quantity,
+                    'status' => $asset->status ?? ($asset->available_quantity > 0 ? 'available' : 'unavailable'),
+                    'returnable_quantity' => $asset->usages->sum(fn ($usage) => max(0, $usage->quantity - $usage->returned_quantity)),
+                    'unit_cost' => (float) $asset->unit_cost,
+                    'project' => $asset->project?->title,
+                ])
+        );
+    }
+
 
     /**
      * Allowed ledger entry types a CSG council member may create through
@@ -845,12 +978,38 @@ public function uploadProof(Request $request, $id)
                     'message' => 'You do not have permission to delete ledger entries.',
                 ], 403);
             }
+            DB::beginTransaction();
             $entry = LedgerEntry::findOrFail($id);
 
             if ($entry->type === 'Initial') {
+                DB::rollBack();
                 return response()->json([
                     'message' => 'Initial baseline entries cannot be archived.',
                 ], 403);
+            }
+
+            if ($entry->type === 'Asset') {
+                AssetUsage::where('ledger_entry_id', $entry->id)
+                    ->whereColumn('returned_quantity', '<', 'quantity')
+                    ->lockForUpdate()
+                    ->get()
+                    ->each(function (AssetUsage $usage): void {
+                        $outstanding = $usage->quantity - $usage->returned_quantity;
+                        $asset = Asset::whereKey($usage->asset_id)->lockForUpdate()->first();
+
+                        if ($asset && $outstanding > 0) {
+                            $asset->available_quantity += $outstanding;
+                            $asset->status = 'available';
+                            $asset->save();
+                        }
+
+                        $usage->update([
+                            'returned_quantity' => $usage->quantity,
+                            'returned_at' => now(),
+                            'returned_by' => Auth::id(),
+                            'status' => 'returned',
+                        ]);
+                    });
             }
 
             $entry->archive = 1;
@@ -871,10 +1030,13 @@ public function uploadProof(Request $request, $id)
                 'browser_info' => substr((string) request()->userAgent(), 0, 500),
                 'archive' => 0,
             ]);
+
+            DB::commit();
             
             return response()->json(['message' => 'Ledger entry archived successfully']);
             
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Ledger entry archiving failed: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to archive ledger entry',

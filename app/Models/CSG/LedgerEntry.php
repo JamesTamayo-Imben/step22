@@ -61,6 +61,16 @@ class LedgerEntry extends Model
         return $this->belongsTo(Project::class, 'project_id');
     }
 
+    public function assets()
+    {
+        return $this->hasMany(Asset::class, 'source_ledger_entry_id');
+    }
+
+    public function assetUsages()
+    {
+        return $this->hasMany(AssetUsage::class);
+    }
+
     public function getDisplayNote(): string
     {
         $note = (string) ($this->note ?? '');

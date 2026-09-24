@@ -115,6 +115,7 @@ export default function AdviserApprovalsPage() {
 
   const [tab, setTab] = useState('project proposals');
   const [searchQuery, setSearchQuery] = useState('');
+  const [projectFilter, setProjectFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -132,7 +133,7 @@ export default function AdviserApprovalsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [tab, searchQuery, sortOrder]);
+  }, [tab, searchQuery, projectFilter, sortOrder]);
 
   const totalPending = pendingProjects.length + pendingLedger.length;
 
@@ -331,17 +332,33 @@ export default function AdviserApprovalsPage() {
     }
   }, [tab, pendingProjects, pendingLedger, approvedItems, rejectedItems, changeRequests]);
 
+  const projectTitleOptions = useMemo(() => {
+    const optionSet = new Set();
+
+    itemsForTab.forEach((item) => {
+      const projectName = (item.project || item.title || '').trim();
+      if (projectName) {
+        optionSet.add(projectName);
+      }
+    });
+
+    return [...optionSet].sort((a, b) => a.localeCompare(b));
+  }, [itemsForTab]);
+
   const filteredEntries = useMemo(() => {
     let filtered = itemsForTab.filter((i) => {
-      if (!searchQuery) return true;
-      const q = searchQuery.toLowerCase();
-      return (
-        (i.title || '').toLowerCase().includes(q) ||
-        (i.id?.toString() || '').toLowerCase().includes(q) ||
-        (i.submittedBy || '').toLowerCase().includes(q) ||
-        (i.project || '').toLowerCase().includes(q) ||
-        (i.category || '').toLowerCase().includes(q)
-      );
+      const matchesQuery = !searchQuery
+        ? true
+        : ((i.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (i.id?.toString() || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (i.submittedBy || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (i.project || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (i.category || '').toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const projectName = (i.project || i.title || '').trim();
+      const matchesProject = projectFilter === 'all' || projectName === projectFilter;
+
+      return matchesQuery && matchesProject;
     });
 
     filtered.sort((a, b) => {
@@ -351,7 +368,7 @@ export default function AdviserApprovalsPage() {
     });
 
     return filtered;
-  }, [itemsForTab, searchQuery, sortOrder]);
+  }, [itemsForTab, searchQuery, projectFilter, sortOrder]);
 
   const totalPages = Math.ceil(filteredEntries.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -482,7 +499,7 @@ export default function AdviserApprovalsPage() {
 
           <Card className="rounded-[20px] border-0 shadow-sm p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="relative md:col-span-2">
+              <div className="relative md:col-span-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   placeholder="Search submissions..."
@@ -490,6 +507,18 @@ export default function AdviserApprovalsPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                 />
+              </div>
+              <div>
+                <select
+                  value={projectFilter}
+                  onChange={(e) => setProjectFilter(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                >
+                  <option value="all">All Project Titles</option>
+                  {projectTitleOptions.map((projectTitle) => (
+                    <option key={projectTitle} value={projectTitle}>{projectTitle}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <select

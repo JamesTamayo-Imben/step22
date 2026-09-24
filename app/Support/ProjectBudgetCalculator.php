@@ -8,7 +8,7 @@ class ProjectBudgetCalculator
      * Compute a project's budget total from approved ledger entries.
      *
      * Credits: Initial*, Income, Donation, Sponsorship
-     * Debits: Expense, Transfer (out) — but not Initial Transfer (destination credit)
+    * Debits: Expense, Asset purchase, Transfer (out) — but not Initial Transfer (destination credit)
      */
     public static function fromLedgerEntries(iterable $entries): float
     {
@@ -20,7 +20,7 @@ class ProjectBudgetCalculator
 
             $isCredit = str_contains($type, 'initial')
                 || in_array($type, ['income', 'donation', 'sponsorship'], true);
-            $isDebit = $type === 'expense'
+            $isDebit = in_array($type, ['expense', 'asset'], true)
                 || (str_contains($type, 'transfer') && ! str_contains($type, 'initial'));
 
             if ($isCredit) {

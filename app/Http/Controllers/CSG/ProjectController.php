@@ -133,7 +133,6 @@ class ProjectController extends Controller
             }
             if ($budgetSource === 'past_project') {
                 $request->validate([
-                    'transfer_from_project_id' => 'required|string|exists:projects,id',
                     'transfer_amount' => 'required|numeric|min:0.01',
                 ]);
             }
@@ -182,68 +181,50 @@ class ProjectController extends Controller
                 'archive' => 0,
             ]);
 
-            $sourceProject = null;
-            if ($budgetSource === 'past_project' && $transferAmount > 0 && $transferFromProjectId) {
-                $sourceProject = Project::where('archive', 0)->find($transferFromProjectId);
+            if ($budgetSource === 'past_project' && $transferAmount > 0) {
+                $remainingToAllocate = $transferAmount;
+                $transferAllocations = [];
+                $sourceProjects = Project::query()
+                    ->where('archive', 0)
+                    ->where('approval_status', 'Approved')
+                    ->whereNotNull('end_date')
+                    ->where('end_date', '<=', now())
+                    ->where('budget', '>', 0)
+                    ->orderBy('end_date')
+                    ->lockForUpdate()
+                    ->get();
 
-                if ($sourceProject) {
-                    $remainingBudget = (float) $sourceProject->budget;
-                    if ($remainingBudget < $transferAmount) {
-                        throw new \Exception('Transfer amount exceeds the selected project\'s remaining budget');
+                foreach ($sourceProjects as $sourceProject) {
+                    if ($remainingToAllocate <= 0) {
+                        break;
                     }
 
-                    $transferMetadata = json_encode([
-                        'transfer_source_project_id' => $sourceProject->id,
-                        'transfer_source_project_title' => $sourceProject->title,
-                        'transfer_destination_project_id' => $project->id,
-                        'transfer_destination_project_title' => $project->title,
-                    ]);
-                    $destinationTransferNote = 'Transferred from completed project "' . $sourceProject->title . '" to project "' . $project->title . '"';
-                    $transferApprovalStatus = $project->approval_status === 'Approved' ? 'Approved' : 'Draft';
-                    //transferNote
+                    $allocation = min((float) $sourceProject->budget, $remainingToAllocate);
+                    if ($allocation <= 0) {
+                        continue;
+                    }
 
-                    $sourceTransferEntry = LedgerEntry::create([
-                        'id' => (string) Str::uuid(),
+                    $this->createTransferSourceEntry($project, $sourceProject, $allocation);
+                    $transferAllocations[] = [
                         'project_id' => $sourceProject->id,
-                        // 'type' => 'Expense',
-                        'type' => 'Transfer',
-                        'amount' => $transferAmount,
-                        'budget_breakdown' => null,
-                        'description' => 'Transferred to project "' . $project->title . '"',
-                        'category' => 'Transfer',
-                        'approval_status' => $transferApprovalStatus,
-                        'note' => $transferMetadata,
-                        'created_by' => Auth::id(),
-                        'updated_by' => Auth::id(),
-                        'archive' => 0,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-
-                    $destInitialTransferEntry = LedgerEntry::create([
-                        'id' => (string) Str::uuid(),
-                        'project_id' => $project->id,
-                        'type' => 'Initial Transfer',
-                        'amount' => $transferAmount,
-                        'budget_breakdown' => null,
-                        'description' => 'Transferred from completed project "' . $sourceProject->title . '"',
-                        'category' => 'Transfer',
-                        'approval_status' => $transferApprovalStatus,
-                        'note' => $destinationTransferNote,
-                        'created_by' => Auth::id(),
-                        'updated_by' => Auth::id(),
-                        'archive' => 0,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                        'project_title' => $sourceProject->title,
+                        'amount' => $allocation,
+                    ];
+                    $remainingToAllocate -= $allocation;
                 }
+
+                if ($remainingToAllocate > 0.009) {
+                    throw new \Exception('Transfer amount exceeds the overall available remaining budget');
+                }
+
+                $this->createCombinedTransferDestinationEntry($project, $transferAllocations, $transferAmount);
             }
 
             // Create an initial baseline ledger entry when project starts with budget.
             // Skip this for budget transfers from a past project because the transfer entry
             // already represents the project's starting budget on the destination project.
             $initialLedger = null;
-            $isTransferBudget = $budgetSource === 'past_project' && $transferAmount > 0 && !empty($transferFromProjectId);
+            $isTransferBudget = $budgetSource === 'past_project' && $transferAmount > 0;
             if ((float) ($project->budget ?? 0) > 0 && !$isTransferBudget) {
                 try {
                     $initialLedger = LedgerEntry::create([
@@ -894,17 +875,27 @@ class ProjectController extends Controller
             return;
         }
 
-        $sourceEntry = $this->findTransferSourceEntry($entry->project_id);
-        if (! $sourceEntry) {
-            return;
-        }
+        $sourceEntries = LedgerEntry::query()
+            ->where('category', 'Transfer')
+            ->where('type', 'Transfer')
+            ->where('archive', 0)
+            ->get()
+            ->filter(function (LedgerEntry $sourceEntry) use ($entry): bool {
+                $metadata = json_decode((string) $sourceEntry->note, true);
 
-        $sourceEntry->update([
-            'ledger_proof' => $entry->ledger_proof,
-            'file_content_hash' => $entry->file_content_hash,
-            'updated_by' => Auth::id(),
-            'updated_at' => now(),
-        ]);
+                return is_array($metadata)
+                    && (string) ($metadata['transfer_destination_project_id'] ?? '') === (string) $entry->project_id;
+            });
+
+        $sourceEntries->each(function (LedgerEntry $sourceEntry) use ($entry): void {
+            $sourceEntry->update([
+                'ledger_proof' => $entry->ledger_proof,
+                'ledger_proof_original_name' => $entry->ledger_proof_original_name,
+                'file_content_hash' => $entry->file_content_hash,
+                'updated_by' => Auth::id(),
+                'updated_at' => now(),
+            ]);
+        });
     }
 
     private function getProjectProofPath(?Project $project): ?string
@@ -1399,6 +1390,16 @@ class ProjectController extends Controller
 
     protected function createTransferLedgerPair(Project $project, Project $sourceProject, float $transferAmount): void
     {
+        $this->createTransferSourceEntry($project, $sourceProject, $transferAmount);
+        $this->createCombinedTransferDestinationEntry($project, [[
+            'project_id' => $sourceProject->id,
+            'project_title' => $sourceProject->title,
+            'amount' => $transferAmount,
+        ]], $transferAmount);
+    }
+
+    protected function createTransferSourceEntry(Project $project, Project $sourceProject, float $transferAmount): void
+    {
         $transferMetadata = json_encode([
             'transfer_source_project_id' => $sourceProject->id,
             'transfer_source_project_title' => $sourceProject->title,
@@ -1425,17 +1426,29 @@ class ProjectController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    protected function createCombinedTransferDestinationEntry(Project $project, array $transferAllocations, float $transferAmount): void
+    {
+        $transferApprovalStatus = $project->approval_status === 'Approved' ? 'Approved' : 'Draft';
+        $allocationDescription = collect($transferAllocations)
+            ->map(fn (array $allocation) => $allocation['project_title'] . ' (₱' . number_format($allocation['amount'], 2) . ')')
+            ->implode(', ');
+        $destinationNote = 'Combined transfer from completed projects: ' . $allocationDescription;
 
         LedgerEntry::create([
             'id' => (string) Str::uuid(),
             'project_id' => $project->id,
             'type' => 'Initial Transfer',
             'amount' => $transferAmount,
-            'budget_breakdown' => null,
-            'description' => 'Transferred from completed project "' . $sourceProject->title . '"',
             'category' => 'Transfer',
             'approval_status' => $transferApprovalStatus,
-            'note' => $destinationTransferNote,
+            'note' => json_encode([
+                'transfer_destination_project_id' => $project->id,
+                'transfer_destination_project_title' => $project->title,
+                'sources' => $transferAllocations,
+            ]),
+            'description' => $destinationNote,
             'created_by' => Auth::id(),
             'updated_by' => Auth::id(),
             'archive' => 0,
@@ -1443,4 +1456,5 @@ class ProjectController extends Controller
             'updated_at' => now(),
         ]);
     }
+
 }

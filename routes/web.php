@@ -217,7 +217,7 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
     Route::get('/adviser/projects', function () {
         $projects = Project::query()
             ->where('archive', 0)
-            ->with(['ratings', 'ledgerEntries'])
+            ->with(['ratings', 'ledgerEntries', 'creator'])
             ->latest('created_at')
             ->get();
 
@@ -490,6 +490,7 @@ Route::prefix('api')->group(function () {
     // Ledger Entry Management Routes
     Route::middleware(['auth', 'throttle:60,1'])->prefix('ledger-entries')->group(function () {
         Route::get('/', [LedgerEntryController::class, 'all']);
+        Route::get('/assets', [LedgerEntryController::class, 'assets']);
         Route::get('/project/{projectId}', [LedgerEntryController::class, 'index']);
         Route::get('/proof-documents', [LedgerEntryController::class, 'getProofDocuments']);
         Route::post('/', [LedgerEntryController::class, 'store']);

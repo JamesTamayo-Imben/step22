@@ -345,10 +345,10 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
                   <TableHead>Action</TableHead>
                   <TableHead>Module</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Linked Record</TableHead>
+                  {/* <TableHead>Linked Record</TableHead> */}
                   <TableHead>Status</TableHead>
-                  <TableHead>Browser</TableHead>
-                  <TableHead>IP Address</TableHead>
+                  {/* <TableHead>Browser</TableHead> */}
+                  {/* <TableHead>IP Address</TableHead> */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -356,7 +356,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
                   <TableRow key={log.id} className="hover:bg-gray-50">
                     <TableCell className="font-mono text-xs text-gray-600">
                       <div className="flex items-center gap-2">
-                        <Clock className="w-3 h-3" />
+                        {/* <Clock className="w-3 h-3" /> */}
                         {log.timestamp}
                       </div>
                     </TableCell>
@@ -375,7 +375,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
                     <TableCell>
                       <Badge className="bg-blue-100 text-blue-700">{formatActionType(log.actionType)}</Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-gray-600">
+                    {/* <TableCell className="text-xs text-gray-600">
                       {log.actionableType ? (
                         <div>
                           <div className="font-medium text-gray-900 uppercase">{log.actionableType}</div>
@@ -384,7 +384,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
                       ) : (
                         <span className="text-gray-400">N/A</span>
                       )}
-                    </TableCell>
+                    </TableCell> */}
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getStatusIcon(log.status)}
@@ -393,12 +393,12 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
                         </Badge>
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-[200px] text-xs text-gray-600">
+                    {/* <TableCell className="max-w-[200px] text-xs text-gray-600">
                       {log.browserInfo ? log.browserInfo : 'N/A'}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-gray-600">
+                    </TableCell> */}
+                    {/* <TableCell className="font-mono text-xs text-gray-600">
                       {log.ipAddress}
-                    </TableCell>
+                    </TableCell> */}
                   </TableRow>
                 ))}
               </TableBody>

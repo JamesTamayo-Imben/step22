@@ -225,7 +225,7 @@ function CSGProjectsPageInner() {
   const entryType = (entry.type || '').toLowerCase();
 
   const isCredit = entryType.includes('initial') || ['income', 'donation', 'sponsorship'].includes(entryType);
-  const isDebit = entryType === 'expense' || (entryType.includes('transfer') && !entryType.includes('initial'));
+  const isDebit = ['expense', 'asset'].includes(entryType) || (entryType.includes('transfer') && !entryType.includes('initial'));
 
   if (isCredit) return sum + amount;
   if (isDebit) return sum - amount;
@@ -528,6 +528,26 @@ function CSGProjectsPageInner() {
     const matchesCategory = filterCategory === 'all' || project.category === filterCategory;
     const matchesYear = filterYear === 'all' || getProjectYear(project) === filterYear;
     return matchesSearch && matchesStatus && matchesApprovalStatus && matchesCategory && matchesYear;
+  }).sort((firstProject, secondProject) => {
+    const getPriority = (project) => {
+      if (tamperedProjectIds.has(String(project.id || ''))) return 0;
+
+      const approvalStatus = String(project.approvalStatus || '').toLowerCase();
+      if (approvalStatus === 'approved') return 1;
+
+      const status = getCalculatedStatus(project);
+      if (status === 'Upcoming') return 2;
+      if (approvalStatus === 'Rejected' || status === 'Rejected') return 4;
+      if (status === 'Draft' || approvalStatus === 'Draft') return 3;
+
+      return 5;
+    };
+
+    const priorityDifference = getPriority(firstProject) - getPriority(secondProject);
+    if (priorityDifference !== 0) return priorityDifference;
+
+    return new Date(secondProject.createdAt || 0).getTime()
+      - new Date(firstProject.createdAt || 0).getTime();
   });
 
   // Pagination logic
