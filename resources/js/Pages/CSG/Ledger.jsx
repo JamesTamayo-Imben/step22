@@ -200,6 +200,8 @@ function LedgerPageInner() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showAssetsModal, setShowAssetsModal] = useState(false);
   const [assetInventory, setAssetInventory] = useState([]);
+  const [assetSearch, setAssetSearch] = useState('');
+  const [assetCategoryFilter, setAssetCategoryFilter] = useState('all');
   const [bulkProjectId, setBulkProjectId] = useState('');
   const [bulkCsvFile, setBulkCsvFile] = useState(null);
   const [bulkProofFile, setBulkProofFile] = useState(null);
@@ -255,7 +257,7 @@ function LedgerPageInner() {
 
   const fetchAssetInventory = async () => {
     try {
-      const response = await fetch('/api/ledger-entries/assets?mode=return', {
+      const response = await fetch('/api/ledger-entries/assets?mode=all', {
         headers: {
           Accept: 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
@@ -273,6 +275,43 @@ function LedgerPageInner() {
       setAssetInventory([]);
     }
   };
+
+  const aggregatedAssetInventory = Object.values(
+    (assetInventory || []).reduce((accumulator, asset) => {
+      const name = (asset.name || 'Unknown').toString().trim();
+      const category = (asset.asset_category || 'Other').toString().trim();
+      const key = `${name}|${category}`;
+
+      if (!accumulator[key]) {
+        accumulator[key] = {
+          ...asset,
+          id: key,
+          name,
+          asset_category: category,
+          available_quantity: Number(asset.available_quantity || 0),
+        };
+        return accumulator;
+      }
+
+      accumulator[key].available_quantity += Number(asset.available_quantity || 0);
+      accumulator[key].status = accumulator[key].available_quantity > 0 ? 'available' : 'unavailable';
+      return accumulator;
+    }, {})
+  );
+
+  const uniqueAssetCategories = Array.from(
+    new Set(
+      aggregatedAssetInventory
+        .map((asset) => (asset.asset_category || 'Other').toString().trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+  const filteredAssetInventory = aggregatedAssetInventory.filter((asset) => {
+    const matchesSearch = !assetSearch || asset.name?.toLowerCase().includes(assetSearch.toLowerCase());
+    const matchesCategory = assetCategoryFilter === 'all' || (asset.asset_category || 'Other') === assetCategoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
   const fetchLedgerEntries = () => {
     return fetch('/api/ledger-entries')
@@ -1847,9 +1886,35 @@ const getTypeAmountColor = (type) => {
         description="Current asset inventory and available stock status"
       >
         <div className="space-y-4 pt-6">
-          {assetInventory.length === 0 ? (
+          <div className="flex flex-col gap-3 md:flex-row">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Search</label>
+              <input
+                type="text"
+                value={assetSearch}
+                onChange={(event) => setAssetSearch(event.target.value)}
+                placeholder="Search asset name"
+                className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-blue-500"
+              />
+            </div>
+            <div className="md:w-56">
+              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Category</label>
+              <select
+                value={assetCategoryFilter}
+                onChange={(event) => setAssetCategoryFilter(event.target.value)}
+                className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-blue-500"
+              >
+                <option value="all">All categories</option>
+                {uniqueAssetCategories.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {filteredAssetInventory.length === 0 ? (
             <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
-              No recorded assets yet.
+              {assetInventory.length === 0 ? 'No recorded assets yet.' : 'No matching assets found.'}
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-200">
@@ -1864,7 +1929,7 @@ const getTypeAmountColor = (type) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {assetInventory.map((asset) => {
+                    {filteredAssetInventory.map((asset) => {
                       const statusText = asset.status || (Number(asset.available_quantity || 0) > 0 ? 'Available' : 'Unavailable');
                       const isAvailable = statusText.toLowerCase() === 'available';
 

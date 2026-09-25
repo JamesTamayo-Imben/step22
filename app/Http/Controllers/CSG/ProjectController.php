@@ -57,7 +57,7 @@ class ProjectController extends Controller
             $projectData['createdBy'] = $project->creator?->name ?? null;
 
             $initialTransferLedger = LedgerEntry::where('project_id', $project->id)
-                ->where('type', 'Initial')
+                ->where('type', 'Initial Transfer')
                 ->where('category', 'Transfer')
                 ->where('archive', 0)
                 ->first();
@@ -106,7 +106,7 @@ class ProjectController extends Controller
                 'budget_source' => 'nullable|in:none,past_project',
                 'budget_source_type' => 'nullable|string',
                 'budget_source_details' => 'nullable|string',
-                'transfer_from_project_id' => 'nullable|string|exists:projects,id',
+                'transfer_from_project_id' => 'nullable|string',
                 'transfer_amount' => 'nullable|numeric|min:0',
                 'proposed_by' => 'required|string',
                 'status' => 'nullable|string',
@@ -128,7 +128,7 @@ class ProjectController extends Controller
             $budgetSource = $request->input('budget_source', 'none');
             $budgetSourceType = $request->input('budget_source_type');
             $budgetSourceDetails = trim((string) $request->input('budget_source_details', ''));
-            $transferFromProjectId = $request->input('transfer_from_project_id');
+            $transferFromProjectId = trim((string) $request->input('transfer_from_project_id', '')) ?: null;
             $transferAmount = $request->filled('transfer_amount') ? (float) $request->input('transfer_amount') : 0;
             $budgetAmount = $hasBudget && $request->filled('budget') ? (float) $request->budget : 0;
             $effectiveBudgetAmount = $budgetAmount;
@@ -464,7 +464,7 @@ class ProjectController extends Controller
                 'budget_source' => 'nullable|in:none,past_project',
                 'budget_source_type' => 'nullable|string',
                 'budget_source_details' => 'nullable|string',
-                'transfer_from_project_id' => 'nullable|string|exists:projects,id',
+                'transfer_from_project_id' => 'nullable|string',
                 'transfer_amount' => 'nullable|numeric|min:0',
                 'proposed_by' => 'sometimes|required|string',
                 'start_date' => 'nullable|date',
@@ -476,7 +476,7 @@ class ProjectController extends Controller
             $budgetSource = $request->input('budget_source', 'none');
             $budgetSourceType = $request->input('budget_source_type');
             $budgetSourceDetails = trim((string) $request->input('budget_source_details', ''));
-            $transferFromProjectId = $request->input('transfer_from_project_id');
+            $transferFromProjectId = trim((string) $request->input('transfer_from_project_id', '')) ?: null;
             $transferAmount = $request->filled('transfer_amount') ? (float) $request->input('transfer_amount') : 0;
 
             if ($hasBudget && $budgetSource === 'none' && $budgetSourceDetails !== '') {
@@ -509,9 +509,14 @@ class ProjectController extends Controller
 
             if ($hasBudget && $budgetSource === 'past_project') {
                 $request->validate([
-                    'transfer_from_project_id' => 'required|string|exists:projects,id',
                     'transfer_amount' => 'required|numeric|min:0.01',
                 ]);
+
+                if ($transferFromProjectId) {
+                    $request->validate([
+                        'transfer_from_project_id' => 'string|exists:projects,id',
+                    ]);
+                }
             }
 
             $requestedBudget = !$hasBudget
@@ -581,6 +586,14 @@ class ProjectController extends Controller
                     $newBudget
                 );
 
+                if ($request->has('budget_source') && $budgetSource !== 'past_project') {
+                    $resolvedBudgetContext['budgetSource'] = $budgetSource;
+                    $resolvedBudgetContext['transferFromProjectId'] = null;
+                    $resolvedBudgetContext['transferAmount'] = 0;
+                }
+
+                $budgetSourceEntries = $this->buildBudgetSourceEntries($budgetSourceDetails);
+
                 if ($project->approval_status !== 'Approved') {
                     $this->syncProjectBudgetLedger(
                         $project,
@@ -589,7 +602,8 @@ class ProjectController extends Controller
                         $hasBudget,
                         $resolvedBudgetContext['budgetSource'],
                         $resolvedBudgetContext['transferFromProjectId'],
-                        $resolvedBudgetContext['transferAmount']
+                        $resolvedBudgetContext['transferAmount'],
+                        $budgetSourceEntries
                     );
                 }
             }
@@ -599,6 +613,7 @@ class ProjectController extends Controller
             if ($request->has('end_date')) $project->end_date = $request->end_date;
             if ($request->has('status')) $project->status = $request->status;
             if ($request->has('approval_status')) {
+                $wasApproved = $project->approval_status === 'Approved';
                 $project->approval_status = $request->approval_status;
 
                 $transferEntries = LedgerEntry::query()
@@ -626,7 +641,7 @@ class ProjectController extends Controller
                         continue;
                     }
 
-                    if ($project->approval_status === 'Approved') {
+                    if ($project->approval_status === 'Approved' && !$wasApproved) {
                         $remainingBudget = (float) $sourceProject->budget;
                         $transferAmount = (float) $transferEntry->amount;
                         if ($remainingBudget >= $transferAmount) {
@@ -664,6 +679,10 @@ class ProjectController extends Controller
                     }
 
                     if ((string) $relatedProjectId === (string) $project->id) {
+                        continue;
+                    }
+
+                    if ((string) ($noteData['transfer_source_project_id'] ?? '') === (string) $relatedProjectId) {
                         continue;
                     }
 
@@ -1357,13 +1376,9 @@ class ProjectController extends Controller
         float $newBudget
     ): array {
         if ($baseline && $baseline->category === 'Transfer') {
-            $sourceEntry = $this->findTransferSourceEntry($project->id);
-            $transferMetadata = $sourceEntry ? json_decode($sourceEntry->note, true) : null;
-
             return [
                 'budgetSource' => 'past_project',
-                'transferFromProjectId' => $transferFromProjectId
-                    ?: (is_array($transferMetadata) ? ($transferMetadata['transfer_source_project_id'] ?? null) : null),
+                'transferFromProjectId' => $transferFromProjectId,
                 'transferAmount' => $transferAmount > 0 ? $transferAmount : $newBudget,
             ];
         }
@@ -1373,6 +1388,81 @@ class ProjectController extends Controller
             'transferFromProjectId' => $transferFromProjectId,
             'transferAmount' => $transferAmount > 0 ? $transferAmount : $newBudget,
         ];
+    }
+
+    protected function buildBudgetSourceEntries(string $sourceDetails): array
+    {
+        if ($sourceDetails === '') {
+            return [];
+        }
+
+        $decodedDetails = json_decode($sourceDetails, true);
+        if (!is_array($decodedDetails)) {
+            return [];
+        }
+
+        $entries = [];
+        foreach (['sponsorship', 'donation'] as $key) {
+            $sourceEntries = $decodedDetails[$key] ?? [];
+            if (isset($sourceEntries['name'])) {
+                $sourceEntries = [$sourceEntries];
+            }
+            if (!is_array($sourceEntries)) {
+                continue;
+            }
+
+            foreach ($sourceEntries as $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+
+                $name = trim((string) ($entry['name'] ?? ''));
+                $amount = (float) ($entry['amount'] ?? 0);
+                if ($name === '' && $amount <= 0) {
+                    continue;
+                }
+
+                $entries[] = [
+                    'source' => $key === 'sponsorship' ? 'Sponsorship' : 'Donation',
+                    'name' => $name,
+                    'amount' => $amount,
+                ];
+            }
+        }
+
+        return $entries;
+    }
+
+    protected function buildBudgetSourceDescription(array $entries): string
+    {
+        $groups = [
+            'Sponsorship' => [],
+            'Donation' => [],
+        ];
+
+        foreach ($entries as $entry) {
+            $source = $entry['source'] ?? '';
+            $name = trim((string) ($entry['name'] ?? ''));
+            if ($name === '' || !isset($groups[$source])) {
+                continue;
+            }
+
+            $groups[$source][] = sprintf('%s - ₱%s', $name, number_format((float) ($entry['amount'] ?? 0), 2, '.', ','));
+        }
+
+        $lines = [];
+        foreach ($groups as $source => $details) {
+            if (empty($details)) {
+                continue;
+            }
+
+            $lines[] = $source . ' came from:';
+            foreach ($details as $detail) {
+                $lines[] = '- ' . $detail;
+            }
+        }
+
+        return implode("\n", $lines);
     }
 
     protected function findProjectBaselineEntry(string $projectId): ?LedgerEntry
@@ -1414,8 +1504,16 @@ class ProjectController extends Controller
         bool $hasBudget,
         string $budgetSource,
         ?string $transferFromProjectId,
-        float $transferAmount
+        float $transferAmount,
+        array $budgetSourceEntries = []
     ): void {
+        $proofSource = $baseline;
+
+        if ($baseline && $baseline->category === 'Transfer' && $budgetSource !== 'past_project') {
+            $this->archiveTransferLedgerForProject($project);
+            $baseline = null;
+        }
+
         if (!$hasBudget || $newBudget <= 0) {
             if ($baseline) {
                 $baseline->update([
@@ -1437,42 +1535,29 @@ class ProjectController extends Controller
             return;
         }
 
-        if ($budgetSource === 'past_project' && $transferAmount > 0 && ($transferFromProjectId || ($baseline && $baseline->category === 'Transfer'))) {
-            $sourceProject = $transferFromProjectId
-                ? Project::where('archive', 0)->find($transferFromProjectId)
-                : null;
-
-            if (!$sourceProject && $baseline && $baseline->category === 'Transfer') {
-                $sourceEntry = $this->findTransferSourceEntry($project->id);
-                $transferMetadata = $sourceEntry ? json_decode($sourceEntry->note, true) : null;
-                $sourceProjectId = is_array($transferMetadata)
-                    ? ($transferMetadata['transfer_source_project_id'] ?? null)
-                    : null;
-
-                if ($sourceProjectId) {
-                    $sourceProject = Project::where('archive', 0)->find($sourceProjectId);
-                }
+        if ($budgetSource === 'past_project' && $transferAmount > 0) {
+            if ($baseline && $baseline->category !== 'Transfer') {
+                $baseline->update([
+                    'archive' => 1,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
             }
 
-            if (!$sourceProject) {
-                return;
-            }
-
-            if ($baseline && $baseline->category === 'Transfer') {
-                $this->updateTransferLedgerPair($project, $sourceProject, $baseline, $newBudget);
-                return;
-            }
-
-            if (!$baseline) {
-                $this->createTransferLedgerPair($project, $sourceProject, $newBudget);
-            }
-
+            $this->rebuildTransferLedgerForProject($project, $newBudget, $transferFromProjectId, $proofSource);
             return;
         }
 
         if ($baseline) {
+            $sourceDescription = $budgetSource === 'none'
+                ? $this->buildBudgetSourceDescription($budgetSourceEntries)
+                : '';
             $baseline->update([
                 'amount' => $newBudget,
+                'budget_breakdown' => $budgetSource === 'none' && !empty($budgetSourceEntries)
+                    ? json_encode($budgetSourceEntries)
+                    : ($budgetSource === 'none' ? null : $baseline->budget_breakdown),
+                'description' => $sourceDescription !== '' ? $sourceDescription : $baseline->description,
                 'updated_by' => Auth::id(),
                 'updated_at' => now(),
             ]);
@@ -1494,16 +1579,123 @@ class ProjectController extends Controller
             'project_id' => $project->id,
             'type' => 'Initial',
             'amount' => $newBudget,
-            'budget_breakdown' => null,
-            'description' => 'Initial project budget baseline',
+            'budget_breakdown' => !empty($budgetSourceEntries) ? json_encode($budgetSourceEntries) : null,
+            'description' => !empty($budgetSourceEntries)
+                ? $this->buildBudgetSourceDescription($budgetSourceEntries)
+                : 'Initial project budget baseline',
             'category' => 'Initial',
             'approval_status' => 'Draft',
+            'ledger_proof' => $proofSource?->ledger_proof,
+            'ledger_proof_original_name' => $proofSource?->ledger_proof_original_name,
+            'file_content_hash' => $proofSource?->file_content_hash,
             'created_by' => Auth::id(),
             'updated_by' => Auth::id(),
             'archive' => 0,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    protected function archiveTransferLedgerForProject(Project $project): void
+    {
+        LedgerEntry::query()
+            ->where('archive', 0)
+            ->where('category', 'Transfer')
+            ->where(function ($query) use ($project) {
+                $query->where('project_id', $project->id)
+                    ->orWhere('note', 'like', '%' . $project->id . '%');
+            })
+            ->update([
+                'archive' => 1,
+                'updated_by' => Auth::id(),
+                'updated_at' => now(),
+            ]);
+    }
+
+    protected function rebuildTransferLedgerForProject(
+        Project $project,
+        float $transferAmount,
+        ?string $transferFromProjectId = null,
+        ?LedgerEntry $proofSource = null
+    ): void
+    {
+        $existingDestinationProof = LedgerEntry::query()
+            ->where('project_id', $project->id)
+            ->where('category', 'Transfer')
+            ->where('type', 'Initial Transfer')
+            ->where('archive', 0)
+            ->latest('created_at')
+            ->first();
+        $existingDestinationProof = $existingDestinationProof ?: $proofSource;
+
+        $destinationEntries = LedgerEntry::query()
+            ->where('archive', 0)
+            ->where('category', 'Transfer')
+            ->where(function ($query) use ($project) {
+                $query->where('project_id', $project->id)
+                    ->orWhere('note', 'like', '%' . $project->id . '%');
+            })
+            ->get();
+
+        foreach ($destinationEntries as $entry) {
+            $entry->update([
+                'archive' => 1,
+                'updated_by' => Auth::id(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $eligibleProjects = Project::query()
+            ->where('archive', 0)
+            ->where('approval_status', 'Approved')
+            ->whereNotNull('end_date')
+            ->where('end_date', '<=', now())
+            ->where('budget', '>', 0)
+            ->when($transferFromProjectId, fn ($query) => $query->where('id', $transferFromProjectId))
+            ->orderBy('end_date')
+            ->get();
+
+        if ($eligibleProjects->isEmpty()) {
+            return;
+        }
+
+        $remainingToAllocate = $transferAmount;
+        $transferAllocations = [];
+
+        foreach ($eligibleProjects as $sourceProject) {
+            if ($remainingToAllocate <= 0) {
+                break;
+            }
+
+            $allocation = min((float) $sourceProject->budget, $remainingToAllocate);
+            if ($allocation <= 0) {
+                continue;
+            }
+
+            $this->createTransferSourceEntry($project, $sourceProject, $allocation);
+            $transferAllocations[] = [
+                'project_id' => $sourceProject->id,
+                'project_title' => $sourceProject->title,
+                'amount' => $allocation,
+            ];
+
+            $remainingToAllocate -= $allocation;
+        }
+
+        if ($remainingToAllocate > 0.009) {
+            throw new \Exception('Transfer amount exceeds the overall available remaining budget');
+        }
+
+        if (!empty($transferAllocations)) {
+            $newDestinationEntry = $this->createCombinedTransferDestinationEntry($project, $transferAllocations, $transferAmount);
+
+            if ($newDestinationEntry && $existingDestinationProof) {
+                $newDestinationEntry->ledger_proof = $existingDestinationProof->ledger_proof;
+                $newDestinationEntry->ledger_proof_original_name = $existingDestinationProof->ledger_proof_original_name;
+                $newDestinationEntry->file_content_hash = $existingDestinationProof->file_content_hash;
+                $newDestinationEntry->save();
+            }
+        }
     }
 
     protected function updateTransferLedgerPair(
@@ -1584,7 +1776,7 @@ class ProjectController extends Controller
         ]);
     }
 
-    protected function createCombinedTransferDestinationEntry(Project $project, array $transferAllocations, float $transferAmount): void
+    protected function createCombinedTransferDestinationEntry(Project $project, array $transferAllocations, float $transferAmount): ?LedgerEntry
     {
         $transferApprovalStatus = $project->approval_status === 'Approved' ? 'Approved' : 'Draft';
         $allocationDescription = collect($transferAllocations)
@@ -1595,11 +1787,19 @@ class ProjectController extends Controller
             ? 'Transferred from completed project "' . $transferAllocations[0]['project_title'] . '" to project "' . $project->title . '"'
             : 'Transferred from completed projects: ' . $allocationDescription . ' to project "' . $project->title . '"';
 
-        LedgerEntry::create([
+        return LedgerEntry::create([
             'id' => (string) Str::uuid(),
             'project_id' => $project->id,
             'type' => 'Initial Transfer',
             'amount' => $transferAmount,
+            'budget_breakdown' => collect($transferAllocations)
+                ->map(fn (array $allocation) => [
+                    'source' => 'Transfer',
+                    'name' => $allocation['project_title'],
+                    'amount' => $allocation['amount'],
+                ])
+                ->values()
+                ->toJson(),
             'category' => 'Transfer',
             'approval_status' => $transferApprovalStatus,
             'note' => $destinationNote,

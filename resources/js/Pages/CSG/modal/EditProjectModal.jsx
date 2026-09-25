@@ -205,8 +205,15 @@ export function EditProjectModal({
   useEffect(() => {
     if (!open || !editForm) return;
 
+    if (editForm.budgetSource === 'past_project') {
+      return;
+    }
+
+    if (editForm.budgetSourceOptions) {
+      return;
+    }
+
     const hydratedSources = normalizeBudgetSourceOptions(
-      editForm.budgetSourceOptions ??
       editForm.budgetBreakdown ??
       editForm.budget_breakdown ??
       editForm.budgetSourceDetails ??
@@ -321,22 +328,20 @@ export function EditProjectModal({
   }
 
   if (editForm.hasBudget && editForm.budgetSource === 'past_project') {
-    if (!editForm.transferFromProjectId) {
-      showToast('Please select a completed project to transfer budget from', 'error');
-      return;
-    }
-
     if (!editForm.transferAmount || parseFloat(editForm.transferAmount) <= 0) {
       showToast('Please enter a transfer amount greater than zero', 'error');
       return;
     }
 
-    const selectedProject = completedProjects.find((p) => String(p.id) === String(editForm.transferFromProjectId));
-    const remainingBalance = Number(selectedProject?.budget || 0);
+    const eligibleProjects = (completedProjects || []).filter((p) => Number(p?.budget || 0) > 0);
+    const availableRemainingBudget = eligibleProjects.reduce(
+      (total, project) => total + Math.max(0, Number(project?.budget || 0)),
+      0,
+    );
     const transferAmount = Number(editForm.transferAmount || 0);
 
-    if (transferAmount > remainingBalance) {
-      showToast(`Transfer amount cannot exceed the remaining balance of ₱${remainingBalance.toLocaleString('en-PH', { maximumFractionDigits: 2 })}`, 'error');
+    if (transferAmount > availableRemainingBudget) {
+      showToast(`Transfer amount cannot exceed the overall remaining balance of ₱${availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}`, 'error');
       return;
     }
   }
@@ -368,6 +373,11 @@ export function EditProjectModal({
       })) : []))
       .filter((entry) => String(entry?.name || '').trim() || Number(entry?.amount || 0) > 0);
     const autoBudgetTotal = getBudgetSourceTotal(sourceOptions);
+    const submittedBudget = editForm.hasBudget
+      ? (editForm.budgetSource === 'past_project'
+          ? String(Number(editForm.transferAmount || editForm.budget || 0))
+          : (editForm.budgetSource === 'none' ? String(autoBudgetTotal) : (editForm.budget || '')))
+      : '';
 
     const formData = new FormData();
     formData.append('_method', 'PUT'); // Laravel method spoofing
@@ -378,7 +388,7 @@ export function EditProjectModal({
     formData.append('objective', editForm.objective || '');
     formData.append('venue', editForm.venue || '');
     formData.append('category', editForm.category);
-    formData.append('budget', editForm.hasBudget ? (editForm.budgetSource === 'none' ? String(autoBudgetTotal) : (editForm.budget || '')) : '');
+    formData.append('budget', submittedBudget);
     formData.append('has_budget', editForm.hasBudget ? '1' : '0');
     formData.append('budget_source', editForm.hasBudget ? (editForm.budgetSource || 'none') : 'none');
     formData.append('budget_source_type', editForm.hasBudget && editForm.budgetSource === 'none' ? selectedBudgetSources.map((entry) => entry.key).join(',') : '');
@@ -558,7 +568,7 @@ export function EditProjectModal({
                   type="radio"
                   name="edit-budget-source"
                   checked={editForm.budgetSource === 'none'}
-                  onChange={() => setEditForm({ ...editForm, budgetSource: 'none', transferFromProjectId: '', transferAmount: '' })}
+                  onChange={() => setEditForm({ ...editForm, budgetSource: 'none', transferFromProjectId: '', transferAmount: '', budget: editForm.budget || '' })}
                 />
                 Use a newly created budget
               </label>
@@ -567,7 +577,7 @@ export function EditProjectModal({
                   type="radio"
                   name="edit-budget-source"
                   checked={editForm.budgetSource === 'past_project'}
-                  onChange={() => setEditForm({ ...editForm, budgetSource: 'past_project', transferFromProjectId: '', transferAmount: '' })}
+                  onChange={() => setEditForm({ ...editForm, budgetSource: 'past_project', budget: editForm.transferAmount || editForm.budget || '' })}
                 />
                 Use remaining budget from a completed project
               </label>
@@ -596,7 +606,7 @@ export function EditProjectModal({
                                 type="checkbox"
                                 checked={selected}
                                 onChange={(e) => {
-                                  const currentOptions = editForm.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                  const currentOptions = normalizeBudgetSourceOptions(editForm.budgetSourceOptions);
                                   const updatedOptions = {
                                     ...currentOptions,
                                     [option.value]: e.target.checked ? [{ id: `${option.value}-1`, name: '', amount: '' }] : [],
@@ -715,6 +725,10 @@ export function EditProjectModal({
               <div className="space-y-3">
                 {(() => {
                   const eligibleProjects = (completedProjects || []).filter((p) => Number(p?.budget || 0) > 0);
+                  const availableRemainingBudget = eligibleProjects.reduce(
+                    (total, project) => total + Math.max(0, Number(project?.budget || 0)),
+                    0,
+                  );
 
                   if (eligibleProjects.length === 0) {
                     return (
@@ -726,22 +740,9 @@ export function EditProjectModal({
 
                   return (
                     <>
-                      <div>
-                        <FieldLabel>Completed Project *</FieldLabel>
-                        <Select
-                          value={editForm.transferFromProjectId || ''}
-                          onValueChange={(value) => setEditForm({ ...editForm, transferFromProjectId: value })}
-                        >
-                          <option value="">Select a completed project</option>
-                          {eligibleProjects.map((p) => {
-                            const remainingBalance = Number(p?.budget || 0);
-                            return (
-                              <option key={p.id} value={p.id}>
-                                {p.title} — Balance: ₱{remainingBalance.toLocaleString('en-PH', { maximumFractionDigits: 2 })}
-                              </option>
-                            );
-                          })}
-                        </Select>
+                      <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                        Overall available remaining budget: <strong>₱{availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}</strong>
+                        <p className="mt-1 text-xs text-green-700">Funds will be combined automatically from completed projects when needed.</p>
                       </div>
 
                       <div>
@@ -750,7 +751,14 @@ export function EditProjectModal({
                           type="number"
                           placeholder="Enter amount to transfer"
                           value={editForm.transferAmount || ''}
-                          onChange={(e) => setEditForm({ ...editForm, transferAmount: e.target.value })}
+                          onChange={(e) => {
+                            const nextAmount = e.target.value;
+                            setEditForm({
+                              ...editForm,
+                              transferAmount: nextAmount,
+                              budget: nextAmount,
+                            });
+                          }}
                           min="0"
                           step="0.01"
                           className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"

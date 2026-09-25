@@ -873,11 +873,7 @@ class AdviserApprovalController extends Controller
         $submittedBy = $this->userName($p->created_by)
             ?: ($p->student?->user?->name ?? $p->proposed_by ?? 'Unknown');
 
-        $initialLedger = $p->ledgerEntries()
-            ->where('type', 'Initial')
-            ->where('archive', 0)
-            ->orderBy('created_at', 'asc') 
-            ->first();
+        $initialLedger = $this->getInitialLedgerEntry($p);
 
         $proofPath = $p->project_proof ?: ($initialLedger?->ledger_proof ?? null);
         $proofUrl = $proofPath ? $this->temporaryProofUrl($proofPath) : null;
@@ -922,7 +918,7 @@ class AdviserApprovalController extends Controller
         $status = 'Rejected';
     }
 
-    $initialEntry = $e->project?->ledgerEntries()?->where('type', 'Initial')->where('archive', 0)->orderBy('created_at', 'asc')->first();
+    $initialEntry = $e->project ? $this->getInitialLedgerEntry($e->project) : null;
     $resolvedProof = $e->resolveLedgerProof();
     $projectProof = $initialEntry?->resolveLedgerProof() ?? $resolvedProof;
     $ledgerProof = $resolvedProof;

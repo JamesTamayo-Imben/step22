@@ -550,6 +550,8 @@ export function CSGProjectDetailsPage({
   const [showChangeDatesModal, setShowChangeDatesModal] = useState(false);
   const [showAssetsModal, setShowAssetsModal] = useState(false);
   const [assetInventory, setAssetInventory] = useState([]);
+  const [assetSearch, setAssetSearch] = useState('');
+  const [assetCategoryFilter, setAssetCategoryFilter] = useState('all');
   const [proposedStartDate, setProposedStartDate] = useState('');
   const [proposedEndDate, setProposedEndDate] = useState('');
   const [dateChangeReason, setDateChangeReason] = useState('');
@@ -588,7 +590,7 @@ export function CSGProjectDetailsPage({
 
   const fetchAssetInventory = async () => {
     try {
-      const response = await fetch('/api/ledger-entries/assets?mode=return', {
+      const response = await fetch('/api/ledger-entries/assets?mode=all', {
         headers: {
           Accept: 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
@@ -606,6 +608,43 @@ export function CSGProjectDetailsPage({
       setAssetInventory([]);
     }
   };
+
+  const aggregatedAssetInventory = Object.values(
+    (assetInventory || []).reduce((accumulator, asset) => {
+      const name = (asset.name || 'Unknown').toString().trim();
+      const category = (asset.asset_category || 'Other').toString().trim();
+      const key = `${name}|${category}`;
+
+      if (!accumulator[key]) {
+        accumulator[key] = {
+          ...asset,
+          id: key,
+          name,
+          asset_category: category,
+          available_quantity: Number(asset.available_quantity || 0),
+        };
+        return accumulator;
+      }
+
+      accumulator[key].available_quantity += Number(asset.available_quantity || 0);
+      accumulator[key].status = accumulator[key].available_quantity > 0 ? 'available' : 'unavailable';
+      return accumulator;
+    }, {})
+  );
+
+  const uniqueAssetCategories = Array.from(
+    new Set(
+      aggregatedAssetInventory
+        .map((asset) => (asset.asset_category || 'Other').toString().trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+  const filteredAssetInventory = aggregatedAssetInventory.filter((asset) => {
+    const matchesSearch = !assetSearch || asset.name?.toLowerCase().includes(assetSearch.toLowerCase());
+    const matchesCategory = assetCategoryFilter === 'all' || (asset.asset_category || 'Other') === assetCategoryFilter;
+    return matchesSearch && matchesCategory;
+  });
   
   // Derived flags
   const isEditable = (project.approvalStatus === 'Draft' || project.approvalStatus === 'Rejected') && !project.archive;
@@ -1659,14 +1698,17 @@ function maskUserName(fullName) {
                     (entry.type || '').toLowerCase() === 'initial' || (entry.type || '').toLowerCase() === 'initial transfer'
                   );
 
-                  const sourceData =
+                  const isTransferBudget = project.budgetSource === 'past_project'
+                    || (initialBudgetEntry?.type || '').toLowerCase() === 'initial transfer';
+                  const sourceData = isTransferBudget ? [] : (
                     initialBudgetEntry?.budgetBreakdown ||
                     initialBudgetEntry?.budget_breakdown ||
                     project.budgetBreakdown ||
                     project.budget_breakdown ||
                     project.budgetSourceDetails ||
                     project.budget_source_details ||
-                    [];
+                    []
+                  );
 
                   const sourceOptions = buildBudgetSourceOptions(sourceData);
                   const hasSavedSourceEntries = Object.values(sourceOptions).some((entries) => Array.isArray(entries) && entries.length > 0);
@@ -1683,12 +1725,13 @@ function maskUserName(fullName) {
                     note: project.note,
                     approveBy: project.approveBy,
                     hasBudget: Number(project.budget || 0) > 0,
-                    budgetSource: hasSavedSourceEntries ? 'none' : (project.budgetSource || 'none'),
+                    budgetSource: isTransferBudget ? 'past_project' : (hasSavedSourceEntries ? 'none' : (project.budgetSource || 'none')),
                     transferFromProjectId: project.transferFromProjectId || '',
                     transferAmount: project.transferAmount || '',
+                    budget: project.budgetSource === 'past_project' ? (project.transferAmount || project.budget || '') : (project.budget || ''),
                   });
                   setEditBudgetItems(project.budgetBreakdown?.map((i) => ({ ...i })) || []);
-                  setShowEditModal(true);
+                  window.setTimeout(() => setShowEditModal(true), 0);
                 }}
                 onDelete={() => setShowDeleteConfirm(true)}
               />
@@ -2756,9 +2799,35 @@ function maskUserName(fullName) {
 
       <Modal open={showAssetsModal} onClose={() => setShowAssetsModal(false)} title="Recorded Assets" description="Current asset inventory and available stock status">
         <div className="space-y-4 pt-6">
-          {assetInventory.length === 0 ? (
+          <div className="flex flex-col gap-3 md:flex-row">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Search</label>
+              <input
+                type="text"
+                value={assetSearch}
+                onChange={(event) => setAssetSearch(event.target.value)}
+                placeholder="Search asset name"
+                className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-blue-500"
+              />
+            </div>
+            <div className="md:w-56">
+              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Category</label>
+              <select
+                value={assetCategoryFilter}
+                onChange={(event) => setAssetCategoryFilter(event.target.value)}
+                className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-blue-500"
+              >
+                <option value="all">All categories</option>
+                {uniqueAssetCategories.map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {filteredAssetInventory.length === 0 ? (
             <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
-              No recorded assets yet.
+              {assetInventory.length === 0 ? 'No recorded assets yet.' : 'No matching assets found.'}
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-200">
@@ -2773,7 +2842,7 @@ function maskUserName(fullName) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {assetInventory.map((asset) => {
+                    {filteredAssetInventory.map((asset) => {
                       const statusText = asset.status || (Number(asset.available_quantity || 0) > 0 ? 'Available' : 'Unavailable');
                       const isAvailable = statusText.toLowerCase() === 'available';
 

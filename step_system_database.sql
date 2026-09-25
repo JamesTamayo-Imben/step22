@@ -51,7 +51,7 @@ CREATE TABLE `approval` (
 CREATE TABLE `assets` (
   `id` char(36) NOT NULL,
   `source_ledger_entry_id` char(36) NOT NULL,
-  `project_id` char(36) NOT NULL,
+  `project_id` char(36) NOT NULL, 
   `name` varchar(255) NOT NULL,
   `asset_category` varchar(255) DEFAULT NULL,
   `description` text DEFAULT NULL,

@@ -105,6 +105,13 @@ function getDefaultBudgetSourceOptions() {
   };
 }
 
+function normalizeBudgetSourceOptions(value) {
+  return {
+    sponsorship: Array.isArray(value?.sponsorship) ? value.sponsorship : [],
+    donation: Array.isArray(value?.donation) ? value.donation : [],
+  };
+}
+
 function getBudgetSourceEntries(sourceOptions, type) {
   return Array.isArray(sourceOptions?.[type]) ? sourceOptions[type] : [];
 }
@@ -552,7 +559,7 @@ export function CreateProjectModal({
                                 type="checkbox"
                                 checked={selected}
                                 onChange={(e) => {
-                                  const currentOptions = newProject.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                  const currentOptions = normalizeBudgetSourceOptions(newProject.budgetSourceOptions);
                                   const updatedOptions = {
                                     ...currentOptions,
                                     [option.value]: e.target.checked ? [{ id: `${option.value}-1`, name: '', amount: '' }] : [],

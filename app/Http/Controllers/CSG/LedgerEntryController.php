@@ -334,11 +334,18 @@ public function uploadProof(Request $request, $id)
             $entry->save();
 
             if ($entry->type === 'Asset' && in_array($assetMode, ['use', 'return'], true) && count($assetUsages) > 0) {
+                $isApprovedAssetEntry = ($entry->approval_status ?? 'Draft') === 'Approved';
+
                 foreach ($assetUsages as $usage) {
                     $asset = Asset::where('id', $usage['asset_id'] ?? '')
                         ->where('archive', 0)
                         ->lockForUpdate()
                         ->firstOrFail();
+
+                    if (!$isApprovedAssetEntry) {
+                        continue;
+                    }
+
                     $quantity = (int) ($usage['quantity'] ?? 0);
                     if ($assetMode === 'use' && ($quantity < 1 || $quantity > $asset->available_quantity)) {
                         throw new \RuntimeException('Asset quantity exceeds the available quantity.');
@@ -464,11 +471,30 @@ public function uploadProof(Request $request, $id)
 
     public function assets(Request $request)
     {
+        $mode = $request->input('mode', 'all');
+
+        $query = Asset::with(['project:id,title', 'sourceLedgerEntry:id,approval_status,archive', 'usages'])
+            ->where('archive', 0)
+            ->whereHas('sourceLedgerEntry', function ($sourceQuery) {
+                $sourceQuery->where('archive', 0)
+                    ->where('approval_status', 'Approved');
+            });
+
+        if ($mode === 'use') {
+            $query->where('available_quantity', '>', 0);
+        }
+
+        if ($mode === 'return') {
+            $query->where(function ($query) {
+                $query->where('available_quantity', '<=', 0)
+                    ->orWhereHas('usages', function ($usageQuery) {
+                        $usageQuery->whereRaw('quantity > returned_quantity');
+                    });
+            });
+        }
+
         return response()->json(
-            Asset::with(['project:id,title', 'usages'])
-                ->where('archive', 0)
-                ->when($request->input('mode') !== 'return', fn ($query) => $query->where('available_quantity', '>', 0))
-                ->orderBy('name')
+            $query->orderBy('name')
                 ->get()
                 ->map(fn (Asset $asset) => [
                     'id' => $asset->id,
@@ -476,6 +502,7 @@ public function uploadProof(Request $request, $id)
                     'asset_category' => $asset->asset_category ?? 'Other',
                     'available_quantity' => $asset->available_quantity,
                     'status' => $asset->status ?? ($asset->available_quantity > 0 ? 'available' : 'unavailable'),
+                    'approval_status' => $asset->sourceLedgerEntry?->approval_status ?? null,
                     'returnable_quantity' => $asset->usages->sum(fn ($usage) => max(0, $usage->quantity - $usage->returned_quantity)),
                     'unit_cost' => (float) $asset->unit_cost,
                     'project' => $asset->project?->title,
@@ -988,7 +1015,7 @@ public function uploadProof(Request $request, $id)
                 ], 403);
             }
 
-            if ($entry->type === 'Asset') {
+            if ($entry->type === 'Asset' && $entry->approval_status === 'Approved') {
                 AssetUsage::where('ledger_entry_id', $entry->id)
                     ->whereColumn('returned_quantity', '<', 'quantity')
                     ->lockForUpdate()

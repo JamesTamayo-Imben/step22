@@ -838,7 +838,7 @@ export default function AdviserApprovalsPage() {
                               <span className="text-sm text-gray-900">{displayLabel}</span>
                             </div>
                             <span className="text-sm font-medium text-blue-600 whitespace-nowrap">
-                              {hasFundingSource ? `${sourceType} - ${sourceName} - ${amountValue}` : amountValue}
+                              {amountValue}
                             </span>
                           </div>
                         );
@@ -983,7 +983,7 @@ export default function AdviserApprovalsPage() {
                   {quantityText && <span className="text-xs text-gray-500 ml-2">{quantityText}</span>}
                 </div>
                 <span className="text-sm font-medium text-blue-600 whitespace-nowrap">
-                  {hasFundingSource ? `${sourceType} - ${sourceName} - ${amountValue}` : amountValue}
+                  {amountValue}
                 </span>
               </div>
             );

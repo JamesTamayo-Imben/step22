@@ -410,6 +410,8 @@ export default function LedgerApprovalsPage() {
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [assetInventory, setAssetInventory] = useState([]);
+  const [assetSearch, setAssetSearch] = useState('');
+  const [assetCategoryFilter, setAssetCategoryFilter] = useState('all');
 
   const canViewLedger = userPermissions.includes('ledger.view');
   const canFixTampered = userPermissions.includes('ledger.fix-tampered');
@@ -478,7 +480,7 @@ export default function LedgerApprovalsPage() {
 
   const fetchAssetInventory = async () => {
     try {
-      const response = await fetch('/api/ledger-entries/assets?mode=return', {
+      const response = await fetch('/api/ledger-entries/assets?mode=all', {
         headers: {
           Accept: 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
@@ -496,6 +498,45 @@ export default function LedgerApprovalsPage() {
       setAssetInventory([]);
     }
   };
+
+  const aggregatedAssetInventory = Object.values(
+    (assetInventory || []).reduce((accumulator, asset) => {
+      const name = (asset.name || 'Unknown').toString().trim();
+      const category = (asset.asset_category || 'Other').toString().trim();
+      const key = `${name}|${category}`;
+
+      if (!accumulator[key]) {
+        accumulator[key] = {
+          ...asset,
+          id: key,
+          name,
+          asset_category: category,
+          available_quantity: Number(asset.available_quantity || 0),
+        };
+        return accumulator;
+      }
+
+      accumulator[key].available_quantity += Number(asset.available_quantity || 0);
+      accumulator[key].status = accumulator[key].available_quantity > 0 ? 'available' : 'unavailable';
+      return accumulator;
+    }, {})
+  );
+
+  const uniqueAssetCategories = Array.from(
+    new Set(
+      aggregatedAssetInventory
+        .map((asset) => (asset.asset_category || 'Other').toString().trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+  const filteredAssetInventory = aggregatedAssetInventory.filter((asset) => {
+    const assetName = (asset.name || '').toString().toLowerCase();
+    const assetCategory = (asset.asset_category || 'Other').toString();
+    const matchesSearch = !assetSearch || assetName.includes(assetSearch.toLowerCase());
+    const matchesCategory = assetCategoryFilter === 'all' || assetCategory === assetCategoryFilter;
+    return matchesSearch && matchesCategory;
+  });
 
   const handleViewDetails = (entry) => {
     setSelectedEntry(entry);
@@ -759,41 +800,75 @@ export default function LedgerApprovalsPage() {
               No recorded assets yet.
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-gray-200">
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-gray-50 text-gray-600">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Asset Name</th>
-                      <th className="px-4 py-3 font-medium">Category</th>
-                      <th className="px-4 py-3 font-medium">Quantity Available</th>
-                      <th className="px-4 py-3 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {assetInventory.map((asset) => {
-                      const statusText = asset.status || (Number(asset.available_quantity || 0) > 0 ? 'Available' : 'Unavailable');
-                      const isAvailable = statusText.toLowerCase() === 'available';
-
-                      return (
-                        <tr key={asset.id} className="align-middle">
-                          <td className="px-4 py-3 font-medium text-gray-900">{asset.name}</td>
-                          <td className="px-4 py-3 text-gray-700">{asset.asset_category || 'Other'}</td>
-                          <td className="px-4 py-3 text-gray-700">{Number(asset.available_quantity || 0)}</td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                              isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                            }`}>
-                              {statusText}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            <>
+              <div className="flex flex-col gap-3 md:flex-row">
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Search</label>
+                  <input
+                    type="text"
+                    value={assetSearch}
+                    onChange={(event) => setAssetSearch(event.target.value)}
+                    placeholder="Search asset name"
+                    className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div className="md:w-56">
+                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Category</label>
+                  <select
+                    value={assetCategoryFilter}
+                    onChange={(event) => setAssetCategoryFilter(event.target.value)}
+                    className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-blue-500"
+                  >
+                    <option value="all">All categories</option>
+                    {uniqueAssetCategories.map((category) => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
+
+              {filteredAssetInventory.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
+                  No matching assets found.
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-xl border border-gray-200">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="bg-gray-50 text-gray-600">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Asset Name</th>
+                          <th className="px-4 py-3 font-medium">Category</th>
+                          <th className="px-4 py-3 font-medium">Quantity Available</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {filteredAssetInventory.map((asset) => {
+                          const statusText = asset.status || (Number(asset.available_quantity || 0) > 0 ? 'Available' : 'Unavailable');
+                          const isAvailable = statusText.toLowerCase() === 'available';
+
+                          return (
+                            <tr key={asset.id} className="align-middle">
+                              <td className="px-4 py-3 font-medium text-gray-900">{asset.name}</td>
+                              <td className="px-4 py-3 text-gray-700">{asset.asset_category || 'Other'}</td>
+                              <td className="px-4 py-3 text-gray-700">{Number(asset.available_quantity || 0)}</td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                                  isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                }`}>
+                                  {statusText}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           <div className="flex justify-end pt-2">

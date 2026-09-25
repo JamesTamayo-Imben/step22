@@ -153,7 +153,7 @@ class AssetUsageInitialPurchaseTest extends TestCase
                 ['item' => 'Laptop', 'qty' => 2, 'unitPrice' => 1500, 'asset_category' => 'Electronic Devices'],
             ]),
             'asset_mode' => 'purchase',
-            'approval_status' => 'Draft',
+            'approval_status' => 'Approved',
         ]);
         $request->setUserResolver(fn () => $user);
         $request->files->add([
@@ -188,5 +188,63 @@ class AssetUsageInitialPurchaseTest extends TestCase
         $this->assertSame('Electronic Devices', $assetRow['asset_category']);
         $this->assertSame(0, $assetRow['available_quantity']);
         $this->assertSame('unavailable', strtolower((string) $assetRow['status']));
+    }
+
+    public function test_recorded_asset_list_excludes_unapproved_entries(): void
+    {
+        Storage::fake('supabase');
+
+        $user = $this->authorizedUser('csg');
+        Auth::login($user);
+
+        $project = Project::create([
+            'id' => (string) Str::uuid(),
+            'title' => 'Project asset approval visibility',
+            'description' => 'Only approved assets should appear in recorded asset list',
+            'objective' => 'Testing visibility',
+            'venue' => 'Main Hall',
+            'category' => 'Social',
+            'budget' => 6000,
+            'proposed_by' => 'Test User',
+            'status' => 'Draft',
+            'approval_status' => 'Draft',
+            'archive' => false,
+            'is_initial' => false,
+        ]);
+
+        foreach ([
+            ['name' => 'Draft Laptop', 'status' => 'Draft'],
+            ['name' => 'Pending Monitor', 'status' => 'Pending Adviser Approval'],
+            ['name' => 'Approved Chair', 'status' => 'Approved'],
+        ] as $assetConfig) {
+            $request = Request::create('/api/ledger-entries', 'POST', [
+                'project_id' => $project->id,
+                'type' => 'Asset',
+                'description' => $assetConfig['name'] . ' purchase',
+                'amount' => 0,
+                'budget_breakdown' => json_encode([
+                    ['item' => $assetConfig['name'], 'qty' => 1, 'unitPrice' => 100, 'asset_category' => 'Office'],
+                ]),
+                'asset_mode' => 'purchase',
+                'approval_status' => $assetConfig['status'],
+            ]);
+            $request->setUserResolver(fn () => $user);
+            $request->files->add([
+                'proof_file' => UploadedFile::fake()->create('proof.pdf', 120, 'application/pdf'),
+            ]);
+
+            $response = (new LedgerEntryController())->store($request);
+            $this->assertEquals(201, $response->getStatusCode());
+        }
+
+        $inventoryResponse = (new LedgerEntryController())->assets(new Request([
+            'mode' => 'all',
+        ]));
+        $inventory = json_decode($inventoryResponse->getContent(), true);
+        $names = collect($inventory)->pluck('name')->all();
+
+        $this->assertContains('Approved Chair', $names);
+        $this->assertNotContains('Draft Laptop', $names);
+        $this->assertNotContains('Pending Monitor', $names);
     }
 }

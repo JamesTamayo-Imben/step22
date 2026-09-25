@@ -605,6 +605,21 @@ function CSGProjectsPageInner() {
 
   // If project is selected, show details page with the specific project data
   if (selectedProjectId) {
+    if (!canViewProjects) {
+      return (
+        <div className="flex min-h-[300px] items-center justify-center rounded-[20px] border border-dashed border-gray-200 bg-white p-8">
+          <div className="text-center">
+            <FolderOpen className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+            <p className="text-lg font-semibold text-gray-900">Access Restricted</p>
+            <p className="mt-2 text-sm text-gray-500">You do not have permission to view project details.</p>
+            <Button onClick={() => setSelectedProjectId(null)} className="mt-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white">
+              Back to Projects
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     const selectedProject = projects.find(p => p.id === selectedProjectId);
     
     return (
@@ -670,7 +685,15 @@ function CSGProjectsPageInner() {
       );
     }
 
-    // Rejected projects bypass the view-permission gate entirely
+    if (!canViewProjects) {
+      return (
+        <div className="w-full rounded-xl bg-gray-300 text-gray-500 flex items-center justify-center py-2">
+          <FolderOpen className="w-4 h-4 mr-2" />
+          Can't View Project
+        </div>
+      );
+    }
+
     if (project.approvalStatus === 'Rejected') {
       return (
         <Button
@@ -680,15 +703,6 @@ function CSGProjectsPageInner() {
           <FolderOpen className="w-4 h-4 mr-2" />
           Open To Edit Project
         </Button>
-      );
-    }
-
-    if (!canViewProjects) {
-      return (
-        <div className="w-full rounded-xl bg-gray-300 text-gray-500 flex items-center justify-center py-2">
-          <FolderOpen className="w-4 h-4 mr-2" />
-          Can't View Project
-        </div>
       );
     }
 
