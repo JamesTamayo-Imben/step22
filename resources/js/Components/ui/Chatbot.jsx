@@ -384,7 +384,7 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
           <div className="flex items-center justify-between bg-gradient-to-r from-blue-800 to-blue-600 px-4 py-4 text-white">
             <div className="flex items-center gap-2">
               {/* <ShieldCheck className="w-5 h-5 text-blue-400" /> */}
-              <img src="/images/chatbot.svg" alt="STEPH Icon" className="w-5 h-5" />
+              <img src="/images/chatbot.svg" alt="STEPH Icon" width="20" height="20" className="w-5 h-5" />
               <div>
                 <p className="text-[#ffffff] font-normal leading-none text-[12px]"
                       style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
@@ -392,7 +392,7 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
                 <p className="text-[10px] text-blue-300 mt-1 uppercase tracking-widest font-medium">School Transparency and Engagement Portal Helper</p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="hover:bg-white/10 p-1 rounded-lg transition-colors">
+            <button aria-label="Close STEPH chat" onClick={() => setIsOpen(false)} className="hover:bg-white/10 p-1 rounded-lg transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -468,6 +468,8 @@ export function Chatbot({ title = 'STEPH: Member Assistant' }) {
                 className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 pl-4 pr-10 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
               <button
+                type="button"
+                aria-label="Send message"
                 onClick={handleSend}
                 disabled={isLoading || !inputValue.trim()}
                 className="p-3 bg-blue-700 text-white rounded-xl hover:bg-blue-800 disabled:opacity-50 transition-colors"

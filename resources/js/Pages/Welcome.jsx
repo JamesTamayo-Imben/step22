@@ -293,7 +293,7 @@ export default function Welcome() {
               <span className="rounded-full overflow-hidden">
                 <img
               src="/images/kldlogo.svg" alt="KLD Logo"
-              className="w-full object-cover"/></span>
+              width="40" height="40" className="w-full object-cover"/></span>
             </div>
             <div className="hidden sm:block border-l border-gray-300 h-8"></div>
             {/* STEP Logo */}
@@ -305,7 +305,7 @@ export default function Welcome() {
               <div className="w-16 flex items-center justify-center">
                 <img
               src="/images/steplogoDark.svg" alt="STEP Logo"
-              className="w-full object-cover"/>
+              width="64" height="32" className="w-full object-cover"/>
               </div>
               
             </div>
@@ -329,10 +329,11 @@ export default function Welcome() {
       </nav>
 
 
+      <main>
       <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 text-center bg-cover bg-center"
         style={{ backgroundImage: "url('/images/kldbg.png')" }}>
         <div className="max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-[#2563EB] rounded-full text-sm mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm mb-6">
             <School className="w-4 h-4" />
             <span>Kolehiyo ng Lungsod ng Dasmariñas</span>
           </div>
@@ -496,7 +497,7 @@ export default function Welcome() {
               <div className="relative animated-gradient w-full aspect-video flex items-center justify-center cursor-pointer" onClick={playVideo}>
                 <div className="absolute inset-0 bg-black/20"></div>
                 <div className="relative z-10 text-center flex flex-col items-center">
-                  <button className="lg:w-20 lg:h-20 w-14 h-14 bg-white rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-lg">
+                  <button aria-label="Play STEP introduction video" className="lg:w-20 lg:h-20 w-14 h-14 bg-white rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-lg">
                     <Play className="lg:w-8 lg:h-8 w-5 h-5 text-blue-600 ml-1" />
                   </button>
                   <p className="text-white text-lg mt-4">Watch STEP Introduction</p>
@@ -519,13 +520,14 @@ export default function Welcome() {
 
         </div>
       </section>
+      </main>
 
       {/* KLD College Mission Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-600 to-blue-800">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-3xl mx-auto text-white">
             <h2 className="text-4xl mb-6">Our Commitment to Transparency</h2>
-            <p className="text-xl text-blue-100 mb-6 leading-relaxed">
+            <p className="text-xl text-blue-50 mb-6 leading-relaxed">
               At Kolehiyo ng Lungsod ng Dasmariñas, we believe in fostering a culture of 
               accountability and trust. STEP ensures every student can verify how their 
               student council manages funds and executes projects.
@@ -541,7 +543,7 @@ export default function Welcome() {
               </div>
                 </div>
                 <h3 className="text-lg mb-2">Academic Excellence</h3>
-                <p className="text-sm text-blue-100">
+                <p className="text-sm text-blue-50">
                   Supporting student development through transparent governance
                 </p>
               </div>
@@ -555,7 +557,7 @@ export default function Welcome() {
               </div>
                 </div>
                 <h3 className="text-lg mb-2">Financial Integrity</h3>
-                <p className="text-sm text-blue-100">
+                <p className="text-sm text-blue-50">
                   Every peso tracked, verified, and publicly accessible
                 </p>
               </div>
@@ -569,7 +571,7 @@ export default function Welcome() {
               </div>
                 </div>
                 <h3 className="text-lg mb-2">Student Engagement</h3>
-                <p className="text-sm text-blue-100">
+                <p className="text-sm text-blue-50">
                   Empowering students to participate in governance decisions
                 </p>
               </div>
@@ -584,7 +586,7 @@ export default function Welcome() {
           <h2 className="text-4xl text-white mb-6">
             Ready to Transform Your Student Governance?
           </h2>
-          <p className="text-xl text-blue-100 mb-10">
+          <p className="text-xl text-blue-50 mb-10">
             Join schools already using STEP for transparent, accountable, and engaging student councils.
           </p>
           <button
@@ -606,6 +608,7 @@ export default function Welcome() {
             <div className="absolute top-20 right-10 z-50 pointer-events-auto">
               {/* Close Button */}
               <button
+                aria-label="Close registration guide"
                 onClick={() => setShowPointer(false)}
                 className="absolute -top-2 -right-2 bg-white rounded-full p-2 hover:bg-gray-100 shadow-lg z-10"
               >
@@ -678,6 +681,7 @@ export default function Welcome() {
             </p>
             <div className="flex gap-3">
               <button
+                aria-label="Stay on this page"
                 onClick={handleStayOnPage}
                 className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors"
               >
@@ -703,7 +707,7 @@ export default function Welcome() {
                 <div className="w-16 flex items-center justify-center">
                 <img
               src="/images/steplogoLight.svg" alt="STEP Logo"
-              className="w-full object-cover"/>
+              width="64" height="32" className="w-full object-cover"/>
               </div>
               </div>
               <p className="text-gray-400 text-sm">
@@ -712,7 +716,7 @@ export default function Welcome() {
             </div>
 
             <div>
-              <h4 className="text-sm mb-4">KLD College</h4>
+              <h3 className="text-sm mb-4">KLD College</h3>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="https://kld.edu.ph" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Official Website</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">About KLD</a></li>
@@ -721,7 +725,7 @@ export default function Welcome() {
             </div>
 
             <div>
-              <h4 className="text-sm mb-4">STEP Platform</h4>
+              <h3 className="text-sm mb-4">STEP Platform</h3>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="#" onClick={(e) => { e.preventDefault(); router.visit(route('features')); }} className="hover:text-white transition-colors">Features</a></li>
                 <li><a href="#" onClick={(e) => { e.preventDefault(); scrollToHowItWorks(); }} className="hover:text-white transition-colors">How It Works</a></li>
@@ -730,7 +734,7 @@ export default function Welcome() {
             </div>
 
             <div>
-              <h4 className="text-sm mb-4">Contact & Legal</h4>
+              <h3 className="text-sm mb-4">Contact & Legal</h3>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="#" onClick={(e) => { e.preventDefault(); router.visit(route('contact')); }} className="hover:text-white transition-colors">Contact Us</a></li>
                 <li><a href="#" onClick={(e) => { e.preventDefault(); router.visit(route('privacy')); }} className="hover:text-white transition-colors">Privacy Policy</a></li>
@@ -755,6 +759,7 @@ export default function Welcome() {
       {/* Fixed Scroll to Top Button */}
       {isScrolled && (
         <button
+          aria-label="Scroll to top"
           onClick={handleScrollToTop}
           className="fixed bottom-20 right-6 bg-[#2563EB] hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 ease-in-out hover:scale-110 z-40"
           title="Scroll to top"
