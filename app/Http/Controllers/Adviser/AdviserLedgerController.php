@@ -398,6 +398,10 @@ class AdviserLedgerController extends Controller
 
     public function fixTampered(Request $request, string $id)
     {
+        if (!auth()->user()?->hasPermission('ledger.fix-tampered')) {
+            abort(403, 'You do not have permission to fix tampered ledger entries.');
+        }
+
         $request->validate([
             'current_password' => ['required', 'current_password'],
         ]);
@@ -550,6 +554,10 @@ class AdviserLedgerController extends Controller
 
     public function fixBudgetMismatch(Request $request)
     {
+        if (!auth()->user()?->hasPermission('ledger.fix-tampered')) {
+            abort(403, 'You do not have permission to fix ledger budget mismatches.');
+        }
+
         $request->validate([
             'current_password' => ['required', 'current_password'],
         ]);

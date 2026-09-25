@@ -45,11 +45,7 @@ function SelectItem({ value, children }) {
 
 // Table components
 function Table({ children }) {
-  return (
-    <table className="w-full border-collapse">
-      {children}
-    </table>
-  );
+  return <table className="w-full border-collapse">{children}</table>;
 }
 
 function TableHeader({ children }) {
@@ -129,22 +125,18 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
       page: 1
     };
 
-    router.get(
-      '/adviser/audit-logs',
-      params,
-      {
-        preserveState: true,
-        onFinish: () => setIsLoading(false),
-      }
-    );
+    router.get('/adviser/audit-logs', params, {
+      preserveState: true,
+      onFinish: () => setIsLoading(false),
+    });
   };
 
   const handlePageChange = (page) => {
     if (page === currentPage || page < 1 || page > totalPages) return;
-    
+
     setIsLoading(true);
     setCurrentPage(page);
-    
+
     const params = {
       search: searchQuery,
       module: filterModule,
@@ -153,14 +145,10 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
       page: page
     };
 
-    router.get(
-      '/adviser/audit-logs',
-      params,
-      {
-        preserveState: true,
-        onFinish: () => setIsLoading(false),
-      }
-    );
+    router.get('/adviser/audit-logs', params, {
+      preserveState: true,
+      onFinish: () => setIsLoading(false),
+    });
   };
 
   const handleExport = () => {
@@ -178,21 +166,22 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
     setIsLoading(false);
   }, [logs]);
 
-  // Generate page numbers to display
+  // Generate the page numbers to display with ellipsis
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisible = 5;
-    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-    let end = Math.min(totalPages, start + maxVisible - 1);
-    
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1);
+    const currentPageNum = currentPage;
+    const lastPage = totalPages;
+
+    for (let page = 1; page <= lastPage; page++) {
+      const isCurrentPage = page === currentPageNum;
+
+      if (page === 1 || page === lastPage || (page >= currentPageNum - 1 && page <= currentPageNum + 1)) {
+        pages.push({ type: 'page', value: page, isCurrent: isCurrentPage });
+      } else if (page === currentPageNum - 2 || page === currentPageNum + 2) {
+        pages.push({ type: 'ellipsis', value: `ellipsis-${page}` });
+      }
     }
-    
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
-    }
-    
+
     return pages;
   };
 
@@ -215,6 +204,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
         </button>
       </div>
 
+      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="rounded-[20px] p-4 border-0 shadow-sm">
           <div className="flex items-center justify-between">
@@ -257,7 +247,6 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
       {/* Filters */}
       <Card className="rounded-[20px] border-0 shadow-sm p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -273,8 +262,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
             />
           </div>
 
-          {/* Module Filter */}
-          <Select 
+          <Select
             className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition disabled:opacity-50"
             value={filterModule}
             onValueChange={(value) => {
@@ -290,8 +278,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
             ))}
           </Select>
 
-          {/* Status Filter */}
-          <Select 
+          <Select
             className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition disabled:opacity-50"
             value={filterStatus}
             onValueChange={(value) => {
@@ -305,8 +292,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
             <SelectItem value="Failed">Failed</SelectItem>
           </Select>
 
-          {/* Action Type Filter */}
-          <Select 
+          <Select
             className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition disabled:opacity-50"
             value={filterActionType}
             onValueChange={(value) => {
@@ -328,7 +314,9 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
       {/* Pagination Info */}
       {total > 0 && (
         <div className="flex justify-between items-center text-sm text-gray-600 px-2">
-          <span>Showing {((currentPage - 1) * perPage) + 1} to {Math.min(currentPage * perPage, total)} of {total} logs</span>
+          <span>
+            Showing {((currentPage - 1) * perPage) + 1} to {Math.min(currentPage * perPage, total)} of {total} logs
+          </span>
           <span>Page {currentPage} of {totalPages}</span>
         </div>
       )}
@@ -345,10 +333,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
                   <TableHead>Action</TableHead>
                   <TableHead>Module</TableHead>
                   <TableHead>Type</TableHead>
-                  {/* <TableHead>Linked Record</TableHead> */}
                   <TableHead>Status</TableHead>
-                  {/* <TableHead>Browser</TableHead> */}
-                  {/* <TableHead>IP Address</TableHead> */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -356,7 +341,6 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
                   <TableRow key={log.id} className="hover:bg-gray-50">
                     <TableCell className="font-mono text-xs text-gray-600">
                       <div className="flex items-center gap-2">
-                        {/* <Clock className="w-3 h-3" /> */}
                         {log.timestamp}
                       </div>
                     </TableCell>
@@ -375,16 +359,6 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
                     <TableCell>
                       <Badge className="bg-blue-100 text-blue-700">{formatActionType(log.actionType)}</Badge>
                     </TableCell>
-                    {/* <TableCell className="text-xs text-gray-600">
-                      {log.actionableType ? (
-                        <div>
-                          <div className="font-medium text-gray-900 uppercase">{log.actionableType}</div>
-                          <div className="text-gray-500">ID: {log.actionableId ?? 'N/A'}</div>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">N/A</span>
-                      )}
-                    </TableCell> */}
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getStatusIcon(log.status)}
@@ -393,105 +367,21 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
                         </Badge>
                       </div>
                     </TableCell>
-                    {/* <TableCell className="max-w-[200px] text-xs text-gray-600">
-                      {log.browserInfo ? log.browserInfo : 'N/A'}
-                    </TableCell> */}
-                    {/* <TableCell className="font-mono text-xs text-gray-600">
-                      {log.ipAddress}
-                    </TableCell> */}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
         ) : (
-         <div className="text-center">
-          <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-             <p className="text-sm text-gray-500">No audit logs found</p>
-             <p className="text-xs text-gray-400 mt-1 mb-4">
+          <div className="text-center">
+            <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500">No audit logs found</p>
+            <p className="text-xs text-gray-400 mt-1 mb-4">
               Try adjusting your search or filters
-             </p>
-         </div>
+            </p>
+          </div>
         )}
       </Card>
-
-      {/* Pagination Component */}
-     {totalPages > 1 && (
-  <div className="flex items-center justify-between border-t border-gray-200 mt-4 pt-4">
-    <div className="flex flex-1 justify-between sm:hidden">
-      <Button
-        onClick={() => handlePageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        variant="outline"
-        className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Previous
-      </Button>
-      <Button
-        onClick={() => handlePageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        variant="outline"
-        className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Next
-      </Button>
-    </div>
-    <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-      <p className="text-sm text-gray-700">
-        Page <span className="font-medium">{currentPage}</span> of{' '}
-        <span className="font-medium">{totalPages}</span>
-      </p>
-      <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Notifications pagination">
-        <Button
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          variant="outline"
-          className="relative inline-flex items-center rounded-l-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <span className="sr-only">Previous</span>
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        {[...Array(totalPages)].map((_, i) => {
-          const page = i + 1;
-          const isCurrentPage = page === currentPage;
-          if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
-            return (
-              <Button
-                key={page}
-                onClick={() => handlePageChange(page)}
-                variant="outline"
-                className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
-                  isCurrentPage
-                    ? 'z-10 bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {page}
-              </Button>
-            );
-          }
-          if (page === currentPage - 2 || page === currentPage + 2) {
-            return (
-              <span key={page} className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700">
-                ...
-              </span>
-            );
-          }
-          return null;
-        })}
-        <Button
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          variant="outline"
-          className="relative inline-flex items-center rounded-r-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <span className="sr-only">Next</span>
-          <ChevronRight className="h-5 w-5" />
-        </Button>
-      </nav>
-    </div>
-  </div>
-)}
 
       {/* Logs Cards - Mobile */}
       <div className="md:hidden space-y-4">
@@ -537,16 +427,98 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
             </div>
           </Card>
         ))}
+
+        {/* Empty state for mobile when no logs */}
+        {logs.length === 0 && (
+          <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
+            <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-gray-900 mb-2">No logs found</h3>
+            <p className="text-gray-600">Try adjusting your filters</p>
+          </Card>
+        )}
       </div>
 
-      {/* Empty State */}
-      {/* {logs.length === 0 && (
-        <Card className="rounded-[20px] border-0 shadow-sm p-12 text-center">
-          <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-gray-900 mb-2">No logs found</h3>
-          <p className="text-gray-600">Try adjusting your filters</p>
-        </Card>
-      )} */}
+      {/* Pagination Component - Shared for Mobile & Desktop */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+          {/* Mobile pagination */}
+          <div className="flex flex-1 justify-between sm:hidden">
+            <Button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              variant="outline"
+              className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </Button>
+            <Button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              variant="outline"
+              className="rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </Button>
+          </div>
+
+          {/* Desktop pagination */}
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <p className="text-sm text-gray-700">
+              Page <span className="font-medium">{currentPage}</span> of{' '}
+              <span className="font-medium">{totalPages}</span>
+            </p>
+            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+              <Button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                variant="outline"
+                className="relative inline-flex items-center rounded-l-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="sr-only">Previous</span>
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+
+              {getPageNumbers().map((item) => {
+                if (item.type === 'ellipsis') {
+                  return (
+                    <span
+                      key={item.value}
+                      className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+
+                return (
+                  <Button
+                    key={item.value}
+                    onClick={() => handlePageChange(item.value)}
+                    variant="outline"
+                    className={`relative inline-flex items-center px-4 py-2 text-sm font-medium ${
+                      item.isCurrent
+                        ? 'z-10 bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.value}
+                  </Button>
+                );
+              })}
+
+              <Button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                variant="outline"
+                className="relative inline-flex items-center rounded-r-xl px-2 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="sr-only">Next</span>
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </nav>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

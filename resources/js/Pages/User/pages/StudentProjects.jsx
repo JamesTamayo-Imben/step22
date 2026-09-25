@@ -344,9 +344,9 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
                                </div>
         </Card>
       ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {paginatedProjects.map((project) => (
-          <Card key={project.id} className={`${isProjectLocked(project.id) ? "opacity-70 bg-gray-200" : ""} overflow-hidden rounded-xl  border-0 shadow-sm hover:shadow-md transition-shadow`}>
+          <Card key={project.id} className={`${isProjectLocked(project.id) ? "opacity-70 bg-gray-200" : ""} flex h-[440px] flex-col overflow-hidden rounded-xl border-0 shadow-sm transition-shadow hover:shadow-md`}>
             {/* Project Icon */}
             <div className={`h-32 bg-gradient-to-br ${getCategoryVisual(project.category).color} flex items-center justify-center`}>
               <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -357,11 +357,11 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
               </div>
             </div>
 
-            <div className="p-6">
+            <div className="flex flex-1 flex-col p-6">
               {/* Header */}
-              <div className="flex items-start justify-between mb-3">
+              <div className="mb-3 flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="text-gray-900 font-semibold mb-1">{project.title}</h3>
+                  <h3 className="mb-1 line-clamp-2 text-gray-900 font-semibold">{project.title}</h3>
                   <div className="flex items-center gap-2">
                     <Badge className="bg-blue-100 text-blue-700 text-xs">{project.category}</Badge>
                     <Badge className={`${getStatusColor(getProjectStatus(project))} text-xs`}>{getProjectStatus(project)}</Badge>
@@ -370,55 +370,53 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
               </div>
 
               {/* Description */}
-              <p className="text-sm text-gray-600 mb-4 line-clamp-2">{project.description}</p>
+              <p className="mb-4 line-clamp-2 text-sm text-gray-600">{project.description}</p>
 
               {/* Stats */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Users className="w-4 h-4" />
-                  <span>{project.ratingsCount || 0} raters</span>
+              <div className="mb-4 flex items-center justify-between gap-3 text-sm text-gray-600">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Users className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{project.ratingsCount || 0} raters</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span className="text-xs">{project.endDate || 'N/A'}</span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <Calendar className="w-4 h-4 shrink-0" />
+                  <span className="truncate text-xs">{project.endDate || 'N/A'}</span>
                 </div>
               </div>
 
               {/* Rating */}
               {canViewRatings ? (
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${
-                          i < Math.floor(project.rating)
-                            ? 'fill-yellow-400 text-yellow-400'
-                            : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-600">{project.rating || 0}</span> 
-                  <span className="text-xs text-gray-400">({project.ratingsCount})</span>
+              <div className="mb-4 flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${
+                        i < Math.floor(project.rating)
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-gray-300'
+                      }`}
+                    />
+                  ))}
                 </div>
+                <span className="text-sm font-medium text-gray-700">{project.rating || 0}</span>
+                <span className="text-xs text-gray-400">({project.ratingsCount})</span>
               </div>
               ) : null}
 
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className="mt-auto flex gap-2">
                 {isProjectLocked(project.id) ? (
                   <Button
                     disabled
-                    className="flex-1 rounded-xl opacity-50 bg-red-600 hover:bg-red-700 text-white disabled:opacity-90 disabled:cursor-not-allowed"
+                    className="h-11 flex-1 rounded-xl bg-red-600 text-white opacity-50 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-90"
                   >
                     Locked (Tampered)
                   </Button>
                 ) : (
                 <Button 
                   onClick={() => onViewDetails(project.id)}
-                  className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                  className="h-11 flex-1 rounded-xl bg-blue-600 text-white hover:bg-blue-700"
                 >
                   View Details
                 </Button>
@@ -427,7 +425,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
                 <Button
                   onClick={() => onViewDetails(project.id)}
                   variant="outline"
-                  className={`rounded-xl ${userRatingMap[project.id] ? 'border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100' : ''}`}
+                  className={`h-11 w-11 rounded-xl p-0 ${userRatingMap[project.id] ? 'border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100' : ''}`}
                   disabled={isProjectLocked(project.id)}
                 >
                   <Star className={`w-4 h-4 ${userRatingMap[project.id] ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />

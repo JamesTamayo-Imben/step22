@@ -242,7 +242,7 @@ export default function SystemSettingsPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
-                <h1 className="text-2xl font-semibold text-gray-900">System blockchain</h1>
+                <h1 className="text-2xl font-semibold text-gray-900">Project Chain</h1>
                 <p className="text-gray-500">Inspect genesis blocks and verify every budget record.</p>
               </div>
               <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">

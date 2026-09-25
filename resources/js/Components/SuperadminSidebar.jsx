@@ -31,7 +31,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     // { id: 'ledger-entries', label: 'Ledger Entries', icon: BookOpenText },
     // { id: 'meetings', label: 'Meetings', icon: CalendarDays },
     { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
-    { id: 'system-settings', label: 'Blockchain', icon: Settings },
+    { id: 'system-settings', label: 'Project Chain', icon: Settings },
     // { id: 'audit-logs', label: 'Audit Logs', icon: FileText },
     // { id: 'data-backup', label: 'Data & Backup', icon: Database },
     // { id: 'engagement-rules', label: 'Engagement Rules', icon: TrendingUp },
@@ -45,7 +45,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     { id: 'master-data', label: 'Master Data', icon: BookOpenText },
     { id: 'global-reports', label: 'Global Reports', icon: FileText },
     { id: 'notifications', label: 'Notifications', icon: CalendarDays },
-    { id: 'profile', label: 'Profile', icon: Users },
+    // { id: 'profile', label: 'Profile', icon: Users },
   ];
 
   const [isOthersOpen, setIsOthersOpen] = useState(false);

@@ -155,6 +155,12 @@ function CSGProjectsPageInner() {
     hasBudget: false,
     isActive: false,
     budgetSource: 'none',
+    budgetSourceType: '',
+    budgetSourceDetails: '',
+    budgetSourceOptions: {
+      sponsorship: [],
+      donation: [],
+    },
     transferFromProjectId: '',
     transferAmount: '',
     startDate: '',

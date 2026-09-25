@@ -99,7 +99,7 @@ export default function GlobalReportsPage() {
                 
               </div>
               <div className="flex flex-wrap gap-2 sm:justify-end">
-                <select
+                {/* <select
                   value={dateRange}
                   onChange={(e) => setDateRange(e.target.value)}
                   className="px-3 py-2 border border-gray-200 rounded-xl bg-white min-w-[170px] w-full sm:w-[190px] h-10 border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition disabled:opacity-50"
@@ -108,9 +108,9 @@ export default function GlobalReportsPage() {
                   <option value="month">Last Month</option>
                   <option value="quarter">Last Quarter</option>
                   <option value="year">Last Year</option>
-                </select>
+                </select> */}
 
-                <select
+                {/* <select
                   value={exportFormat}
                   onChange={(e) => setExportFormat(e.target.value)}
                   className="px-3 py-2 border border-gray-200 rounded-xl bg-white min-w-[120px] w-full sm:w-[130px] h-10 border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition disabled:opacity-50"
@@ -118,7 +118,7 @@ export default function GlobalReportsPage() {
                   <option value="pdf">PDF</option>
                   <option value="csv">CSV</option>
                   <option value="xlsx">XLSX</option>
-                </select>
+                </select> */}
               </div>
             </div>
 
@@ -126,35 +126,35 @@ export default function GlobalReportsPage() {
             <Card className="rounded-[20px] border-0 shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
-                  <Users className="w-6 h-6 text-blue-600" />
+                  {/* <Users className="w-6 h-6 text-blue-600" /> */}
                   <h2 className="text-lg font-semibold text-gray-900">User Reports</h2>
                 </div>
-                <Button
+                {/* <Button
                   variant="outline"
                   onClick={() => handleExport('user')}
-                  className="rounded-xl"
+                  className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Export
-                </Button>
+                </Button> */}
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 bg-purple-50 rounded-xl">
-                  <p className="text-sm text-purple-700">Total Users</p>
-                  <p className="text-2xl text-purple-900 mt-1">{userReports.totalUsers.toLocaleString()}</p>
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-700">Total Users</p>
+                  <p className="text-2xl text-blue-900 mt-1">{userReports.totalUsers.toLocaleString()}</p>
                 </div>
-                <div className="p-4 bg-green-50 rounded-xl">
-                  <p className="text-sm text-green-700">Active Users</p>
-                  <p className="text-2xl text-green-900 mt-1">{userReports.activeUsers.toLocaleString()}</p>
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-700">Active Users</p>
+                  <p className="text-2xl text-blue-900 mt-1">{userReports.activeUsers.toLocaleString()}</p>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-xl">
                   <p className="text-sm text-blue-700">New This Month</p>
                   <p className="text-2xl text-blue-900 mt-1">+{userReports.newUsersThisMonth}</p>
                 </div>
-                <div className="p-4 bg-yellow-50 rounded-xl">
-                  <p className="text-sm text-yellow-700">Activity Rate</p>
-                  <p className="text-2xl text-yellow-900 mt-1">
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-700">Activity Rate</p>
+                  <p className="text-2xl text-blue-900 mt-1">
                     {Math.round((userReports.activeUsers / userReports.totalUsers) * 100)}%
                   </p>
                 </div>
@@ -205,17 +205,17 @@ export default function GlobalReportsPage() {
             <Card className="rounded-[20px] border-0 shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
-                  <FolderKanban className="w-6 h-6 text-blue-600" />
+                  {/* <FolderKanban className="w-6 h-6 text-blue-600" /> */}
                   <h2 className="text-lg font-semibold text-gray-900">Project Reports</h2>
                 </div>
-                <Button
+                {/* <Button
                   variant="outline"
                   onClick={() => handleExport('project')}
                   className="rounded-xl"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Export
-                </Button>
+                </Button> */}
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
@@ -223,21 +223,21 @@ export default function GlobalReportsPage() {
                   <p className="text-sm text-blue-700">Total Projects</p>
                   <p className="text-2xl text-blue-900 mt-1">{projectReports.totalProjects}</p>
                 </div>
-                <div className="p-4 bg-green-50 rounded-xl">
-                  <p className="text-sm text-green-700">Approved</p>
-                  <p className="text-2xl text-green-900 mt-1">{projectReports.approved}</p>
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-700">Approved</p>
+                  <p className="text-2xl text-blue-900 mt-1">{projectReports.approved}</p>
                 </div>
-                <div className="p-4 bg-yellow-50 rounded-xl">
-                  <p className="text-sm text-yellow-700">Pending</p>
-                  <p className="text-2xl text-yellow-900 mt-1">{projectReports.pending}</p>
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-700">Pending</p>
+                  <p className="text-2xl text-blue-900 mt-1">{projectReports.pending}</p>
                 </div>
-                <div className="p-4 bg-red-50 rounded-xl">
-                  <p className="text-sm text-red-700">Rejected</p>
-                  <p className="text-2xl text-red-900 mt-1">{projectReports.rejected}</p>
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-700">Rejected</p>
+                  <p className="text-2xl text-blue-900 mt-1">{projectReports.rejected}</p>
                 </div>
-                <div className="p-4 bg-purple-50 rounded-xl">
-                  <p className="text-sm text-purple-700">Success Rate</p>
-                  <p className="text-2xl text-purple-900 mt-1">{projectReports.successRate}%</p>
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-700">Success Rate</p>
+                  <p className="text-2xl text-blue-900 mt-1">{projectReports.successRate}%</p>
                 </div>
               </div>
 
@@ -276,61 +276,61 @@ export default function GlobalReportsPage() {
             <Card className="rounded-[20px] border-0 shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
-                  <DollarSign className="w-6 h-6 text-green-600" />
+                  {/* <DollarSign className="w-6 h-6 text-green-600" /> */}
                   <h2 className="text-lg font-semibold text-gray-900">Ledger & Financial Reports</h2>
                 </div>
-                <Button
+                {/* <Button
                   variant="outline"
                   onClick={() => handleExport('ledger')}
                   className="rounded-xl"
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Export
-                </Button>
+                </Button> */}
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 bg-green-50 rounded-xl">
-                  <p className="text-sm text-green-700">Total Income</p>
-                  <p className="text-xl text-green-900 mt-1">₱{Number(ledgerReports.totalIncome || 0).toLocaleString()}</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-700">Total Income</p>
+                  <p className="text-xl text-blue-900 mt-1">₱{Number(ledgerReports.totalIncome || 0).toLocaleString()}</p>
                 </div>
-                <div className="p-4 bg-red-50 rounded-xl">
-                  <p className="text-sm text-red-700">Total Expense</p>
-                  <p className="text-xl text-red-900 mt-1">₱{Number(ledgerReports.totalExpense || 0).toLocaleString()}</p>
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-700">Total Expense</p>
+                  <p className="text-xl text-blue-900 mt-1">₱{Number(ledgerReports.totalExpense || 0).toLocaleString()}</p>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-xl">
                   <p className="text-sm text-blue-700">Balance</p>
                   <p className="text-xl text-blue-900 mt-1">₱{Number(ledgerReports.balance || 0).toLocaleString()}</p>
                 </div>
-                <div className="p-4 bg-purple-50 rounded-xl">
-                  <p className="text-sm text-purple-700">Total Entries</p>
-                  <p className="text-xl text-purple-900 mt-1">{ledgerReports.totalEntries}</p>
+                <div className="p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-700">Total Entries</p>
+                  <p className="text-xl text-blue-900 mt-1">{ledgerReports.totalEntries}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="p-4 bg-blue-50 rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
-                    <Activity className="w-5 h-5 text-gray-600" />
-                    <p className="text-sm text-gray-700 font-medium">Data Accuracy</p>
+                    {/* <Activity className="w-5 h-5 text-blue-600" /> */}
+                    <p className="text-sm text-blue-700 font-medium">Data Accuracy</p>
                   </div>
-                  <p className="text-2xl text-gray-900">{ledgerReports.avgAccuracy}%</p>
+                  <p className="text-2xl text-blue-900">{ledgerReports.avgAccuracy}%</p>
                 </div>
 
-                <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="p-4 bg-blue-50 rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-5 h-5 text-gray-600" />
-                    <p className="text-sm text-gray-700 font-medium">Proof Compliance</p>
+                    {/* <FileText className="w-5 h-5 text-blue-600" /> */}
+                    <p className="text-sm text-blue-700 font-medium">Proof Compliance</p>
                   </div>
-                  <p className="text-2xl text-gray-900">{ledgerReports.proofCompliance}%</p>
+                  <p className="text-2xl text-blue-900">{ledgerReports.proofCompliance}%</p>
                 </div>
 
-                <div className="p-4 bg-gray-50 rounded-xl">
+                <div className="p-4 bg-blue-50 rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-5 h-5 text-gray-600" />
-                    <p className="text-sm text-gray-700 font-medium">Approved</p>
+                    {/* <TrendingUp className="w-5 h-5 text-blue-600" /> */}
+                    <p className="text-sm text-blue-700 font-medium">Approved</p>
                   </div>
-                  <p className="text-2xl text-gray-900">
+                  <p className="text-2xl text-blue-900">
                     {ledgerReports.approved}/{ledgerReports.totalEntries}
                   </p>
                 </div>
@@ -338,7 +338,7 @@ export default function GlobalReportsPage() {
             </Card>
 
             {/* Export Summary */}
-            <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-r from-blue-50 to-blue-50">
+            {/* <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-r from-blue-50 to-blue-50">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
                   <BarChart3 className="w-6 h-6 text-white" />
@@ -357,7 +357,7 @@ export default function GlobalReportsPage() {
                   </Button>
                 </div>
               </div>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </div>

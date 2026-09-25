@@ -216,6 +216,12 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
     hasBudget: false,
     isActive: false,
     budgetSource: 'none',
+    budgetSourceType: '',
+    budgetSourceDetails: '',
+    budgetSourceOptions: {
+      sponsorship: [],
+      donation: [],
+    },
     transferFromProjectId: '',
     transferAmount: '',
     startDate: '',

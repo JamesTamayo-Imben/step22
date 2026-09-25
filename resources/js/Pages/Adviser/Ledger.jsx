@@ -412,6 +412,7 @@ export default function LedgerApprovalsPage() {
   const [assetInventory, setAssetInventory] = useState([]);
 
   const canViewLedger = userPermissions.includes('ledger.view');
+  const canFixTampered = userPermissions.includes('ledger.fix-tampered');
   const canViewProof = userPermissions.includes('proof-documents.view');
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
@@ -1143,13 +1144,15 @@ export default function LedgerApprovalsPage() {
                         This entry has been modified after approval. You can restore it to its approved state using the blockchain snapshot. This includes restoring all fields such as amount, description, type, and budget breakdown.
                       </p>
                       <div className="grid md:grid-cols-2 grid-cols-1 items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleFixTampered(selectedEntry)}
-                          className="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors"
-                        >
-                          <RotateCcw className="w-4 h-4 mr-2 inline" /> Fix Tampered Data
-                        </button>
+                        {canFixTampered && (
+                          <button
+                            type="button"
+                            onClick={() => handleFixTampered(selectedEntry)}
+                            className="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors"
+                          >
+                            <RotateCcw className="w-4 h-4 mr-2 inline" /> Fix Tampered Data
+                          </button>
+                        )}
                         <Button
                           onClick={downloadReport}
 
@@ -1470,14 +1473,16 @@ export default function LedgerApprovalsPage() {
           </div>
 
           <div className="grid md:grid-cols-3 grid-cols-1 justify-end gap-2">
-            <button
-              type="button"
-              onClick={handleFixBudgetMismatch}
-              disabled={!budgetMismatchPassword}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Fix Budget Mismatch
-            </button>
+            {canFixTampered && (
+              <button
+                type="button"
+                onClick={handleFixBudgetMismatch}
+                disabled={!budgetMismatchPassword}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Fix Budget Mismatch
+              </button>
+            )}
             <Button
               onClick={downloadReport}
 

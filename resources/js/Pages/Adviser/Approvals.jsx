@@ -800,6 +800,61 @@ export default function AdviserApprovalsPage() {
               )}
             </div>
 
+            {(() => {
+              const rawBudgetBreakdown = selectedItem?.budget_breakdown ?? selectedItem?.initial_ledger?.budget_breakdown ?? selectedItem?.initialLedger?.budget_breakdown ?? [];
+              let projectBudgetBreakdown = [];
+
+              try {
+                projectBudgetBreakdown = Array.isArray(rawBudgetBreakdown)
+                  ? rawBudgetBreakdown
+                  : (typeof rawBudgetBreakdown === 'string' ? JSON.parse(rawBudgetBreakdown) : []);
+              } catch (error) {
+                projectBudgetBreakdown = [];
+              }
+
+              if (!Array.isArray(projectBudgetBreakdown)) {
+                projectBudgetBreakdown = [];
+              }
+
+              return projectBudgetBreakdown.length > 0 ? (
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-500 mb-1">Initial Budget Breakdown *</p>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex justify-between items-center pb-2 mb-2 border-b border-gray-300">
+                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Source</span>
+                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
+                    </div>
+                    <div className="space-y-1">
+                      {projectBudgetBreakdown.map((item, index) => {
+                        const sourceType = item?.source || item?.type || '';
+                        const sourceName = item?.name || item?.sponsor || item?.source_name || '';
+                        const hasFundingSource = sourceType && sourceName;
+                        const displayLabel = hasFundingSource ? `${sourceType} - ${sourceName}` : (item.item || item.name || 'Unnamed Item');
+                        const amountValue = `₱${(parseFloat(item.amount) || 0).toLocaleString()}`;
+
+                        return (
+                          <div key={item.id || index} className="flex justify-between items-center gap-4 py-1">
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-gray-900">{displayLabel}</span>
+                            </div>
+                            <span className="text-sm font-medium text-blue-600 whitespace-nowrap">
+                              {hasFundingSource ? `${sourceType} - ${sourceName} - ${amountValue}` : amountValue}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 font-semibold">
+                      <span className="text-gray-700">Total</span>
+                      <span className="text-blue-600">
+                        ₱{projectBudgetBreakdown.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
             {/* Proof */}
              <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
@@ -911,21 +966,28 @@ export default function AdviserApprovalsPage() {
           <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</span>
         </div>
         <div className="space-y-1">
-          {selectedItem.budget_breakdown.map((item, index) => (
-            <div key={item.id || index} className="flex justify-between items-center py-1">
-              <div className="flex-1">
-                <span className="text-sm text-gray-900">{item.item || item.name || 'Unnamed Item'}</span>
-                {(item.qty || item.quantity) && (
-                  <span className="text-xs text-gray-500 ml-2">
-                    (₱{(parseFloat(item.unitPrice) || 0).toLocaleString()} × {item.qty || item.quantity})
-                  </span>
-                )}
+          {selectedItem.budget_breakdown.map((item, index) => {
+            const sourceType = item?.source || item?.type || '';
+            const sourceName = item?.name || item?.sponsor || item?.source_name || '';
+            const hasFundingSource = sourceType && sourceName;
+            const displayLabel = hasFundingSource ? `${sourceType} - ${sourceName}` : (item.item || item.name || 'Unnamed Item');
+            const amountValue = `₱${(parseFloat(item.amount) || 0).toLocaleString()}`;
+            const quantityText = (item.qty || item.quantity) && !hasFundingSource
+              ? ` (₱${(parseFloat(item.unitPrice) || 0).toLocaleString()} × ${item.qty || item.quantity})`
+              : '';
+
+            return (
+              <div key={item.id || index} className="flex justify-between items-center gap-4 py-1">
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-gray-900">{displayLabel}</span>
+                  {quantityText && <span className="text-xs text-gray-500 ml-2">{quantityText}</span>}
+                </div>
+                <span className="text-sm font-medium text-blue-600 whitespace-nowrap">
+                  {hasFundingSource ? `${sourceType} - ${sourceName} - ${amountValue}` : amountValue}
+                </span>
               </div>
-              <span className="text-sm font-medium text-blue-600">
-                ₱{(parseFloat(item.amount) || 0).toLocaleString()}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <div className="flex justify-between pt-2 mt-2 border-t border-gray-300 font-semibold">
           <span className="text-gray-700">Total</span>

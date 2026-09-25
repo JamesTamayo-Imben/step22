@@ -882,6 +882,11 @@ class AdviserApprovalController extends Controller
         $proofPath = $p->project_proof ?: ($initialLedger?->ledger_proof ?? null);
         $proofUrl = $proofPath ? $this->temporaryProofUrl($proofPath) : null;
 
+        $initialBudgetBreakdown = $initialLedger?->budget_breakdown;
+        if (is_string($initialBudgetBreakdown)) {
+            $initialBudgetBreakdown = json_decode($initialBudgetBreakdown, true) ?? [];
+        }
+
         return [
             'id' => $p->id,
             'title' => $p->title ?? 'Untitled',
@@ -902,6 +907,11 @@ class AdviserApprovalController extends Controller
             'created_at' => optional($p->created_at)->format('Y-m-d H:i:s') ?? 'N/A',
             'proposed_by' => $p->proposed_by ?? 'Not specified',
             'project_proof' => $proofUrl,
+            'initial_ledger' => $initialLedger ? [
+                'id' => $initialLedger->id,
+                'budget_breakdown' => $initialBudgetBreakdown ?? [],
+            ] : null,
+            'budget_breakdown' => $initialBudgetBreakdown ?? [],
         ];
     }
 

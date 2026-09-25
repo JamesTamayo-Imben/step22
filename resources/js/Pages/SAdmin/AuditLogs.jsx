@@ -12,7 +12,9 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Clock
+  Clock,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 // Badge component
@@ -43,11 +45,7 @@ function SelectItem({ value, children }) {
 
 // Table components
 function Table({ children }) {
-  return (
-    <table className="w-full border-collapse">
-      {children}
-    </table>
-  );
+  return <table className="w-full border-collapse">{children}</table>;
 }
 
 function TableHeader({ children }) {
@@ -121,14 +119,10 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
       actionType: filterName === 'actionType' ? value : filterActionType,
     };
 
-    router.get(
-      basePath,
-      params,
-      {
-        preserveState: true,
-        onFinish: () => setIsLoading(false),
-      }
-    );
+    router.get(basePath, params, {
+      preserveState: true,
+      onFinish: () => setIsLoading(false),
+    });
   };
 
   const handleExport = () => {
@@ -145,6 +139,31 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
   useEffect(() => {
     setIsLoading(false);
   }, [logs]);
+
+  // Helpers for pagination navigation
+  const goToPrev = () => {
+    const prevLink = initialLogs.links?.[0];
+    if (prevLink?.url) {
+      setIsLoading(true);
+      router.visit(prevLink.url);
+    }
+  };
+
+  const goToNext = () => {
+    const nextLink = initialLogs.links?.[initialLogs.links.length - 1];
+    if (nextLink?.url) {
+      setIsLoading(true);
+      router.visit(nextLink.url);
+    }
+  };
+
+  const goToPage = (page) => {
+    const link = initialLogs.links?.[page];
+    if (link?.url) {
+      setIsLoading(true);
+      router.visit(link.url);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -165,6 +184,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
         </button>
       </div>
 
+      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="rounded-[20px] p-4 border-0 shadow-sm">
           <div className="flex items-center justify-between">
@@ -196,7 +216,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
           </div>
         </Card>
 
-        <Card className="rounded-[20px] p-4 border-0 shadow-sm ">
+        <Card className="rounded-[20px] p-4 border-0 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-red-700">Failed</p>
@@ -210,7 +230,6 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
       {/* Filters */}
       <Card className="rounded-[20px] border-0 shadow-sm p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -226,8 +245,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
             />
           </div>
 
-          {/* Module Filter */}
-          <Select 
+          <Select
             className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition disabled:opacity-50"
             value={filterModule}
             onValueChange={(value) => {
@@ -243,8 +261,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
             ))}
           </Select>
 
-          {/* Status Filter */}
-          <Select 
+          <Select
             className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition disabled:opacity-50"
             value={filterStatus}
             onValueChange={(value) => {
@@ -258,8 +275,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
             <SelectItem value="Failed">Failed</SelectItem>
           </Select>
 
-          {/* Action Type Filter */}
-          <Select 
+          <Select
             className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition disabled:opacity-50"
             value={filterActionType}
             onValueChange={(value) => {
@@ -282,72 +298,71 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
       <Card className="rounded-[20px] border-0 shadow-sm p-6 hidden md:block">
         {logs.length > 0 ? (
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="w-full table-fixed">
               <TableHeader>
                 <TableRow className="bg-blue-50">
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Module</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Linked Record</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Browser</TableHead>
-                  <TableHead>IP Address</TableHead>
+                  <TableHead className="w-[130px]">Timestamp</TableHead>
+                  <TableHead className="w-[120px]">User</TableHead>
+                  <TableHead className="w-[220px]">Action</TableHead>
+                  <TableHead className="w-[100px]">Module</TableHead>
+                  <TableHead className="w-[90px]">Type</TableHead>
+                  <TableHead className="w-[130px]">Linked Record</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
+                  <TableHead className="w-[180px]">Browser</TableHead>
+                  <TableHead className="w-[120px]">IP Address</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logs.map((log) => (
                   <TableRow key={log.id} className="hover:bg-gray-50">
-                    <TableCell className="font-mono text-xs text-gray-600">
+                    <TableCell className="font-mono text-xs text-gray-600 truncate">
                       <div className="flex items-center gap-2">
-                        <Clock className="w-3 h-3" />
-                      {log.timestamp}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-gray-900">{log.user}</TableCell>
-                  <TableCell className="max-w-xs">
-                    <div>
-                      <p className="text-sm text-gray-900">{log.action}</p>
-                      {log.details && (
-                        <p className="text-xs text-gray-500 mt-1">{log.details}</p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{formatModuleName(log.module)}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className="bg-blue-100 text-blue-700">{formatActionType(log.actionType)}</Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-gray-600">
-                    {log.actionableType ? (
-                      <div>
-                        <div className="font-medium text-gray-900 uppercase">{log.actionableType}</div>
-                        <div className="text-gray-500">ID: {log.actionableId ?? 'N/A'}</div>
+                        <Clock className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{log.timestamp}</span>
                       </div>
-                    ) : (
-                      <span className="text-gray-400">N/A</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(log.status)}
-                      <Badge className={getStatusColor(log.status)}>
-                        {log.status}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-[200px] text-xs text-gray-600">
-                    {log.browserInfo ? log.browserInfo : 'N/A'}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-gray-600">
-                    {log.ipAddress}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </TableCell>
+                    <TableCell className="text-gray-900 truncate">{log.user}</TableCell>
+                    <TableCell className="max-w-[220px]">
+                      <div>
+                        <p className="text-sm text-gray-900 break-words">{log.action}</p>
+                        {log.details && (
+                          <p className="text-xs text-gray-500 mt-1 break-words">{log.details}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="truncate">
+                      <Badge variant="outline">{formatModuleName(log.module)}</Badge>
+                    </TableCell>
+                    <TableCell className="truncate">
+                      <Badge className="bg-blue-100 text-blue-700">{formatActionType(log.actionType)}</Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-gray-600 truncate">
+                      {log.actionableType ? (
+                        <div>
+                          <div className="font-medium text-gray-900 uppercase truncate">{log.actionableType}</div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="truncate">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(log.status)}
+                        <Badge className={getStatusColor(log.status)}>
+                          {log.status}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-[180px] text-xs text-gray-600 truncate">
+                      {log.browserInfo ? log.browserInfo : 'N/A'}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-gray-600 truncate">
+                      {log.ipAddress}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         ) : (
           <div className="py-8 text-center">
@@ -356,33 +371,6 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
           </div>
         )}
       </Card>
-
-      {/* Pagination - Backend handled */}
-      {initialLogs.links && initialLogs.links.length > 3 && (
-        <div className="flex items-center justify-center gap-2 p-4">
-          {initialLogs.links.map((link, index) => (
-            link.url ? (
-              <button
-                key={index}
-                onClick={() => {
-                  setIsLoading(true);
-                  router.visit(link.url);
-                }}
-                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                  link.active
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-                dangerouslySetInnerHTML={{ __html: link.label }}
-              />
-            ) : (
-              <span key={index} className="px-3 py-1 text-sm text-gray-400">
-                {link.label === '&laquo; Previous' ? '← Prev' : 'Next →'}
-              </span>
-            )
-          ))}
-        </div>
-      )}
 
       {/* Logs Cards - Mobile */}
       <div className="md:hidden space-y-4">
@@ -429,6 +417,115 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
           </Card>
         ))}
       </div>
+
+      {/* Pagination - Shared for Mobile & Desktop */}
+      {initialLogs.links && initialLogs.links.length > 3 && (
+        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
+          {/* Mobile pagination */}
+          <div className="flex flex-1 justify-between sm:hidden">
+            <Button
+              onClick={goToPrev}
+              disabled={!initialLogs.links[0]?.url}
+              className="relative inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </Button>
+            <Button
+              onClick={goToNext}
+              disabled={!initialLogs.links[initialLogs.links.length - 1]?.url}
+              className="relative ml-3 inline-flex items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </Button>
+          </div>
+
+          {/* Desktop pagination */}
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Page <span className="font-medium">{initialLogs.current_page || 1}</span> of{' '}
+                <span className="font-medium">{initialLogs.last_page || 1}</span>
+              </p>
+            </div>
+            <div>
+              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                {/* Previous Button */}
+                <Button
+                  onClick={goToPrev}
+                  disabled={!initialLogs.links[0]?.url}
+                  className="relative inline-flex items-center rounded-l-xl border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="sr-only">Previous</span>
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+
+                {/* Page Numbers */}
+                {(() => {
+                  const currentPage = initialLogs.current_page || 1;
+                  const lastPage = initialLogs.last_page || 1;
+                  const pages = [];
+
+                  for (let page = 1; page <= lastPage; page++) {
+                    const isCurrentPage = page === currentPage;
+
+                    // Show first, last, and pages around current
+                    const shouldShow =
+                      page === 1 ||
+                      page === lastPage ||
+                      (page >= currentPage - 1 && page <= currentPage + 1);
+
+                    if (shouldShow) {
+                      // Laravel's links array: [Prev, 1, 2, 3, ..., Next]
+                      // So index for page N is N (since index 0 is Prev)
+                      const link = initialLogs.links[page];
+
+                      pages.push(
+                        <Button
+                          key={page}
+                          onClick={() => goToPage(page)}
+                          disabled={!link?.url}
+                          className={`relative inline-flex items-center border px-4 py-2 text-sm font-medium ${
+                            isCurrentPage
+                              ? 'z-10 bg-blue-600 text-white border-blue-600'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          {page}
+                        </Button>
+                      );
+                    } else if (
+                      // Show ellipsis only once before/after the visible range
+                      (page === currentPage - 2 && currentPage - 2 > 1) ||
+                      (page === currentPage + 2 && currentPage + 2 < lastPage)
+                    ) {
+                      pages.push(
+                        <span
+                          key={`ellipsis-${page}`}
+                          className="relative inline-flex items-center border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                  }
+
+                  return pages;
+                })()}
+
+                {/* Next Button */}
+                <Button
+                  onClick={goToNext}
+                  disabled={!initialLogs.links[initialLogs.links.length - 1]?.url}
+                  className="relative inline-flex items-center rounded-r-xl border border-gray-300 bg-white px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="sr-only">Next</span>
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </nav>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Empty State */}
       {logs.length === 0 && (

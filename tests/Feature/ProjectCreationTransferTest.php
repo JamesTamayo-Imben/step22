@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Adviser\AdviserApprovalController;
 use App\Http\Controllers\CSG\ProjectController;
 use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Project;
@@ -216,6 +217,160 @@ class ProjectCreationTransferTest extends TestCase
                 ->where('approval_status', '!=', 'Draft')
                 ->doesntExist()
         );
+    }
+
+    public function test_project_creation_includes_new_budget_source_details_in_initial_ledger_description(): void
+    {
+        Storage::fake('supabase');
+        $user = $this->authorizedUser('csg');
+        Auth::login($user);
+
+        $request = Request::create('/api/projects', 'POST', [
+            'title' => 'Funding source project',
+            'description' => 'This project supports student wellness activities.',
+            'objective' => 'Support student wellness activities',
+            'venue' => 'Main Hall',
+            'category' => 'Health',
+            'budget' => 2500,
+            'has_budget' => 1,
+            'budget_source' => 'none',
+            'budget_source_type' => 'sponsorship',
+            'budget_source_details' => 'ABC Corporation',
+            'proposed_by' => 'Tester',
+            'status' => 'Draft',
+            'approval_status' => 'Draft',
+        ]);
+        $request->setUserResolver(fn () => $user);
+        $request->files->add([
+            'project_proof' => UploadedFile::fake()->create('proof.pdf', 120, 'application/pdf'),
+        ]);
+
+        $response = (new ProjectController())->store($request);
+
+        $this->assertEquals(201, $response->getStatusCode());
+
+        $payload = json_decode($response->getContent(), true);
+        $project = Project::find($payload['id']);
+
+        $this->assertNotNull($project);
+        $this->assertStringNotContainsString('Sponsorship', (string) $project->description);
+
+        $initialLedger = LedgerEntry::where('project_id', $project->id)
+            ->where('type', 'Initial')
+            ->first();
+
+        $this->assertNotNull($initialLedger);
+        $this->assertStringContainsString('Sponsorship', (string) $initialLedger->description);
+        $this->assertStringContainsString('ABC Corporation', (string) $initialLedger->description);
+    }
+
+    public function test_project_creation_accepts_multiple_budget_source_entries_for_initial_ledger_description(): void
+    {
+        Storage::fake('supabase');
+        $user = $this->authorizedUser('csg');
+        Auth::login($user);
+
+        $request = Request::create('/api/projects', 'POST', [
+            'title' => 'Multiple funding sources project',
+            'description' => 'This project supports multiple funding sources.',
+            'objective' => 'Support all project needs',
+            'venue' => 'Main Hall',
+            'category' => 'Health',
+            'budget' => 2000,
+            'has_budget' => 1,
+            'budget_source' => 'none',
+            'budget_source_type' => 'sponsorship,donation',
+            'budget_source_details' => json_encode([
+                'sponsorship' => [
+                    ['name' => 'ABC Corporation', 'amount' => 1200],
+                    ['name' => 'Student Council', 'amount' => 300],
+                ],
+                'donation' => [
+                    ['name' => 'Community Donors', 'amount' => 500],
+                ],
+            ]),
+            'proposed_by' => 'Tester',
+            'status' => 'Draft',
+            'approval_status' => 'Draft',
+        ]);
+        $request->setUserResolver(fn () => $user);
+        $request->files->add([
+            'project_proof' => UploadedFile::fake()->create('proof.pdf', 120, 'application/pdf'),
+        ]);
+
+        $response = (new ProjectController())->store($request);
+
+        $this->assertEquals(201, $response->getStatusCode());
+
+        $payload = json_decode($response->getContent(), true);
+        $project = Project::find($payload['id']);
+        $this->assertNotNull($project);
+
+        $initialLedger = LedgerEntry::where('project_id', $project->id)
+            ->where('type', 'Initial')
+            ->first();
+
+        $this->assertNotNull($initialLedger);
+        $this->assertStringContainsString('Sponsorship came from:', (string) $initialLedger->description);
+        $this->assertStringContainsString('Donation came from:', (string) $initialLedger->description);
+        $this->assertStringContainsString('ABC Corporation', (string) $initialLedger->description);
+        $this->assertStringContainsString('Community Donors', (string) $initialLedger->description);
+
+        $breakdown = json_decode((string) $initialLedger->budget_breakdown, true);
+        $this->assertIsArray($breakdown);
+        $this->assertNotEmpty($breakdown);
+        $this->assertContains('Sponsorship', array_column($breakdown, 'source'));
+        $this->assertContains('Donation', array_column($breakdown, 'source'));
+        $this->assertContains('ABC Corporation', array_column($breakdown, 'name'));
+        $this->assertContains('Community Donors', array_column($breakdown, 'name'));
+    }
+
+    public function test_adviser_project_serialization_includes_initial_budget_breakdown(): void
+    {
+        Storage::fake('supabase');
+        $user = $this->authorizedUser('csg');
+        Auth::login($user);
+
+        $request = Request::create('/api/projects', 'POST', [
+            'title' => 'Project with sponsor breakdown',
+            'description' => 'This project is funded by sponsors.',
+            'objective' => 'Support upcoming activities',
+            'venue' => 'Main Hall',
+            'category' => 'Community',
+            'budget' => 2500,
+            'has_budget' => 1,
+            'budget_source' => 'none',
+            'budget_source_type' => 'sponsorship,donation',
+            'budget_source_details' => json_encode([
+                'sponsorship' => [
+                    ['name' => 'ABC Corporation', 'amount' => 1500],
+                ],
+                'donation' => [
+                    ['name' => 'Community Donors', 'amount' => 1000],
+                ],
+            ]),
+            'proposed_by' => 'Tester',
+            'status' => 'Draft',
+            'approval_status' => 'Draft',
+        ]);
+        $request->setUserResolver(fn () => $user);
+        $request->files->add([
+            'project_proof' => UploadedFile::fake()->create('proof.pdf', 120, 'application/pdf'),
+        ]);
+
+        $response = (new ProjectController())->store($request);
+        $this->assertEquals(201, $response->getStatusCode());
+
+        $project = \App\Models\User\Project::query()->where('title', 'Project with sponsor breakdown')->first();
+        $this->assertNotNull($project);
+
+        $method = new \ReflectionMethod(AdviserApprovalController::class, 'serializeProject');
+        $method->setAccessible(true);
+        $serialized = $method->invoke(new AdviserApprovalController(), $project, 'Pending Approval');
+
+        $this->assertNotEmpty($serialized['budget_breakdown']);
+        $this->assertContains('Sponsorship', array_column($serialized['budget_breakdown'], 'source'));
+        $this->assertContains('Donation', array_column($serialized['budget_breakdown'], 'source'));
     }
 
     public function test_project_creation_can_transfer_budget_from_completed_project(): void

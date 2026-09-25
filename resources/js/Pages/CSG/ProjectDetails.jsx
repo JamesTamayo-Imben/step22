@@ -108,6 +108,61 @@ const defaultProject = {
   is_initial: 0,
 };
 
+const buildBudgetSourceOptions = (rawValue) => {
+  const sourceOptions = { sponsorship: [], donation: [] };
+  if (!rawValue) return sourceOptions;
+
+  const pushEntry = (entry, fallbackKey = 'sponsorship') => {
+    const sourceLabel = String(entry?.source || entry?.type || entry?.key || entry?.category || '').toLowerCase();
+    const key = sourceLabel.includes('donation') ? 'donation' : sourceLabel.includes('sponsorship') ? 'sponsorship' : fallbackKey;
+    const name = String(entry?.name || entry?.sponsor || entry?.source_name || '').trim();
+    const amount = Number(entry?.amount ?? entry?.value ?? 0);
+
+    if (!name && amount <= 0) return;
+
+    sourceOptions[key].push({
+      id: entry?.id || `${key}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name,
+      amount,
+    });
+  };
+
+  if (Array.isArray(rawValue)) {
+    rawValue.forEach((entry) => pushEntry(entry));
+    return sourceOptions;
+  }
+
+  let parsedValue = rawValue;
+  if (typeof parsedValue === 'string') {
+    try {
+      parsedValue = JSON.parse(parsedValue);
+    } catch {
+      parsedValue = null;
+    }
+  }
+
+  if (!parsedValue || typeof parsedValue !== 'object') {
+    return sourceOptions;
+  }
+
+  if (Array.isArray(parsedValue.sponsorship)) {
+    parsedValue.sponsorship.forEach((entry) => pushEntry(entry, 'sponsorship'));
+  }
+
+  if (Array.isArray(parsedValue.donation)) {
+    parsedValue.donation.forEach((entry) => pushEntry(entry, 'donation'));
+  }
+
+  if (!parsedValue.sponsorship && !parsedValue.donation) {
+    Object.entries(parsedValue).forEach(([key, entries]) => {
+      if (!Array.isArray(entries)) return;
+      entries.forEach((entry) => pushEntry(entry, key === 'donation' ? 'donation' : 'sponsorship'));
+    });
+  }
+
+  return sourceOptions;
+};
+
 // ─── Mock Data for Status Timeline and Ratings ────────────────────────────────────
 const mockStatusHistory = [
   { 
@@ -1600,18 +1655,35 @@ function maskUserName(fullName) {
               <EditActionButtons
                 onSubmit={() => setShowSubmitConfirm(true)}
                 onEdit={() => {
+                  const initialBudgetEntry = (ledgerEntries || []).find((entry) =>
+                    (entry.type || '').toLowerCase() === 'initial' || (entry.type || '').toLowerCase() === 'initial transfer'
+                  );
+
+                  const sourceData =
+                    initialBudgetEntry?.budgetBreakdown ||
+                    initialBudgetEntry?.budget_breakdown ||
+                    project.budgetBreakdown ||
+                    project.budget_breakdown ||
+                    project.budgetSourceDetails ||
+                    project.budget_source_details ||
+                    [];
+
+                  const sourceOptions = buildBudgetSourceOptions(sourceData);
+                  const hasSavedSourceEntries = Object.values(sourceOptions).some((entries) => Array.isArray(entries) && entries.length > 0);
+
                   setEditForm({ 
                     ...project,
                     startDate: project.startDate,
                     endDate: project.endDate,
                     budgetBreakdown: project.budgetBreakdown,
+                    budgetSourceOptions: sourceOptions,
                     status: project.status,
                     approvalStatus: project.approvalStatus,
                     archive: project.archive,
                     note: project.note,
                     approveBy: project.approveBy,
                     hasBudget: Number(project.budget || 0) > 0,
-                    budgetSource: project.budgetSource || 'none',
+                    budgetSource: hasSavedSourceEntries ? 'none' : (project.budgetSource || 'none'),
                     transferFromProjectId: project.transferFromProjectId || '',
                     transferAmount: project.transferAmount || '',
                   });
@@ -2563,21 +2635,28 @@ function maskUserName(fullName) {
               
               {/* Items */}
               <div className="space-y-1">
-                {selectedLedger.budgetBreakdown.map((item, index) => (
-                  <div key={item.id || index} className="flex justify-between items-center py-1">
-                    <div className="flex-1">
-                      <span className="text-sm text-gray-900">{item.item}</span>
-                      {(item.quantity || item.qty) && (
-                        <span className="text-xs text-gray-500 ml-2">
-                          (₱{formatLimitedNumber(parseFloat(item.unitPrice) || 0)} x {item.quantity || item.qty})
-                        </span>
-                      )}
+                {selectedLedger.budgetBreakdown.map((item, index) => {
+                  const sourceType = item?.source || item?.type || '';
+                  const sourceName = item?.name || item?.sponsor || item?.source_name || '';
+                  const hasFundingSource = sourceType && sourceName;
+                  const displayLabel = hasFundingSource ? `${sourceType} - ${sourceName}` : (item.item || item.name || 'Unnamed Item');
+                  const amountValue = `₱${formatLimitedNumber(parseFloat(item.amount) || 0)}`;
+                  const quantityText = (item.quantity || item.qty) && !hasFundingSource
+                    ? ` (₱${formatLimitedNumber(parseFloat(item.unitPrice) || 0)} x ${item.quantity || item.qty})`
+                    : '';
+
+                  return (
+                    <div key={item.id || index} className="flex justify-between items-center gap-4 py-1">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-gray-900">{displayLabel}</span>
+                        {quantityText && <span className="text-xs text-gray-500 ml-2">{quantityText}</span>}
+                      </div>
+                      <span className="text-sm font-medium text-blue-600 whitespace-nowrap">
+                        {hasFundingSource ? `${sourceType} - ${sourceName} - ${amountValue}` : amountValue}
+                      </span>
                     </div>
-                    <span className="text-sm font-medium text-blue-600">
-                      ₱{formatLimitedNumber(parseFloat(item.amount) || 0)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               
               {/* Total */}

@@ -98,6 +98,32 @@ function getMinimumEndDate(startDate) {
   return minEndDate.toISOString().split('T')[0];
 }
 
+function getDefaultBudgetSourceOptions() {
+  return {
+    sponsorship: [],
+    donation: [],
+  };
+}
+
+function getBudgetSourceEntries(sourceOptions, type) {
+  return Array.isArray(sourceOptions?.[type]) ? sourceOptions[type] : [];
+}
+
+function getBudgetSourceTotal(sourceOptions) {
+  return Object.entries(sourceOptions || getDefaultBudgetSourceOptions()).reduce((sum, [, entries]) => {
+    if (!Array.isArray(entries)) return sum;
+    return sum + entries.reduce((groupSum, entry) => groupSum + (Number(entry?.amount) || 0), 0);
+  }, 0);
+}
+
+function addBudgetSourceEntry(sourceOptions, type) {
+  const template = { id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`, name: '', amount: '' };
+  return {
+    ...sourceOptions,
+    [type]: [...getBudgetSourceEntries(sourceOptions, type), template],
+  };
+}
+
 // ─── Create Project Modal ───────────────────────────────────────────────────
 
 export function CreateProjectModal({
@@ -206,9 +232,37 @@ export function CreateProjectModal({
       return;
     }
 
-    if (newProject.hasBudget && newProject.budgetSource === 'none' && (!newProject.budget || parseFloat(newProject.budget) <= 0)) {
-      showToast('Please enter a valid budget amount for a newly created budget', 'error');
-      return;
+    if (newProject.hasBudget && newProject.budgetSource === 'none') {
+      const sourceOptions = newProject.budgetSourceOptions || getDefaultBudgetSourceOptions();
+      const selectedSources = Object.entries(sourceOptions)
+        .flatMap(([key, entries]) => (Array.isArray(entries) ? entries.map((entry) => ({ ...entry, key })) : []))
+        .filter((entry) => String(entry?.name || '').trim() || Number(entry?.amount || 0) > 0);
+
+      if (selectedSources.length === 0) {
+        showToast('Please select at least one budget source', 'error');
+        return;
+      }
+
+      const invalidSource = Object.entries(sourceOptions)
+        .flatMap(([key, entries]) => (Array.isArray(entries) ? entries.map((entry) => ({ ...entry, key })) : []))
+        .some((entry) => {
+          const hasValue = String(entry?.name || '').trim() || Number(entry?.amount || 0) > 0;
+          if (!hasValue) return false;
+          return !String(entry?.name || '').trim() || Number(entry?.amount || 0) <= 0;
+        });
+
+      if (invalidSource) {
+        showToast('Please provide each selected source name and amount', 'error');
+        return;
+      }
+
+      const autoBudgetTotal = getBudgetSourceTotal(sourceOptions);
+      if (!autoBudgetTotal || autoBudgetTotal <= 0) {
+        showToast('Budget total must be greater than zero', 'error');
+        return;
+      }
+
+      setNewProject({ ...newProject, budget: String(autoBudgetTotal) });
     }
 
     if (newProject.hasBudget && newProject.budgetSource === 'past_project') {
@@ -241,16 +295,32 @@ export function CreateProjectModal({
 
     setIsLoading(true);
 
+    const budgetSourceEntries = newProject.budgetSourceOptions || getDefaultBudgetSourceOptions();
+    const selectedBudgetSources = Object.entries(budgetSourceEntries)
+      .flatMap(([key, entries]) => (Array.isArray(entries) ? entries.map((entry) => ({
+        key,
+        id: entry?.id || `${key}-${Math.random()}`,
+        name: String(entry?.name || '').trim(),
+        amount: Number(entry?.amount || 0),
+      })) : []))
+      .filter((entry) => String(entry?.name || '').trim() || Number(entry?.amount || 0) > 0);
+    const autoBudgetTotal = getBudgetSourceTotal(budgetSourceEntries);
+
     const formData = new FormData();
     formData.append('title', newProject.title);
     formData.append('description', newProject.description);
     formData.append('objective', newProject.objective);
     formData.append('venue', newProject.venue);
     formData.append('category', newProject.category);
-    formData.append('budget', newProject.hasBudget ? (newProject.budget || '') : '');
+    formData.append('budget', newProject.hasBudget ? (newProject.budgetSource === 'none' ? String(autoBudgetTotal) : (newProject.budget || '')) : '');
     formData.append('has_budget', newProject.hasBudget ? '1' : '0');
     formData.append('is_active', '0');
     formData.append('budget_source', newProject.hasBudget ? (newProject.budgetSource || 'none') : 'none');
+    formData.append('budget_source_type', newProject.hasBudget && newProject.budgetSource === 'none' ? selectedBudgetSources.map((entry) => entry.key).join(',') : '');
+    formData.append('budget_source_details', newProject.hasBudget && newProject.budgetSource === 'none' ? JSON.stringify({
+      sponsorship: (newProject.budgetSourceOptions?.sponsorship || []).map((entry) => ({ name: String(entry?.name || '').trim(), amount: Number(entry?.amount || 0) })),
+      donation: (newProject.budgetSourceOptions?.donation || []).map((entry) => ({ name: String(entry?.name || '').trim(), amount: Number(entry?.amount || 0) })),
+    }) : '');
     formData.append('transfer_from_project_id', '');
     formData.append('transfer_amount', newProject.transferAmount || '');
     formData.append('status', 'Draft');
@@ -419,16 +489,16 @@ export function CreateProjectModal({
           </div>
 
           {newProject.hasBudget && newProject.budgetSource === 'none' && (
-            <div>
-              <FieldLabel>Budget Amount *</FieldLabel>
+            <div className="hidden">
+              <FieldLabel>Budget Amount</FieldLabel>
               <Input
                 type="number"
-                placeholder="Enter project budget amount"
-                value={newProject.budget || ''}
-                onChange={(e) => setNewProject({ ...newProject, budget: e.target.value })}
+                placeholder="Auto-calculated from selected sources"
+                value={String(getBudgetSourceTotal(newProject.budgetSourceOptions || getDefaultBudgetSourceOptions()))}
                 min="0"
                 step="0.01"
-                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                readOnly
+                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 text-gray-600 cursor-not-allowed"
               />
             </div>
           )}
@@ -460,8 +530,140 @@ export function CreateProjectModal({
             </div>
 
             {newProject.budgetSource === 'none' && (
-              <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700">
-                Enter the budget amount for this new project.
+              <div className="space-y-3">
+                <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700">
+                  Enter the budget amount for this new project.
+                </div>
+
+                <div>
+                  <FieldLabel>Where did this budget come from? *</FieldLabel>
+                  <div className="space-y-3">
+                    {[
+                      { value: 'sponsorship', label: 'Sponsorship' },
+                      { value: 'donation', label: 'Donation' },
+                    ].map((option) => {
+                      const entries = getBudgetSourceEntries(newProject.budgetSourceOptions, option.value);
+                      const selected = entries.length > 0;
+                      return (
+                        <div key={option.value} className="rounded-xl border border-gray-200 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <label className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={(e) => {
+                                  const currentOptions = newProject.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                  const updatedOptions = {
+                                    ...currentOptions,
+                                    [option.value]: e.target.checked ? [{ id: `${option.value}-1`, name: '', amount: '' }] : [],
+                                  };
+                                  setNewProject({
+                                    ...newProject,
+                                    budget: String(getBudgetSourceTotal(updatedOptions)),
+                                    budgetSourceOptions: updatedOptions,
+                                  });
+                                }}
+                              />
+                              {option.label}
+                            </label>
+                            {selected && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const currentOptions = newProject.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                  const updatedOptions = addBudgetSourceEntry(currentOptions, option.value);
+                                  setNewProject({
+                                    ...newProject,
+                                    budget: String(getBudgetSourceTotal(updatedOptions)),
+                                    budgetSourceOptions: updatedOptions,
+                                  });
+                                }}
+                                className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                              >
+                                + Add {option.label}
+                              </button>
+                            )}
+                          </div>
+
+                          {selected && (
+                            <div className="mt-3 space-y-3">
+                              {entries.map((entry, index) => (
+                                <div key={entry.id || `${option.value}-${index}`} className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr_auto] gap-3">
+                                  <div>
+                                    <FieldLabel>{option.label} Name *</FieldLabel>
+                                    <Input
+                                      placeholder={option.value === 'sponsorship' ? 'e.g. ABC Corporation' : 'e.g. Alumni Donors'}
+                                      value={entry.name || ''}
+                                      onChange={(e) => {
+                                        const currentOptions = newProject.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                        const nextEntries = [...getBudgetSourceEntries(currentOptions, option.value)];
+                                        nextEntries[index] = { ...entry, name: e.target.value };
+                                        setNewProject({
+                                          ...newProject,
+                                          budget: String(getBudgetSourceTotal({ ...currentOptions, [option.value]: nextEntries })),
+                                          budgetSourceOptions: { ...currentOptions, [option.value]: nextEntries },
+                                        });
+                                      }}
+                                      className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <FieldLabel>{option.label} Amount *</FieldLabel>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      placeholder="0.00"
+                                      value={entry.amount || ''}
+                                      onChange={(e) => {
+                                        const currentOptions = newProject.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                        const nextEntries = [...getBudgetSourceEntries(currentOptions, option.value)];
+                                        nextEntries[index] = { ...entry, amount: e.target.value };
+                                        setNewProject({
+                                          ...newProject,
+                                          budget: String(getBudgetSourceTotal({ ...currentOptions, [option.value]: nextEntries })),
+                                          budgetSourceOptions: { ...currentOptions, [option.value]: nextEntries },
+                                        });
+                                      }}
+                                      className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                                    />
+                                  </div>
+                                  <div className="flex items-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const currentOptions = newProject.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                        const nextEntries = getBudgetSourceEntries(currentOptions, option.value).filter((_, itemIndex) => itemIndex !== index);
+                                        const updatedOptions = { ...currentOptions, [option.value]: nextEntries };
+                                        setNewProject({
+                                          ...newProject,
+                                          budget: String(getBudgetSourceTotal(updatedOptions)),
+                                          budgetSourceOptions: updatedOptions,
+                                        });
+                                      }}
+                                      className="h-10 px-3 rounded-xl border border-red-200 bg-red-50 text-red-600 text-sm"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">Auto-calculated total</span>
+                    <strong className="text-blue-600 ">
+                      ₱{getBudgetSourceTotal(newProject.budgetSourceOptions || getDefaultBudgetSourceOptions()).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </strong>
+                  </div>
+                </div>
               </div>
             )}
 

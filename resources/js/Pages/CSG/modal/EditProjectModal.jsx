@@ -104,6 +104,87 @@ function getProofDetails(value) {
   return { url: url.toString(), fileName, extension };
 }
 
+function getDefaultBudgetSourceOptions() {
+  return {
+    sponsorship: [],
+    donation: [],
+  };
+}
+
+function getBudgetSourceEntries(sourceOptions, type) {
+  return Array.isArray(sourceOptions?.[type]) ? sourceOptions[type] : [];
+}
+
+function getBudgetSourceTotal(sourceOptions) {
+  return Object.entries(sourceOptions || getDefaultBudgetSourceOptions()).reduce((sum, [, entries]) => {
+    if (!Array.isArray(entries)) return sum;
+    return sum + entries.reduce((groupSum, entry) => groupSum + (Number(entry?.amount) || 0), 0);
+  }, 0);
+}
+
+function addBudgetSourceEntry(sourceOptions, type) {
+  const template = { id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`, name: '', amount: '' };
+  return {
+    ...sourceOptions,
+    [type]: [...getBudgetSourceEntries(sourceOptions, type), template],
+  };
+}
+
+function normalizeBudgetSourceOptions(rawValue) {
+  const sourceOptions = getDefaultBudgetSourceOptions();
+  if (!rawValue) return sourceOptions;
+
+  const pushEntry = (entry, fallbackKey = 'sponsorship') => {
+    const sourceLabel = String(entry?.source || entry?.type || entry?.key || entry?.category || '').toLowerCase();
+    const key = sourceLabel.includes('donation') ? 'donation' : sourceLabel.includes('sponsorship') ? 'sponsorship' : fallbackKey;
+    const name = String(entry?.name || entry?.sponsor || entry?.source_name || '').trim();
+    const amount = Number(entry?.amount ?? entry?.value ?? 0);
+
+    if (!name && amount <= 0) return;
+
+    sourceOptions[key].push({
+      id: entry?.id || `${key}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name,
+      amount,
+    });
+  };
+
+  if (Array.isArray(rawValue)) {
+    rawValue.forEach((entry) => pushEntry(entry));
+    return sourceOptions;
+  }
+
+  let parsedValue = rawValue;
+  if (typeof parsedValue === 'string') {
+    try {
+      parsedValue = JSON.parse(parsedValue);
+    } catch {
+      parsedValue = null;
+    }
+  }
+
+  if (!parsedValue || typeof parsedValue !== 'object') {
+    return sourceOptions;
+  }
+
+  if (Array.isArray(parsedValue.sponsorship)) {
+    parsedValue.sponsorship.forEach((entry) => pushEntry(entry, 'sponsorship'));
+  }
+
+  if (Array.isArray(parsedValue.donation)) {
+    parsedValue.donation.forEach((entry) => pushEntry(entry, 'donation'));
+  }
+
+  if (!Array.isArray(parsedValue.sponsorship) && !Array.isArray(parsedValue.donation)) {
+    Object.entries(parsedValue).forEach(([key, entries]) => {
+      if (!Array.isArray(entries)) return;
+      entries.forEach((entry) => pushEntry(entry, key === 'donation' ? 'donation' : 'sponsorship'));
+    });
+  }
+
+  return sourceOptions;
+}
+
 // ─── Edit Project Modal ──────────────────────────────────────────────────────
 
 export function EditProjectModal({
@@ -120,6 +201,31 @@ export function EditProjectModal({
   const [isUploading, setIsUploading] = useState(false);
   const [completedProjects, setCompletedProjects] = useState([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+
+  useEffect(() => {
+    if (!open || !editForm) return;
+
+    const hydratedSources = normalizeBudgetSourceOptions(
+      editForm.budgetSourceOptions ??
+      editForm.budgetBreakdown ??
+      editForm.budget_breakdown ??
+      editForm.budgetSourceDetails ??
+      editForm.budget_source_details ??
+      []
+    );
+
+    const hasHydratedData = Object.values(hydratedSources).some((entries) => Array.isArray(entries) && entries.length > 0);
+    const currentSources = editForm.budgetSourceOptions || getDefaultBudgetSourceOptions();
+
+    if (hasHydratedData && JSON.stringify(currentSources) !== JSON.stringify(hydratedSources)) {
+      setEditForm((current) => ({
+        ...current,
+        budgetSourceOptions: hydratedSources,
+        hasBudget: current.hasBudget ?? Number(current.budget || 0) > 0,
+        budgetSource: current.budgetSource || 'none',
+      }));
+    }
+  }, [open, editForm?.budgetSourceOptions, editForm?.budgetBreakdown, editForm?.budget_breakdown, editForm?.budgetSourceDetails, editForm?.budget_source_details]);
 
   useEffect(() => {
     if (!open) return;
@@ -181,9 +287,37 @@ export function EditProjectModal({
     return;
   }
 
-  if (editForm.hasBudget && editForm.budgetSource === 'none' && (!editForm.budget || parseFloat(editForm.budget) <= 0)) {
-    showToast('Please enter a valid budget amount for a newly created budget', 'error');
-    return;
+  if (editForm.hasBudget && editForm.budgetSource === 'none') {
+    const sourceOptions = editForm.budgetSourceOptions || getDefaultBudgetSourceOptions();
+    const selectedSources = Object.entries(sourceOptions)
+      .flatMap(([key, entries]) => (Array.isArray(entries) ? entries.map((entry) => ({ ...entry, key })) : []))
+      .filter((entry) => String(entry?.name || '').trim() || Number(entry?.amount || 0) > 0);
+
+    if (selectedSources.length === 0) {
+      showToast('Please select at least one budget source', 'error');
+      return;
+    }
+
+    const invalidSource = Object.entries(sourceOptions)
+      .flatMap(([key, entries]) => (Array.isArray(entries) ? entries.map((entry) => ({ ...entry, key })) : []))
+      .some((entry) => {
+        const hasValue = String(entry?.name || '').trim() || Number(entry?.amount || 0) > 0;
+        if (!hasValue) return false;
+        return !String(entry?.name || '').trim() || Number(entry?.amount || 0) <= 0;
+      });
+
+    if (invalidSource) {
+      showToast('Please provide each selected source name and amount', 'error');
+      return;
+    }
+
+    const autoBudgetTotal = getBudgetSourceTotal(sourceOptions);
+    if (!autoBudgetTotal || autoBudgetTotal <= 0) {
+      showToast('Budget total must be greater than zero', 'error');
+      return;
+    }
+
+    setEditForm({ ...editForm, budget: String(autoBudgetTotal) });
   }
 
   if (editForm.hasBudget && editForm.budgetSource === 'past_project') {
@@ -224,6 +358,17 @@ export function EditProjectModal({
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
     // Create FormData for file upload
+    const sourceOptions = editForm.budgetSourceOptions || getDefaultBudgetSourceOptions();
+    const selectedBudgetSources = Object.entries(sourceOptions)
+      .flatMap(([key, entries]) => (Array.isArray(entries) ? entries.map((entry) => ({
+        key,
+        id: entry?.id || `${key}-${Math.random()}`,
+        name: String(entry?.name || '').trim(),
+        amount: Number(entry?.amount || 0),
+      })) : []))
+      .filter((entry) => String(entry?.name || '').trim() || Number(entry?.amount || 0) > 0);
+    const autoBudgetTotal = getBudgetSourceTotal(sourceOptions);
+
     const formData = new FormData();
     formData.append('_method', 'PUT'); // Laravel method spoofing
 
@@ -233,9 +378,14 @@ export function EditProjectModal({
     formData.append('objective', editForm.objective || '');
     formData.append('venue', editForm.venue || '');
     formData.append('category', editForm.category);
-    formData.append('budget', editForm.hasBudget ? (editForm.budget || '') : '');
+    formData.append('budget', editForm.hasBudget ? (editForm.budgetSource === 'none' ? String(autoBudgetTotal) : (editForm.budget || '')) : '');
     formData.append('has_budget', editForm.hasBudget ? '1' : '0');
     formData.append('budget_source', editForm.hasBudget ? (editForm.budgetSource || 'none') : 'none');
+    formData.append('budget_source_type', editForm.hasBudget && editForm.budgetSource === 'none' ? selectedBudgetSources.map((entry) => entry.key).join(',') : '');
+    formData.append('budget_source_details', editForm.hasBudget && editForm.budgetSource === 'none' ? JSON.stringify({
+      sponsorship: (editForm.budgetSourceOptions?.sponsorship || []).map((entry) => ({ name: String(entry?.name || '').trim(), amount: Number(entry?.amount || 0) })),
+      donation: (editForm.budgetSourceOptions?.donation || []).map((entry) => ({ name: String(entry?.name || '').trim(), amount: Number(entry?.amount || 0) })),
+    }) : '');
     formData.append('transfer_from_project_id', editForm.transferFromProjectId || '');
     formData.append('transfer_amount', editForm.transferAmount || '');
     formData.append('proposed_by', editForm.proposedBy);
@@ -383,16 +533,16 @@ export function EditProjectModal({
           </div>
 
           {editForm.hasBudget && editForm.budgetSource === 'none' && (
-            <div>
-              <FieldLabel>Budget Amount *</FieldLabel>
+            <div className="hidden">
+              <FieldLabel>Budget Amount</FieldLabel>
               <Input
                 type="number"
-                placeholder="Enter project budget amount"
-                value={editForm.budget || ''}
-                onChange={(e) => setEditForm({ ...editForm, budget: e.target.value })}
+                placeholder="Auto-calculated from selected sources"
+                value={String(getBudgetSourceTotal(editForm.budgetSourceOptions || getDefaultBudgetSourceOptions()))}
                 min="0"
                 step="0.01"
-                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                readOnly
+                className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 text-gray-600 cursor-not-allowed"
               />
             </div>
           )}
@@ -424,8 +574,140 @@ export function EditProjectModal({
             </div>
 
             {editForm.budgetSource === 'none' && (
-              <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700">
-                Enter the budget amount for this project.
+              <div className="space-y-3">
+                <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700">
+                  Enter the budget amount for this project.
+                </div>
+
+                <div>
+                  <FieldLabel>Where did this budget come from? *</FieldLabel>
+                  <div className="space-y-3">
+                    {[
+                      { value: 'sponsorship', label: 'Sponsorship' },
+                      { value: 'donation', label: 'Donation' },
+                    ].map((option) => {
+                      const entries = getBudgetSourceEntries(editForm.budgetSourceOptions, option.value);
+                      const selected = entries.length > 0;
+                      return (
+                        <div key={option.value} className="rounded-xl border border-gray-200 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <label className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={(e) => {
+                                  const currentOptions = editForm.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                  const updatedOptions = {
+                                    ...currentOptions,
+                                    [option.value]: e.target.checked ? [{ id: `${option.value}-1`, name: '', amount: '' }] : [],
+                                  };
+                                  setEditForm({
+                                    ...editForm,
+                                    budget: String(getBudgetSourceTotal(updatedOptions)),
+                                    budgetSourceOptions: updatedOptions,
+                                  });
+                                }}
+                              />
+                              {option.label}
+                            </label>
+                            {selected && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const currentOptions = editForm.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                  const updatedOptions = addBudgetSourceEntry(currentOptions, option.value);
+                                  setEditForm({
+                                    ...editForm,
+                                    budget: String(getBudgetSourceTotal(updatedOptions)),
+                                    budgetSourceOptions: updatedOptions,
+                                  });
+                                }}
+                                className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                              >
+                                + Add {option.label}
+                              </button>
+                            )}
+                          </div>
+
+                          {selected && (
+                            <div className="mt-3 space-y-3">
+                              {entries.map((entry, index) => (
+                                <div key={entry.id || `${option.value}-${index}`} className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr_auto] gap-3">
+                                  <div>
+                                    <FieldLabel>{option.label} Name *</FieldLabel>
+                                    <Input
+                                      placeholder={option.value === 'sponsorship' ? 'e.g. ABC Corporation' : 'e.g. Alumni Donors'}
+                                      value={entry.name || ''}
+                                      onChange={(e) => {
+                                        const currentOptions = editForm.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                        const nextEntries = [...getBudgetSourceEntries(currentOptions, option.value)];
+                                        nextEntries[index] = { ...entry, name: e.target.value };
+                                        setEditForm({
+                                          ...editForm,
+                                          budget: String(getBudgetSourceTotal({ ...currentOptions, [option.value]: nextEntries })),
+                                          budgetSourceOptions: { ...currentOptions, [option.value]: nextEntries },
+                                        });
+                                      }}
+                                      className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <FieldLabel>{option.label} Amount *</FieldLabel>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      placeholder="0.00"
+                                      value={entry.amount || ''}
+                                      onChange={(e) => {
+                                        const currentOptions = editForm.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                        const nextEntries = [...getBudgetSourceEntries(currentOptions, option.value)];
+                                        nextEntries[index] = { ...entry, amount: e.target.value };
+                                        setEditForm({
+                                          ...editForm,
+                                          budget: String(getBudgetSourceTotal({ ...currentOptions, [option.value]: nextEntries })),
+                                          budgetSourceOptions: { ...currentOptions, [option.value]: nextEntries },
+                                        });
+                                      }}
+                                      className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+                                    />
+                                  </div>
+                                  <div className="flex items-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const currentOptions = editForm.budgetSourceOptions || getDefaultBudgetSourceOptions();
+                                        const nextEntries = getBudgetSourceEntries(currentOptions, option.value).filter((_, itemIndex) => itemIndex !== index);
+                                        const updatedOptions = { ...currentOptions, [option.value]: nextEntries };
+                                        setEditForm({
+                                          ...editForm,
+                                          budget: String(getBudgetSourceTotal(updatedOptions)),
+                                          budgetSourceOptions: updatedOptions,
+                                        });
+                                      }}
+                                      className="h-10 px-3 rounded-xl border border-red-200 bg-red-50 text-red-600 text-sm"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">Auto-calculated total</span>
+                    <strong className="text-slate-900">
+                      ₱{getBudgetSourceTotal(editForm.budgetSourceOptions || getDefaultBudgetSourceOptions()).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </strong>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -534,7 +816,7 @@ export function EditProjectModal({
                   if (imageExtensions.includes(extension)) {
                     return (
                       <div>
-                        <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof: {fileName}</p>
+                        {/* <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof: {fileName}</p> */}
                         <img src={url} alt="Current project proof" className="max-h-64 w-full rounded-lg object-contain" />
                       </div>
                     );
@@ -543,7 +825,7 @@ export function EditProjectModal({
                   if (extension === 'pdf') {
                     return (
                       <div>
-                        <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof: {fileName}</p>
+                        {/* <p className="mb-2 text-sm font-medium text-gray-900">Current uploaded proof: {fileName}</p> */}
                         <iframe src={url} title="Current project proof" className="h-64 w-full rounded-lg border-0" />
                       </div>
                     );

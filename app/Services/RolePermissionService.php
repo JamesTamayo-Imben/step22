@@ -19,7 +19,7 @@ class RolePermissionService
     {
         return [
             'Projects' => ['view', 'create', 'edit', 'delete', 'approve', 'rate', 'submit', 'reject'],
-            'Ledger' => ['view', 'create', 'edit', 'delete', 'approve', 'reject', 'submit'],
+            'Ledger' => ['view', 'create', 'edit', 'delete', 'approve', 'reject', 'submit', 'fix tampered'],
             'Proof Documents' => ['view', 'upload', 'delete', 'approve'],
             'Meetings' => ['view', 'create', 'edit', 'delete', 'submit', 'upload minutes'],
             'Ratings' => ['view', 'submit', 'moderate'],
@@ -35,7 +35,7 @@ class RolePermissionService
         return match ($slug) {
             'admin', 'admin-sadu' => [
                 'Projects' => ['view', 'approve', 'reject'],
-                'Ledger' => ['view', 'approve', 'reject'],
+                'Ledger' => ['view', 'approve', 'reject', 'fix tampered'],
                 'Proof Documents' => ['view'],
                 // 'Meetings' => ['view', 'approve minutes'],
                 'Ratings' => ['view'],
@@ -126,7 +126,7 @@ class RolePermissionService
             'superadmin' => ['*'],
             'admin' => [
                 'projects.view', 'projects.approve', 'projects.reject',
-                'ledger.view', 'ledger.approve', 'ledger.reject',
+                'ledger.view', 'ledger.approve', 'ledger.reject', 'ledger.fix-tampered',
                 'proof-documents.view',
                 // 'meetings.view', 'meetings.approve-minutes',
                 'ratings.view',
@@ -134,7 +134,7 @@ class RolePermissionService
             ],
             'admin-sadu' => [
                 'projects.view', 'projects.approve', 'projects.reject',
-                'ledger.view', 'ledger.approve', 'ledger.reject',
+                'ledger.view', 'ledger.approve', 'ledger.reject', 'ledger.fix-tampered',
                 'proof-documents.view',
                 // 'meetings.view', 'meetings.approve-minutes',
                 'ratings.view',
