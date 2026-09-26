@@ -750,7 +750,7 @@ export default function Welcome() {
               className="flex items-center gap-2 text-sm text-gray-400 mt-4 md:mt-0 cursor-default select-none"
             >
               <CheckCircle className="w-4 h-4 text-green-500" />
-              <span>Powered by blockchain-inspired transparency</span>
+              <span>Powered by hashed-chain transparency</span>
             </div>
           </div>
         </div>

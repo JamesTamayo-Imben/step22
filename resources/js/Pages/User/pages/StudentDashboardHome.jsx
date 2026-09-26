@@ -30,6 +30,11 @@ export function StudentDashboardHome({
 
   const parseProjectDate = (value) => {
     if (!value || value === 'TBD') return null;
+    const dateOnlyMatch = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(value));
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch;
+      return new Date(Number(year), Number(month) - 1, Number(day));
+    }
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   };
@@ -44,11 +49,11 @@ export function StudentDashboardHome({
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = new Date(year, month, day);
       const projectsStarting = (activeProjects || []).filter((project) => {
-        const startDate = parseProjectDate(project.startDate);
+        const startDate = parseProjectDate(project.startDateValue || project.startDate);
         return startDate && startDate.getFullYear() === year && startDate.getMonth() === month && startDate.getDate() === day;
       });
       const projectsEnding = (activeProjects || []).filter((project) => {
-        const endDate = parseProjectDate(project.deadline);
+        const endDate = parseProjectDate(project.deadlineValue || project.deadline);
         return endDate && endDate.getFullYear() === year && endDate.getMonth() === month && endDate.getDate() === day;
       });
 
@@ -288,17 +293,14 @@ const getStatusColor = (status) => {
           </div>
 
           <div className="grid grid-cols-7 gap-1 sm:gap-2 mt-2">
-            {Array.from({ length: calendarDays[0]?.key?.startsWith('blank-') ? calendarDays.filter((cell) => cell.key.startsWith('blank-')).length : 0 }, (_, index) => (
-              <div key={`blank-${index}`} className="h-20 rounded-xl bg-transparent" />
-            ))}
             {calendarDays.map((cell) => {
               if (!cell.day) return <div key={cell.key} className="h-20 rounded-xl bg-transparent" />;
 
               const hasStart = cell.projectsStarting.length > 0;
               const hasEnd = cell.projectsEnding.length > 0;
-              const projectNames = [
-                ...cell.projectsStarting.map((project) => `Starts: ${project.title}`),
-                ...cell.projectsEnding.map((project) => `Ends: ${project.title}`),
+              const projectEvents = [
+                ...cell.projectsStarting.map((project) => ({ project, label: 'Start' })),
+                ...cell.projectsEnding.map((project) => ({ project, label: 'End' })),
               ];
 
               return (
@@ -313,29 +315,30 @@ const getStatusColor = (status) => {
                       ? 'bg-amber-50 border border-amber-200'
                       : 'bg-slate-200 text-slate-700 border border-slate-300 opacity-90'
                   }`}
-                  title={projectNames.join(' | ') || undefined}
                 >
                   <span className="text-[11px] uppercase tracking-[0.08em] text-gray-700">{cell.day}</span>
-                  {projectNames.length > 0 ? (
-                    <div className="flex h-full items-center justify-center">
-                      <div className="flex flex-col items-center justify-center text-center gap-0.5 sm:gap-1">
-                        <span className="inline-flex items-center gap-1 text-sm font-semibold leading-none text-gray-700">
-                          {hasStart && hasEnd ? (
-                            <span className="inline-flex items-center gap-1">
-                              <span className="text-base">✓</span>
-                              <span>{projectNames.length}</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1">
-                              <span className="text-base">{hasStart ? '✓' : '•'}</span>
-                              <span>{projectNames.length}</span>
-                            </span>
-                          )}
-                        </span>
-                        <span className="hidden text-[10px] font-medium leading-none text-gray-600 sm:block">
-                          {hasStart && hasEnd ? 'starts & ends' : hasStart ? 'starts' : 'ends'}
-                        </span>
-                      </div>
+                  {projectEvents.length > 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-0.5">
+                      {projectEvents.map(({ project, label }) => (
+                        <button
+                          key={`${label}-${project.id}`}
+                          type="button"
+                          onClick={() => onViewProject?.(project.id)}
+                          className={`w-full min-w-0 rounded px-1 py-0.5 text-[10px] font-semibold leading-none transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 sm:text-xs ${
+                            label === 'Start'
+                              ? 'text-blue-700 hover:bg-blue-100'
+                              : 'text-amber-700 hover:bg-amber-100'
+                          }`}
+                          aria-label={`${label} project ${project.title || 'project'}`}
+                        >
+                          <span className="hidden min-w-0 max-w-full truncate whitespace-nowrap sm:block" title={project.title || 'Project'}>
+                            {project.title || 'Project'}
+                          </span>
+                          <span className="sm:hidden">
+                            {(project.title || 'Project').slice(0, 2)}
+                          </span>
+                        </button>
+                      ))}
                     </div>
                   ) : (
                     <span className="text-[10px] text-slate-500">—</span>

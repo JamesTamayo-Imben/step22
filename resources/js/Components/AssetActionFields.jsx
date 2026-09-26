@@ -25,9 +25,9 @@ export default function AssetActionFields({ mode, onModeChange, usages, onUsages
         <div className="space-y-2">
           <p className="text-sm text-gray-700">Select assets to use</p>
           {assets.length === 0 && <p className="text-xs text-gray-500">No reusable assets are currently available.</p>}
-          {assets.filter((asset) => (mode === 'return' ? asset.returnable_quantity > 0 : asset.available_quantity > 0)).map((asset) => {
+          {assets.filter((asset) => asset.available_quantity > 0).map((asset) => {
             const usage = usages.find((item) => item.asset_id === asset.id);
-            const selectableQuantity = mode === 'return' ? asset.returnable_quantity : asset.available_quantity;
+            const selectableQuantity = asset.available_quantity;
             return (
               <div key={asset.id} className="flex items-center gap-2 rounded-lg bg-white p-2">
                 <input
@@ -37,7 +37,7 @@ export default function AssetActionFields({ mode, onModeChange, usages, onUsages
                     ? [...usages, { asset_id: asset.id, asset_name: asset.name, quantity: 1 }]
                     : usages.filter((item) => item.asset_id !== asset.id))}
                 />
-                <span className="flex-1 text-sm">{asset.name} ({selectableQuantity} {mode === 'return' ? 'in use' : 'available'})</span>
+                <span className="flex-1 text-sm">{asset.name} ({selectableQuantity} available)</span>
                 {usage && (
                   <input
                     type="number"

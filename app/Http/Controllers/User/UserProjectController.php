@@ -560,8 +560,10 @@ class UserProjectController extends Controller
                 'rating' => round($overallAvg, 1),
                 'participants' => max(1, (int) (($project->ratings_count ?? 0) * 8)),
                 'deadline' => optional($project->end_date)->format('M d, Y') ?: 'TBD',
+                'deadlineValue' => optional($project->end_date)->format('Y-m-d'),
                 'progress' => $dateProgress !== null ? $dateProgress : $this->statusProgress($calculatedStatus),
                 'startDate' => optional($project->start_date)->format('M d, Y') ?: 'TBD',
+                'startDateValue' => optional($project->start_date)->format('Y-m-d'),
                 'isTampered' => $isTampered,
                 'isBudgetMismatch' => $isBudgetMismatch,
             ];

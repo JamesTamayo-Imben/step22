@@ -1524,13 +1524,17 @@ function maskUserName(fullName) {
     const formData = {
       id: entry.id,
       type: entry.type || 'Expense',
+      project_id: entry.project_id || project.id,
       amount: entry.amount != null ? entry.amount.toString() : '',
       description: entry.description || '',
       category: entry.category || '',
       referenceNumber: entry.referenceNumber || entry.reference_number || '',
       requiresProof: !!entry.ledger_proof,
       existingProof: entry.ledger_proof || entry.ledgerProof || '',
-      budgetBreakdown: breakdown,
+      budgetBreakdown: breakdown.map((item) => ({
+        ...item,
+        asset_category: item.asset_category || item.category || 'Other',
+      })),
       approval_status: entry.approval_status || 'Draft',
     };
 
@@ -1542,6 +1546,10 @@ function maskUserName(fullName) {
 
     console.log('✅ Edit ledger modal should now be open');
   };
+
+  //disable the add ledger button if the project is completed 1 month ago
+  const isCompletedProject = project.status === 'Complete' && new Date(project.endDate) < new Date(new Date().setMonth(new Date().getMonth() - 1));
+
 
   const handleLedgerEntryUpdate = (updatedEntry) => {
     const mappedEntry = normalizeLedgerEntry(updatedEntry);
@@ -2076,7 +2084,7 @@ function maskUserName(fullName) {
       ? 'bg-gray-400 cursor-not-allowed opacity-50' 
       : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
   }`}
-  disabled={isLedgerDisabled}
+  disabled={isLedgerDisabled || isCompletedProject}
 >
   <Plus className="w-4 h-4 mr-2" />
   Add Ledger Entry

@@ -104,7 +104,7 @@ class TamperingEmailService
             'actionable_id' => $projectId,
             'actionable_type' => 'blockchain',
             'action' => 'Budget mismatch - email delivered',
-            'module' => 'blockchain',
+            'module' => 'ledger',
             'action_type' => 'alert',
             'status' => 'Warning',
             'details' => $details,

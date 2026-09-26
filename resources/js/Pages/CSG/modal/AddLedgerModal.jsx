@@ -224,11 +224,14 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
 
       // 1. Create FormData and append ALL necessary fields
       const formData = new FormData();
-      const isAssetUsage = ledgerForm.type === 'Asset' && ['use', 'return'].includes(assetMode);
+      const isAssetUsage = ledgerForm.type === 'Asset' && assetMode === 'use';
       const submittedBudgetBreakdown = isAssetUsage
         ? assetUsages.map((usage) => {
             const asset = availableAssets.find((item) => item.id === usage.asset_id);
             return {
+              asset_id: usage.asset_id,
+              asset_name: usage.asset_name || asset?.name || 'Asset',
+              asset_mode: 'use',
               item: asset?.name || 'Asset',
               qty: Number(usage.quantity) || 0,
               quantity: Number(usage.quantity) || 0,
@@ -242,6 +245,7 @@ export function AddLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSav
             unitPrice: Number(item.unitPrice) || 0,
             amount: Number(item.amount) || 0,
             asset_category: ledgerForm.type === 'Asset' && assetMode === 'purchase' ? (item.asset_category || 'Other') : undefined,
+            ...(ledgerForm.type === 'Asset' ? { asset_mode: 'purchase' } : {}),
           }));
       formData.append('project_id', projectId);
       formData.append('type', ledgerForm.type);

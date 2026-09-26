@@ -994,16 +994,15 @@ const isProjectStarted = () => {
                   <div className="flex flex-col max-w-48">
                     <p className="font-semibold text-gray-900 truncate">{selectedProofDocument.fileName || 'Proof Document'}</p>
                   </div>
-                  <div>
+                  {/* <div>
                     <p className="text-xs text-gray-600 mt-1">Document ID: {selectedProofDocument.id}</p>
-                  </div>
+                  </div> */}
                 </div>
                 <Badge className="bg-blue-100 text-blue-700">{selectedProofDocument.status || '-'}</Badge>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Linked Transaction</p><p className="font-medium text-gray-900">{selectedProofDocument.linkedTransaction || '-'}</p></div>
               <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Uploaded</p><p className="font-medium text-gray-900">{selectedProofDocument.uploadDate || '-'}</p></div>
             </div>
 

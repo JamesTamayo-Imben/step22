@@ -189,6 +189,20 @@ function Switch({ checked, onCheckedChange, label }) {
   );
 }
 
+// Returns true if the project ended more than 1 month ago
+function isCompletedOverOneMonth(endDate) {
+  if (!endDate) return false;
+
+  const end = new Date(endDate);
+  if (isNaN(end.getTime())) return false;
+
+  const cutoff = new Date(end);
+  cutoff.setMonth(cutoff.getMonth() + 1);
+
+  const now = new Date();
+  return now > cutoff;
+}
+
 function LedgerPageInner() {
   const page = usePage();
   const { ledgerEntries: initialLedgerEntries = [], projects: initialProjects = [] } = page.props;
@@ -495,6 +509,11 @@ const totalShortfall = Math.max(0, -rawTotalBudget);
   const hasBudgetMismatchAlert = isDataLoaded && (mismatchedProjectIds.size > 0 || isBudgetTampered);
   const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
 
+  // Projects eligible for NEW or EDITED ledger entries (excludes locked + long-completed projects)
+  const ledgerSelectableProjects = projects.filter(
+    (project) => !isProjectLocked(project.id) && !isCompletedOverOneMonth(project.end_date || project.endDate)
+  );
+
   // ─── Bulk CSV Upload ──────────────────────────────────────────────────────
 
   const resetBulkModal = () => {
@@ -741,18 +760,19 @@ setIsLoading(true);
       unitPrice: item.unitPrice,
       amount: item.amount || 0
     }));
-    const submittedBudgetBreakdown = ledgerForm.type === 'Asset' && ['use', 'return'].includes(assetMode)
-      ? assetUsages.map((usage) => ({ item: usage.asset_name || 'Asset', qty: Number(usage.quantity) || 0, quantity: Number(usage.quantity) || 0, unitPrice: 0, amount: 0 }))
+    const submittedBudgetBreakdown = ledgerForm.type === 'Asset' && assetMode === 'use'
+      ? assetUsages.map((usage) => ({ asset_id: usage.asset_id, asset_name: usage.asset_name || 'Asset', asset_mode: 'use', item: usage.asset_name || 'Asset', qty: Number(usage.quantity) || 0, quantity: Number(usage.quantity) || 0, unitPrice: 0, amount: 0 }))
       : budgetBreakdown.map((item) => ({
           ...item,
           asset_category: ledgerForm.type === 'Asset' && assetMode === 'purchase' ? (item.asset_category || 'Other') : undefined,
+          ...(ledgerForm.type === 'Asset' ? { asset_mode: 'purchase' } : {}),
         }));
 
     // Create form data for file upload
     const formData = new FormData();
     formData.append('project_id', projectId);
     formData.append('type', ledgerForm.type);
-    formData.append('amount', ledgerForm.type === 'Asset' && ['use', 'return'].includes(assetMode) ? '0' : totalAmount.toString());
+    formData.append('amount', ledgerForm.type === 'Asset' && assetMode === 'use' ? '0' : totalAmount.toString());
     formData.append('description', ledgerForm.description);
     formData.append('approval_status', 'Draft');
     formData.append('asset_mode', assetMode);
@@ -819,9 +839,15 @@ const handleEditEntry = async () => {
     return;
   }
 
-  const totalAmount = calculateGrandTotal();
+  const isAssetUsage = ledgerForm.type === 'Asset' && assetMode === 'use';
+  const totalAmount = isAssetUsage ? 0 : calculateGrandTotal();
 
-  if (totalAmount <= 0) {
+  if (isAssetUsage && assetUsages.length === 0) {
+    showToast('Select at least one existing asset', 'error');
+    return;
+  }
+
+  if (!isAssetUsage && totalAmount <= 0) {
     showToast('Please specify budget items with valid amounts', 'error');
     return;
   }
@@ -835,7 +861,26 @@ const handleEditEntry = async () => {
     formData.append('category', ledgerForm.category || '');
     formData.append('project_id', ledgerForm.project_id);
     formData.append('amount', totalAmount.toString());
-    formData.append('budget_breakdown', JSON.stringify(editBudgetItems));
+    const breakdown = isAssetUsage
+      ? assetUsages.map((usage) => ({
+          asset_id: usage.asset_id,
+          asset_name: usage.asset_name || 'Asset',
+          asset_mode: 'use',
+          item: usage.asset_name || 'Asset',
+          qty: Number(usage.quantity) || 0,
+          quantity: Number(usage.quantity) || 0,
+          unitPrice: 0,
+          amount: 0,
+        }))
+      : editBudgetItems.map((item) => ({
+          ...item,
+          ...(ledgerForm.type === 'Asset' ? { asset_mode: 'purchase' } : {}),
+        }));
+    formData.append('budget_breakdown', JSON.stringify(breakdown));
+    if (ledgerForm.type === 'Asset') {
+      formData.append('asset_mode', assetMode);
+      formData.append('asset_usages', JSON.stringify(assetUsages));
+    }
     if (selectedFile) {
       formData.append('ledger_proof', selectedFile);
     }
@@ -1456,7 +1501,24 @@ const getTypeAmountColor = (type) => {
                             requiresProof: entry.requiresProof || false,
                             existingProof: entry.ledger_proof || entry.proofFiles?.[0]?.url || entry.proofFiles?.[0]?.path || '',
                           });
-                          setEditBudgetItems(entry.budgetBreakdown || [{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
+                          setEditBudgetItems((entry.budgetBreakdown || [{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]).map((item, index) => ({
+                            ...item,
+                            id: item.id || index + 1,
+                            qty: item.qty || item.quantity || 1,
+                            unitPrice: item.unitPrice || item.unit_price || 0,
+                            asset_category: item.asset_category || item.category || 'Other',
+                          })));
+                          const savedAssetMode = entry.budgetBreakdown?.find((item) => item.asset_mode)?.asset_mode === 'use'
+                            ? 'use'
+                            : 'purchase';
+                          setAssetMode(savedAssetMode);
+                          setAssetUsages(savedAssetMode === 'use'
+                            ? (entry.budgetBreakdown || []).filter((item) => item.asset_id).map((item) => ({
+                                asset_id: item.asset_id,
+                                asset_name: item.asset_name || item.item,
+                                quantity: item.quantity || item.qty || 1,
+                              }))
+                            : []);
                           setShowEditModal(true);
                         }}
                         className="h-7 text-xs rounded-md hover:bg-gray-100 px-2 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1516,7 +1578,13 @@ const getTypeAmountColor = (type) => {
                     <button type="button" onClick={() => {
                       setSelectedEntry(entry);
                             setLedgerForm({ type: entry.type, amount: entry.amount, description: entry.description, category: entry.category || '', project_id: entry.project_id, referenceNumber: entry.referenceNumber || '', requiresProof: entry.requiresProof || false, existingProof: entry.ledger_proof || entry.proofFiles?.[0]?.url || entry.proofFiles?.[0]?.path || '' });
-                      setEditBudgetItems(entry.budgetBreakdown || [{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
+                      setEditBudgetItems((entry.budgetBreakdown || [{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]).map((item, index) => ({
+                        ...item,
+                        id: item.id || index + 1,
+                        qty: item.qty || item.quantity || 1,
+                        unitPrice: item.unitPrice || item.unit_price || 0,
+                        asset_category: item.asset_category || item.category || 'Other',
+                      })));
                       setShowEditModal(true);
                     }} disabled={entryLocked} className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50">
                       <Edit className="mr-2 h-4 w-4" /> Edit
@@ -1694,15 +1762,15 @@ const getTypeAmountColor = (type) => {
           <div>
             <FieldLabel>Project *</FieldLabel>
             <Select
-              value={ledgerForm.project_id}
-              onChange={(e) => setLedgerForm({ ...ledgerForm, project_id: e.target.value })}
-              className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-200"
-            >
-              <option value="">Select Project</option>
-              {projects.filter((project) => !isProjectLocked(project.id)).map((project) => (
-                <option key={project.id} value={project.id}>{project.title}</option>
-              ))}
-            </Select>
+  value={ledgerForm.project_id}
+  onChange={(e) => setLedgerForm({ ...ledgerForm, project_id: e.target.value })}
+  className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-200"
+>
+  <option value="">Select Project</option>
+  {ledgerSelectableProjects.map((project) => (
+    <option key={project.id} value={project.id}>{project.title}</option>
+  ))}
+</Select>
           </div>
 
           {/* Description */}
@@ -1973,16 +2041,16 @@ const getTypeAmountColor = (type) => {
           {/* Project Selection */}
           <div>
             <FieldLabel>Project *</FieldLabel>
-            <Select
-              value={bulkProjectId}
-              onChange={(e) => { setBulkProjectId(e.target.value); setBulkPreview(null); }}
-              className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-200"
-            >
-              <option value="">Select Project</option>
-              {projects.filter((project) => !isProjectLocked(project.id)).map((project) => (
-                <option key={project.id} value={project.id}>{project.title}</option>
-              ))}
-            </Select>
+           <Select
+  value={bulkProjectId}
+  onChange={(e) => { setBulkProjectId(e.target.value); setBulkPreview(null); }}
+  className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-200"
+>
+  <option value="">Select Project</option>
+  {ledgerSelectableProjects.map((project) => (
+    <option key={project.id} value={project.id}>{project.title}</option>
+  ))}
+</Select>
           </div>
 
           {/* CSV format help + template download */}
@@ -2122,23 +2190,36 @@ const getTypeAmountColor = (type) => {
               <option value="">Select Type</option>
             <option value="Income">Income</option>
             <option value="Expense">Expense</option>
+            <option value="Asset">Asset</option>
             <option value="Donation">Donation</option>
             <option value="Sponsorship">Sponsorship</option>
             <option value="Canvas">Canvas</option>
             </Select>
           </div>
 
+          {ledgerForm.type === 'Asset' && (
+            <AssetActionFields
+              mode={assetMode}
+              onModeChange={(mode) => {
+                setAssetMode(mode);
+                setAssetUsages([]);
+              }}
+              usages={assetUsages}
+              onUsagesChange={setAssetUsages}
+            />
+          )}
+
           <div>
             <FieldLabel>Project</FieldLabel>
             <Select
-              value={ledgerForm.project_id || ''}
-              onChange={(e) => setLedgerForm({ ...ledgerForm, project_id: e.target.value })}
-            >
-              <option value="">Select Project</option>
-              {projects.filter((project) => !isProjectLocked(project.id)).map((project) => (
-                <option key={project.id} value={project.id}>{project.title}</option>
-              ))}
-            </Select>
+  value={ledgerForm.project_id || ''}
+  onChange={(e) => setLedgerForm({ ...ledgerForm, project_id: e.target.value })}
+>
+  <option value="">Select Project</option>
+  {ledgerSelectableProjects.map((project) => (
+    <option key={project.id} value={project.id}>{project.title}</option>
+  ))}
+</Select>
           </div>
 
           <div>
@@ -2152,47 +2233,69 @@ const getTypeAmountColor = (type) => {
           </div>
 
                  <div className="space-y-4">
+                  {ledgerForm.type !== 'Asset' || assetMode !== 'use' ? (
+                    <>
                           <FieldLabel>Budget Breakdown (₱)</FieldLabel>
                           <div className="space-y-4">
-                            {editBudgetItems.map((item) => (
-                              <div key={item.id} className="flex gap-2 items-start">
-                                <Input
-                                  placeholder="Item name"
-                                  value={item.item}
-                                  onChange={(e) => updateItem(item.id, 'item', e.target.value)}
-                                  className="flex-1 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                                />
-                                <Input
-                                  type="number"
-                                  placeholder="Qty"
-                                  min="1"
-                                  value={item.qty}
-                                  onChange={(e) => updateItem(item.id, 'qty', e.target.value)}
-                                  className="w-20 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                                />
-                                <Input
-                                  type="number"
-                                  placeholder="Unit Price"
-                                  min="0"
-                                  step="0.01"
-                                  value={item.unitPrice}
-                                  onChange={(e) => updateItem(item.id, 'unitPrice', e.target.value)}
-                                  className="w-28 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-                                />
-                                <div className="w-28 h-10 flex items-center justify-end px-3 bg-gray-100 rounded-xl text-gray-700 font-medium">
-                                  ₱{formatLimitedNumber(item.amount || 0)}
+                            {editBudgetItems.map((item, index) => (
+                              <div key={item.id} className="min-w-0 rounded-xl  bg-white ">
+                                <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
+                                  {/* <span className="min-w-0 truncate text-sm font-medium text-gray-700">
+                                    Item {index + 1} <span className="text-gray-500">· ₱{formatLimitedNumber(item.amount || 0)}</span>
+                                  </span> */}
+                                  {editBudgetItems.length > 1 && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeItem(item.id)}
+                                      aria-label={`Remove item ${index + 1}`}
+                                      className="h-8 w-8 shrink-0 rounded-lg p-0 text-red-600 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
                                 </div>
-                                {editBudgetItems.length > 1 && (
-                                  <Button 
-                                    type="button" 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    onClick={() => removeItem(item.id)} 
-                                    className="rounded-lg text-red-600 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                )}
+                                <div className="grid min-w-0 grid-cols-3 gap-3">
+                                  <Input
+                                    placeholder="Item name"
+                                    aria-label={`Item ${index + 1} name`}
+                                    value={item.item}
+                                    onChange={(e) => updateItem(item.id, 'item', e.target.value)}
+                                    className="col-span-3 h-10 min-w-0 rounded-lg border-gray-300 bg-gray-50 focus:bg-white"
+                                  />
+                                  {ledgerForm.type === 'Asset' && assetMode === 'purchase' && (
+                                    <Select
+                                      value={item.asset_category || 'Other'}
+                                      onChange={(e) => updateItem(item.id, 'asset_category', e.target.value)}
+                                      aria-label={`Item ${index + 1} asset category`}
+                                      className="col-span-2 h-10 min-w-0 rounded-lg border-gray-300 bg-gray-50 focus:bg-white sm:col-span-1"
+                                    >
+                                      {ASSET_CATEGORIES.map((category) => (
+                                        <option key={category} value={category}>{category}</option>
+                                      ))}
+                                    </Select>
+                                  )}
+                                  <Input
+                                    type="number"
+                                    placeholder="Qty"
+                                    aria-label={`Item ${index + 1} quantity`}
+                                    min="1"
+                                    value={item.qty}
+                                    onChange={(e) => updateItem(item.id, 'qty', e.target.value)}
+                                    className="h-10 min-w-0 rounded-lg border-gray-300 bg-gray-50 focus:bg-white"
+                                  />
+                                  <Input
+                                    type="number"
+                                    placeholder="Unit Price"
+                                    aria-label={`Item ${index + 1} unit price`}
+                                    min="0"
+                                    step="0.01"
+                                    value={item.unitPrice}
+                                    onChange={(e) => updateItem(item.id, 'unitPrice', e.target.value)}
+                                    className="h-10 min-w-0 rounded-lg border-gray-300 bg-gray-50 focus:bg-white"
+                                  />
+                                </div>
                               </div>
                             ))}
                             
@@ -2219,6 +2322,8 @@ const getTypeAmountColor = (type) => {
                               </p>
                             </div>
                           </div>
+                    </>
+                  ) : null}
                 
                           <div>
                             <FieldLabel>Ledger Proof Document (Required)</FieldLabel>

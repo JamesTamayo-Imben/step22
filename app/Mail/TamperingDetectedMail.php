@@ -22,7 +22,7 @@ class TamperingDetectedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'STEP Intergity Testing - Tampering Detected in Blockchain',
+            subject: 'STEP Intergity Testing - Tampering Detected in Project Chain',
         );
     }
 

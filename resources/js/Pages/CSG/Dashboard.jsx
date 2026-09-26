@@ -193,6 +193,19 @@ function MeetingsPage() { return <Card className="p-8">Meetings (placeholder)</C
 function RatingsPage() { return <Card className="p-8">Ratings (placeholder)</Card>; }
 function PerformancePage() { return <Card className="p-8">Performance Panel (placeholder)</Card>; }
 function ProfilePage() { return <Card className="p-8">Profile (placeholder)</Card>; }
+// Returns true if the project ended more than 1 month ago
+function isCompletedOverOneMonth(endDate) {
+  if (!endDate) return false;
+
+  const end = new Date(endDate);
+  if (isNaN(end.getTime())) return false;
+
+  const cutoff = new Date(end);
+  cutoff.setMonth(cutoff.getMonth() + 1);
+
+  const now = new Date();
+  return now > cutoff;
+}
 
 export function CSGOfficerDashboard({ currentView, statistics = {}, projects: initialProjects = [], recentLedgerEntries = [], upcomingMeetings: initialMeetings = [] }) {
   const page = usePage();
@@ -268,6 +281,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   const [dashboardProjects, setDashboardProjects] = useState(() => {
     return initialProjects.filter(isApprovedOrActiveProject);
   });
+  
 
   //filter meeting o only show upcomming
   const [upcomingMeetings, setUpcomingMeetings] = useState(initialMeetings);
@@ -327,8 +341,13 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   
   const tamperedEntriesCount = (ledgerEntries || []).filter(e => e && (e.tampered || e.verificationState?.tampered || (e.verification_state && e.verification_state.tampered))).length;
   const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
-  const unlockedDashboardProjects = dashboardProjects.filter((project) => !isProjectLocked(project.id));
+  // const unlockedDashboardProjects = dashboardProjects.filter((project) => !isProjectLocked(project.id));
+const unlockedDashboardProjects = dashboardProjects.filter((project) => !isProjectLocked(project.id));
 
+// Projects eligible to appear in the "Add Ledger Entry" project dropdown
+const ledgerSelectableProjects = unlockedDashboardProjects.filter(
+  (project) => !isCompletedOverOneMonth(project.end_date || project.endDate)
+);
 
 
   // Calculate stats based on approved projects only
@@ -999,18 +1018,18 @@ const formatHeatmapTooltip = (item) => {
           {/* Project Selection - Only shows approved projects */}
           <div>
             <FieldLabel>Project *</FieldLabel>
-            <Select
-              value={ledgerForm.project_id}
-              onValueChange={(value) => setLedgerForm({ ...ledgerForm, project_id: value })}
-              className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-200"
-            >
-              <option value="">Select Project</option>
-              {unlockedDashboardProjects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.title || project.name}
-                </option>
-              ))}
-            </Select>
+           <Select
+  value={ledgerForm.project_id}
+  onValueChange={(value) => setLedgerForm({ ...ledgerForm, project_id: value })}
+  className="w-full h-10 px-3 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-200"
+>
+  <option value="">Select Project</option>
+  {ledgerSelectableProjects.map((project) => (
+    <option key={project.id} value={project.id}>
+      {project.title || project.name}
+    </option>
+  ))}
+</Select>
           </div>
 
           {/* STEP 6.3: Description */}

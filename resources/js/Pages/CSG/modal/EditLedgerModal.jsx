@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Textarea } from '@/Components/ui/textarea';
+import AssetActionFields from '@/Components/AssetActionFields';
 import {
   Edit,
   Trash2,
@@ -82,6 +83,8 @@ export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSa
 
   // State for budget items in edit mode
   const [editBudgetItems, setEditBudgetItems] = useState([]);
+  const [assetMode, setAssetMode] = useState('purchase');
+  const [assetUsages, setAssetUsages] = useState([]);
 
   // File upload states
   const fileInputRef = useRef(null);
@@ -99,7 +102,8 @@ export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSa
         item: item.item || '',
         qty: item.quantity || item.qty || 1,
         unitPrice: item.unitPrice || 0,
-        amount: item.amount || 0
+        amount: item.amount || 0,
+        asset_category: item.asset_category || item.category || 'Other',
       }));
       console.log('📋 Formatted budget items:', formattedItems);
       setEditBudgetItems(formattedItems);
@@ -109,6 +113,19 @@ export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSa
       setEditBudgetItems([{ id: 1, item: '', qty: 1, unitPrice: '', amount: 0 }]);
     }
   }, [ledgerForm.budgetBreakdown]);
+
+  useEffect(() => {
+    const breakdown = Array.isArray(ledgerForm.budgetBreakdown) ? ledgerForm.budgetBreakdown : [];
+    const savedMode = breakdown.find((item) => item.asset_mode)?.asset_mode === 'use' ? 'use' : 'purchase';
+    setAssetMode(savedMode);
+    setAssetUsages(savedMode === 'use'
+      ? breakdown.filter((item) => item.asset_id).map((item) => ({
+          asset_id: item.asset_id,
+          asset_name: item.asset_name || item.item,
+          quantity: item.quantity || item.qty || 1,
+        }))
+      : []);
+  }, [ledgerForm.budgetBreakdown, ledgerForm.type]);
 
   const calculateItemTotal = (item) => {
     if (item.qty && item.unitPrice) {
@@ -190,10 +207,15 @@ export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSa
   }
 
   // Validate budget items
-  const hasEmptyItems = editBudgetItems.some(item => !item.item || !item.unitPrice || item.qty <= 0);
+  const isAssetUsage = ledgerForm.type === 'Asset' && assetMode === 'use';
+  const hasEmptyItems = !isAssetUsage && editBudgetItems.some(item => !item.item || !item.unitPrice || item.qty <= 0);
   if (hasEmptyItems) {
     console.log('❌ Validation failed: empty budget items');
     showToast('Please fill in all budget item details', 'error');
+    return;
+  }
+  if (isAssetUsage && assetUsages.length === 0) {
+    showToast('Select at least one existing asset', 'error');
     return;
   }
 
@@ -208,18 +230,38 @@ export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSa
     const formData = new FormData();
     formData.append('type', ledgerForm.type || 'Expense');
     formData.append('description', ledgerForm.description);
+    formData.append('project_id', ledgerForm.project_id || '');
     formData.append('category', ledgerForm.category || '');
     formData.append('reference_number', ledgerForm.referenceNumber || '');
-    formData.append('budget_breakdown', JSON.stringify(editBudgetItems));
-    formData.append('amount', calculateGrandTotal().toString());
+    const budgetBreakdown = isAssetUsage
+      ? assetUsages.map((usage) => ({
+          asset_id: usage.asset_id,
+          asset_name: usage.asset_name || 'Asset',
+          asset_mode: 'use',
+          item: usage.asset_name || 'Asset',
+          qty: Number(usage.quantity) || 0,
+          quantity: Number(usage.quantity) || 0,
+          unitPrice: 0,
+          amount: 0,
+        }))
+      : editBudgetItems.map((item) => ({
+          ...item,
+          ...(ledgerForm.type === 'Asset' ? { asset_mode: 'purchase' } : {}),
+        }));
+    formData.append('budget_breakdown', JSON.stringify(budgetBreakdown));
+    if (ledgerForm.type === 'Asset') {
+      formData.append('asset_mode', assetMode);
+      formData.append('asset_usages', JSON.stringify(assetUsages));
+    }
+    formData.append('amount', (isAssetUsage ? 0 : calculateGrandTotal()).toString());
 
     console.log('📦 FormData contents:', {
       type: ledgerForm.type,
       description: ledgerForm.description,
       category: ledgerForm.category,
       reference_number: ledgerForm.referenceNumber,
-      budget_breakdown: JSON.stringify(editBudgetItems),
-      amount: calculateGrandTotal().toString(),
+      budget_breakdown: JSON.stringify(budgetBreakdown),
+      amount: (isAssetUsage ? 0 : calculateGrandTotal()).toString(),
       hasFile: !!selectedFile,
     });
 
@@ -297,6 +339,7 @@ export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSa
             <option value="">Select Type</option>
             <option value="Income">Income</option>
             <option value="Expense">Expense</option>
+            <option value="Asset">Asset</option>
             <option value="Donation">Donation</option>
             <option value="Sponsorship">Sponsorship</option>
             <option value="Canvas">Canvas</option>
@@ -313,7 +356,21 @@ export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSa
           />
         </div>
 
+        {ledgerForm.type === 'Asset' && (
+          <AssetActionFields
+            mode={assetMode}
+            onModeChange={(mode) => {
+              setAssetMode(mode);
+              setAssetUsages([]);
+            }}
+            usages={assetUsages}
+            onUsagesChange={setAssetUsages}
+          />
+        )}
+
         <div className="space-y-4">
+          {ledgerForm.type !== 'Asset' || assetMode !== 'use' ? (
+            <>
           <FieldLabel>Budget Breakdown (₱)</FieldLabel>
           <div className="space-y-4">
             {editBudgetItems.map((item) => (
@@ -324,6 +381,18 @@ export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSa
                   onChange={(e) => updateItem(item.id, 'item', e.target.value)}
                   className="flex-1 h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
                 />
+                {ledgerForm.type === 'Asset' && (
+                  <select
+                    value={item.asset_category || 'Other'}
+                    onChange={(e) => updateItem(item.id, 'asset_category', e.target.value)}
+                    aria-label="Asset category"
+                    className="w-40 h-10 px-2 border border-gray-300 rounded-xl bg-gray-50"
+                  >
+                    {['Furniture', 'Electronic Devices', 'Tools', 'Office Equipment', 'Other'].map((category) => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                )}
                 <Input
                   type="number"
                   placeholder="Qty"
@@ -381,6 +450,8 @@ export function EditLedgerModal({ open, onClose, ledgerForm, setLedgerForm, onSa
               </p>
             </div>
           </div>
+            </>
+          ) : null}
 
           <div>
             <FieldLabel>Ledger Proof Document (Optional)</FieldLabel>

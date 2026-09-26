@@ -305,7 +305,23 @@ public function uploadProof(Request $request, $id)
             
             // Handle budget breakdown (store as JSON)
             if ($request->has('budget_breakdown')) {
-                $entry->budget_breakdown = $request->budget_breakdown;
+                $budgetBreakdown = json_decode((string) $request->budget_breakdown, true) ?: [];
+                if ($entry->type === 'Asset' && $assetMode === 'use') {
+                    $budgetBreakdown = array_map(static function (array $item): array {
+                        return [
+                            ...$item,
+                            'asset_mode' => 'use',
+                            'asset_id' => $item['asset_id'] ?? null,
+                            'asset_name' => $item['asset_name'] ?? $item['item'] ?? 'Asset',
+                        ];
+                    }, $budgetBreakdown);
+                } elseif ($entry->type === 'Asset') {
+                    $budgetBreakdown = array_map(static fn (array $item): array => [
+                        ...$item,
+                        'asset_mode' => 'purchase',
+                    ], $budgetBreakdown);
+                }
+                $entry->budget_breakdown = $budgetBreakdown;
             }
             
             // Handle file upload with SHA-256 hashing for immutability
@@ -396,7 +412,10 @@ public function uploadProof(Request $request, $id)
                     });
                 }
 
-                $breakdown = json_decode((string) $entry->budget_breakdown, true) ?: [];
+                $storedBreakdown = $entry->budget_breakdown;
+                $breakdown = is_array($storedBreakdown)
+                    ? $storedBreakdown
+                    : (json_decode((string) $storedBreakdown, true) ?: []);
                 foreach ($breakdown as $item) {
                     $quantity = max(1, (int) ($item['qty'] ?? $item['quantity'] ?? 1));
                     $unitCost = (float) ($item['unitPrice'] ?? $item['unit_price'] ?? 0);
@@ -859,19 +878,88 @@ public function uploadProof(Request $request, $id)
 
         // Validate the request
         $validated = $request->validate([
-            'type' => 'required|in:Income,Expense,Canvas,Donation,Sponsorship',
+            'type' => 'required|in:Income,Expense,Asset,Canvas,Donation,Sponsorship',
             'description' => 'required|string|max:1000',
             'amount' => 'required|numeric|min:0',
+            'project_id' => 'sometimes|required|exists:projects,id',
             'budget_breakdown' => 'nullable|json',
+            'asset_mode' => 'nullable|in:purchase,use',
+            'asset_usages' => 'nullable|json',
             'updated_by' => 'nullable|exists:users,id',
             'ledger_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
+        DB::beginTransaction();
+
+        $assetMode = $request->input('asset_mode', 'purchase');
+        $budgetBreakdown = $request->filled('budget_breakdown')
+            ? json_decode($request->input('budget_breakdown'), true)
+            : [];
+        $assetUsages = $request->filled('asset_usages')
+            ? json_decode($request->input('asset_usages'), true)
+            : [];
+
+        if ($request->type === 'Asset' && $assetMode === 'use') {
+            validator(['items' => $assetUsages], [
+                'items' => 'required|array|min:1',
+                'items.*.asset_id' => 'required|uuid|exists:assets,id',
+                'items.*.quantity' => 'required|integer|min:1',
+            ])->validate();
+
+            $selectedAssets = Asset::whereIn('id', array_column($assetUsages, 'asset_id'))
+                ->where('archive', 0)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+            $budgetBreakdown = [];
+
+            foreach ($assetUsages as $usage) {
+                $asset = $selectedAssets->get($usage['asset_id']);
+                $quantity = (int) $usage['quantity'];
+                if (!$asset || $quantity > $asset->available_quantity) {
+                    throw ValidationException::withMessages([
+                        'asset_usages' => ['A selected asset no longer has enough quantity available.'],
+                    ]);
+                }
+
+                $budgetBreakdown[] = [
+                    'asset_id' => $asset->id,
+                    'asset_name' => $asset->name,
+                    'asset_mode' => 'use',
+                    'item' => $asset->name,
+                    'qty' => $quantity,
+                    'quantity' => $quantity,
+                    'unitPrice' => 0,
+                    'amount' => 0,
+                ];
+            }
+        } elseif ($request->type === 'Asset') {
+            if (!is_array($budgetBreakdown) || array_filter($budgetBreakdown, static fn ($item) => !is_array($item)) !== []) {
+                throw ValidationException::withMessages([
+                    'budget_breakdown' => ['Provide valid asset budget items.'],
+                ]);
+            }
+
+            $budgetBreakdown = array_map(static fn ($item) => [
+                ...$item,
+                'asset_mode' => 'purchase',
+                'asset_category' => $item['asset_category'] ?? $item['category'] ?? 'Other',
+            ], $budgetBreakdown);
+
+            validator(['items' => $budgetBreakdown], [
+                'items' => 'required|array|min:1',
+                'items.*.item' => 'required|string|max:255',
+                'items.*.qty' => 'required|integer|min:1',
+                'items.*.unitPrice' => 'required|numeric|min:0',
+            ])->validate();
+        }
+
         // Update the entry
         $entry->type = $request->type;
         $entry->description = $request->description;
-        $entry->amount = $request->amount;
-        $entry->updated_by = $request->updated_by;
+        $entry->amount = $request->type === 'Asset' && $assetMode === 'use' ? 0 : $request->amount;
+        $entry->project_id = $request->input('project_id', $entry->project_id);
+        $entry->updated_by = Auth::id() ?? $request->updated_by;
 
         // Handle new proof file upload (same hashing scheme as store())
         if ($request->hasFile('ledger_proof')) {
@@ -894,21 +982,102 @@ public function uploadProof(Request $request, $id)
 
         // Handle budget breakdown
         if ($request->has('budget_breakdown')) {
-            $entry->budget_breakdown = $request->budget_breakdown;
+            $entry->budget_breakdown = $request->type === 'Asset' ? $budgetBreakdown : $request->budget_breakdown;
         }
 
         $entry->updated_at = now();
         $entry->save();
 
+        $sourceAssets = Asset::where('source_ledger_entry_id', $entry->id)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        if ($request->type === 'Asset' && $assetMode === 'purchase') {
+            foreach ($budgetBreakdown as $index => $item) {
+                $quantity = (int) ($item['qty'] ?? $item['quantity'] ?? 1);
+                $unitCost = (float) ($item['unitPrice'] ?? $item['unit_price'] ?? 0);
+                $asset = $sourceAssets->get($index);
+
+                if ($asset) {
+                    $hasOtherUsage = AssetUsage::where('asset_id', $asset->id)
+                        ->where('ledger_entry_id', '!=', $entry->id)
+                        ->exists();
+                    if ($hasOtherUsage && $quantity !== (int) $asset->quantity) {
+                        throw ValidationException::withMessages([
+                            'budget_breakdown' => ['Quantity cannot be changed after an asset has been used.'],
+                        ]);
+                    }
+                    $asset->name = $item['item'];
+                    $asset->asset_category = $item['asset_category'];
+                    $asset->description = $entry->description;
+                    $asset->quantity = $quantity;
+                    $asset->unit_cost = $unitCost;
+                    $asset->save();
+
+                    AssetUsage::updateOrCreate(
+                        ['asset_id' => $asset->id, 'ledger_entry_id' => $entry->id],
+                        ['project_id' => $entry->project_id, 'quantity' => $quantity, 'status' => 'assigned', 'returned_quantity' => 0]
+                    );
+                    continue;
+                }
+
+                $asset = Asset::create([
+                    'source_ledger_entry_id' => $entry->id,
+                    'project_id' => $entry->project_id,
+                    'name' => $item['item'],
+                    'asset_category' => $item['asset_category'],
+                    'description' => $entry->description,
+                    'quantity' => $quantity,
+                    'available_quantity' => 0,
+                    'unit_cost' => $unitCost,
+                    'status' => 'unavailable',
+                ]);
+                AssetUsage::create([
+                    'asset_id' => $asset->id,
+                    'project_id' => $entry->project_id,
+                    'ledger_entry_id' => $entry->id,
+                    'quantity' => $quantity,
+                    'status' => 'assigned',
+                    'assigned_at' => now(),
+                    'returned_quantity' => 0,
+                ]);
+            }
+
+            foreach ($sourceAssets->slice(count($budgetBreakdown)) as $removedAsset) {
+                if (AssetUsage::where('asset_id', $removedAsset->id)->where('ledger_entry_id', '!=', $entry->id)->exists()) {
+                    throw ValidationException::withMessages([
+                        'budget_breakdown' => ['An asset item cannot be removed after it has been used.'],
+                    ]);
+                }
+                AssetUsage::where('asset_id', $removedAsset->id)->where('ledger_entry_id', $entry->id)->delete();
+                $removedAsset->delete();
+            }
+        } elseif ($request->type === 'Asset' && $assetMode === 'use' && $sourceAssets->isNotEmpty()) {
+            $assetIds = $sourceAssets->pluck('id');
+            if (AssetUsage::whereIn('asset_id', $assetIds)->where('ledger_entry_id', '!=', $entry->id)->exists()) {
+                throw ValidationException::withMessages([
+                    'asset_mode' => ['This purchase cannot be changed because its assets are already in use.'],
+                ]);
+            }
+            AssetUsage::whereIn('asset_id', $assetIds)->where('ledger_entry_id', $entry->id)->delete();
+            Asset::whereIn('id', $assetIds)->delete();
+        }
+
+        DB::commit();
+
         return response()->json($entry);
 
     } catch (ValidationException $e) {
+        if (DB::transactionLevel() > 0) DB::rollBack();
         Log::warning('Ledger entry update validation failed: ' . json_encode($e->errors()));
         return response()->json([
             'message' => 'Validation failed',
             'errors' => $e->errors(),
         ], 422);
     } catch (\Exception $e) {
+        if (DB::transactionLevel() > 0) DB::rollBack();
         Log::error('Ledger entry update failed: ' . $e->getMessage());
         return response()->json([
             'message' => 'Failed to update ledger entry',

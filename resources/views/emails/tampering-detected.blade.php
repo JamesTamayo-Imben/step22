@@ -121,7 +121,7 @@
     <p><strong>Project:</strong> {{ $projectTitle }}</p>
     <p><strong>Project ID:</strong> {{ $projectId }}</p>
     <p><strong>Affected blocks:</strong> {{ count($tamperedBlocks) }}</p>
-    <p>Please review the blockchain integrity page. This email is an internal security alert; avoid taking action until the adviser completes the investigation.</p>
+    <p>Please review the chain integrity page. This email is an internal security alert; avoid taking action until the adviser completes the investigation.</p>
 
             <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #666; font-size: 14px;">
                 If you have any questions or need assistance, please contact our support team.
