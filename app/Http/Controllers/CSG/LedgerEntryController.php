@@ -517,6 +517,7 @@ public function uploadProof(Request $request, $id)
                 ->get()
                 ->map(fn (Asset $asset) => [
                     'id' => $asset->id,
+                    'source_ledger_entry_id' => $asset->source_ledger_entry_id,
                     'name' => $asset->name,
                     'asset_category' => $asset->asset_category ?? 'Other',
                     'available_quantity' => $asset->available_quantity,

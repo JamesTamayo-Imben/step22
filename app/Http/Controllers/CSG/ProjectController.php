@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ProjectController extends Controller
 {
@@ -543,6 +544,9 @@ class ProjectController extends Controller
             if ($request->has('has_budget') || $request->has('budget') || $request->has('budget_source')) {
                 $oldBudget = (float) $project->budget;
                 $baseline = $this->findProjectBaselineEntry($project->id);
+                if ($baseline && $baseline->category === 'Transfer') {
+                    $transferFromProjectId = null;
+                }
                 $newBudget = $oldBudget;
 
                 if (!$hasBudget) {
@@ -733,6 +737,8 @@ class ProjectController extends Controller
             }
             
             return response()->json($responseData, 200);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Project update failed: ' . $e->getMessage());
             return response()->json([
@@ -1619,83 +1625,95 @@ class ProjectController extends Controller
         ?LedgerEntry $proofSource = null
     ): void
     {
-        $existingDestinationProof = LedgerEntry::query()
-            ->where('project_id', $project->id)
-            ->where('category', 'Transfer')
-            ->where('type', 'Initial Transfer')
-            ->where('archive', 0)
-            ->latest('created_at')
-            ->first();
-        $existingDestinationProof = $existingDestinationProof ?: $proofSource;
+        DB::transaction(function () use ($project, $transferAmount, $transferFromProjectId, $proofSource): void {
+            $existingDestinationProof = LedgerEntry::query()
+                ->where('project_id', $project->id)
+                ->where('category', 'Transfer')
+                ->where('type', 'Initial Transfer')
+                ->where('archive', 0)
+                ->latest('created_at')
+                ->first() ?: $proofSource;
 
-        $destinationEntries = LedgerEntry::query()
-            ->where('archive', 0)
-            ->where('category', 'Transfer')
-            ->where(function ($query) use ($project) {
-                $query->where('project_id', $project->id)
-                    ->orWhere('note', 'like', '%' . $project->id . '%');
-            })
-            ->get();
+            $eligibleProjects = Project::query()
+                ->where('archive', 0)
+                ->where('approval_status', 'Approved')
+                ->whereNotNull('end_date')
+                ->where('end_date', '<=', now())
+                ->where('budget', '>', 0)
+                ->when($transferFromProjectId, fn ($query) => $query->where('id', $transferFromProjectId))
+                ->orderBy('end_date')
+                ->lockForUpdate()
+                ->get();
 
-        foreach ($destinationEntries as $entry) {
-            $entry->update([
-                'archive' => 1,
-                'updated_by' => Auth::id(),
-                'updated_at' => now(),
-            ]);
-        }
+            $availableBalance = $eligibleProjects->sum(
+                fn (Project $sourceProject): float => max(0, (float) $sourceProject->budget)
+            );
 
-        $eligibleProjects = Project::query()
-            ->where('archive', 0)
-            ->where('approval_status', 'Approved')
-            ->whereNotNull('end_date')
-            ->where('end_date', '<=', now())
-            ->where('budget', '>', 0)
-            ->when($transferFromProjectId, fn ($query) => $query->where('id', $transferFromProjectId))
-            ->orderBy('end_date')
-            ->get();
-
-        if ($eligibleProjects->isEmpty()) {
-            return;
-        }
-
-        $remainingToAllocate = $transferAmount;
-        $transferAllocations = [];
-
-        foreach ($eligibleProjects as $sourceProject) {
-            if ($remainingToAllocate <= 0) {
-                break;
+            if ($availableBalance + 0.009 < $transferAmount) {
+                throw ValidationException::withMessages([
+                    'transfer_amount' => sprintf(
+                        'Transfer amount exceeds the overall available remaining budget of ₱%s.',
+                        number_format($availableBalance, 2, '.', ',')
+                    ),
+                ]);
             }
 
-            $allocation = min((float) $sourceProject->budget, $remainingToAllocate);
-            if ($allocation <= 0) {
-                continue;
+            $destinationEntries = LedgerEntry::query()
+                ->where('archive', 0)
+                ->where('category', 'Transfer')
+                ->where(function ($query) use ($project) {
+                    $query->where('project_id', $project->id)
+                        ->orWhere('note', 'like', '%' . $project->id . '%');
+                })
+                ->get();
+
+            foreach ($destinationEntries as $entry) {
+                $entry->update([
+                    'archive' => 1,
+                    'updated_by' => Auth::id(),
+                    'updated_at' => now(),
+                ]);
             }
 
-            $this->createTransferSourceEntry($project, $sourceProject, $allocation);
-            $transferAllocations[] = [
-                'project_id' => $sourceProject->id,
-                'project_title' => $sourceProject->title,
-                'amount' => $allocation,
-            ];
+            $remainingToAllocate = $transferAmount;
+            $transferAllocations = [];
 
-            $remainingToAllocate -= $allocation;
-        }
+            foreach ($eligibleProjects as $sourceProject) {
+                if ($remainingToAllocate <= 0) {
+                    break;
+                }
 
-        if ($remainingToAllocate > 0.009) {
-            throw new \Exception('Transfer amount exceeds the overall available remaining budget');
-        }
+                $allocation = min((float) $sourceProject->budget, $remainingToAllocate);
+                if ($allocation <= 0) {
+                    continue;
+                }
 
-        if (!empty($transferAllocations)) {
-            $newDestinationEntry = $this->createCombinedTransferDestinationEntry($project, $transferAllocations, $transferAmount);
-
-            if ($newDestinationEntry && $existingDestinationProof) {
-                $newDestinationEntry->ledger_proof = $existingDestinationProof->ledger_proof;
-                $newDestinationEntry->ledger_proof_original_name = $existingDestinationProof->ledger_proof_original_name;
-                $newDestinationEntry->file_content_hash = $existingDestinationProof->file_content_hash;
-                $newDestinationEntry->save();
+                $this->createTransferSourceEntry($project, $sourceProject, $allocation);
+                $transferAllocations[] = [
+                    'project_id' => $sourceProject->id,
+                    'project_title' => $sourceProject->title,
+                    'amount' => $allocation,
+                ];
+                $remainingToAllocate -= $allocation;
             }
-        }
+
+            if ($remainingToAllocate > 0.009) {
+                throw ValidationException::withMessages([
+                    'transfer_amount' => 'Transfer amount exceeds the overall available remaining budget.',
+                ]);
+            }
+
+            if (!empty($transferAllocations)) {
+                $newDestinationEntry = $this->createCombinedTransferDestinationEntry($project, $transferAllocations, $transferAmount);
+
+                if ($newDestinationEntry && $existingDestinationProof) {
+                    $newDestinationEntry->ledger_proof = $existingDestinationProof->ledger_proof;
+                    $newDestinationEntry->ledger_proof_original_name = $existingDestinationProof->ledger_proof_original_name;
+                    $newDestinationEntry->file_content_hash = $existingDestinationProof->file_content_hash;
+                    $newDestinationEntry->save();
+                }
+            }
+        });
     }
 
     protected function updateTransferLedgerPair(

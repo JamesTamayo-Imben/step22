@@ -107,7 +107,7 @@ export default function CSGNotificationsPage({ notificationsData = [], unreadNot
           )}
         </div>
 
-        <form onSubmit={publishNotice} className="rounded-[20px] border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+        {/* <form onSubmit={publishNotice} className="rounded-[20px] border border-gray-200 bg-white p-4 shadow-sm space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-base font-semibold text-gray-900">Create notification</h2>
           </div>
@@ -137,7 +137,7 @@ export default function CSGNotificationsPage({ notificationsData = [], unreadNot
               Send notification
             </button>
           </div>
-        </form>
+        </form> */}
 
         <div className="relative flex items-center gap-2 overflow-x-auto pb-2 sm:pb-2">
           {selectedFilter && (

@@ -254,12 +254,11 @@ export function EditProjectModal({
         const completed = normalized.filter((p) => {
           if (String(p?.id) === String(projectId)) return false;
 
-          const status = String(p?.status || '').toLowerCase();
           const approvalStatus = String(p?.approval_status || '').toLowerCase();
           const endDate = p?.end_date || p?.endDate;
           const hasEnded = endDate ? new Date(endDate) < new Date() : false;
 
-          return status === 'complete' || status === 'completed' || (approvalStatus === 'approved' && hasEnded);
+          return approvalStatus === 'approved' && hasEnded;
         });
 
         setCompletedProjects(completed);

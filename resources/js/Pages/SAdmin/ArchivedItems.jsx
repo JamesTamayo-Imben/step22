@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
-import { Archive, FolderArchive, ReceiptText, CalendarDays } from 'lucide-react';
+import { Archive, FolderArchive, ReceiptText, CalendarDays, Trash2 } from 'lucide-react';
 
 export default function SAdminArchivedItemsPage({
   archivedProjects = [],
   archivedLedgerEntries = [],
   archivedMeetings = [],
+  assetDisposals = [],
 }) {
   return (
     <AuthenticatedLayout>
@@ -16,10 +17,10 @@ export default function SAdminArchivedItemsPage({
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           <div className="mb-6">
             <h1 className="text-blue-600 text-2xl font-semibold">Archived Items</h1>
-            <p className="text-gray-500">All archived projects, ledger entries, and meetings in one place.</p>
+            <p className="text-gray-500">Archived records and disposed asset history.</p>
           </div>
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="rounded-[20px] border-0 shadow-sm p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -47,6 +48,15 @@ export default function SAdminArchivedItemsPage({
                   <CalendarDays className="w-8 h-8 text-emerald-600" />
                 </div>
               </Card>
+              <Card className="rounded-[20px] border-0 shadow-sm p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Disposed Asset Records</p>
+                    <p className="text-2xl text-gray-900">{assetDisposals.length}</p>
+                  </div>
+                  <Trash2 className="w-8 h-8 text-rose-600" />
+                </div>
+              </Card>
             </div>
 
             {/* Tabs */}
@@ -54,6 +64,7 @@ export default function SAdminArchivedItemsPage({
               archivedProjects={archivedProjects}
               archivedLedgerEntries={archivedLedgerEntries}
               archivedMeetings={archivedMeetings}
+              assetDisposals={assetDisposals}
             />
           </div>
         </div>
@@ -116,13 +127,14 @@ function TabsContent({ value, children, activeTab }) {
   return <div>{children}</div>;
 }
 
-function InlineArchivedTabs({ archivedProjects = [], archivedLedgerEntries = [], archivedMeetings = [] }) {
+function InlineArchivedTabs({ archivedProjects = [], archivedLedgerEntries = [], archivedMeetings = [], assetDisposals = [] }) {
   return (
     <Tabs defaultValue="projects" className="space-y-6">
       <TabsList>
         <TabsTrigger value="projects">Project</TabsTrigger>
         <TabsTrigger value="ledger">Ledger Entries</TabsTrigger>
         <TabsTrigger value="meetings">Meeting</TabsTrigger>
+        <TabsTrigger value="disposals">Disposed Assets</TabsTrigger>
       </TabsList>
 
       <TabsContent value="projects">
@@ -171,7 +183,7 @@ function InlineArchivedTabs({ archivedProjects = [], archivedLedgerEntries = [],
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-indigo-50 text-left">
-                    <th className="px-4 py-3">Entry ID</th>
+                    {/* <th className="px-4 py-3">Entry ID</th> */}
                     <th className="px-4 py-3">Project</th>
                     <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3">Amount</th>
@@ -183,7 +195,7 @@ function InlineArchivedTabs({ archivedProjects = [], archivedLedgerEntries = [],
                 <tbody>
                   {archivedLedgerEntries.map((entry) => (
                     <tr key={entry.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-700">{entry.id}</td>
+                      {/* <td className="px-4 py-3 font-mono text-xs text-gray-700">{entry.id}</td> */}
                       <td className="px-4 py-3 text-gray-900">{entry.projectTitle}</td>
                       <td className="px-4 py-3 text-gray-700">{entry.type}</td>
                       <td className="px-4 py-3 text-gray-700">PHP {Number(entry.amount || 0).toLocaleString()}</td>
@@ -224,6 +236,44 @@ function InlineArchivedTabs({ archivedProjects = [], archivedLedgerEntries = [],
                       <td className="px-4 py-3 font-mono text-xs text-gray-600">{meeting.scheduledDate || 'N/A'}</td>
                       <td className="px-4 py-3 text-gray-700">{meeting.archivedBy || 'Unknown'}</td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-600">{meeting.archivedAt || 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="disposals">
+        <Card className="rounded-[20px] border-0 shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Disposed Assets</h2>
+          {assetDisposals.length === 0 ? (
+            <EmptyState text="No asset disposals recorded." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-rose-50 text-left">
+                    <th className="px-4 py-3">Asset</th>
+                    <th className="px-4 py-3">Category</th>
+                    <th className="px-4 py-3">Project</th>
+                    <th className="px-4 py-3">Quantity</th>
+                    <th className="px-4 py-3">Reason</th>
+                    <th className="px-4 py-3">Recorded By</th>
+                    <th className="px-4 py-3">Disposed At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assetDisposals.map((disposal) => (
+                    <tr key={disposal.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{disposal.assetName}</td>
+                      <td className="px-4 py-3 text-gray-700">{disposal.assetCategory}</td>
+                      <td className="px-4 py-3 text-gray-700">{disposal.projectName}</td>
+                      <td className="px-4 py-3 text-gray-700">{disposal.quantity}</td>
+                      <td className="max-w-sm whitespace-pre-wrap px-4 py-3 text-gray-700">{disposal.reason}</td>
+                      <td className="px-4 py-3 text-gray-700">{disposal.disposedBy}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-600">{disposal.disposedAt || 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>

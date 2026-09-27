@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Adviser\AdviserApprovalController;
+use App\Http\Controllers\Adviser\AdviserAssetDisposalController;
 use App\Http\Controllers\Adviser\AdviserDashboardController;
 use App\Http\Controllers\Adviser\AdviserHistoryController;
 use App\Http\Controllers\Adviser\AdviserLedgerController;
@@ -240,6 +241,7 @@ Route::middleware(['auth', 'verified', 'role:admin,admin-sadu'])->group(function
 
     // Ledger Management
     Route::get('/adviser/ledger', [AdviserLedgerController::class, 'index'])->name('adviser.ledger');
+    Route::post('/adviser/assets/disposals', [AdviserAssetDisposalController::class, 'store'])->name('adviser.asset-disposals.store');
     Route::post('/adviser/ledger/{id}/approve', [AdviserLedgerController::class, 'approve'])->name('adviser.ledger.approve');
     Route::post('/adviser/ledger/{id}/reject', [AdviserLedgerController::class, 'reject'])->name('adviser.ledger.reject');
     Route::post('/adviser/ledger/{id}/correction', [AdviserLedgerController::class, 'correction'])->name('adviser.ledger.correction');

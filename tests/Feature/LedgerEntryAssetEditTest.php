@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\CSG\LedgerEntryController;
+use App\Http\Controllers\Adviser\AdviserAssetDisposalController;
 use App\Models\CSG\Asset;
+use App\Models\CSG\AssetDisposal;
 use App\Models\CSG\AssetUsage;
 use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Project;
@@ -11,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class LedgerEntryAssetEditTest extends TestCase
@@ -87,6 +90,21 @@ class LedgerEntryAssetEditTest extends TestCase
                 $table->unsignedInteger('returned_quantity')->default(0);
                 $table->timestamp('returned_at')->nullable();
                 $table->uuid('returned_by')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        if (!Schema::hasTable('asset_disposals')) {
+            Schema::create('asset_disposals', function ($table) {
+                $table->uuid('id')->primary();
+                $table->uuid('asset_id')->nullable();
+                $table->uuid('source_ledger_entry_id')->nullable();
+                $table->string('asset_name');
+                $table->string('asset_category')->nullable();
+                $table->string('project_name')->nullable();
+                $table->unsignedInteger('quantity');
+                $table->text('reason');
+                $table->uuid('disposed_by')->nullable();
                 $table->timestamps();
             });
         }
@@ -189,5 +207,113 @@ class LedgerEntryAssetEditTest extends TestCase
         $this->assertSame($availableAsset->id, $entry->budget_breakdown[0]['asset_id']);
         $this->assertDatabaseMissing('assets', ['id' => $purchaseAsset->id]);
         $this->assertDatabaseMissing('asset_usages', ['asset_id' => $purchaseAsset->id]);
+    }
+
+    public function test_adviser_can_dispose_available_quantity_and_preserve_purchase_total(): void
+    {
+        [$project, $entry, $asset] = $this->createApprovedAssetPurchase();
+        $secondEntry = LedgerEntry::create([
+            'id' => (string) Str::uuid(),
+            'project_id' => $project->id,
+            'type' => 'Asset',
+            'amount' => 80,
+            'description' => 'Second approved chair purchase',
+            'approval_status' => 'Approved',
+        ]);
+        $secondAsset = Asset::create([
+            'source_ledger_entry_id' => $secondEntry->id,
+            'project_id' => $project->id,
+            'name' => 'Chair',
+            'asset_category' => 'Furniture',
+            'description' => 'Second purchase of four chairs',
+            'quantity' => 4,
+            'available_quantity' => 2,
+            'unit_cost' => 20,
+            'status' => 'available',
+        ]);
+        $actorId = (string) Str::uuid();
+        $request = Request::create('/adviser/assets/disposals', 'POST', [
+            'asset_ids' => [$asset->id, $secondAsset->id],
+            'quantity' => 4,
+            'reason' => 'Two chairs are broken beyond repair.',
+        ]);
+        $request->setUserResolver(fn () => (object) ['id' => $actorId]);
+
+        $response = app(AdviserAssetDisposalController::class)->store($request);
+
+        $this->assertSame(302, $response->getStatusCode());
+        $asset->refresh();
+        $secondAsset->refresh();
+        $this->assertSame(5, $asset->quantity);
+        $this->assertSame(4, $secondAsset->quantity);
+        $this->assertSame(1, $asset->available_quantity + $secondAsset->available_quantity);
+        $this->assertSame(4, AssetDisposal::query()->sum('quantity'));
+        $this->assertSame(2, AssetDisposal::query()->count());
+        $this->assertDatabaseHas('asset_disposals', [
+            'asset_id' => $asset->id,
+            'source_ledger_entry_id' => $entry->id,
+            'reason' => 'Two chairs are broken beyond repair.',
+            'disposed_by' => $actorId,
+        ]);
+    }
+
+    public function test_disposal_cannot_exceed_available_quantity(): void
+    {
+        [, $entry, $asset] = $this->createApprovedAssetPurchase();
+        $request = Request::create('/adviser/assets/disposals', 'POST', [
+            'asset_ids' => [$asset->id],
+            'quantity' => 4,
+            'reason' => 'Attempted disposal exceeds stock.',
+        ]);
+        $request->setUserResolver(fn () => (object) ['id' => (string) Str::uuid()]);
+
+        try {
+            app(AdviserAssetDisposalController::class)->store($request);
+            $this->fail('Expected the disposal quantity to be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('quantity', $exception->errors());
+        }
+
+        $asset->refresh();
+        $this->assertSame(3, $asset->available_quantity);
+        $this->assertSame(5, $asset->quantity);
+        $this->assertSame(0, AssetDisposal::query()->count());
+    }
+
+    private function createApprovedAssetPurchase(): array
+    {
+        $project = Project::create([
+            'id' => (string) Str::uuid(),
+            'title' => 'Disposal test project',
+            'description' => 'Test project',
+            'objective' => 'Objective',
+            'venue' => 'Venue',
+            'category' => 'Social',
+            'budget' => 100,
+            'proposed_by' => 'Tester',
+            'approval_status' => 'Approved',
+            'status' => 'Approved',
+        ]);
+        $entry = LedgerEntry::create([
+            'id' => (string) Str::uuid(),
+            'project_id' => $project->id,
+            'type' => 'Asset',
+            'amount' => 100,
+            'description' => 'Approved chair purchase',
+            'approval_status' => 'Approved',
+        ]);
+        $asset = Asset::create([
+            'source_ledger_entry_id' => $entry->id,
+            'project_id' => $project->id,
+            'name' => 'Chair',
+            'asset_category' => 'Furniture',
+            'description' => 'Purchase of five chairs',
+            'quantity' => 5,
+            'available_quantity' => 3,
+            'unit_cost' => 20,
+            'status' => 'available',
+        ]);
+
+        return [$project, $entry, $asset];
     }
 }

@@ -347,18 +347,22 @@ function LedgerPageInner() {
   // const totalBudget = allProjects.reduce((sum, project) => sum + (Number(project.budget) || 0), 0);
   // const totalBudget = allProjects.reduce((sum, project) => sum + Math.max(0, Number(project.budget) || 0), 0);
 const rawTotalBudget = allProjects.reduce((sum, project) => sum + (Number(project.budget) || 0), 0);
-const totalBudget = Math.max(0, rawTotalBudget);
+const completedProjectRemainingBudget = allProjects
+  .filter((project) => ['complete', 'completed'].includes(String(project.status || '').toLowerCase()))
+  .reduce((sum, project) => sum + Math.max(0, Number(project.budget) || 0), 0);
+const totalBudget = completedProjectRemainingBudget;
+const approvedProjectBudget = Math.max(0, rawTotalBudget);
 const totalShortfall = Math.max(0, -rawTotalBudget);
 
 
   // Compute ledger-derived budget (sum of APPROVED entries only).
   // Draft/Pending/Rejected entries must not count toward the org total,
-  // otherwise this drifts from `totalBudget` (which only sums approved
+  // otherwise this drifts from `approvedProjectBudget` (which only sums approved
   // projects) and falsely triggers the tampered/mismatch alert.
   const approvedLedgerEntries = ledgerEntries.filter((e) => (e.status || e.approval_status) === 'Approved');
   const computedBudgetFromLedger = computeOrgBudgetFromLedger(approvedLedgerEntries);
 
-  const budgetDifference = (Number(totalBudget) || 0) - computedBudgetFromLedger;
+  const budgetDifference = approvedProjectBudget - computedBudgetFromLedger;
   const isBudgetTampered = isDataLoaded && approvedLedgerEntries.length > 0 && Math.abs(budgetDifference) > 0.01;
 
   //if the ledger entry is a initial, initial transfer or transfer it should not be edited directly in the ledger entry
@@ -1313,7 +1317,7 @@ const getTypeAmountColor = (type) => {
               </p>
               <p className="text-xs text-gray-500 mt-1">
 <span style={{ color: isBudgetTampered ? 'red' : '#2563eb'}}>
-  {isBudgetTampered ? 'Mismatch detected' : 'Sum of budgets for projects'}
+  {isBudgetTampered ? 'Mismatch detected' : 'Remaining funds'}
 </span>              </p>
             </div>
             <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\CSG\AssetDisposal;
 use App\Models\CSG\LedgerEntry;
 use App\Models\CSG\Meeting;
 use App\Models\CSG\Project;
@@ -132,10 +133,29 @@ class SAdminArchivedItemsController extends Controller
             })
             ->values();
 
+        $assetDisposals = AssetDisposal::query()
+            ->with('user:id,name')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (AssetDisposal $disposal) {
+                return [
+                    'id' => $disposal->id,
+                    'assetName' => $disposal->asset_name,
+                    'assetCategory' => $disposal->asset_category ?? 'N/A',
+                    'projectName' => $disposal->project_name ?? 'N/A',
+                    'quantity' => $disposal->quantity,
+                    'reason' => $disposal->reason,
+                    'disposedBy' => $disposal->user?->name ?? 'Unknown',
+                    'disposedAt' => optional($disposal->created_at)?->format('Y-m-d H:i:s'),
+                ];
+            })
+            ->values();
+
         return Inertia::render('SAdmin/ArchivedItems', [
             'archivedProjects' => $archivedProjects,
             'archivedLedgerEntries' => $archivedLedgerEntries,
             'archivedMeetings' => $archivedMeetings,
+            'assetDisposals' => $assetDisposals,
         ]);
     }
 }

@@ -28,7 +28,8 @@ import {
   Wallet,
   Shield,
   Verified,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -410,6 +411,12 @@ export default function LedgerApprovalsPage() {
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [assetInventory, setAssetInventory] = useState([]);
+  const [isAssetDisposalOpen, setIsAssetDisposalOpen] = useState(false);
+  const [disposalAssetGroup, setDisposalAssetGroup] = useState(null);
+  const [disposalAssetIds, setDisposalAssetIds] = useState([]);
+  const [disposalQuantity, setDisposalQuantity] = useState('1');
+  const [disposalReason, setDisposalReason] = useState('');
+  const [isDisposalSubmitting, setIsDisposalSubmitting] = useState(false);
   const [assetSearch, setAssetSearch] = useState('');
   const [assetCategoryFilter, setAssetCategoryFilter] = useState('all');
 
@@ -493,11 +500,21 @@ export default function LedgerApprovalsPage() {
 
       const data = await response.json();
       setAssetInventory(Array.isArray(data) ? data : []);
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       console.error('Failed to load asset inventory', error);
       setAssetInventory([]);
+      return [];
     }
   };
+
+  const disposableAssets = assetInventory.filter((asset) => (
+    disposalAssetIds.includes(asset.id) && Number(asset.available_quantity || 0) > 0
+  ));
+  const disposalAvailableQuantity = disposableAssets.reduce(
+    (total, asset) => total + Number(asset.available_quantity || 0),
+    0
+  );
 
   const aggregatedAssetInventory = Object.values(
     (assetInventory || []).reduce((accumulator, asset) => {
@@ -551,6 +568,48 @@ export default function LedgerApprovalsPage() {
   const handleOpenCorrectionDialog = (entry) => {
     setSelectedEntry(entry);
     setIsCorrectionDialogOpen(true);
+  };
+
+  const handleOpenAssetDisposal = (assetGroup) => {
+    const groupRecords = assetInventory.filter((asset) => (
+      (asset.name || 'Unknown').toString().trim() === assetGroup.name &&
+      (asset.asset_category || 'Other').toString().trim() === assetGroup.asset_category
+    ));
+    setDisposalAssetGroup(assetGroup);
+    setDisposalAssetIds(groupRecords
+      .filter((asset) => Number(asset.available_quantity || 0) > 0)
+      .map((asset) => asset.id));
+    setDisposalQuantity('1');
+    setDisposalReason('');
+    setIsAssetDisposalOpen(true);
+  };
+
+  const submitAssetDisposal = () => {
+    if (!disposalAssetIds.length || !disposalReason.trim()) {
+      showToast('Enter a disposal reason before continuing.', 'error');
+      return;
+    }
+
+    setIsDisposalSubmitting(true);
+    router.post(route('adviser.asset-disposals.store'), {
+      asset_ids: disposalAssetIds,
+      quantity: Number(disposalQuantity),
+      reason: disposalReason.trim(),
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setIsAssetDisposalOpen(false);
+        setDisposalAssetGroup(null);
+        setDisposalAssetIds([]);
+        setDisposalReason('');
+        showToast('Asset disposal recorded.');
+        fetchAssetInventory();
+      },
+      onError: (errors) => {
+        showToast(Object.values(errors)[0] || 'Unable to record disposal.', 'error');
+      },
+      onFinish: () => setIsDisposalSubmitting(false),
+    });
   };
 
   const getTypeColor = (type) => {
@@ -841,6 +900,7 @@ export default function LedgerApprovalsPage() {
                           <th className="px-4 py-3 font-medium">Category</th>
                           <th className="px-4 py-3 font-medium">Quantity Available</th>
                           <th className="px-4 py-3 font-medium">Status</th>
+                          <th className="px-4 py-3 font-medium">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 bg-white">
@@ -859,6 +919,18 @@ export default function LedgerApprovalsPage() {
                                 }`}>
                                   {statusText}
                                 </span>
+                              </td>
+                              <td className="px-4 py-3 justify-center">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={Number(asset.available_quantity || 0) < 1}
+                                  onClick={() => handleOpenAssetDisposal(asset)}
+                                  className="border-red-500 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl"
+                                >
+                                  <Trash2 className="mr-1.5 h-4 w-4" /> Dispose
+                                </Button>
                               </td>
                             </tr>
                           );
@@ -1034,6 +1106,7 @@ export default function LedgerApprovalsPage() {
                   <option value="all">All</option>
                   <option value="Income">Income</option>
                   <option value="Expense">Expense</option>
+                  <option value="Asset">Asset</option>
                   <option value="Donation">Donation</option>
                   <option value="Sponsorship">Sponsorship</option>
                   <option value="Canvas">Canvas</option>
@@ -1427,6 +1500,71 @@ export default function LedgerApprovalsPage() {
             </div> */}
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={isAssetDisposalOpen}
+        onClose={() => setIsAssetDisposalOpen(false)}
+        title={`Dispose ${disposalAssetGroup?.name || 'Asset'}`}
+      >
+        <div className="space-y-4 pt-4">
+          {disposableAssets.length === 0 ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              No available items in this asset group can be disposed. Items assigned to projects must be returned first.
+            </div>
+          ) : (
+            <>
+              <div className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                {disposalAssetGroup?.asset_category || 'Other'} · {disposalAvailableQuantity} available
+              </div>
+              <div>
+                <label htmlFor="disposal-quantity" className="mb-1 block text-sm font-medium text-gray-700">Quantity to dispose</label>
+                <input
+                  id="disposal-quantity"
+                  type="number"
+                  min="1"
+                  max={disposalAvailableQuantity}
+                  step="1"
+                  value={disposalQuantity}
+                  onChange={(event) => setDisposalQuantity(event.target.value)}
+                  className="h-10 w-full rounded-lg border border-gray-300 px-3 text-sm"
+                />
+              </div>
+              <div>
+                <label htmlFor="disposal-reason" className="mb-1 block text-sm font-medium text-gray-700">Reason</label>
+                <textarea
+                  id="disposal-reason"
+                  rows={4}
+                  maxLength={2000}
+                  required
+                  value={disposalReason}
+                  onChange={(event) => setDisposalReason(event.target.value)}
+                  placeholder="Describe why these items are being disposed."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex justify-end gap-2 border-t pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsAssetDisposalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={submitAssetDisposal}
+                  disabled={
+                    isDisposalSubmitting ||
+                    disposableAssets.length === 0 ||
+                    !disposalReason.trim() ||
+                    Number(disposalQuantity) < 1 ||
+                    Number(disposalQuantity) > disposalAvailableQuantity
+                  }
+                  className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                >
+                  {isDisposalSubmitting ? 'Recording…' : 'Confirm Disposal'}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       </Modal>
 
       {/* Reject Dialog */}

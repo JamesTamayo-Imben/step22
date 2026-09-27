@@ -53,4 +53,9 @@ class Asset extends Model
     {
         return $this->hasMany(AssetUsage::class);
     }
+
+    public function disposals()
+    {
+        return $this->hasMany(AssetDisposal::class);
+    }
 }

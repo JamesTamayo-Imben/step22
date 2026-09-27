@@ -10,6 +10,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class ProjectBudgetTransferUpdateTest extends TestCase
@@ -87,7 +88,21 @@ class ProjectBudgetTransferUpdateTest extends TestCase
             'created_by' => $user->id,
             'updated_by' => $user->id,
         ]);
-
+        $secondSourceProject = Project::create([
+            'id' => (string) Str::uuid(),
+            'title' => 'Second Completed Source Project',
+            'description' => 'Another project with remaining budget',
+            'category' => 'Social',
+            'budget' => 60,
+            'proposed_by' => 'Tester',
+            'approval_status' => 'Approved',
+            'status' => 'Complete',
+            'start_date' => now()->subMonths(3)->toDateString(),
+            'end_date' => now()->subDays(2)->toDateString(),
+            'archive' => 0,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
         $projectTitle = 'Transfer Destination Project ' . Str::uuid();
 
         $request = Request::create('/api/projects', 'POST', [
@@ -100,7 +115,7 @@ class ProjectBudgetTransferUpdateTest extends TestCase
             'has_budget' => 1,
             'is_active' => 1,
             'budget_source' => 'past_project',
-            'transfer_from_project_id' => $sourceProject->id,
+            'transfer_from_project_id' => '',
             'transfer_amount' => 125,
             'proposed_by' => 'Tester',
             'status' => 'Draft',
@@ -123,6 +138,18 @@ class ProjectBudgetTransferUpdateTest extends TestCase
             ->firstOrFail();
 
         $this->assertEquals(125.0, (float) $destinationTransfer->amount);
+        $initialSourceEntries = LedgerEntry::where('category', 'Transfer')
+            ->where('archive', 0)
+            ->where('type', 'Transfer')
+            ->get()
+            ->filter(function (LedgerEntry $entry) use ($project) {
+                $note = json_decode((string) $entry->note, true);
+
+                return is_array($note)
+                    && (string) ($note['transfer_destination_project_id'] ?? '') === (string) $project->id;
+            });
+        $this->assertSame(125.0, (float) $initialSourceEntries->sum('amount'));
+        $this->assertSame(2, $initialSourceEntries->pluck('project_id')->unique()->count());
 
         $updateRequest = Request::create('/api/projects/' . $project->id, 'POST', [
             'title' => $projectTitle,
@@ -171,6 +198,94 @@ class ProjectBudgetTransferUpdateTest extends TestCase
         $this->assertEquals(50.0, (float) $sourceTransferEntries->sum('amount'));
         $sourceProject->refresh();
         $this->assertEquals(1000.0, (float) $sourceProject->budget);
+
+        $sourceProject->update(['budget' => 100]);
+        $secondSourceProject->update(['budget' => 23]);
+        $combinedIncreaseRequest = Request::create('/api/projects/' . $project->id, 'POST', [
+            'title' => $projectTitle,
+            'description' => 'Updated description',
+            'objective' => 'Build community impact',
+            'venue' => 'Main Hall',
+            'category' => 'Social',
+            'budget' => 120,
+            'has_budget' => 1,
+            'budget_source' => 'past_project',
+            'transfer_from_project_id' => $sourceProject->id,
+            'transfer_amount' => 120,
+            'proposed_by' => 'Tester',
+            'status' => 'Draft',
+            'approval_status' => 'Draft',
+            'start_date' => now()->addMonth()->toDateString(),
+            'end_date' => now()->addMonths(2)->toDateString(),
+        ]);
+        $combinedIncreaseRequest->setUserResolver(fn () => $user);
+
+        $combinedIncreaseResponse = (new ProjectController())->update($combinedIncreaseRequest, $project->id);
+        $this->assertEquals(200, $combinedIncreaseResponse->getStatusCode());
+        $this->assertSame(120.0, (float) LedgerEntry::where('project_id', $project->id)
+            ->where('category', 'Transfer')
+            ->where('archive', 0)
+            ->where('type', 'Initial Transfer')
+            ->value('amount'));
+        $this->assertSame(120.0, (float) LedgerEntry::where('category', 'Transfer')
+            ->where('archive', 0)
+            ->where('type', 'Transfer')
+            ->get()
+            ->filter(function (LedgerEntry $entry) use ($project) {
+                $note = json_decode((string) $entry->note, true);
+
+                return is_array($note)
+                    && (string) ($note['transfer_destination_project_id'] ?? '') === (string) $project->id;
+            })
+            ->sum('amount'));
+
+        $sourceProject->update(['budget' => 10]);
+        $secondSourceProject->update(['budget' => 10]);
+        $unaffordableRequest = Request::create('/api/projects/' . $project->id, 'POST', [
+            'title' => $projectTitle,
+            'description' => 'Updated description',
+            'objective' => 'Build community impact',
+            'venue' => 'Main Hall',
+            'category' => 'Social',
+            'budget' => 200,
+            'has_budget' => 1,
+            'budget_source' => 'past_project',
+            'transfer_from_project_id' => '',
+            'transfer_amount' => 200,
+            'proposed_by' => 'Tester',
+            'status' => 'Draft',
+            'approval_status' => 'Draft',
+            'start_date' => now()->addMonth()->toDateString(),
+            'end_date' => now()->addMonths(2)->toDateString(),
+        ]);
+        $unaffordableRequest->setUserResolver(fn () => $user);
+
+        try {
+            (new ProjectController())->update($unaffordableRequest, $project->id);
+            $this->fail('An unaffordable transfer should be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('transfer_amount', $exception->errors());
+        }
+
+        $this->assertSame(50.0, (float) LedgerEntry::where('project_id', $project->id)
+            ->where('category', 'Transfer')
+            ->where('archive', 0)
+            ->where('type', 'Initial Transfer')
+            ->value('amount'));
+        $this->assertSame(50.0, (float) LedgerEntry::where('category', 'Transfer')
+            ->where('archive', 0)
+            ->where('type', 'Transfer')
+            ->get()
+            ->filter(function (LedgerEntry $entry) use ($project) {
+                $note = json_decode((string) $entry->note, true);
+
+                return is_array($note)
+                    && (string) ($note['transfer_destination_project_id'] ?? '') === (string) $project->id;
+            })
+            ->sum('amount'));
+
+        $sourceProject->update(['budget' => 1000]);
+        $secondSourceProject->update(['budget' => 60]);
 
         $revertRequest = Request::create('/api/projects/' . $project->id, 'POST', [
             'title' => $projectTitle,
