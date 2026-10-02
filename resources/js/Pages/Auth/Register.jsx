@@ -512,17 +512,17 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
             {/* Course Selection */}
             <div>
               <label className="block text-sm text-gray-600 mb-1">
-                Course <span className="text-red-500">*</span>
+                Program <span className="text-red-500">*</span>
               </label>
               <select
                 value={form.courseId}
                 onChange={(e) => handleChange("courseId", e.target.value)}
                 className="w-full h-10 pl-3 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition text-gray-700"
               >
-                <option value="">-- Select a course --</option>
+                <option value="">-- Select a program --</option>
                 {courseList.map((course) => (
                   <option key={course.id} value={course.id}>
-                    {course.name || course.title || 'Unknown Course'}
+                    {course.name || course.title || 'Unknown Program'}
                   </option>
                 ))}
               </select>
