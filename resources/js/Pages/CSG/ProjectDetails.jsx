@@ -38,6 +38,7 @@ import {
   UploadProofModal,
   EditActionButtons,
 } from './ProjectEdit';
+import ProjectFinancialStatementModal from '@/Components/ui/ProjectFinancialStatementModal';
 
 function formatLimitedNumber(value, opts = {}) {
   const { minFractionDigits = 0, maxFractionDigits = 2 } = opts;
@@ -549,6 +550,7 @@ export function CSGProjectDetailsPage({
   const [showUploadProofModal, setShowUploadProofModal] = useState(false);
   const [showChangeDatesModal, setShowChangeDatesModal] = useState(false);
   const [showAssetsModal, setShowAssetsModal] = useState(false);
+  const [showFinancialStatement, setShowFinancialStatement] = useState(false);
   const [assetInventory, setAssetInventory] = useState([]);
   const [assetSearch, setAssetSearch] = useState('');
   const [assetCategoryFilter, setAssetCategoryFilter] = useState('all');
@@ -2059,7 +2061,7 @@ function maskUserName(fullName) {
       {activeTab === 'ledger' && isApproved && (
         <div className="space-y-6">
           <Card className="rounded-[20px] border-0 shadow-sm p-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col items-stretch gap-4">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-gray-900">Ledger Entries</h2>
                 <Badge className={`rounded-lg ${
@@ -2075,11 +2077,11 @@ function maskUserName(fullName) {
                   {verificationStatus.status === 'tampering_detected' ? 'Tampered Alert' : 'Verified'}
                 </Badge>
               </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
               {canCreateLedgers && (
  <Button 
   onClick={() => setShowAddLedgerModal(true)} 
-  className={`rounded-xl transition-all ${
+  className={`w-full min-w-0 justify-center whitespace-nowrap rounded-xl transition-all sm:w-auto ${
     isLedgerDisabled 
       ? 'bg-gray-400 cursor-not-allowed opacity-50' 
       : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
@@ -2090,11 +2092,18 @@ function maskUserName(fullName) {
   Add Ledger Entry
 </Button>
             )}
+            <Button
+              onClick={() => setShowFinancialStatement(true)}
+              className="w-full min-w-0 justify-center whitespace-nowrap bg-slate-700 hover:bg-slate-800 text-white shadow-sm hover:shadow-md rounded-xl transition-all sm:w-auto"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Financial Summary
+            </Button>
             <Button onClick={() => {
               fetchAssetInventory();
               setShowAssetsModal(true);
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md rounded-xl transition-all"
+            className="w-full min-w-0 justify-center whitespace-nowrap bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md rounded-xl transition-all sm:w-auto"
             >
               <Folder className="w-4 h-4 mr-2" />
               Assets List
@@ -2804,6 +2813,13 @@ function maskUserName(fullName) {
     </div>
   )}
 </Modal>
+
+      <ProjectFinancialStatementModal
+        project={project}
+        entries={ledgerEntries}
+        isOpen={showFinancialStatement}
+        onClose={() => setShowFinancialStatement(false)}
+      />
 
       <Modal open={showAssetsModal} onClose={() => setShowAssetsModal(false)} title="Recorded Assets" description="Current asset inventory and available stock status">
         <div className="space-y-4 pt-6">

@@ -27,7 +27,7 @@ function getTutorial(role = '', path = '') {
 		return tutorials.adviser;
 	}
 
-	if (normalizedPath.startsWith('/sadmin') || normalizedRole === 'superadmin' || normalizedRole === 'superadminuser') {
+	if (normalizedPath.startsWith('/sadmin') || normalizedRole === 'sadmin' || normalizedRole === 'superadmin' || normalizedRole === 'superadminuser') {
 		return tutorials.sadmin;
 	}
 
@@ -41,8 +41,14 @@ function getTutorial(role = '', path = '') {
 export default function TutorialButton() {
 	const { props } = usePage();
 	const userRole = props?.auth?.user?.role?.slug || props?.auth?.user?.role?.name || '';
+	const path = typeof window === 'undefined' ? '' : window.location.pathname;
+	const isSuperAdmin = normalizeRole(userRole) === 'superadmin' || normalizeRole(userRole) === 'sadmin' || path.startsWith('/sadmin');
 	const [isOpen, setIsOpen] = useState(false);
-	const [tutorial, setTutorial] = useState(() => getTutorial(userRole, typeof window !== 'undefined' ? window.location.pathname : ''));
+	const [tutorial, setTutorial] = useState(() => getTutorial(userRole, path));
+
+	if (isSuperAdmin) {
+		return null;
+	}
 
 	useEffect(() => {
 		if (!isOpen) return undefined;
@@ -64,8 +70,7 @@ export default function TutorialButton() {
 		setIsOpen(true);
 	};
 
-	const path = typeof window === 'undefined' ? '' : window.location.pathname;
-	const buttonPosition = path.startsWith('/csg') || path.startsWith('/adviser')
+	const buttonPosition = path.startsWith('/csg') || path.startsWith('/adviser') || path.startsWith('/sadmin')
 		? 'bottom-6'
 		: 'bottom-20';
 

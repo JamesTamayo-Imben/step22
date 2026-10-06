@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, usePage, router } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
+import ProjectFinancialStatementModal from '@/Components/ui/ProjectFinancialStatementModal';
 import ReactDOM from 'react-dom';
 import { CalendarDays, DollarSign, FolderKanban, Search, Star, X } from 'lucide-react';
 
@@ -166,6 +167,23 @@ const getProjectMonthDistance = (project, referenceDate = new Date()) => {
   return Math.min(diff, 12 - diff);
 };
 
+const isRecentCompletedProject = (project, referenceDate = new Date()) => {
+  const dateValue = project.end_date || project.endDate;
+  if (!dateValue) {
+    return false;
+  }
+
+  const projectDate = new Date(dateValue);
+  if (isNaN(projectDate.getTime())) {
+    return false;
+  }
+
+  const oneYearAgo = new Date(referenceDate);
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+  return projectDate <= referenceDate && projectDate >= oneYearAgo;
+};
+
 export default function AdviserProjectsPage() {
   const { projects = [] } = usePage().props;
 
@@ -201,7 +219,7 @@ export default function AdviserProjectsPage() {
       .filter(isApprovedProject)
       .filter((project) => getCalculatedStatus(project) === 'Completed')
       .filter((project) => getAverageRatingValue(project) > 0)
-      .filter((project) => getProjectMonthDistance(project, now) <= 1)
+      .filter((project) => isRecentCompletedProject(project, now))
       .map((project) => ({
         ...project,
         averageRating: getAverageRatingValue(project),
@@ -516,12 +534,22 @@ export default function AdviserProjectsPage() {
               <div className="sm:col-span-2"><p className="text-xs text-gray-500">Description</p><p className="mt-1 whitespace-pre-wrap text-sm text-gray-900">{selectedProject.description || 'No description provided'}</p></div>
             </div>
 
-            <div className="mt-6 flex justify-end border-t pt-4">
+            <div className="mt-6 flex justify-end gap-2 border-t pt-4">
               <button type="button" onClick={() => setSelectedProject(null)} className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Close</button>
+              <button type="button" onClick={() => setSelectedProject({ ...selectedProject, showFinancialStatement: true })} className="rounded-xl bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Financial Summary</button>
             </div>
           </div>
         </div>,
         document.body
+      )}
+
+      {selectedProject && (
+        <ProjectFinancialStatementModal
+          project={selectedProject}
+          entries={selectedProject.ledgerEntries || selectedProject.ledger_entries || []}
+          isOpen={Boolean(selectedProject.showFinancialStatement)}
+          onClose={() => setSelectedProject({ ...selectedProject, showFinancialStatement: false })}
+        />
       )}
     </AuthenticatedLayout>
   );

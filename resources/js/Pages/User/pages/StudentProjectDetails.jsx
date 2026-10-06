@@ -4,6 +4,7 @@ import { Card } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { StudentModal } from '@/Components/ui/StudentModal';
 import { Chatbot } from '@/Components/ui/Chatbot';
+import ProjectFinancialStatementModal from '@/Components/ui/ProjectFinancialStatementModal';
 import { ArrowLeft, FolderKanban, Folder, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shield, XCircle } from 'lucide-react';
 
 function showToast(message, type = 'success') {
@@ -40,10 +41,12 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
   const [selectedLedgerEntry, setSelectedLedgerEntry] = useState(null);
   const [selectedProofDocument, setSelectedProofDocument] = useState(null);
   const [showAssetModal, setShowAssetModal] = useState(false);
+  const [showFinancialStatement, setShowFinancialStatement] = useState(false);
   const [assetInventory, setAssetInventory] = useState([]);
   const [assetSearch, setAssetSearch] = useState('');
   const [assetCategoryFilter, setAssetCategoryFilter] = useState('all');
   const [showAllComments, setShowAllComments] = useState(false);
+  const [ledgerPage, setLedgerPage] = useState(1);
 
   const currentRoleName = props?.auth?.user?.role?.name || props?.auth?.user?.role_name || props?.role?.name || '';
   const isSuperAdmin = ['Super Admin', 'superadmin', 'Superadmin'].includes(currentRoleName);
@@ -79,6 +82,30 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
     if (!path) return '#';
     if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/')) return path;
     return `/${path}`;
+  };
+
+  const parseBudgetBreakdown = (budgetBreakdown) => {
+    if (!budgetBreakdown) return [];
+
+    if (Array.isArray(budgetBreakdown)) {
+      return budgetBreakdown;
+    }
+
+    if (typeof budgetBreakdown === 'string') {
+      try {
+        const parsed = JSON.parse(budgetBreakdown);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    if (typeof budgetBreakdown === 'object') {
+      if (Array.isArray(budgetBreakdown.items)) return budgetBreakdown.items;
+      if (budgetBreakdown.item || budgetBreakdown.name) return [budgetBreakdown];
+    }
+
+    return [];
   };
 
   const getProofExtension = (path) => {
@@ -181,6 +208,15 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
     return matchesSearch && matchesCategory;
   });
 
+  const ledgerEntries = currentProject?.ledgerEntries || [];
+  const ledgerPageSize = 10;
+  const ledgerPageCount = Math.max(1, Math.ceil(ledgerEntries.length / ledgerPageSize));
+  const paginatedLedgerEntries = ledgerEntries.slice((ledgerPage - 1) * ledgerPageSize, ledgerPage * ledgerPageSize);
+
+  useEffect(() => {
+    setLedgerPage(1);
+  }, [currentProject?.id, currentProject?.ledgerEntries?.length]);
+
   const getProjectApprovalProof = () => {
     const candidate = currentProject?.project_proof || currentProject?.projectProof || currentProject?.approval_copy || currentProject?.approvalCopy || null;
     if (!candidate) return null;
@@ -247,7 +283,7 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
       case 'Pending Adviser Approval':
         return 'bg-yellow-100 text-yellow-700';
       case 'Approved':
-        return 'bg-blue-100 text-blue-700';
+        return 'bg-green-100 text-green-700';
       case 'Rejected':
         return 'bg-red-100 text-red-700';
       default:
@@ -268,11 +304,29 @@ export default function StudentProjectDetails({ projectId, onBack, project }) {
       case 'Pending Adviser Approval':
         return 'bg-yellow-200 text-yellow-700';
       case 'Approved':
-        return 'bg-blue-200 text-blue-700';
+        return 'bg-green-200 text-green-700';
       case 'Rejected':
         return 'bg-red-200 text-red-700';
       default:
         return 'bg-gray-200 text-gray-700';
+    }
+  };
+
+  const getApprovalBadgeColor = (status) => {
+    const normalizedStatus = String(status || '').trim();
+
+    switch (normalizedStatus.toLowerCase()) {
+      case 'approved':
+        return 'bg-green-100 text-green-700 border border-green-200';
+      case 'pending':
+      case 'pending adviser approval':
+        return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
+      case 'rejected':
+        return 'bg-red-100 text-red-700 border border-red-200';
+      case 'draft':
+        return 'bg-gray-100 text-gray-700 border border-gray-200';
+      default:
+        return 'bg-slate-100 text-slate-700 border border-slate-200';
     }
   };
 
@@ -309,7 +363,22 @@ const isProjectStarted = () => {
     case 'Donation': return 'bg-blue-100 text-blue-700';
     case 'Sponsorship': return 'bg-purple-100 text-purple-700';
     case 'Canvas': return 'bg-gray-100 text-gray-700';
+    case 'Transfer': return 'bg-yellow-100 text-yellow-700';
+    case 'Initial' : return 'bg-indigo-100 text-indigo-700';
     default: return 'bg-gray-100 text-gray-700';
+  }
+};
+
+const getMoneyTypeColor = (type) => {
+  switch (type) {
+    case 'Expense': return 'text-red-700';
+    case 'Income': return 'text-green-700';
+    case 'Donation': return 'text-blue-700';
+    case 'Sponsorship': return 'text-purple-700';
+    case 'Canvas': return 'text-gray-700';
+    case 'Transfer': return 'text-yellow-700';
+    case 'Initial' : return 'text-indigo-700';
+    default: return 'text-gray-700';
   }
 };
 
@@ -481,7 +550,9 @@ const isProjectStarted = () => {
           <div className="bg-blue-50 rounded-xl p-4">
             <Star className="w-5 h-5 text-blue-600 mb-2" />
             <p className="text-sm text-gray-600">Approval</p>
-            <p className="text-lg font-semibold text-gray-900">{currentProject.approvalStatus || 'Pending'}</p>
+            <Badge className={getApprovalBadgeColor(currentProject.approvalStatus || 'Pending')}>
+              {currentProject.approvalStatus || 'Pending'}
+            </Badge>
           </div>
         </div>
       </Card>
@@ -576,19 +647,29 @@ const isProjectStarted = () => {
       {activeTab === 'ledger' && (
         <Card className="rounded-[20px] border-0 shadow-sm p-6">
           
-        <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Ledger Entries Record</h2>
-         <button
-                      type="button"
-                      onClick={() => {
-                        fetchAssetInventory();
-                        setShowAssetModal(true);
-                      }}
-                      className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                    >
-                      <Folder className="w-4 h-4 mr-2" />
-                      Assets List
-                    </button>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-bold text-gray-900">Ledger Entries Record</h2>
+            <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setShowFinancialStatement(true)}
+                className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-xl bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 sm:px-4"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Financial Summary
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  fetchAssetInventory();
+                  setShowAssetModal(true);
+                }}
+                className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 sm:px-4"
+              >
+                <Folder className="w-4 h-4 mr-2" />
+                Assets List
+              </button>
+            </div>
         </div>
           {/* Tamper Alert */}
       {currentProject.tamperedAlerts > 0 && (
@@ -604,45 +685,116 @@ const isProjectStarted = () => {
           </div>
         </div>
       )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(currentProject.ledgerEntries || []).map((entry) => (
-              <button
-                key={entry.id}
-                onClick={() => setSelectedLedgerEntry(entry)}
-                className={`rounded-xl border p-4 ${
-                  getTypeColor(entry.type)
-                } text-left hover:shadow-md transition-shadow`}
-              >
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  {/* <div>
-                    <p className="text-xs text-gray-500">Transaction ID</p>
-                    <p className="font-mono text-xs text-gray-700">{entry.id}</p>
-                  </div> */}
-            
+          {ledgerEntries.length ? (
+            <>
+              <div className="hidden md:block overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-slate-50 text-gray-600">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Date</th>
+                        <th className="px-4 py-3 font-medium">Type</th>
+                        <th className="px-4 py-3 font-medium">Description</th>
+                        <th className="px-4 py-3 font-medium">Amount</th>
+                        <th className="px-4 py-3 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {paginatedLedgerEntries.map((entry) => (
+                        <tr
+                          key={entry.id}
+                          onClick={() => setSelectedLedgerEntry(entry)}
+                          className="cursor-pointer transition-colors hover:bg-slate-50"
+                        >
+                          <td className="px-4 py-3 text-gray-700">{entry.createdAt || '-'}</td>
+                          <td className="px-4 py-3">
+                            <Badge className={getTypeColor(entry.type)}>{entry.type || 'Entry'}</Badge>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 max-w-[280px]">
+                            <div className="truncate">{entry.description || '-'}</div>
+                          </td>
+                          <td className={getMoneyTypeColor(entry.type) + ' px-4 py-3 font-semibold text-gray-900'}>₱{Number(entry.amount || 0).toLocaleString()}</td>
+                          <td className="px-4 py-3">
+                            <Badge className={getApprovalBadgeColor(entry.approvalStatus || 'Pending')}>
+                              {entry.approvalStatus || 'Pending'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Wallet className="w-4 h-4 text-gray-700" />
-                  <p className="text-lg font-bold text-gray-900">₱{Number(entry.amount || 0).toLocaleString()} <Badge className={getTypeColor(entry.type)}>
-                    {entry.type}
-                  </Badge></p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:hidden">
+                {paginatedLedgerEntries.map((entry) => (
+                  <button
+                    key={entry.id}
+                    onClick={() => setSelectedLedgerEntry(entry)}
+                    className={`rounded-xl border p-4 ${getTypeColor(entry.type)} text-left hover:shadow-md transition-shadow`}
+                  >
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="w-4 h-4 text-gray-700" />
+                        <span className="text-lg font-bold text-gray-900">₱{Number(entry.amount || 0).toLocaleString()}</span>
+                      </div>
+                      <Badge className={getApprovalBadgeColor(entry.approvalStatus || 'Pending')}>
+                        {entry.approvalStatus || 'Pending'}
+                      </Badge>
+                    </div>
+                    <div className="mb-2">
+                      <Badge className={getTypeColor(entry.type)}>{entry.type || 'Entry'}</Badge>
+                    </div>
+                    <p className="text-sm text-gray-700 mb-2">{entry.description || '-'}</p>
+                    <div className="flex items-center justify-between text-xs text-gray-600">
+                      <span>{entry.createdAt || '-'}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {ledgerEntries.length > ledgerPageSize && (
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-sm text-gray-500">
+                    Page {ledgerPage} of {ledgerPageCount}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setLedgerPage((page) => Math.max(1, page - 1))}
+                      disabled={ledgerPage === 1}
+                      className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLedgerPage((page) => Math.min(ledgerPageCount, page + 1))}
+                      disabled={ledgerPage === ledgerPageCount}
+                      className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-700 mb-3 truncate">{entry.description || '-'}</p>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="px-2 py-1 rounded-md bg-white text-gray-700 border">{entry.approvalStatus}</span>
-                  <span className="text-gray-600">{entry.createdAt || '-'}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-          {!currentProject.ledgerEntries?.length && 
-          <div className="text-center">
-                         <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-3"/>
-                         <p className="text-sm text-gray-500">No ledger entries yet</p>
-                       <p className="text-xs text-gray-400 mt-1 mb-4">Add your first ledger entry to get started</p>
-                        </div>
-          }
+              )}
+            </>
+          ) : (
+            <div className="text-center">
+              <Wallet className="w-12 h-12 text-gray-300 mx-auto mb-3"/>
+              <p className="text-sm text-gray-500">No ledger entries yet</p>
+              <p className="text-xs text-gray-400 mt-1 mb-4">Add your first ledger entry to get started</p>
+            </div>
+          )}
         </Card>
       )}
+
+      <ProjectFinancialStatementModal
+        project={currentProject}
+        entries={currentProject?.ledgerEntries || []}
+        isOpen={showFinancialStatement}
+        onClose={() => setShowFinancialStatement(false)}
+      />
 
       {activeTab === 'proof' && (
         <Card className="rounded-[20px] border-0 shadow-sm p-6 bg-gradient-to-br from-white to-blue-50">
@@ -944,29 +1096,90 @@ const isProjectStarted = () => {
       >
         {selectedLedgerEntry && (
           <div className="space-y-4 pt-2">
-            <div className={`rounded-2xl p-4 border ${selectedLedgerEntry.type === 'Income' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-              <div className="flex items-center justify-between">
-                <p className="font-semibold text-gray-900">{selectedLedgerEntry.type} Entry</p>
-                <Badge className="bg-white text-gray-700 border">{selectedLedgerEntry.approvalStatus || '-'}</Badge>
+            <div className="rounded-xl p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {/* <Badge className={getTypeColor(selectedLedgerEntry.type)}>{selectedLedgerEntry.type || 'Entry'}</Badge> */}
+                  <p className={getMoneyTypeColor(selectedLedgerEntry.type) + ' font-semibold text-gray-900'}>{selectedLedgerEntry.type || 'Entry'} Entry</p>
+                </div>
+                <Badge className={getApprovalBadgeColor(selectedLedgerEntry.approvalStatus || 'Pending')}>
+                  {selectedLedgerEntry.approvalStatus || '-'}
+                </Badge>
               </div>
-              <p className="text-2xl font-bold text-gray-900 mt-2">₱{Number(selectedLedgerEntry.amount || 0).toLocaleString()}</p>
+              <p className={getMoneyTypeColor(selectedLedgerEntry.type) + ' text-2xl font-bold text-gray-900 mt-2'}>₱{Number(selectedLedgerEntry.amount || 0).toLocaleString()}</p>
               {/* <p className="text-xs text-gray-600 mt-1">Transaction ID: {selectedLedgerEntry.id}</p> */}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Created</p><p className="font-medium text-gray-900">{selectedLedgerEntry.createdAt || '-'}</p></div>
-              <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Approved</p><p className="font-medium text-gray-900">{selectedLedgerEntry.approvedAt || '-'}</p></div>
-              <div className="rounded-xl border bg-gray-50 p-3"><p className="text-xs text-gray-500">Approved By</p><p className="font-medium text-gray-900">{selectedLedgerEntry.approvedBy || '-'}</p></div>
+              <div className="rounded-xl p-3"><p className="text-xs text-gray-500">Created</p><p className="font-medium text-gray-900">{selectedLedgerEntry.createdAt || '-'}</p></div>
+              <div className="rounded-xl p-3"><p className="text-xs text-gray-500">Approved</p><p className="font-medium text-gray-900">{selectedLedgerEntry.approvedAt || '-'}</p></div>
+              <div className="rounded-xl col-span-2 p-3"><p className="text-xs text-gray-500">Approved By</p><p className="font-medium text-gray-900">{selectedLedgerEntry.approvedBy || '-'}</p></div>
             </div>
 
-            <div className="rounded-xl border bg-white p-4">
+            <div className="rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-1">Description</p>
               <p className="text-sm text-gray-800">{selectedLedgerEntry.description || '-'}</p>
             </div>
 
-            <div className="rounded-xl border bg-white p-4">
+            <div className="rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-1">Remarks</p>
               <p className="text-sm text-gray-800">{selectedLedgerEntry.note || '-'}</p>
+            </div>
+
+            <div className="rounded-xl p-4">
+              <h3 className="mb-3 text-sm font-semibold text-gray-900">Budget Breakdown</h3>
+              {(() => {
+                const breakdown = parseBudgetBreakdown(
+                  selectedLedgerEntry.budgetBreakdown ||
+                  selectedLedgerEntry.budget_breakdown ||
+                  selectedLedgerEntry.breakdown
+                );
+
+                if (!breakdown.length) {
+                  return <p className="text-sm text-gray-500">No budget breakdown available for this transaction.</p>;
+                }
+
+                const total = breakdown.reduce((sum, item) => {
+                  const qty = Number(item.qty ?? item.quantity ?? 1) || 1;
+                  const unitPrice = Number(item.unitPrice ?? item.unit_price ?? item.rate ?? item.price ?? 0) || 0;
+                  return sum + (Number(item.amount ?? item.value) || qty * unitPrice);
+                }, 0);
+
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="bg-slate-100">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold text-gray-700">Item</th>
+                          <th className="px-3 py-2 font-semibold text-gray-700">Qty</th>
+                          <th className="px-3 py-2 font-semibold text-gray-700">Unit Price</th>
+                          <th className="px-3 py-2 font-semibold text-gray-700">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {breakdown.map((item, index) => {
+                          const qty = Number(item.qty ?? item.quantity ?? 1) || 1;
+                          const unitPrice = Number(item.unitPrice ?? item.unit_price ?? item.rate ?? item.price ?? 0) || 0;
+                          const amount = Number(item.amount ?? item.value) || qty * unitPrice;
+
+                          return (
+                            <tr key={`${item.name || item.item || 'budget'}-${index}`} className="border-t border-slate-200">
+                              <td className="px-3 py-2 text-gray-900">{item.item || item.name || item.category || `Item ${index + 1}`}</td>
+                              <td className="px-3 py-2 text-gray-700">{qty}</td>
+                              <td className="px-3 py-2 text-gray-700">₱{unitPrice.toLocaleString()}</td>
+                              <td className="px-3 py-2 font-semibold text-gray-900">₱{amount.toLocaleString()}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="border-t border-slate-300 bg-slate-50">
+                          <td colSpan="3" className="px-3 py-2 text-right font-semibold text-gray-700">Total</td>
+                          <td className="px-3 py-2 font-bold text-gray-900">₱{total.toLocaleString()}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="rounded-xl border border-blue-100 bg-white p-3">

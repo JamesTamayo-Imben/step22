@@ -602,45 +602,25 @@ export default function UserManagementPage({ users: initialUsers, roles: initial
               {/* Pagination Controls */}
               {pagination.last_page > 1 && (
                 <div className="mt-6 flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    Showing {(pagination.current_page - 1) * pagination.per_page + 1} to {Math.min(pagination.current_page * pagination.per_page, pagination.total)} of {pagination.total} users
-                  </div>
-                  <div className="flex gap-2">
+                  <p className="text-sm text-gray-500">
+                    Page {pagination.current_page} of {pagination.last_page}
+                  </p>
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="rounded-lg"
+                      className="rounded-xl"
                       disabled={pagination.current_page === 1 || isLoading}
                       onClick={() => fetchFilteredUsers(searchQuery, filterRole, filterStatus, pagination.current_page - 1)}
                     >
-                      <ChevronLeft className="w-4 h-4 mr-1" />
                       Previous
                     </Button>
-
-                    <div className="flex items-center gap-2">
-                      {Array.from({ length: pagination.last_page }, (_, i) => i + 1).map((page) => (
-                        <Button
-                          key={page}
-                          variant={pagination.current_page === page ? 'default' : 'outline'}
-                          size="sm"
-                          className={`rounded-lg w-10 h-10 p-0 ${pagination.current_page === page ? 'bg-blue-600 text-white' : ''}`}
-                          onClick={() => fetchFilteredUsers(searchQuery, filterRole, filterStatus, page)}
-                          disabled={isLoading}
-                        >
-                          {page}
-                        </Button>
-                      ))}
-                    </div>
-
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="rounded-lg"
+                      className="rounded-xl"
                       disabled={pagination.current_page === pagination.last_page || isLoading}
                       onClick={() => fetchFilteredUsers(searchQuery, filterRole, filterStatus, pagination.current_page + 1)}
                     >
                       Next
-                      <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                   </div>
                 </div>
