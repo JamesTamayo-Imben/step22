@@ -5,7 +5,7 @@ import { Badge } from '@/Components/ui/badge';
 import { StudentModal } from '@/Components/ui/StudentModal';
 import { Chatbot } from '@/Components/ui/Chatbot';
 import ProjectFinancialStatementModal from '@/Components/ui/ProjectFinancialStatementModal';
-import { ArrowLeft, FolderKanban, Folder, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shield, XCircle } from 'lucide-react';
+import { ArrowLeft, FolderKanban, Folder, Star, Calendar, Wallet, FileText, CheckCircle, Clock3, Shield, XCircle, CircleCheck } from 'lucide-react';
 
 function showToast(message, type = 'success') {
   const id = `student-project-toast-${Date.now()}`;
@@ -548,7 +548,7 @@ const getMoneyTypeColor = (type) => {
   )}
 </div>
           <div className="bg-blue-50 rounded-xl p-4">
-            <Star className="w-5 h-5 text-blue-600 mb-2" />
+            <CircleCheck className="w-5 h-5 text-blue-600 mb-2" />
             <p className="text-sm text-gray-600">Approval</p>
             <Badge className={getApprovalBadgeColor(currentProject.approvalStatus || 'Pending')}>
               {currentProject.approvalStatus || 'Pending'}

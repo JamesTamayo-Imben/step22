@@ -267,17 +267,17 @@ export default function ProjectFinancialStatementModal({ project, entries = [], 
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
-          <div className="flex flex-col gap-3 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">Project Financial Summary</p>
-              <h2 className="mt-1 break-words text-lg font-bold text-gray-900 sm:text-xl">{project.title || 'Project Financial Summary'}</h2>
-            </div>
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 p-2 sm:p-4" onClick={onClose}>
+      <div className="relative flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex shrink-0 flex-col gap-3 border-b border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">Project Financial Summary</p>
+            <h2 className="mt-1 break-words text-lg font-bold text-gray-900 sm:text-xl">{project.title || 'Project Financial Summary'}</h2>
           </div>
+        </div>
 
-          <div className="p-5 sm:p-6">
-            <div className="grid gap-4 md:grid-cols-4">
+        <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Project Budget</p>
                 <p className="mt-2 text-2xl font-bold text-gray-900">{formatCurrency(project.budget ?? project.total_budget ?? 0)}</p>
@@ -294,19 +294,19 @@ export default function ProjectFinancialStatementModal({ project, entries = [], 
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Net</p>
                 <p className={`mt-2 text-2xl font-bold ${net >= 0 ? 'text-blue-700' : 'text-red-700'}`}>{formatCurrency(net)}</p>
               </div>
-              <div className="rounded-xl border border-gray-200 bg-slate-50 p-4 md:col-span-4">
+              <div className="rounded-xl border border-gray-200 bg-slate-50 p-4 sm:col-span-2 xl:col-span-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total Approved Transactions</p>
                 <p className="mt-2 text-2xl font-bold text-gray-900">{formatCurrency(approvedTransactionTotal)}</p>
               </div>
             </div>
 
-            <div className="mt-6 overflow-hidden rounded-xl border border-gray-200">
+            <div className="mt-6 hidden overflow-hidden rounded-xl border border-gray-200 lg:block">
               <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
+                <table className="w-full min-w-[900px] text-left text-sm">
                   <thead className="bg-slate-100">
                     <tr>
-                      <th className="px-4 py-3 font-semibold text-gray-700">Date</th>
-                      <th className="px-4 py-3 font-semibold text-gray-700">Type</th>
+                      <th className="w-36 whitespace-nowrap px-4 py-3 font-semibold text-gray-700">Date</th>
+                      <th className="w-36 whitespace-nowrap px-4 py-3 font-semibold text-gray-700">Type</th>
                       <th className="px-4 py-3 font-semibold text-gray-700">Description</th>
                       <th className="px-4 py-3 font-semibold text-gray-700">Amount</th>
                       <th className="px-4 py-3 font-semibold text-gray-700">Budget Breakdown</th>
@@ -325,9 +325,9 @@ export default function ProjectFinancialStatementModal({ project, entries = [], 
 
                       return (
                         <tr key={entry.id || `${entry.description}-${entry.amount}-${entry.created_at}`} className="border-t border-gray-200 align-top">
-                          <td className="px-4 py-3 text-gray-600">{formatDate(entry.created_at || entry.createdAt || entry.date)}</td>
+                          <td className="whitespace-nowrap px-4 py-3 text-gray-600">{formatDate(entry.created_at || entry.createdAt || entry.date)}</td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getTypeBadgeColor(type)}`}>
+                            <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${getTypeBadgeColor(type)}`}>
                               {type || 'Expense'}
                             </span>
                           </td>
@@ -362,6 +362,56 @@ export default function ProjectFinancialStatementModal({ project, entries = [], 
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            <div className="mt-6 space-y-4 lg:hidden">
+              {transactionGroups.length ? transactionGroups.map(({ type: groupType, entries: groupEntries, total }) => (
+                <section key={`mobile-group-${groupType}`} className="space-y-3">
+                  <h3 className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-gray-900">
+                    {groupType} — Subtotal: {formatCurrency(total)}
+                  </h3>
+                  {groupEntries.map((entry) => {
+                    const breakdownItems = getBreakdownItems(entry);
+                    const type = normalizeType(entry);
+
+                    return (
+                      <article key={entry.id || `${entry.description}-${entry.amount}-${entry.created_at}`} className="min-w-0 rounded-xl border border-gray-200 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <time className="text-sm font-medium text-gray-600">
+                            {formatDate(entry.created_at || entry.createdAt || entry.date)}
+                          </time>
+                          <span className={`inline-flex max-w-full whitespace-normal break-words rounded-full px-2.5 py-1 text-xs font-semibold ${getTypeBadgeColor(type)}`}>
+                            {type || 'Expense'}
+                          </span>
+                        </div>
+                        <p className="mt-3 break-words text-sm text-gray-800">{entry.description || entry.note || 'No description provided'}</p>
+                        <p className={`mt-2 font-semibold ${type.toLowerCase() === 'income' ? 'text-green-700' : 'text-red-700'}`}>
+                          {formatCurrency(entry.amount || 0)}
+                        </p>
+                        <div className="mt-3 border-t border-gray-100 pt-3">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Budget Breakdown</p>
+                          {breakdownItems.length ? (
+                            <div className="space-y-2">
+                              {breakdownItems.map((item, index) => (
+                                <div key={`${item.name}-${index}`} className="flex min-w-0 items-start justify-between gap-3 text-xs text-gray-700">
+                                  <span className="min-w-0 break-words">{item.name}</span>
+                                  <span className="shrink-0 font-medium">{formatCurrency(item.amount)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-500">No breakdown recorded</span>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </section>
+              )) : (
+                <p className="rounded-xl border border-gray-200 px-4 py-6 text-center text-sm text-gray-500">
+                  No approved transactions found for this project.
+                </p>
+              )}
             </div>
 
             <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -410,9 +460,9 @@ export default function ProjectFinancialStatementModal({ project, entries = [], 
               </div>
 
             </div>
-          </div>
+        </div>
 
-          <div className="sticky bottom-0 z-10 flex gap-2 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:justify-end sm:px-6">
+        <div className="z-10 flex shrink-0 flex-col gap-2 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:flex-row sm:justify-end sm:px-6">
             <button
               type="button"
               onClick={onClose}
@@ -427,8 +477,8 @@ export default function ProjectFinancialStatementModal({ project, entries = [], 
             >
               Download PDF
             </button>
-          </div>
         </div>
+      </div>
     </div>,
     document.body,
   );
