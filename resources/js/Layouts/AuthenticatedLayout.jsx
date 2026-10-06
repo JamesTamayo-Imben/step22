@@ -8,6 +8,7 @@ import AdminAdviserSidebar from '@/Components/AdminAdviserSidebar';
 import SuperadminSidebar from '@/Components/SuperadminSidebar';
 import PageTransition from '@/Components/PageTransition';
 import CSGOfficerSidebar from '@/Components/CSGOfficerSidebar';
+import TutorialButton from '@/Components/ui/TutorialButton';
 
 export default function AuthenticatedLayout({ header, children, ...props }) {
     const inertia = usePage();
@@ -63,6 +64,7 @@ export default function AuthenticatedLayout({ header, children, ...props }) {
                     </PageTransition>
                 </main>
             </div>
+            <TutorialButton />
         </div>
     );
 }

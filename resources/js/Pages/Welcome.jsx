@@ -2,6 +2,7 @@ import { ArrowRight, Shield, FileCheck, School, Users, Wallet, CheckCircle, Spar
 import { Link, router } from '@inertiajs/react';
 import { useRef, useState, useEffect } from 'react';
 import { Chatbot } from '@/Components/ui/Chatbot';
+// import TutorialButton from '@/Components/ui/TutorialButton';
 
 let secretClickCount = 0;
 let secretClickTimeout = null;
@@ -770,6 +771,7 @@ export default function Welcome() {
 
                 
       <Chatbot title="Project Assistant" />
+      {/* <TutorialButton /> */}
       {/* Fixed Help Button */}
       {/* <button
         onClick={handleHelpClick}

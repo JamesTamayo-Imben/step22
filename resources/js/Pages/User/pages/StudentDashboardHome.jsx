@@ -86,7 +86,7 @@ const getStatusColor = (status) => {
     <div className="space-y-6 pb-6">
       {/* Welcome Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-[20px] p-8 text-white shadow-lg">
-        <h1 className="text-white mb-2">Welcome back, {stats.name || 'User'}!</h1>
+        <h1 className="text-white font-bold mb-2">Welcome, {stats.name || 'User'}!</h1>
         <p className="text-blue-100"><strong>STEP</strong> keeps your student council's finances and projects transparent for every student to see because good governance starts with transparency.</p>
         <p className="text-blue-100">Track your progress and stay updated</p>
         

@@ -520,6 +520,23 @@ const getProjectMonthDistance = (project, referenceDate = new Date()) => {
   return Math.min(diff, 12 - diff);
 };
 
+const isRecentCompletedProject = (project, referenceDate = new Date()) => {
+  const dateValue = project.end_date || project.endDate;
+  if (!dateValue) {
+    return false;
+  }
+
+  const projectDate = new Date(dateValue);
+  if (isNaN(projectDate.getTime())) {
+    return false;
+  }
+
+  const oneYearAgo = new Date(referenceDate);
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+  return projectDate <= referenceDate && projectDate >= oneYearAgo;
+};
+
 const formatHeatmapTooltip = (item) => {
     if (item.tamperingCount > 0) {
       return `${item.tamperingCount} tampering event${item.tamperingCount > 1 ? 's' : ''}`;
@@ -1330,9 +1347,16 @@ const formatHeatmapTooltip = (item) => {
           <p className="text-sm text-gray-600">There are no recommended projects as of now because the cycle has not begun yet.</p>
         ) : (
           (() => {
-            const safeProjects = recommendedProjects.filter(Boolean);
+            const safeProjects = recommendedProjects
+              .filter(Boolean)
+              .filter((project) => {
+                const status = String(project?.approval_status || project?.approvalStatus || project?.status || '').trim();
+                const isCompleted = getAutoStatus(project?.start_date || project?.startDate, project?.end_date || project?.endDate, status) === 'Completed';
+                return isCompleted && isRecentCompletedProject(project, new Date()) && status.toLowerCase() === 'approved';
+              });
+
             if (!safeProjects.length) {
-              return <p className="text-sm text-gray-600">No recommendation data is available yet.</p>;
+              return <p className="text-sm text-gray-600">There are no recent completed projects within the last year to recommend.</p>;
             }
 
             const highestRatingProject = safeProjects.reduce((best, current) => {

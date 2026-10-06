@@ -328,7 +328,7 @@ export default function OAuthCallback() {
               {/* Course */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Course <span className="text-red-500 font-normal">*</span>
+                  Program <span className="text-red-500 font-normal">*</span>
                 </label>
                 <select
                   value={formData.course_id}
@@ -336,7 +336,7 @@ export default function OAuthCallback() {
                   required
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                 >
-                  <option value="">Select your course</option>
+                  <option value="">Select your program</option>
                   {courseList.map((course) => (
                     <option key={course.id} value={course.id}>
                       {course.name}

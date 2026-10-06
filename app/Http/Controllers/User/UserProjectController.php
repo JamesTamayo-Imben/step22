@@ -141,6 +141,7 @@ class UserProjectController extends Controller
                     'id' => $entry->id,
                     'type' => $entry->type,
                     'amount' => (float) ($entry->amount ?? 0),
+                    'budgetBreakdown' => $entry->budget_breakdown ?? [],
                     'description' => $entry->description,
                     'category' => $entry->category,
                     'ledgerProof' => $entry->resolveLedgerProof(),

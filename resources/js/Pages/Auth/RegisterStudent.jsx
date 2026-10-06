@@ -357,7 +357,7 @@ export default function RegisterStudentPage() {
 
             {/* Course (Optional) */}
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Course</label>
+              <label className="block text-sm text-gray-600 mb-1">Program</label>
               <div className="relative">
                 <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <select
@@ -365,7 +365,7 @@ export default function RegisterStudentPage() {
                   onChange={(e) => handleChange('course', e.target.value)}
                   className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
                 >
-                  <option value="">Select a course</option>
+                  <option value="">Select a program</option>
                   {courses.map((course) => (
                     <option key={course.id} value={course.id}>
                       {course.name}
