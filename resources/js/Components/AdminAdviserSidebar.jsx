@@ -149,31 +149,39 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
       )}
 
       {/* Mobile Drawer */}
-      <aside className={`lg:hidden fixed top-0 left-0 h-dvh flex w-72 flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
+      <aside className={`lg:hidden fixed top-0 left-0 h-dvh flex w-64 flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between gap-3">
           <div 
-        
-          className="flex items-center gap-3">
-            <div className="w-8 rounded-xl flex items-center justify-center">
-              {/* <span className="text-white">S</span> */}
+           onClick={() => router.visit('/adviser/dashboard')}
+          className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center">
               <img
-               onClick={() => router.visit('/adviser/dashboard')}
+              
               src="/images/Logo.svg" alt="Step Logo"
               className="w-full object-cover"/>
             </div>
-            <div className="w-full leading-none">
-              <div className="w-8 leading-none">
-                <h1
-                      className="text-[#1F34B3] font-normal leading-none text-[14px]"
-                      style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
-                    >
-                      STEP
-                    </h1>
+              <div className="leading-none min-w-0">
+                <h2
+                  className="text-[#1F34B3] font-normal leading-none text-[14px]"
+                  style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
+                >
+                  STEP
+                </h2>
+                <p className="text-[10px] text-gray-500 leading-none mt-1">Sadu/Adviser</p>
               </div>
-              <p className="text-[10px] text-gray-500 leading-none mt-1">Admin/Adviser</p>
-            </div>
+          </div>    
+            <X className="w-4 h-4 text-gray-500" />
+            <a
+              href="https://kld.edu.ph"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit KLD website"
+            >
+              <img src="/images/kldlogo.png" alt="KLD Logo" className="w-9 h-9 object-contain rounded-full" />
+            </a>
           </div>
         </div>
 
@@ -243,28 +251,36 @@ export default function AdminAdviserSidebar({ currentView = null, onNavigate = n
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 flex-col shadow-sm z-40">
         <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between gap-3">
           <div 
            onClick={() => router.visit('/adviser/dashboard')}
-          className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center">
+          className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center">
               <img
               
               src="/images/Logo.svg" alt="Step Logo"
               className="w-full object-cover"/>
             </div>
-            <div className="w-full leading-none">
-                <div className="w-10 leading-none">
-              <h1
-                      className="text-[#1F34B3] font-normal leading-none text-[14px]"
-                      style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
-                    >
-                      STEP
-                    </h1>
-                </div>
-              
-              <p className="text-[10px] text-gray-500 leading-none mt-1">Admin/Adviser</p>
-            </div>
-          </div>
+              <div className="leading-none min-w-0">
+                <h2
+                  className="text-[#1F34B3] font-normal leading-none text-[14px]"
+                  style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
+                >
+                  STEP
+                </h2>
+                <p className="text-[10px] text-gray-500 leading-none mt-1">Sadu/Adviser</p>
+              </div>
+          </div>    
+            <X className="w-4 h-4 text-gray-500" />
+            <a
+              href="https://kld.edu.ph"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit KLD website"
+            >
+              <img src="/images/kldlogo.png" alt="KLD Logo" className="w-9 h-9 object-contain rounded-full" />
+            </a>
+          </div>  
         </div>
 
         <nav className="flex-1 p-4 overflow-y-auto">

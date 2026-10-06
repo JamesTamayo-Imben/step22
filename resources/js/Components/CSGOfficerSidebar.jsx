@@ -33,6 +33,8 @@ import {
 export default function CSGOfficerSidebar({ currentView = null, onNavigate = null, onLogout = null, onSwitchRole = null, userData = null, isSwitchedView = null }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false);
+  const [hasViewedOnlineStatus, setHasViewedOnlineStatus] = useState(false);
+  const [lastViewedOnlineCount, setLastViewedOnlineCount] = useState(0);
   const page = usePage();
   const user = page.props.auth?.user;
   const userPermissions = Array.isArray(page.props.userPermissions)
@@ -60,6 +62,8 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
   const isOfficerOnline = (officer) => officer.archive === 1 || officer.archive === true;
 
   const onlineCount = onlineOfficers.filter(isOfficerOnline).length;
+  const hasNewOnlineSinceView = onlineCount > lastViewedOnlineCount;
+  const shouldIndicatorBeGreen = onlineCount > 0 && (!hasViewedOnlineStatus || hasNewOnlineSinceView);
 
   const canNotifications = userPermissions.includes('notifications.view');
   const canRatings = userPermissions.includes('ratings.view');
@@ -205,33 +209,6 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
               </div>
             </div>
             
-            {/* Online Officers Indicator Button */}
-            <button
-              onClick={() => setIsOnlineModalOpen(true)}
-              className="flex items-center gap-2 px-2 py-1.5 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-200 group"
-            >
-              <div className="relative flex items-center justify-center w-3 h-3">
-                <div className="absolute w-2 h-2 bg-green-500 rounded-full"></div>
-                <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-ping opacity-75"></div>
-              </div>
-              
-              <div className="flex items-center -space-x-1.5">
-                {onlineOfficers.filter(isOfficerOnline).slice(0, 1).map((officer) => (
-                  <Avatar key={officer.id} className="w-6 h-6 border-2 border-white ring-1 ring-green-200">
-                    <AvatarFallback className="bg-green-600 text-white text-[9px]">
-                      {officer.avatar}
-                    </AvatarFallback>
-                  </Avatar>
-                ))}
-                {onlineCount > 1 && (
-                  <div className="w-6 h-6 rounded-full bg-green-600 border-2 border-white ring-1 ring-green-200 flex items-center justify-center">
-                    <span className="text-white text-[9px] font-medium">+{onlineCount - 1}</span>
-                  </div>
-                )}
-              </div>
-              
-              <ChevronRight className="w-3.5 h-3.5 text-green-600 group-hover:translate-x-0.5 transition-transform" />
-            </button>
           </div>
         </div>
         
@@ -313,53 +290,34 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 overflow-hidden">
-                <img src="/images/Logo.svg" alt="Step Logo" className="w-full object-cover" />
-              </div>
-              <div className="leading-none">
-                <div className="w-10 leading-none">
-                  <h1
-                      className="text-[#1F34B3] font-normal leading-none text-[14px]"
-                      style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
-                    >
-                      STEP
-                    </h1>
-                </div>
+          <div 
+           onClick={() => router.visit('/csg/dashboard')}
+          className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center">
+              <img
+              
+              src="/images/Logo.svg" alt="Step Logo"
+              className="w-full object-cover"/>
+            </div>
+              <div className="leading-none min-w-0">
+                <h2
+                  className="text-[#1F34B3] font-normal leading-none text-[14px]"
+                  style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
+                >
+                  STEP
+                </h2>
                 <p className="text-[10px] text-gray-500 leading-none mt-1">CSG Officer</p>
               </div>
             </div>
-            
-            {/* Online Officers Indicator Button */}
-            <button
-              onClick={() => setIsOnlineModalOpen(true)}
-              className="flex items-center gap-1.5 px-2 py-1.5 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-200 group"
-            >
-              {/* Pulsing Indicator */}
-              {/* <div className="relative flex items-center justify-center w-3 h-3">
-                <div className="absolute w-2 h-2 bg-green-500 rounded-full"></div>
-                <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-ping opacity-75"></div>
-              </div> */}
-              
-              {/* Stacked Avatars */}
-              <div className="flex items-center -space-x-1.5">
-                {onlineOfficers.filter(isOfficerOnline).slice(0, 1).map((officer) => (
-                  <Avatar key={officer.id} className="w-6 h-6 border-2 border-white ring-1 ring-green-200">
-                    <AvatarFallback className="bg-green-600 text-white text-[9px]">
-                      {officer.avatar}
-                    </AvatarFallback>
-                  </Avatar>
-                ))}
-                {onlineCount > 1 && (
-                  <div className="w-6 h-6 rounded-full bg-green-600 border-2 border-white ring-1 ring-green-200 flex items-center justify-center">
-                    <span className="text-white text-[9px] font-medium">+{onlineCount - 1}</span>
-                  </div>
-                )}
-              </div>
-              
-              {/* Chevron Icon */}
-              <ChevronRight className="w-3.5 h-3.5 text-green-600 group-hover:translate-x-0.5 transition-transform" />
-            </button>
+            <X className="w-4 h-4 text-gray-500" />
+                        <a
+                          href="https://kld.edu.ph"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="Visit KLD website"
+                        >
+                          <img src="/images/kldlogo.png" alt="KLD Logo" className="w-9 h-9 object-contain rounded-full" />
+                        </a>
           </div>
         </div>
         
@@ -443,6 +401,42 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
 </button>
         </div>
       </aside>
+
+      <button
+        type="button"
+        onClick={() => {
+          setHasViewedOnlineStatus(true);
+          setLastViewedOnlineCount(onlineCount);
+          setIsOnlineModalOpen(true);
+        }}
+        title="View online CSG officers"
+        aria-label="View online CSG officers"
+        className={`fixed bottom-20 right-6 z-[1000] flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+          shouldIndicatorBeGreen
+            ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+            : 'bg-gray-500 hover:bg-gray-600 focus:ring-gray-400'
+        } text-white`}
+      >
+        <div className="relative flex h-5 w-5 items-center justify-center">
+          <div className="absolute h-3 w-3 rounded-full bg-white"></div>
+          <div
+            className="absolute h-3 w-3 rounded-full bg-white opacity-75"
+            style={{
+              animation: shouldIndicatorBeGreen ? 'ping 0.8s linear infinite' : 'ping 2.4s linear infinite',
+              transform: 'scale(1.5)',
+            }}
+          ></div>
+          {onlineCount > 0 && (
+            <span
+              className={`absolute -left-4 -top-4 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white px-1 text-[9px] font-bold text-white ${
+                shouldIndicatorBeGreen ? 'bg-green-800' : 'bg-gray-700'
+              }`}
+            >
+              {onlineCount}
+            </span>
+          )}
+        </div>
+      </button>
 
       {/* Online Officers Modal */}
       <Dialog open={isOnlineModalOpen} onOpenChange={setIsOnlineModalOpen}>

@@ -113,7 +113,7 @@ export function StudentNavbar({
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-14 h-14 rounded-xl flex items-center justify-center">
+              <div className="w-20 h-14 rounded-xl flex items-center justify-center">
                 {/* <span className="text-white">S</span> */}
               
                 <img
@@ -121,10 +121,15 @@ export function StudentNavbar({
               src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
               </div>
-              <div className='w-10'>
-                {/* <h1 className="text-blue-600">STEP</h1> */}
-               
-              </div>
+              <X className="w-4 h-4 text-gray-500" />
+            <a
+              href="https://kld.edu.ph"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit KLD website"
+            >
+              <img src="/images/kldlogo.png" alt="KLD Logo" className="w-9 h-9 object-contain rounded-full" />
+            </a>
             </div>
 
             {/* Nav Links */}
@@ -321,13 +326,43 @@ export function StudentNavbar({
 
       {/* Mobile Drawer */}
       <aside
-        className={`lg:hidden fixed top-0 left-0 h-dvh flex w-72 flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`lg:hidden fixed top-0 left-0 h-dvh flex w-64 flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
       >
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
+<div className="flex items-center justify-between gap-3">
           <div 
+           onClick={() => router.visit('/user/dashboard')}
+          className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center">
+              <img
+              
+              src="/images/Logo.svg" alt="Step Logo"
+              className="w-full object-cover"/>
+            </div>
+              <div className="leading-none min-w-0">
+                <h2
+                  className="text-[#1F34B3] font-normal leading-none text-[14px]"
+                  style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
+                >
+                  STEP
+                </h2>
+                <p className="text-[10px] text-gray-500 leading-none mt-1">{roleName}</p>
+              </div>
+          </div>    
+            <X className="w-4 h-4 text-gray-500" />
+            <a
+              href="https://kld.edu.ph"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit KLD website"
+            >
+              <img src="/images/kldlogo.png" alt="KLD Logo" className="w-9 h-9 object-contain rounded-full" />
+            </a>
+          </div>
+          {/* <div 
            onClick={() => router.visit('/adviser/dashboard')}
           className="flex items-center gap-3">
             <div className="w-8 rounded-xl flex items-center justify-center">
@@ -344,7 +379,7 @@ export function StudentNavbar({
               </h1>
               <p className="text-xs text-gray-500">{roleName}</p>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Navigation */}
