@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Mail\OTPMail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class ApiLoginController extends Controller
@@ -142,6 +145,183 @@ class ApiLoginController extends Controller
             ],
             'redirect' => $redirectUrl,
         ], 200);
+    }
+
+    /**
+     * Send a superadmin login OTP challenge to the user's email.
+     */
+    public function sendSuperAdminLoginOTP(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'email' => ['required', 'string', 'email'],
+                'password' => ['required', 'string'],
+            ]);
+
+            $user = User::with('role')->where('email', $validated['email'])->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid email or password.',
+                ], 401);
+            }
+
+            if (!Hash::check($validated['password'], $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid email or password.',
+                ], 401);
+            }
+
+            if ($user->archive) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This account is no longer available.',
+                ], 404);
+            }
+
+            if ($user->status !== 'active') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your account is ' . $user->status . '. Please contact an administrator.',
+                ], 403);
+            }
+
+            if (($user->role?->slug ?? '') !== 'superadmin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only superadmin accounts can access this portal.',
+                ], 403);
+            }
+
+            $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $cacheKey = 'superadmin_login_otp_' . strtolower($user->email);
+
+            Cache::put($cacheKey, [
+                'otp' => $otp,
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'issued_at' => now()->toDateTimeString(),
+            ], now()->addMinutes(10));
+
+            Mail::to($user->email)->send(new OTPMail($user->name, $otp));
+
+            Log::info('Superadmin login OTP sent', [
+                'email' => $user->email,
+                'user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'A verification code has been sent to your email.',
+            ], 200);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Superadmin login OTP send failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to send the verification code at this time. Please try again later.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Verify the OTP sent to the superadmin and complete the login.
+     */
+    public function verifySuperAdminLoginOTP(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'email' => ['required', 'string', 'email'],
+                'password' => ['required', 'string'],
+                'otp' => ['required', 'string', 'size:6'],
+            ]);
+
+            $user = User::with('role')->where('email', $validated['email'])->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid email or password.',
+                ], 401);
+            }
+
+            if (!Hash::check($validated['password'], $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid email or password.',
+                ], 401);
+            }
+
+            if (($user->role?->slug ?? '') !== 'superadmin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only superadmin accounts can access this portal.',
+                ], 403);
+            }
+
+            $cacheKey = 'superadmin_login_otp_' . strtolower($user->email);
+            $otpData = Cache::get($cacheKey);
+
+            if (!$otpData) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The verification code has expired. Please request a new one.',
+                ], 400);
+            }
+
+            if (($otpData['otp'] ?? null) !== $validated['otp']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid verification code. Please try again.',
+                ], 400);
+            }
+
+            Cache::forget($cacheKey);
+
+            Auth::login($user);
+            $user->update(['last_login_at' => now()]);
+
+            Log::info('Superadmin login verified successfully', [
+                'email' => $user->email,
+                'user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Login successful.',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => 'superadmin',
+                    'role_name' => $user->role ? $user->role->name : 'Super Admin',
+                ],
+                'redirect' => '/sadmin/dashboard',
+            ], 200);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->validator->errors()->first(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Superadmin login OTP verification failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to verify the code at this time. Please try again later.',
+            ], 500);
+        }
     }
 
     /**

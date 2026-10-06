@@ -21,7 +21,8 @@ import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 
 export default function SuperadminSidebar({ currentView = null, onNavigate = null, onLogout = null }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { url } = usePage();
+  const { url, props } = usePage();
+  const user = props?.auth?.user || props?.user || null;
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -124,7 +125,9 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
 
   const handleLogout = () => {
     if (typeof onLogout === 'function') return onLogout();
-    Inertia.post('/logout', {}, { onSuccess: () => Inertia.visit('/') });
+    router.post('/logout', {}, {
+      onSuccess: () => router.visit('/'),
+    });
     return null;
   };
 
@@ -250,7 +253,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
         <div className="shrink-0 p-4 border-t border-gray-200">
           <button
            type="button"
-           onClick={() => router.post('/logout')}
+           onClick={handleLogout}
            className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all"
          >
            <LogOut className="w-5 h-5 pointer-events-none" />
@@ -353,12 +356,12 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
             </Avatar>
             <div className="flex-1">
               <p className="text-sm text-gray-900">Super Admin</p>
-              <p className="text-xs text-gray-500">superadmin@kld.edu.ph</p>
+              <p className="text-xs text-gray-500">{user?.email || 'No email'}</p>
             </div>
           </div>
           <button
            type="button"
-           onClick={() => router.post('/logout')}
+           onClick={handleLogout}
            className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all"
          >
            <LogOut className="w-5 h-5 pointer-events-none" />

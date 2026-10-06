@@ -47,6 +47,12 @@ Route::group([], function () {
     // Used by the React Login component for step2 database authentication
     Route::post('api/login', [ApiLoginController::class, 'login'])
         ->middleware('throttle:10,1');
+
+    Route::post('api/superadmin/login/send-otp', [ApiLoginController::class, 'sendSuperAdminLoginOTP'])
+        ->middleware('throttle:5,1');
+
+    Route::post('api/superadmin/login/verify-otp', [ApiLoginController::class, 'verifySuperAdminLoginOTP'])
+        ->middleware('throttle:5,1');
     
     // Test endpoint to verify API is responding
     Route::get('api/test', function () {
