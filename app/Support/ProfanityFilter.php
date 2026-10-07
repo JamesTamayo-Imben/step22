@@ -34,22 +34,35 @@ class ProfanityFilter
         }
 
         $normalizedValue = self::normalize($value);
+        if ($normalizedValue === '') {
+            return true;
+        }
+
+        $normalizedValues = [
+            $normalizedValue,
+            self::normalize($value, true),
+        ];
 
         foreach (self::WORDS as $word) {
-            $normalizedWord = self::normalize($word);
+            foreach ($normalizedValues as $index => $normalizedValue) {
+                $normalizedWord = self::normalize($word, $index === 1);
 
-            if (str_contains(" {$normalizedValue} ", " {$normalizedWord} ")) {
-                return true;
+                if (str_contains(" {$normalizedValue} ", " {$normalizedWord} ")) {
+                    return true;
+                }
             }
         }
 
         return false;
     }
 
-    private static function normalize(string $value): string
+    private static function normalize(string $value, bool $removePunctuation = false): string
     {
         $value = mb_strtolower($value, 'UTF-8');
-        $value = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $value) ?? $value;
+        $pattern = $removePunctuation
+            ? '/[^\p{L}\p{N}\s]+/u'
+            : '/[^\p{L}\p{N}]+/u';
+        $value = preg_replace($pattern, $removePunctuation ? '' : ' ', $value) ?? $value;
 
         return trim(preg_replace('/\s+/u', ' ', $value) ?? $value);
     }
