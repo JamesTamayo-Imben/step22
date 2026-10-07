@@ -436,6 +436,7 @@ export default function LedgerApprovalsPage() {
   const [filterProject, setFilterProject] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterYear, setFilterYear] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [ledgerPage, setLedgerPage] = useState(1);
@@ -443,7 +444,7 @@ export default function LedgerApprovalsPage() {
 
   useEffect(() => {
     setLedgerPage(1);
-  }, [filterProject, filterStatus, searchQuery, filterCategory]);
+  }, [filterProject, filterStatus, searchQuery, filterCategory, filterYear]);
 
   const stats = useMemo(() => {
     const approvedEntries = ledgerEntries.filter(
@@ -776,6 +777,8 @@ export default function LedgerApprovalsPage() {
         }
       }
       if (filterCategory !== 'all' && entry.transactionType !== filterCategory) return false;
+      const entryYear = entry.date ? new Date(entry.date).getFullYear().toString() : '';
+      if (filterYear !== 'all' && entryYear !== filterYear) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const blob = [
@@ -799,7 +802,15 @@ export default function LedgerApprovalsPage() {
     });
 
     return items;
-  }, [ledgerEntries, filterProject, filterStatus, searchQuery, filterCategory]);
+  }, [ledgerEntries, filterProject, filterStatus, searchQuery, filterCategory, filterYear]);
+
+  const ledgerYears = useMemo(() => [...new Set(ledgerEntries
+    .map((entry) => {
+      const date = entry.date ? new Date(entry.date) : null;
+      return date && !Number.isNaN(date.getTime()) ? date.getFullYear().toString() : null;
+    })
+    .filter(Boolean))]
+    .sort((a, b) => Number(b) - Number(a)), [ledgerEntries]);
 
   const tamperedEntriesCount = filteredEntries.filter(
     (entry) => entry && entry.verificationState && entry.verificationState.tampered
@@ -1085,7 +1096,7 @@ export default function LedgerApprovalsPage() {
 
           <>
             <div className="p-4 rounded-[20px] border-0 shadow-sm bg-white">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
@@ -1138,6 +1149,17 @@ export default function LedgerApprovalsPage() {
                   ))}
                 </select>
 
+                <select
+                  value={filterYear}
+                  onChange={(e) => setFilterYear(e.target.value)}
+                  aria-label="Filter ledger by year"
+                  className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                >
+                  <option value="all">All Years</option>
+                  {ledgerYears.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

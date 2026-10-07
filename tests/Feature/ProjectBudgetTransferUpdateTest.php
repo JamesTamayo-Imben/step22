@@ -111,6 +111,7 @@ class ProjectBudgetTransferUpdateTest extends TestCase
             'objective' => 'Build community impact',
             'venue' => 'Main Hall',
             'category' => 'Social',
+            'type' => 'event',
             'budget' => 250,
             'has_budget' => 1,
             'is_active' => 1,

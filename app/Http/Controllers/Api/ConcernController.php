@@ -18,13 +18,14 @@ class ConcernController extends Controller
             ->with('user:id,name')
             ->orderByDesc('favorite')
             ->orderByDesc('created_at')
-            ->get(['id', 'user_id', 'concern', 'favorite', 'created_at'])
+            ->get(['id', 'user_id', 'concern', 'favorite', 'is_done', 'created_at'])
             ->map(fn (Concern $concern) => [
                 'id' => $concern->id,
                 'user_id' => $concern->user_id,
                 'name' => $concern->user?->name,
                 'concern' => $concern->concern,
                 'favorite' => $concern->favorite,
+                'is_done' => $concern->is_done,
                 'created_at' => $concern->created_at,
             ]);
 
@@ -39,6 +40,19 @@ class ConcernController extends Controller
 
         $concern = Concern::findOrFail($id);
         $concern->favorite = $validated['favorite'] ? 1 : 0;
+        $concern->save();
+
+        return response()->json(['success' => true, 'concern' => $concern]);
+    }
+
+    public function updateDoneStatus(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'is_done' => 'required|boolean',
+        ]);
+
+        $concern = Concern::findOrFail($id);
+        $concern->is_done = $validated['is_done'];
         $concern->save();
 
         return response()->json(['success' => true, 'concern' => $concern]);
@@ -83,6 +97,7 @@ class ConcernController extends Controller
                 'user_id' => $userId,
                 'concern' => trim($validated['concern']),
                 'favorite' => 0,
+                'is_done' => 0,
                 'created_at' => now(),
             ]);
 

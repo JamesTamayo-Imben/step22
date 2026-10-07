@@ -171,6 +171,7 @@ function CSGMeetingsPageInner() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [timeFilter, setTimeFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState('all');
 
   // Pagination for Upcoming Meetings
   const [currentPageUpcoming, setCurrentPageUpcoming] = useState(1);
@@ -306,6 +307,14 @@ const renderAttendees = (attendees) => {
   // Filter meetings by status
   const upcomingMeetings = meetings.filter(m => m.status === 'Scheduled');
   const pastMeetings = meetings.filter(m => m.status === 'Completed');
+  const meetingYears = [...new Set(meetings
+    .map((meeting) => {
+      const date = meeting.scheduled_date || meeting.date;
+      const parsedDate = date ? new Date(date) : null;
+      return parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.getFullYear().toString() : null;
+    })
+    .filter(Boolean))]
+    .sort((a, b) => Number(b) - Number(a));
 
   // Apply search filtering (title, description, attendees, date)
   const normalizeAttendees = (m) => {
@@ -365,7 +374,16 @@ const renderAttendees = (attendees) => {
     return d >= start && d <= end;
   };
 
+  const matchesYear = (meeting) => {
+    if (yearFilter === 'all') return true;
+    const date = meeting.scheduled_date || meeting.date;
+    const parsedDate = date ? new Date(date) : null;
+    return parsedDate && !Number.isNaN(parsedDate.getTime())
+      && parsedDate.getFullYear().toString() === yearFilter;
+  };
+
   const filteredUpcomingMeetings = upcomingMeetings.filter((m) => {
+    if (!matchesYear(m)) return false;
     if (!inTimeRange(m, timeFilter)) return false;
     const q = (searchQuery || '').trim().toLowerCase();
     if (!q) return true;
@@ -377,6 +395,7 @@ const renderAttendees = (attendees) => {
   });
 
   const filteredPastMeetings = pastMeetings.filter((m) => {
+    if (!matchesYear(m)) return false;
     if (!inTimeRange(m, timeFilter)) return false;
     const q = (searchQuery || '').trim().toLowerCase();
     if (!q) return true;
@@ -403,7 +422,7 @@ const renderAttendees = (attendees) => {
   useEffect(() => {
     setCurrentPageUpcoming(1);
     setCurrentPagePast(1);
-  }, [searchQuery]);
+  }, [searchQuery, timeFilter, yearFilter]);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -912,7 +931,7 @@ const renderAttendees = (attendees) => {
 
       {/* Filters */}
             <Card className="rounded-[20px] border-0 shadow-sm p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Search */}
                     <div className="lg:col-span-1 relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -936,6 +955,20 @@ const renderAttendees = (attendees) => {
                         <option value="this_week">This Week</option>
                         <option value="next_week">Next Week</option>
                         <option value="next_month">Next Month</option>
+                      </select>
+                    </div>
+                    <div className="lg:col-span-1">
+                      <label className="sr-only">Year filter</label>
+                      <select
+                        value={yearFilter}
+                        onChange={(e) => setYearFilter(e.target.value)}
+                        aria-label="Filter meetings by year"
+                        className="w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                      >
+                        <option value="all">All Years</option>
+                        {meetingYears.map((year) => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
                       </select>
                     </div>
       

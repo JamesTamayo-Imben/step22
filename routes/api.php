@@ -40,6 +40,7 @@ Route::middleware([
     Route::post('/concerns', [ConcernController::class, 'store']);
     Route::get('/concerns', [ConcernController::class, 'index']);
     Route::patch('/concerns/{id}/favorite', [ConcernController::class, 'toggleFavorite']);
+    Route::patch('/concerns/{id}/done', [ConcernController::class, 'updateDoneStatus']);
 });
 
 /**

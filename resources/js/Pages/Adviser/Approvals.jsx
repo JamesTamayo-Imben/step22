@@ -116,6 +116,7 @@ export default function AdviserApprovalsPage() {
   const [tab, setTab] = useState('project proposals');
   const [searchQuery, setSearchQuery] = useState('');
   const [projectFilter, setProjectFilter] = useState('all');
+  const [projectTypeFilter, setProjectTypeFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -133,7 +134,7 @@ export default function AdviserApprovalsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [tab, searchQuery, projectFilter, sortOrder]);
+  }, [tab, searchQuery, projectFilter, projectTypeFilter, sortOrder]);
 
   const totalPending = pendingProjects.length + pendingLedger.length;
 
@@ -357,8 +358,12 @@ export default function AdviserApprovalsPage() {
 
       const projectName = (i.project || i.title || '').trim();
       const matchesProject = projectFilter === 'all' || projectName === projectFilter;
+      const matchesProjectType = tab !== 'project proposals'
+        || projectTypeFilter === 'all'
+        || i.approvalType !== 'project'
+        || String(i.project_type || '').toLowerCase() === projectTypeFilter;
 
-      return matchesQuery && matchesProject;
+      return matchesQuery && matchesProject && matchesProjectType;
     });
 
     filtered.sort((a, b) => {
@@ -368,7 +373,7 @@ export default function AdviserApprovalsPage() {
     });
 
     return filtered;
-  }, [itemsForTab, searchQuery, projectFilter, sortOrder]);
+  }, [itemsForTab, searchQuery, projectFilter, projectTypeFilter, sortOrder]);
 
   const totalPages = Math.ceil(filteredEntries.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -498,7 +503,7 @@ export default function AdviserApprovalsPage() {
           </div>
 
           <Card className="rounded-[20px] border-0 shadow-sm p-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="relative md:col-span-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -520,6 +525,20 @@ export default function AdviserApprovalsPage() {
                   ))}
                 </select>
               </div>
+              {tab === 'project proposals' && (
+                <div>
+                  <select
+                    value={projectTypeFilter}
+                    onChange={(e) => setProjectTypeFilter(e.target.value)}
+                    className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                  >
+                    <option value="all">All Project Types</option>
+                    <option value="fundraiser">Fundraiser</option>
+                    <option value="merchandise">Merchandise</option>
+                    <option value="event">Event</option>
+                  </select>
+                </div>
+              )}
               <div>
                 <select
                   value={sortOrder}

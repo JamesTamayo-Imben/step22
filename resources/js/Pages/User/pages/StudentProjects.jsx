@@ -1,19 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Badge } from '@/Components/ui/badge';
-import { Search, Star, Users, Calendar, Microscope, Trophy, Leaf, GraduationCap, Music, Handshake, FolderKanban } from 'lucide-react';
+import { Search, Star, Users, Calendar, Microscope, Trophy, Leaf, GraduationCap, Music, Handshake, FolderKanban, Share2 } from 'lucide-react';
 
 export default function StudentProjectsPage({ onNavigate, onViewDetails, projects = [], userRatingMap = {} }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedType, setSelectedType] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedYear, setSelectedYear] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [cardsPerPage, setCardsPerPage] = useState(6);
   const [ledgerEntries, setLedgerEntries] = useState([]);
+  const [shareFeedback, setShareFeedback] = useState(null);
 
     const { props } = usePage();
     const userPermissions = Array.isArray(props?.userPermissions)
@@ -61,6 +64,15 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
   const categories = useMemo(() => {
     const values = new Set(projects.map((p) => (p.category || 'General').trim()));
     return ['all', ...Array.from(values)];
+  }, [projects]);
+
+  const projectTypes = useMemo(() => {
+    const values = new Set(
+      projects
+        .map((project) => String(project?.type || '').trim().toLowerCase())
+        .filter(Boolean),
+    );
+    return ['all', ...Array.from(values).sort()];
   }, [projects]);
 
   const getProjectStatus = (project) => {
@@ -151,12 +163,14 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
         project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (project.description || '').toLowerCase().includes(searchQuery.toLowerCase());
       const projectCategory = (project.category || 'General').toLowerCase();
+      const projectType = String(project?.type || '').trim().toLowerCase();
       const projectStatus = getProjectStatus(project).toLowerCase();
       const projectYear = extractProjectYear(project);
       const matchesCategory = selectedCategory === 'all' || projectCategory === selectedCategory.toLowerCase();
+      const matchesType = selectedType === 'all' || projectType === selectedType;
       const matchesStatus = selectedStatus === 'all' || projectStatus === selectedStatus.toLowerCase();
       const matchesYear = selectedYear === 'all' || Number(projectYear) === Number(selectedYear);
-      return matchesSearch && matchesCategory && matchesStatus && matchesYear;
+      return matchesSearch && matchesCategory && matchesType && matchesStatus && matchesYear;
     });
 
     return [...nextProjects].sort((a, b) => {
@@ -169,11 +183,57 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
 
       return String(b.title || '').localeCompare(String(a.title || ''));
     });
-  }, [projects, searchQuery, selectedCategory, selectedStatus, selectedYear]);
+  }, [projects, searchQuery, selectedCategory, selectedType, selectedStatus, selectedYear]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory, selectedStatus, selectedYear, cardsPerPage]);
+  }, [searchQuery, selectedCategory, selectedType, selectedStatus, selectedYear, cardsPerPage]);
+
+  useEffect(() => {
+    if (!shareFeedback) return undefined;
+
+    const timeoutId = window.setTimeout(() => setShareFeedback(null), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [shareFeedback]);
+
+  const copyProjectLink = async (project) => {
+    const projectUrl = new URL(`/user/projects/${encodeURIComponent(project.id)}`, window.location.origin).toString();
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(projectUrl);
+          setShareFeedback({ type: 'success', message: 'Project link copied to clipboard.' });
+          return;
+        } catch {
+          // Fall back for browsers that deny clipboard access outside a secure context.
+        }
+      }
+
+      const textArea = document.createElement('textarea');
+      textArea.value = projectUrl;
+      textArea.setAttribute('readonly', '');
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      let copied = false;
+      try {
+        textArea.select();
+        copied = typeof document.execCommand === 'function' && document.execCommand('copy');
+      } finally {
+        textArea.remove();
+      }
+
+      if (!copied) {
+        throw new Error('The browser could not copy the project link.');
+      }
+
+      setShareFeedback({ type: 'success', message: 'Project link copied to clipboard.' });
+    } catch (error) {
+      console.error('Failed to copy project link', error);
+      setShareFeedback({ type: 'error', message: 'Unable to copy the project link. Please try again.' });
+    }
+  };
 
   const canViewRatings = userPermissions.includes('ratings.view');
 
@@ -270,8 +330,8 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
       </div>
 
       {/* Search and Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="md:col-span-2 relative">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="sm:col-span-2 lg:col-span-2 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
             placeholder="Search projects..."
@@ -292,6 +352,21 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
             .map((category) => (
               <option key={category} value={category}>
                 {category}
+              </option>
+            ))}
+        </select>
+
+        <select
+          value={selectedType}
+          onChange={(e) => setSelectedType(e.target.value)}
+          className="h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white outline-none focus:ring-2 focus:ring-blue-200 px-3"
+        >
+          <option value="all">All Project Types</option>
+          {projectTypes
+            .filter((type) => type !== 'all')
+            .map((type) => (
+              <option key={type} value={type}>
+                {type.charAt(0).toUpperCase() + type.slice(1)}
               </option>
             ))}
         </select>
@@ -360,10 +435,15 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
             <div className="flex flex-1 flex-col p-6">
               {/* Header */}
               <div className="mb-3 flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="mb-1 line-clamp-2 text-gray-900 font-semibold">{project.title}</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className="mb-1 line-clamp-2 text-gray-900 truncate font-semibold">{project.title}</h3>
                   <div className="flex items-center gap-2">
                     <Badge className="bg-blue-100 text-blue-700 text-xs">{project.category}</Badge>
+                    {project.type && (
+                      <Badge className="bg-yellow-100 text-yellow-700 text-xs">
+                        {String(project.type).charAt(0).toUpperCase() + String(project.type).slice(1).toLowerCase()}
+                      </Badge>
+                    )}
                     <Badge className={`${getStatusColor(getProjectStatus(project))} text-xs`}>{getProjectStatus(project)}</Badge>
                   </div>
                 </div>
@@ -431,6 +511,16 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
                   <Star className={`w-4 h-4 ${userRatingMap[project.id] ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
                 </Button>
                 ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => copyProjectLink(project)}
+                  aria-label={`Copy link to ${project.title}`}
+                  title="Copy project link"
+                  className="h-11 w-11 shrink-0 rounded-xl p-0"
+                >
+                  <Share2 className="w-4 h-4 text-blue-600" />
+                </Button>
               </div>
             </div>
           </Card>
@@ -462,6 +552,18 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
             </Button>
           </div>
         </div>
+      )}
+      {shareFeedback && typeof document !== 'undefined' && createPortal(
+        <div
+          role={shareFeedback.type === 'error' ? 'alert' : 'status'}
+          aria-live={shareFeedback.type === 'error' ? 'assertive' : 'polite'}
+          className={`fixed bottom-6 left-1/2 z-[60] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-lg px-4 py-3 text-center text-sm text-white shadow-lg sm:left-auto sm:right-4 sm:translate-x-0 ${
+            shareFeedback.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+          }`}
+        >
+          {shareFeedback.message}
+        </div>,
+        document.body,
       )}
     </div>
   );

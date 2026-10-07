@@ -98,6 +98,7 @@ This README is the entry point, not the whole story. Deeper flows are documented
 |---|---|
 | `ROLE_DASHBOARD_FLOW.md` | How each role's dashboard is composed and routed |
 | `ROLE_SWITCH_FLOW.txt` | How a user with multiple role assignments switches context |
+| `INSTITUTE_STUDENT_GOVERNMENT_DESIGN.md` | Target hierarchy, institute-scoped SG roles, positions, and implementation requirements |
 | `RATING_LOGIC_FLOW_MAP.txt` | Rating computation, aggregation, and moderation logic |
 | `USER_RATING_SUBMISSION_FLOW.txt` | End-to-end student/teacher rating submission flow |
 | `RATINGS_TAB_ENHANCEMENT_UPDATE.txt` | Change log for the ratings UI/logic revisions |

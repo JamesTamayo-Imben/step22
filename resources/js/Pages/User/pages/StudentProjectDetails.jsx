@@ -443,7 +443,7 @@ const getMoneyTypeColor = (type) => {
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 space-y-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{currentProject.title}</h1>
+              <h1 className="text-3xl font-bold text-blue-700 mb-2">{currentProject.title}</h1>
               <div className="flex flex-wrap gap-2 mb-3">
                 <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200">
                   {currentProject.category || 'General'}

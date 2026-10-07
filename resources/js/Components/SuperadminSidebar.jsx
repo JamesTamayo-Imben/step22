@@ -139,11 +139,15 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-20 h-20 rounded-lg flex items-center justify-center">
+          <div className="w-20 h-10 rounded-lg flex items-center justify-center">
             <img
               src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
           </div>
+          <div aria-hidden="true" className="h-8 border-l border-gray-300 shrink-0" />
+          <a href="https://kld.edu.ph" target="_blank" rel="noopener noreferrer" aria-label="Visit KLD website" className="flex h-9 w-9 shrink-0 items-center justify-center">
+            <img src="/images/kldlogo.png" alt="KLD Logo" className="h-9 w-9 rounded-full object-contain" />
+          </a>
         </div>
         <Avatar className="w-8 h-8">
           <AvatarFallback className="bg-[#2563EB] text-white text-xs">SA</AvatarFallback>
@@ -181,7 +185,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
               </div>
             </div>
 
-            <X className="w-4 h-4 text-gray-500" />
+            <div aria-hidden="true" className="h-8 border-l border-gray-300 shrink-0" />
             <a
               href="https://kld.edu.ph"
               target="_blank"
@@ -294,7 +298,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
               </div>
             </div>
 
-            <X className="w-4 h-4 text-gray-500" />
+            <div aria-hidden="true" className="h-8 border-l border-gray-300 shrink-0" />
             <a
               href="https://kld.edu.ph"
               target="_blank"

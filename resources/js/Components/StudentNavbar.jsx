@@ -121,7 +121,7 @@ export function StudentNavbar({
               src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
               </div>
-              <X className="w-4 h-4 text-gray-500" />
+              <div aria-hidden="true" className="h-8 border-l border-gray-300 shrink-0" />
             <a
               href="https://kld.edu.ph"
               target="_blank"
@@ -301,13 +301,16 @@ export function StudentNavbar({
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-14 h-14 rounded-lg flex items-center justify-center">
+          <div className="w-14 h-10 rounded-lg flex items-center justify-center">
             <img
               onClick={() => router.visit('/dashboard')}
               src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
           </div>
-         
+          <div aria-hidden="true" className="h-8 border-l border-gray-300 shrink-0" />
+          <a href="https://kld.edu.ph" target="_blank" rel="noopener noreferrer" aria-label="Visit KLD website" className="flex h-9 w-9 shrink-0 items-center justify-center">
+            <img src="/images/kldlogo.png" alt="KLD Logo" className="h-9 w-9 rounded-full object-contain" />
+          </a>
         </div>
         <div
           onClick={() => router.visit('/user/profile')}
@@ -352,7 +355,7 @@ export function StudentNavbar({
                 <p className="text-[10px] text-gray-500 leading-none mt-1">{roleName}</p>
               </div>
           </div>    
-            <X className="w-4 h-4 text-gray-500" />
+            <div aria-hidden="true" className="h-8 border-l border-gray-300 shrink-0" />
             <a
               href="https://kld.edu.ph"
               target="_blank"

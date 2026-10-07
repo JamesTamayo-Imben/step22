@@ -252,6 +252,7 @@ function LedgerPageInner() {
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
+  const [filterYear, setFilterYear] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(true);
 
@@ -461,7 +462,10 @@ const totalShortfall = Math.max(0, -rawTotalBudget);
       const matchesType = filterType === 'all' || entry.type === filterType;
       const matchesStatus = filterStatus === 'all' || entry.status === filterStatus;
       const matchesProject = filterProject === 'all' || entry.project === filterProject;
-      return matchesSearch && matchesType && matchesStatus && matchesProject;
+      const entryDate = entry.createdAt || entry.created_at || entry.date;
+      const entryYear = entryDate ? new Date(entryDate).getFullYear().toString() : '';
+      const matchesYear = filterYear === 'all' || entryYear === filterYear;
+      return matchesSearch && matchesType && matchesStatus && matchesProject && matchesYear;
     });
 
     // Put tampered entries first for easier visibility
@@ -474,6 +478,14 @@ const totalShortfall = Math.max(0, -rawTotalBudget);
 
     return items;
   })();
+  const ledgerYears = [...new Set(ledgerEntries
+    .map((entry) => {
+      const entryDate = entry.createdAt || entry.created_at || entry.date;
+      const parsedDate = entryDate ? new Date(entryDate) : null;
+      return parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.getFullYear().toString() : null;
+    })
+    .filter(Boolean))]
+    .sort((a, b) => Number(b) - Number(a));
 
   // Check if project has budget mismatch (same rules as Adviser ledger / ProjectBudgetCalculator)
   const getProjectBudgetStatus = (projectId) => {
@@ -690,7 +702,7 @@ const totalShortfall = Math.max(0, -rawTotalBudget);
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterType, filterStatus, filterProject]);
+  }, [searchQuery, filterType, filterStatus, filterProject, filterYear]);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -1345,7 +1357,7 @@ const getTypeAmountColor = (type) => {
 
       {/* Filters */}
       <Card className="rounded-[20px] border-0 shadow-sm p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {/* Search */}
           <div className="lg:col-span-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1391,6 +1403,18 @@ const getTypeAmountColor = (type) => {
               </option>
             ))}
           </Select>
+
+          <select
+            value={filterYear}
+            onChange={(e) => setFilterYear(e.target.value)}
+            aria-label="Filter ledger by year"
+            className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+          >
+            <option value="all">All Years</option>
+            {ledgerYears.map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
         </div>
       </Card>
 

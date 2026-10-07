@@ -89,6 +89,7 @@ const defaultProject = {
   id: null,
   title: 'Loading...',
   category: '',
+  type: 'event',
   description: '',
   objective: '',
   venue: '',
@@ -836,6 +837,7 @@ const formatDate = (dateString) => {
             id: data.id || null,
             title: data.title || '',
             category: data.category || '',
+            type: String(data.type || 'event').toLowerCase(),
             description: data.description || '',
             objective: data.objective || '',
             venue: data.venue || '',
@@ -847,6 +849,7 @@ const formatDate = (dateString) => {
             budgetSource: data.budgetSource || 'none',
             transferFromProjectId: data.transferFromProjectId || '',
             transferAmount: data.transferAmount || '',
+            transferSourceScope: data.transferSourceScope || 'overall',
             startDate: data.start_date || data.startDate || '',
             endDate: data.end_date || data.endDate || '',
             createdAt: data.created_at || data.createdAt || '',
@@ -1734,11 +1737,15 @@ function maskUserName(fullName) {
                     archive: project.archive,
                     note: project.note,
                     approveBy: project.approveBy,
-                    hasBudget: Number(project.budget || 0) > 0,
+                    type: project.type || 'event',
+                    hasBudget: project.type !== 'fundraiser' && Number(project.budget || 0) > 0,
                     budgetSource: isTransferBudget ? 'past_project' : (hasSavedSourceEntries ? 'none' : (project.budgetSource || 'none')),
                     transferFromProjectId: project.transferFromProjectId || '',
                     transferAmount: project.transferAmount || '',
-                    budget: project.budgetSource === 'past_project' ? (project.transferAmount || project.budget || '') : (project.budget || ''),
+                    transferSourceScope: project.transferSourceScope || 'overall',
+                    budget: project.type === 'fundraiser'
+                      ? '0'
+                      : (project.budgetSource === 'past_project' ? (project.transferAmount || project.budget || '') : (project.budget || '')),
                   });
                   setEditBudgetItems(project.budgetBreakdown?.map((i) => ({ ...i })) || []);
                   window.setTimeout(() => setShowEditModal(true), 0);

@@ -350,13 +350,14 @@ Route::middleware(['auth', 'verified', 'role:csg', 'csg.online'])->group(functio
                 ->with('user:id,name')
                 ->orderByDesc('favorite')
                 ->orderByDesc('created_at')
-                ->get(['id', 'user_id', 'concern', 'favorite', 'created_at'])
+                ->get(['id', 'user_id', 'concern', 'favorite', 'is_done', 'created_at'])
                 ->map(fn (Concern $concern) => [
                     'id' => $concern->id,
                     'user_id' => $concern->user_id,
                     'name' => $concern->user?->name,
                     'concern' => $concern->concern,
                     'favorite' => $concern->favorite,
+                    'is_done' => $concern->is_done,
                     'created_at' => $concern->created_at,
                 ])
             ),

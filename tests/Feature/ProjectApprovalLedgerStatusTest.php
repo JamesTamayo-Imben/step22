@@ -68,6 +68,7 @@ class ProjectApprovalLedgerStatusTest extends TestCase
                 $table->string('category')->nullable();
                 $table->string('approval_status')->default('Draft');
                 $table->string('ledger_proof')->nullable();
+                $table->string('ledger_proof_original_name')->nullable();
                 $table->string('file_content_hash')->nullable();
                 $table->text('note')->nullable();
                 $table->string('approved_by')->nullable();
@@ -345,7 +346,7 @@ class ProjectApprovalLedgerStatusTest extends TestCase
             'id' => (string) Uuid::uuid4(),
             'project_id' => $project->id,
             'type' => 'Initial Transfer',
-            'amount' => 250,
+            'amount' => 0,
             'description' => 'Transferred from completed project',
             'category' => 'Transfer',
             'approval_status' => 'Pending Adviser Approval',

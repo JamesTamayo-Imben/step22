@@ -221,6 +221,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
   const [newProject, setNewProject] = useState({
     title: '',
     category: '',
+    type: '',
     description: '',
     objective: '',
     venue: '',
@@ -229,6 +230,7 @@ export function CSGOfficerDashboard({ currentView, statistics = {}, projects: in
     hasBudget: false,
     isActive: false,
     budgetSource: 'none',
+    transferSourceScope: 'overall',
     budgetSourceType: '',
     budgetSourceDetails: '',
     budgetSourceOptions: {
@@ -852,6 +854,7 @@ const formatHeatmapTooltip = (item) => {
       setNewProject({
         title: '',
         category: '',
+        type: '',
         description: '',
         objective: '',
         venue: '',
@@ -1240,6 +1243,7 @@ const formatHeatmapTooltip = (item) => {
           setNewProject({
             title: '',
             category: '',
+            type: '',
             description: '',
             objective: '',
             venue: '',
@@ -1248,6 +1252,7 @@ const formatHeatmapTooltip = (item) => {
             hasBudget: false,
             isActive: false,
             budgetSource: 'none',
+            transferSourceScope: 'overall',
             transferFromProjectId: '',
             transferAmount: '',
             startDate: '',
@@ -1264,6 +1269,7 @@ const formatHeatmapTooltip = (item) => {
           setNewProject({
             title: '',
             category: '',
+            type: '',
             description: '',
             objective: '',
             venue: '',
@@ -1272,6 +1278,7 @@ const formatHeatmapTooltip = (item) => {
             hasBudget: false,
             isActive: false,
             budgetSource: 'none',
+            transferSourceScope: 'overall',
             transferFromProjectId: '',
             transferAmount: '',
             startDate: '',

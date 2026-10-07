@@ -5,7 +5,7 @@ import { Head, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
-import { Search, Info, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Info, Star, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 
 function Modal({ open, onClose, title, description, children }) {
   React.useEffect(() => {
@@ -48,16 +48,23 @@ function Modal({ open, onClose, title, description, children }) {
 
 const STATUS_OPTIONS = ['All Concerns', 'This Week', 'This Month', 'This Year'];
 
-function matchesFilter(concern, searchQuery, statusFilter) {
+function matchesFilter(concern, searchQuery, statusFilter, yearFilter) {
   const query = searchQuery.trim().toLowerCase();
   const matchesSearch = !query || concern.concern?.toLowerCase().includes(query);
+
+  const createdAt = concern.created_at ? new Date(concern.created_at) : null;
+  if (
+    yearFilter !== 'all' &&
+    (!createdAt || Number.isNaN(createdAt.getTime()) || createdAt.getFullYear().toString() !== yearFilter)
+  ) {
+    return false;
+  }
 
   if (statusFilter === 'all') {
     return matchesSearch;
   }
 
-  const createdAt = concern.created_at ? new Date(concern.created_at) : null;
-  if (!createdAt) {
+  if (!createdAt || Number.isNaN(createdAt.getTime())) {
     return matchesSearch;
   }
 
@@ -80,22 +87,26 @@ export default function ConcernsPage() {
   const { concerns = [] } = usePage().props;
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedConcern, setSelectedConcern] = useState(null);
+  const [isUpdatingDone, setIsUpdatingDone] = useState(false);
   const itemsPerPage = 6;
   const [items, setItems] = useState(() =>
-    Array.isArray(concerns) ? concerns.map((concern) => ({ ...concern, favorite: !!concern.favorite })) : []
+    Array.isArray(concerns)
+      ? concerns.map((concern) => ({ ...concern, favorite: !!concern.favorite, is_done: !!concern.is_done }))
+      : []
   );
 
   useEffect(() => {
     if (Array.isArray(concerns)) {
-      setItems(concerns.map((concern) => ({ ...concern, favorite: !!concern.favorite })));
+      setItems(concerns.map((concern) => ({ ...concern, favorite: !!concern.favorite, is_done: !!concern.is_done })));
     }
   }, [concerns]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, items]);
+  }, [searchQuery, statusFilter, yearFilter, items]);
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => {
@@ -106,16 +117,28 @@ export default function ConcernsPage() {
     });
   }, [items]);
 
-    const getFavoriteColor = (concern) => {
-    switch (concern.favorite) {
-      case true: return 'text-yellow-700 bg-yellow-100';
-      case false: return 'text-gray-700 bg-gray-100';
-    }
+  const getFavoriteColor = (concern) => {
+    return concern.favorite ? 'text-yellow-700 bg-yellow-100' : 'text-gray-700 bg-gray-100';
   };
 
   const filteredItems = useMemo(() => {
-    return sortedItems.filter((concern) => matchesFilter(concern, searchQuery, statusFilter));
-  }, [sortedItems, searchQuery, statusFilter]);
+    return sortedItems.filter((concern) => matchesFilter(concern, searchQuery, statusFilter, yearFilter));
+  }, [sortedItems, searchQuery, statusFilter, yearFilter]);
+
+  const concernYears = useMemo(
+    () =>
+      [
+        ...new Set(
+          items
+            .map((concern) => {
+              const date = concern.created_at ? new Date(concern.created_at) : null;
+              return date && !Number.isNaN(date.getTime()) ? date.getFullYear().toString() : null;
+            })
+            .filter(Boolean)
+        ),
+      ].sort((a, b) => Number(b) - Number(a)),
+    [items]
+  );
 
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / itemsPerPage));
   const paginatedItems = useMemo(() => {
@@ -154,13 +177,44 @@ export default function ConcernsPage() {
       }
 
       setItems((current) =>
-        current.map((entry) =>
-          entry.id === id ? { ...entry, favorite: newState } : entry
-        )
+        current.map((entry) => (entry.id === id ? { ...entry, favorite: newState } : entry))
       );
     } catch (error) {
       console.error(error);
       alert('Could not update favorite status.');
+    }
+  };
+
+  const markConcernDone = async () => {
+    if (!selectedConcern || selectedConcern.is_done || isUpdatingDone) return;
+
+    setIsUpdatingDone(true);
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    try {
+      const response = await fetch(`/api/concerns/${encodeURIComponent(selectedConcern.id)}/done`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': token || '',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ is_done: true }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Failed to mark concern as done.');
+      }
+
+      const updatedConcern = { ...selectedConcern, is_done: true };
+      setItems((current) => current.map((item) => (item.id === updatedConcern.id ? updatedConcern : item)));
+      setSelectedConcern(updatedConcern);
+    } catch (error) {
+      console.error('Could not mark concern as done:', error);
+      alert(error.message || 'Could not mark concern as done.');
+    } finally {
+      setIsUpdatingDone(false);
     }
   };
 
@@ -175,17 +229,21 @@ export default function ConcernsPage() {
   return (
     <AuthenticatedLayout>
       <Head title="Concerns" />
-      <div className="py-8 px-4 lg:px-0 md:px-0">
-        <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-blue-600 text-2xl font-semibold">Student Reports and Concerns</h1>
-              <p className="text-gray-500">View and monitor concerns. Favorite an item to pin it at the top of the list.</p>
-            </div>
+
+      <div className="py-8">
+        {/* Single container: consistent side padding for header, filters, list and pagination */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-6">
+          {/* Header */}
+          <div>
+            <h1 className="text-blue-600 text-2xl font-semibold">Student Reports and Concerns</h1>
+            <p className="mt-1 text-gray-500">
+              View and monitor concerns. Favorite an item to pin it at the top of the list.
+            </p>
           </div>
 
+          {/* Filters */}
           <Card className="rounded-[20px] border-0 shadow-sm p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="relative md:col-span-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -209,25 +267,43 @@ export default function ConcernsPage() {
                   ))}
                 </select>
               </div>
+              <div>
+                <select
+                  value={yearFilter}
+                  onChange={(e) => setYearFilter(e.target.value)}
+                  aria-label="Filter concerns by year"
+                  className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
+                >
+                  <option value="all">All Years</option>
+                  {concernYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </Card>
-        </div>
 
-        <div className="mx-auto max-w-7xl sm:px-6 lg:px-8 mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* List */}
+          <div className="space-y-3">
             {paginatedItems.length === 0 ? (
               <Card className="col-span-full rounded-[20px] border-0 shadow-sm p-12">
                 <div className="text-center">
                   <Info className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">No concerns found.</p>
-                  <p className="text-xs text-gray-400 mt-1 mb-4">Submit a concern through the chatbot or feedback flow to see it here.</p>
+                  <p className="text-xs text-gray-400 mt-1 mb-4">
+                    Submit a concern through the chatbot or feedback flow to see it here.
+                  </p>
                 </div>
               </Card>
             ) : (
               paginatedItems.map((concern) => (
                 <Card
                   key={concern.id}
-                  className="rounded-[20px] border-0 shadow-sm p-4 hover:shadow-md transition-all cursor-pointer h-full min-h-[220px]"
+                  className={`rounded-xl border-0 shadow-sm px-5 py-4 hover:shadow-md transition-all cursor-pointer ${
+                    concern.is_done ? 'bg-green-50/40' : 'bg-white'
+                  }`}
                   onClick={() => openConcernDetails(concern)}
                   role="button"
                   tabIndex={0}
@@ -238,41 +314,78 @@ export default function ConcernsPage() {
                     }
                   }}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-gray-900 truncate">Concern</h3>
-                      <p className="text-[11px] text-gray-500 mt-1">Submitted {new Date(concern.created_at).toLocaleString()}</p>
+                  <div className="grid grid-cols-1 items-center gap-3 lg:grid-cols-[220px_minmax(0,1fr)_auto_auto] lg:gap-6">
+                    {/* Student */}
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-50 text-sm font-semibold text-blue-600">
+                        {(concern.name || 'A').trim().charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-gray-900">
+                          {concern.name || 'Anonymous'}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-gray-500">
+                          {concern.created_at
+                            ? new Date(concern.created_at).toLocaleString()
+                            : 'Date unavailable'}
+                        </p>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        toggleFavorite(concern.id);
-                      }}
-                      className="rounded-full border border-gray-200 bg-white p-2 text-gray-500 hover:text-yellow-500 hover:border-yellow-300 transition flex-shrink-0"
-                      aria-label={concern.favorite ? 'Remove favorite' : 'Mark favorite'}
-                    >
-                      <Star className={`w-4 h-4 ${concern.favorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
-                    </button>
-                  </div>
 
-                  <div className="mt-3 mb-3 flex-1">
-                    <p className="text-sm text-gray-700 whitespace-pre-line line-clamp-4 leading-5">{concern.concern}</p>
-                    <p className="text-[11px] text-gray-400 mt-3">Student Name: {concern.name ? concern.name : 'Anonymous'}</p>
-                  </div>
+                    {/* Concern */}
+                    <div className="min-w-0">
+                      <p className="mb-1 text-[10px] uppercase tracking-wide text-gray-400">Concern</p>
+                      <p className="text-sm leading-5 text-gray-700 whitespace-pre-line line-clamp-2">
+                        {concern.concern}
+                      </p>
+                    </div>
 
-                  <div className="flex items-center justify-between gap-2 mt-auto pt-2 border-t border-gray-100">
-                    <Badge className={`rounded-lg text-[10px] px-2 py-1 ${getFavoriteColor(concern)}`}>
-                      {concern.favorite ? 'Favorited' : 'Normal'}
-                    </Badge>
-                    <span className="text-[11px] text-blue-600 underline">View details</span>
+                    {/* Badges: fixed width keeps every row aligned */}
+                    <div className="flex items-center gap-2 lg:w-[190px] lg:justify-end">
+                      <Badge
+                        className={`rounded-md px-2 py-0.5 text-[11px] whitespace-nowrap ${
+                          concern.is_done ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                        }`}
+                      >
+                        {concern.is_done ? 'Done' : 'In progress'}
+                      </Badge>
+                      <Badge
+                        className={`rounded-md px-2 py-0.5 text-[11px] whitespace-nowrap ${getFavoriteColor(
+                          concern
+                        )}`}
+                      >
+                        {concern.favorite ? 'Favorited' : 'Normal'}
+                      </Badge>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-end gap-3 lg:w-[110px]">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleFavorite(concern.id);
+                        }}
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition hover:border-yellow-300 hover:text-yellow-500"
+                        aria-label={concern.favorite ? 'Remove favorite' : 'Mark favorite'}
+                      >
+                        <Star
+                          className={`h-4 w-4 ${
+                            concern.favorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'
+                          }`}
+                        />
+                      </button>
+                      <span className="whitespace-nowrap text-xs font-medium text-blue-600">View →</span>
+                    </div>
                   </div>
                 </Card>
               ))
             )}
           </div>
+
+          {/* Pagination */}
           {filteredItems.length > itemsPerPage && totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
+            <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-lg">
               <div className="flex flex-1 justify-between sm:hidden">
                 <Button
                   onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
@@ -368,20 +481,42 @@ export default function ConcernsPage() {
           <div>
             <p className="text-sm text-gray-500 mb-1">Submitted</p>
             <p className="text-sm text-gray-900">
-              {selectedConcern?.created_at ? new Date(selectedConcern.created_at).toLocaleString() : 'Date not available'}
+              {selectedConcern?.created_at
+                ? new Date(selectedConcern.created_at).toLocaleString()
+                : 'Date not available'}
             </p>
           </div>
 
           <div>
             <p className="text-sm text-gray-500 mb-1">Student</p>
-            <p className="text-sm text-gray-900">{selectedConcern?.name ? selectedConcern.name : 'Anonymous'}</p>
+            <p className="text-sm text-gray-900">
+              {selectedConcern?.name ? selectedConcern.name : 'Anonymous'}
+            </p>
           </div>
 
           <div>
             <p className="text-sm text-gray-500 mb-1">Concern</p>
             <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <p className="whitespace-pre-line text-sm text-gray-700">{selectedConcern?.concern || 'No concern details available.'}</p>
+              <p className="whitespace-pre-line text-sm text-gray-700">
+                {selectedConcern?.concern || 'No concern details available.'}
+              </p>
             </div>
+          </div>
+
+          <div className="flex justify-end border-t border-gray-100 pt-4">
+            <Button
+              type="button"
+              onClick={markConcernDone}
+              disabled={!selectedConcern || selectedConcern.is_done || isUpdatingDone}
+              className={`rounded-xl ${
+                selectedConcern?.is_done
+                  ? 'bg-green-100 text-green-700 hover:bg-green-100'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              <Check className="mr-2 h-4 w-4" />
+              {isUpdatingDone ? 'Saving...' : selectedConcern?.is_done ? 'Done' : 'Mark as done'}
+            </Button>
           </div>
         </div>
       </Modal>

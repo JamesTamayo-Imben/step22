@@ -17,6 +17,7 @@ class Project extends Model
         'title',
         'description',
         'category',
+        'type',
         'budget',
         'budget_breakdown',
         'status',

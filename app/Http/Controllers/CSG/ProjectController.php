@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use App\Support\ProjectBudgetCalculator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ProjectController extends Controller
@@ -71,10 +73,17 @@ class ProjectController extends Controller
                     ? ($transferMetadata['transfer_source_project_id'] ?? null)
                     : null;
                 $projectData['transferAmount'] = (float) $initialTransferLedger->amount;
+                $sourceProject = !empty($projectData['transferFromProjectId'])
+                    ? Project::find($projectData['transferFromProjectId'])
+                    : null;
+                $projectData['transferSourceScope'] = strtolower((string) ($sourceProject?->type ?? '')) === 'fundraiser'
+                    ? 'fundraiser'
+                    : 'overall';
             } else {
                 $projectData['budgetSource'] = 'none';
                 $projectData['transferFromProjectId'] = null;
                 $projectData['transferAmount'] = null;
+                $projectData['transferSourceScope'] = 'overall';
             }
             
             return response()->json($projectData, 200);
@@ -99,12 +108,18 @@ class ProjectController extends Controller
                 'title' => 'required|string|max:255',
                 'description' => 'required|string',
                 'objective' => 'required|string',
-                'venue' => 'required|string',
+                'venue' => [
+                    'nullable',
+                    'string',
+                    Rule::requiredIf(fn () => $request->input('type') !== 'fundraiser'),
+                ],
                 'category' => 'required|string',
+                'type' => 'required|in:fundraiser,merchandise,event',
                 'budget' => 'nullable|numeric|min:0',
                 'has_budget' => 'nullable|in:0,1,true,false',
                 'is_active' => 'nullable|in:0,1,true,false',
                 'budget_source' => 'nullable|in:none,past_project',
+                'remaining_budget_scope' => 'nullable|in:overall,fundraiser',
                 'budget_source_type' => 'nullable|string',
                 'budget_source_details' => 'nullable|string',
                 'transfer_from_project_id' => 'nullable|string',
@@ -119,18 +134,20 @@ class ProjectController extends Controller
                     'file',
                     'mimes:pdf,jpg,jpeg,png',
                     'max:10240',
-                    'required_if:has_budget,1',
+                    Rule::requiredIf(fn () => $request->input('type') !== 'fundraiser' && $request->boolean('has_budget')),
                 ], // Required when a budget is provided.
                 'is_initial' => 'nullable|in:0,1',
             ]);
 
-            $hasBudget = $request->boolean('has_budget');
+            $isFundraiser = $validated['type'] === 'fundraiser';
+            $hasBudget = !$isFundraiser && $request->boolean('has_budget');
             $isActive = $request->boolean('is_active');
-            $budgetSource = $request->input('budget_source', 'none');
+            $budgetSource = $isFundraiser ? 'none' : $request->input('budget_source', 'none');
+            $remainingBudgetScope = $request->input('remaining_budget_scope', 'overall');
             $budgetSourceType = $request->input('budget_source_type');
             $budgetSourceDetails = trim((string) $request->input('budget_source_details', ''));
             $transferFromProjectId = trim((string) $request->input('transfer_from_project_id', '')) ?: null;
-            $transferAmount = $request->filled('transfer_amount') ? (float) $request->input('transfer_amount') : 0;
+            $transferAmount = !$isFundraiser && $request->filled('transfer_amount') ? (float) $request->input('transfer_amount') : 0;
             $budgetAmount = $hasBudget && $request->filled('budget') ? (float) $request->budget : 0;
             $effectiveBudgetAmount = $budgetAmount;
             $initialLedgerDescription = 'Initial project budget baseline';
@@ -233,20 +250,50 @@ class ProjectController extends Controller
             if ($budgetSource === 'past_project') {
                 $request->validate([
                     'transfer_amount' => 'required|numeric|min:0.01',
+                    'transfer_from_project_id' => [
+                        Rule::requiredIf($remainingBudgetScope === 'fundraiser'),
+                        'nullable',
+                        'string',
+                        'exists:projects,id',
+                    ],
                 ]);
 
-                if ($transferFromProjectId) {
+                $unchangedApprovedFundraiserTransfer = false;
+                if ($project->approval_status === 'Approved' && $remainingBudgetScope === 'fundraiser') {
+                    $existingSourceEntry = $this->findTransferSourceEntry($project->id);
+                    $existingBaseline = $this->findProjectBaselineEntry($project->id);
+                    $sourceMetadata = json_decode((string) ($existingSourceEntry?->note ?? ''), true);
+                    $unchangedApprovedFundraiserTransfer = $existingSourceEntry
+                        && $existingBaseline?->category === 'Transfer'
+                        && (string) ($sourceMetadata['transfer_source_project_id'] ?? '') === (string) $transferFromProjectId
+                        && abs($transferAmount - (float) $existingBaseline->amount) <= 0.01;
+                }
+
+                if ($transferFromProjectId && !$unchangedApprovedFundraiserTransfer) {
                     $sourceProject = Project::query()
                         ->where('archive', 0)
+                        ->where('approval_status', 'Approved')
+                        ->whereNotNull('end_date')
+                        ->where('end_date', '<=', now())
+                        ->where('budget', '>', 0)
+                        ->when($remainingBudgetScope === 'fundraiser', fn ($query) => $query->where('type', 'fundraiser'))
                         ->where('id', $transferFromProjectId)
                         ->first();
 
                     if (!$sourceProject) {
-                        throw new \InvalidArgumentException('Source project not found.');
+                        throw ValidationException::withMessages([
+                            'transfer_from_project_id' => [
+                                $remainingBudgetScope === 'fundraiser'
+                                    ? 'Choose a completed fundraiser project with an available budget.'
+                                    : 'Source project not found or is not eligible for a transfer.',
+                            ],
+                        ]);
                     }
 
                     if ((float) $transferAmount > (float) $sourceProject->budget) {
-                        throw new \InvalidArgumentException('Transfer amount exceeds the selected project\'s remaining budget.');
+                        throw ValidationException::withMessages([
+                            'transfer_amount' => ['Transfer amount exceeds the selected project\'s remaining budget.'],
+                        ]);
                     }
                 }
             }
@@ -258,8 +305,9 @@ class ProjectController extends Controller
             $project->title = $request->title;
             $project->description = $request->description;
             $project->objective = $request->objective;
-            $project->venue = $request->venue;
+            $project->venue = $isFundraiser ? null : $validated['venue'];
             $project->category = $request->category;
+            $project->type = $validated['type'];
             $project->budget = $effectiveBudgetAmount;
             $project->proposed_by = $request->proposed_by;
             $project->start_date = $request->start_date;
@@ -299,28 +347,17 @@ class ProjectController extends Controller
                 $remainingToAllocate = $transferAmount;
                 $transferAllocations = [];
 
-                if ($transferFromProjectId) {
-                    $sourceProjects = Project::query()
-                        ->where('archive', 0)
-                        ->where('id', $transferFromProjectId)
-                        ->where('approval_status', 'Approved')
-                        ->whereNotNull('end_date')
-                        ->where('end_date', '<=', now())
-                        ->where('budget', '>', 0)
-                        ->orderBy('end_date')
-                        ->lockForUpdate()
-                        ->get();
-                } else {
-                    $sourceProjects = Project::query()
-                        ->where('archive', 0)
-                        ->where('approval_status', 'Approved')
-                        ->whereNotNull('end_date')
-                        ->where('end_date', '<=', now())
-                        ->where('budget', '>', 0)
-                        ->orderBy('end_date')
-                        ->lockForUpdate()
-                        ->get();
-                }
+                $sourceProjectsQuery = Project::query()
+                    ->where('archive', 0)
+                    ->where('approval_status', 'Approved')
+                    ->whereNotNull('end_date')
+                    ->where('end_date', '<=', now())
+                    ->where('budget', '>', 0)
+                    ->when($transferFromProjectId, fn ($query) => $query->where('id', $transferFromProjectId))
+                    ->when($remainingBudgetScope === 'fundraiser', fn ($query) => $query->where('type', 'fundraiser'))
+                    ->orderBy('end_date')
+                    ->lockForUpdate();
+                $sourceProjects = $sourceProjectsQuery->get();
 
                 foreach ($sourceProjects as $sourceProject) {
                     if ($remainingToAllocate <= 0) {
@@ -342,7 +379,8 @@ class ProjectController extends Controller
                 }
 
                 if ($remainingToAllocate > 0.009) {
-                    throw new \Exception('Transfer amount exceeds the overall available remaining budget');
+                    $scopeLabel = $remainingBudgetScope === 'fundraiser' ? 'fundraiser projects' : 'overall available remaining budget';
+                    throw new \Exception('Transfer amount exceeds the available remaining budget from ' . $scopeLabel);
                 }
 
                 if (!empty($transferAllocations)) {
@@ -452,17 +490,33 @@ class ProjectController extends Controller
             if (!$project) {
                 return response()->json(['message' => 'Project not found'], 404);
             }
+
+            $originalProjectType = $project->type ?: 'event';
+            $projectType = $request->input('type', $project->type ?: 'event');
+            $isFundraiser = $projectType === 'fundraiser';
+
+            if ($project->approval_status === 'Approved' && $projectType !== $originalProjectType) {
+                throw ValidationException::withMessages([
+                    'type' => ['A project type cannot be changed after the project has been approved.'],
+                ]);
+            }
             
             // Validate the request
             $request->validate([
                 'title' => 'sometimes|required|string|max:255',
                 'description' => 'sometimes|required|string',
                 'objective' => 'sometimes|required|string',
-                'venue' => 'sometimes|required|string',
+                'venue' => [
+                    Rule::requiredIf(fn () => !$isFundraiser),
+                    'nullable',
+                    'string',
+                ],
                 'category' => 'sometimes|required|string',
+                'type' => 'sometimes|required|in:fundraiser,merchandise,event',
                 'budget' => 'sometimes|nullable|numeric|min:0',
                 'has_budget' => 'nullable|in:0,1,true,false',
                 'budget_source' => 'nullable|in:none,past_project',
+                'remaining_budget_scope' => 'nullable|in:overall,fundraiser',
                 'budget_source_type' => 'nullable|string',
                 'budget_source_details' => 'nullable|string',
                 'transfer_from_project_id' => 'nullable|string',
@@ -473,12 +527,22 @@ class ProjectController extends Controller
                 'project_proof' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             ]);
 
-            $hasBudget = $request->boolean('has_budget');
-            $budgetSource = $request->input('budget_source', 'none');
+            $hasBudget = !$isFundraiser && $request->boolean('has_budget');
+            $budgetSource = $isFundraiser ? 'none' : $request->input('budget_source', 'none');
+            $remainingBudgetScope = $request->input('remaining_budget_scope', 'overall');
             $budgetSourceType = $request->input('budget_source_type');
             $budgetSourceDetails = trim((string) $request->input('budget_source_details', ''));
-            $transferFromProjectId = trim((string) $request->input('transfer_from_project_id', '')) ?: null;
-            $transferAmount = $request->filled('transfer_amount') ? (float) $request->input('transfer_amount') : 0;
+            $transferFromProjectId = $isFundraiser ? null : (trim((string) $request->input('transfer_from_project_id', '')) ?: null);
+            $transferAmount = !$isFundraiser && $request->filled('transfer_amount') ? (float) $request->input('transfer_amount') : 0;
+            if ($isFundraiser) {
+                $request->merge([
+                    'has_budget' => '0',
+                    'budget' => '0',
+                    'budget_source' => 'none',
+                    'transfer_from_project_id' => '',
+                    'transfer_amount' => '',
+                ]);
+            }
 
             if ($hasBudget && $budgetSource === 'none' && $budgetSourceDetails !== '') {
                 $decodedDetails = json_decode($budgetSourceDetails, true);
@@ -511,12 +575,28 @@ class ProjectController extends Controller
             if ($hasBudget && $budgetSource === 'past_project') {
                 $request->validate([
                     'transfer_amount' => 'required|numeric|min:0.01',
+                    'transfer_from_project_id' => [
+                        Rule::requiredIf($remainingBudgetScope === 'fundraiser'),
+                        'nullable',
+                        'string',
+                        'exists:projects,id',
+                    ],
                 ]);
 
                 if ($transferFromProjectId) {
-                    $request->validate([
-                        'transfer_from_project_id' => 'string|exists:projects,id',
-                    ]);
+                    $sourceProject = Project::query()
+                        ->where('archive', 0)
+                        ->where('approval_status', 'Approved')
+                        ->whereNotNull('end_date')
+                        ->where('end_date', '<=', now())
+                        ->where('budget', '>', 0)
+                        ->when($remainingBudgetScope === 'fundraiser', fn ($query) => $query->where('type', 'fundraiser'))
+                        ->find($transferFromProjectId);
+                    if (!$sourceProject || (string) $sourceProject->id === (string) $project->id) {
+                        throw ValidationException::withMessages([
+                            'transfer_from_project_id' => ['Choose a completed eligible project to transfer from.'],
+                        ]);
+                    }
                 }
             }
 
@@ -537,22 +617,61 @@ class ProjectController extends Controller
             if ($request->has('title')) $project->title = $request->title;
             if ($request->has('description')) $project->description = $request->description;
             if ($request->has('objective')) $project->objective = $request->objective;
-            if ($request->has('venue')) $project->venue = $request->venue;
+            if ($request->has('venue') || $isFundraiser) $project->venue = $isFundraiser ? null : $request->venue;
             if ($request->has('category')) $project->category = $request->category;
+            if ($request->has('type')) $project->type = $projectType;
             
             // If budget is being changed, update the existing baseline ledger entry (never duplicate)
             if ($request->has('has_budget') || $request->has('budget') || $request->has('budget_source')) {
                 $oldBudget = (float) $project->budget;
                 $baseline = $this->findProjectBaselineEntry($project->id);
-                if ($baseline && $baseline->category === 'Transfer') {
-                    $transferFromProjectId = null;
-                }
                 $newBudget = $oldBudget;
+                $approvedExistingTransfer = $project->approval_status === 'Approved'
+                    && $baseline?->category === 'Transfer';
 
-                if (!$hasBudget) {
+                if ($approvedExistingTransfer) {
+                    if (!$hasBudget
+                        || $budgetSource !== 'past_project'
+                        || abs($transferAmount - (float) $baseline->amount) > 0.01) {
+                        throw ValidationException::withMessages([
+                            'budget' => ['An approved project cannot change its transfer budget allocation.'],
+                        ]);
+                    }
+
+                    if ($remainingBudgetScope === 'fundraiser') {
+                        $existingSourceEntry = $this->findTransferSourceEntry($project->id);
+                        $sourceMetadata = json_decode((string) ($existingSourceEntry?->note ?? ''), true);
+                        if ((string) ($sourceMetadata['transfer_source_project_id'] ?? '') !== (string) $transferFromProjectId) {
+                            throw ValidationException::withMessages([
+                                'transfer_from_project_id' => ['An approved project cannot change its fundraiser source.'],
+                            ]);
+                        }
+                    }
+                }
+
+                if ($isFundraiser && $originalProjectType === 'fundraiser') {
+                    $approvedEntries = LedgerEntry::query()
+                        ->where('project_id', $project->id)
+                        ->where('archive', 0)
+                        ->where('approval_status', 'Approved')
+                        ->get(['type', 'amount']);
+
+                    $newBudget = $approvedEntries->isNotEmpty()
+                        ? ProjectBudgetCalculator::fromLedgerEntries($approvedEntries)
+                        : $oldBudget;
+                } elseif ($isFundraiser) {
                     $newBudget = 0;
-                } elseif ($budgetSource === 'past_project' && $transferAmount > 0 && $transferFromProjectId) {
-                    $sourceProject = Project::where('archive', 0)->find($transferFromProjectId);
+                } elseif (!$hasBudget) {
+                    $newBudget = 0;
+                } elseif ($budgetSource === 'past_project' && $transferAmount > 0 && $transferFromProjectId && !$approvedExistingTransfer) {
+                    $sourceProject = Project::query()
+                        ->where('archive', 0)
+                        ->where('approval_status', 'Approved')
+                        ->whereNotNull('end_date')
+                        ->where('end_date', '<=', now())
+                        ->where('budget', '>', 0)
+                        ->when($remainingBudgetScope === 'fundraiser', fn ($query) => $query->where('type', 'fundraiser'))
+                        ->find($transferFromProjectId);
 
                     if (!$sourceProject) {
                         return response()->json(['message' => 'Source project not found'], 422);
@@ -579,6 +698,10 @@ class ProjectController extends Controller
                     $newBudget = $hasBudget && $request->filled('budget') ? (float) $request->budget : 0;
                 }
 
+                if ($project->approval_status === 'Approved' && !$isFundraiser) {
+                    $newBudget = $oldBudget;
+                }
+
                 $project->budget = $newBudget;
 
                 $resolvedBudgetContext = $this->resolveBudgetUpdateContext(
@@ -598,7 +721,7 @@ class ProjectController extends Controller
 
                 $budgetSourceEntries = $this->buildBudgetSourceEntries($budgetSourceDetails);
 
-                if ($project->approval_status !== 'Approved') {
+                if ($project->approval_status !== 'Approved' && (!$isFundraiser || $originalProjectType !== 'fundraiser')) {
                     $this->syncProjectBudgetLedger(
                         $project,
                         $baseline,
@@ -607,7 +730,8 @@ class ProjectController extends Controller
                         $resolvedBudgetContext['budgetSource'],
                         $resolvedBudgetContext['transferFromProjectId'],
                         $resolvedBudgetContext['transferAmount'],
-                        $budgetSourceEntries
+                        $budgetSourceEntries,
+                        $remainingBudgetScope
                     );
                 }
             }
@@ -618,43 +742,35 @@ class ProjectController extends Controller
             if ($request->has('status')) $project->status = $request->status;
             if ($request->has('approval_status')) {
                 $wasApproved = $project->approval_status === 'Approved';
-                $project->approval_status = $request->approval_status;
+                $requestedApprovalStatus = $request->approval_status;
 
-                $transferEntries = LedgerEntry::query()
-                    ->where('archive', 0)
-                    ->where('category', 'Transfer')
-                    ->where(function ($query) use ($project) {
-                        $query->where('project_id', $project->id)
-                            ->orWhere('note', 'like', '%' . $project->id . '%');
-                    })
-                    ->get();
+                if ($wasApproved && $requestedApprovalStatus !== 'Approved') {
+                    throw ValidationException::withMessages([
+                        'approval_status' => ['An approved project cannot be moved back to another approval status.'],
+                    ]);
+                }
 
-                foreach ($transferEntries as $transferEntry) {
-                    $noteData = json_decode($transferEntry->note, true);
-                    if (!is_array($noteData)) {
-                        continue;
-                    }
+                if ($requestedApprovalStatus === 'Approved' && !$wasApproved) {
+                    DB::transaction(function () use ($project): void {
+                        $lockedProject = Project::query()
+                            ->where('id', $project->id)
+                            ->lockForUpdate()
+                            ->firstOrFail();
 
-                    $sourceProjectId = $noteData['transfer_source_project_id'] ?? null;
-                    if (!$sourceProjectId) {
-                        continue;
-                    }
-
-                    $sourceProject = Project::where('archive', 0)->find($sourceProjectId);
-                    if (!$sourceProject) {
-                        continue;
-                    }
-
-                    if ($project->approval_status === 'Approved' && !$wasApproved) {
-                        $remainingBudget = (float) $sourceProject->budget;
-                        $transferAmount = (float) $transferEntry->amount;
-                        if ($remainingBudget >= $transferAmount) {
-                            $sourceProject->budget = max(0, $remainingBudget - $transferAmount);
-                            $sourceProject->updated_by = Auth::id();
-                            $sourceProject->updated_at = now();
-                            $sourceProject->save();
+                        if ($lockedProject->approval_status !== 'Approved') {
+                            app(\App\Services\ProjectBudgetTransferService::class)
+                                ->debitSourceBudgets((string) $lockedProject->id, Auth::id());
+                            $lockedProject->approval_status = 'Approved';
+                            $lockedProject->approve_by = Auth::id();
+                            $lockedProject->approved_at = now();
+                            $lockedProject->updated_by = Auth::id();
+                            $lockedProject->save();
                         }
-                    }
+
+                        $project->approval_status = $lockedProject->approval_status;
+                    });
+                } else {
+                    $project->approval_status = $requestedApprovalStatus;
                 }
 
                 $transferProjectEntries = LedgerEntry::where('category', 'Transfer')
@@ -1511,7 +1627,8 @@ class ProjectController extends Controller
         string $budgetSource,
         ?string $transferFromProjectId,
         float $transferAmount,
-        array $budgetSourceEntries = []
+        array $budgetSourceEntries = [],
+        string $remainingBudgetScope = 'overall'
     ): void {
         $proofSource = $baseline;
 
@@ -1550,7 +1667,7 @@ class ProjectController extends Controller
                 ]);
             }
 
-            $this->rebuildTransferLedgerForProject($project, $newBudget, $transferFromProjectId, $proofSource);
+            $this->rebuildTransferLedgerForProject($project, $newBudget, $transferFromProjectId, $proofSource, $remainingBudgetScope);
             return;
         }
 
@@ -1622,10 +1739,17 @@ class ProjectController extends Controller
         Project $project,
         float $transferAmount,
         ?string $transferFromProjectId = null,
-        ?LedgerEntry $proofSource = null
+        ?LedgerEntry $proofSource = null,
+        string $remainingBudgetScope = 'overall'
     ): void
     {
-        DB::transaction(function () use ($project, $transferAmount, $transferFromProjectId, $proofSource): void {
+        DB::transaction(function () use ($project, $transferAmount, $transferFromProjectId, $proofSource, $remainingBudgetScope): void {
+            if ($remainingBudgetScope === 'fundraiser' && !$transferFromProjectId) {
+                throw ValidationException::withMessages([
+                    'transfer_from_project_id' => ['Choose a completed fundraiser project to transfer from.'],
+                ]);
+            }
+
             $existingDestinationProof = LedgerEntry::query()
                 ->where('project_id', $project->id)
                 ->where('category', 'Transfer')
@@ -1641,6 +1765,7 @@ class ProjectController extends Controller
                 ->where('end_date', '<=', now())
                 ->where('budget', '>', 0)
                 ->when($transferFromProjectId, fn ($query) => $query->where('id', $transferFromProjectId))
+                ->when($remainingBudgetScope === 'fundraiser', fn ($query) => $query->where('type', 'fundraiser'))
                 ->orderBy('end_date')
                 ->lockForUpdate()
                 ->get();

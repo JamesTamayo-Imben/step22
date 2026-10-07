@@ -82,6 +82,34 @@ function Select({ className = '', children, value, onValueChange, ...props }) {
   );
 }
 
+function RemainingBudgetScopeSelector({ value, fundraiserProjectCount, onChange }) {
+  return (
+    <div>
+      <FieldLabel>Remaining Budget Source</FieldLabel>
+      <div className="flex flex-wrap gap-4">
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="radio"
+            name="remaining-budget-scope"
+            checked={value === 'overall'}
+            onChange={() => onChange('overall')}
+          />
+          Overall available remaining budget
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="radio"
+            name="remaining-budget-scope"
+            checked={value === 'fundraiser'}
+            onChange={() => onChange('fundraiser')}
+          />
+          Fundraiser projects ({fundraiserProjectCount})
+        </label>
+      </div>
+    </div>
+  );
+}
+
 // ─── Helper Functions ───────────────────────────────────────────────────────
 
 //the start date will be at least 3 weeks from today
@@ -233,8 +261,8 @@ export function CreateProjectModal({
   };
 
   const handleCreateProject = async () => {
-    if (!newProject.title || !newProject.category || !newProject.description ||
-      !newProject.objective || !newProject.venue || !newProject.proposedBy) {
+    if (!newProject.title || !newProject.category || !newProject.type || !newProject.description ||
+      !newProject.objective || (newProject.type !== 'fundraiser' && !newProject.venue) || !newProject.proposedBy) {
       showToast('Please fill in all required fields', 'error');
       return;
     }
@@ -279,13 +307,34 @@ export function CreateProjectModal({
       }
 
       const transferAmount = Number(newProject.transferAmount || 0);
-      const availableRemainingBudget = completedProjects.reduce(
-        (total, project) => total + Math.max(0, Number(project?.budget || 0)),
-        0,
+      const eligibleProjects = completedProjects.filter((project) => {
+        const hasTamperedMetadata = Number(project?.tamperedAlerts || 0) > 0 || project?.isTampered === true;
+        const hasMismatchMetadata = project?.isBudgetMismatch === true || project?.budgetMismatch === true;
+        return Number(project?.budget || 0) > 0 && !hasTamperedMetadata && !hasMismatchMetadata;
+      });
+      const scopedProjects = newProject.transferSourceScope === 'fundraiser'
+        ? eligibleProjects.filter((project) => String(project?.type || '').toLowerCase() === 'fundraiser')
+        : eligibleProjects;
+      const selectedSourceProject = scopedProjects.find(
+        (project) => String(project?.id || '') === String(newProject.transferFromProjectId || ''),
       );
+      const availableRemainingBudget = newProject.transferSourceScope === 'fundraiser'
+        ? Math.max(0, Number(selectedSourceProject?.budget || 0))
+        : scopedProjects.reduce(
+          (total, project) => total + Math.max(0, Number(project?.budget || 0)),
+          0,
+        );
+
+      if (newProject.transferSourceScope === 'fundraiser' && !selectedSourceProject) {
+        showToast('Please choose a completed fundraiser project to transfer from', 'error');
+        return;
+      }
 
       if (transferAmount > availableRemainingBudget) {
-        showToast(`Transfer amount cannot exceed the overall available budget of ₱${availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}`, 'error');
+        const budgetScopeLabel = newProject.transferSourceScope === 'fundraiser'
+          ? 'fundraiser-project budget'
+          : 'overall available budget';
+        showToast(`Transfer amount cannot exceed the ${budgetScopeLabel} of ₱${availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}`, 'error');
         return;
       }
     }
@@ -319,16 +368,25 @@ export function CreateProjectModal({
     formData.append('objective', newProject.objective);
     formData.append('venue', newProject.venue);
     formData.append('category', newProject.category);
+    formData.append('type', newProject.type);
     formData.append('budget', newProject.hasBudget ? (newProject.budgetSource === 'none' ? String(autoBudgetTotal) : (newProject.budget || '')) : '');
     formData.append('has_budget', newProject.hasBudget ? '1' : '0');
     formData.append('is_active', '0');
     formData.append('budget_source', newProject.hasBudget ? (newProject.budgetSource || 'none') : 'none');
+    formData.append('remaining_budget_scope', newProject.hasBudget && newProject.budgetSource === 'past_project'
+      ? (newProject.transferSourceScope || 'overall')
+      : 'overall');
     formData.append('budget_source_type', newProject.hasBudget && newProject.budgetSource === 'none' ? selectedBudgetSources.map((entry) => entry.key).join(',') : '');
     formData.append('budget_source_details', newProject.hasBudget && newProject.budgetSource === 'none' ? JSON.stringify({
       sponsorship: (newProject.budgetSourceOptions?.sponsorship || []).map((entry) => ({ name: String(entry?.name || '').trim(), amount: Number(entry?.amount || 0) })),
       donation: (newProject.budgetSourceOptions?.donation || []).map((entry) => ({ name: String(entry?.name || '').trim(), amount: Number(entry?.amount || 0) })),
     }) : '');
-    formData.append('transfer_from_project_id', '');
+    formData.append(
+      'transfer_from_project_id',
+      newProject.hasBudget && newProject.budgetSource === 'past_project' && newProject.transferSourceScope === 'fundraiser'
+        ? (newProject.transferFromProjectId || '')
+        : '',
+    );
     formData.append('transfer_amount', newProject.transferAmount || '');
     formData.append('status', 'Draft');
     formData.append('proposed_by', newProject.proposedBy);
@@ -418,7 +476,8 @@ export function CreateProjectModal({
           />
         </div>
 
-        {/* Category */}
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+         {/* Category */}
         <div>
           <FieldLabel>Category *</FieldLabel>
           <Select
@@ -435,6 +494,33 @@ export function CreateProjectModal({
             <option value="Health">Health</option>
           </Select>
         </div>
+
+        {/* Project Type */}
+        <div>
+          <FieldLabel>Project Type *</FieldLabel>
+          <Select
+            value={newProject.type || ''}
+            onValueChange={(value) => setNewProject({
+              ...newProject,
+              type: value,
+              ...(value === 'fundraiser' ? {
+                venue: '',
+                hasBudget: false,
+                budget: '',
+                budgetSource: 'none',
+                transferSourceScope: 'overall',
+                transferFromProjectId: '',
+                transferAmount: '',
+              } : {}),
+            })}
+          >
+            <option value="">Select project type</option>
+            <option value="fundraiser">Fundraiser</option>
+            <option value="merchandise">Merchandise</option>
+            <option value="event">Event</option>
+          </Select>
+        </div>
+       </div>
 
         {/* Objective */}
         <div>
@@ -460,18 +546,24 @@ export function CreateProjectModal({
           />
         </div>
 
-        {/* Venue */}
-        <div>
-          <FieldLabel>Venue *</FieldLabel>
-          <Input
-            placeholder="Enter project venue/location"
-            value={newProject.venue || ''}
-            onChange={(e) => setNewProject({ ...newProject, venue: e.target.value })}
-            className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-          />
-        </div>
+        {newProject.type !== 'fundraiser' && (
+          <div>
+            <FieldLabel>Venue *</FieldLabel>
+            <Input
+              placeholder="Enter project venue/location"
+              value={newProject.venue || ''}
+              onChange={(e) => setNewProject({ ...newProject, venue: e.target.value })}
+              className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+            />
+          </div>
+        )}
 
         {/* Budget */}
+        {newProject.type === 'fundraiser' ? (
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+            Fundraiser projects start with a budget of ₱0. Funds raised will be recorded through the project ledger.
+          </div>
+        ) : (
         <div className="rounded-xl border border-gray-200 p-4 space-y-3">
           <FieldLabel>Project Budget</FieldLabel>
           <div className="flex flex-wrap gap-4">
@@ -489,7 +581,7 @@ export function CreateProjectModal({
                 type="radio"
                 name="has-budget"
                 checked={newProject.hasBudget === false}
-                onChange={() => setNewProject({ ...newProject, hasBudget: false, budget: '', budgetSource: 'none', transferFromProjectId: '', transferAmount: '' })}
+                onChange={() => setNewProject({ ...newProject, hasBudget: false, budget: '', budgetSource: 'none', transferFromProjectId: '', transferAmount: '', transferSourceScope: 'overall' })}
               />
               No budget yet
             </label>
@@ -510,9 +602,10 @@ export function CreateProjectModal({
             </div>
           )}
         </div>
+        )}
 
         {/* Budget Source */}
-        {newProject.hasBudget && (
+        {newProject.type !== 'fundraiser' && newProject.hasBudget && (
           <div className="rounded-xl border border-gray-200 p-4 space-y-3">
             <FieldLabel>Budget Source</FieldLabel>
             <div className="flex flex-wrap gap-4">
@@ -521,7 +614,7 @@ export function CreateProjectModal({
                   type="radio"
                   name="budget-source"
                   checked={newProject.budgetSource === 'none'}
-                  onChange={() => setNewProject({ ...newProject, budgetSource: 'none', transferFromProjectId: '', transferAmount: '' })}
+                  onChange={() => setNewProject({ ...newProject, budgetSource: 'none', transferFromProjectId: '', transferAmount: '', transferSourceScope: 'overall' })}
                 />
                 Use a new budget
               </label>
@@ -530,7 +623,7 @@ export function CreateProjectModal({
                   type="radio"
                   name="budget-source"
                   checked={newProject.budgetSource === 'past_project'}
-                  onChange={() => setNewProject({ ...newProject, budgetSource: 'past_project', transferFromProjectId: '', transferAmount: '' })}
+                  onChange={() => setNewProject({ ...newProject, budgetSource: 'past_project', transferFromProjectId: '', transferAmount: '', transferSourceScope: 'overall' })}
                 />
                 Use remaining budget
               </label>
@@ -683,25 +776,104 @@ export function CreateProjectModal({
                     return Number(project?.budget || 0) > 0 && !hasTamperedMetadata && !hasMismatchMetadata;
                   });
 
-                  if (eligibleProjects.length === 0) {
+                  const fundraiserProjects = eligibleProjects.filter(
+                    (project) => String(project?.type || '').toLowerCase() === 'fundraiser',
+                  );
+                  const scopedProjects = newProject.transferSourceScope === 'fundraiser'
+                    ? fundraiserProjects
+                    : eligibleProjects;
+
+                  if (scopedProjects.length === 0) {
                     return (
-                      <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                        No completed projects with a remaining budget are available right now.
-                      </div>
+                      <>
+                        <RemainingBudgetScopeSelector
+                          value={newProject.transferSourceScope || 'overall'}
+                          fundraiserProjectCount={fundraiserProjects.length}
+                          onChange={(value) => setNewProject({
+                            ...newProject,
+                            transferSourceScope: value,
+                            transferFromProjectId: '',
+                            transferAmount: '',
+                          })}
+                        />
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                          {newProject.transferSourceScope === 'fundraiser'
+                            ? 'No completed fundraiser projects with a budget are available right now.'
+                            : 'No completed projects with a remaining budget are available right now.'}
+                        </div>
+                      </>
                     );
                   }
 
-                  const availableRemainingBudget = eligibleProjects.reduce(
-                    (total, project) => total + Math.max(0, Number(project?.budget || 0)),
-                    0,
+                  const selectedFundraiserProject = fundraiserProjects.find(
+                    (project) => String(project?.id || '') === String(newProject.transferFromProjectId || ''),
                   );
+                  const availableRemainingBudget = newProject.transferSourceScope === 'fundraiser'
+                    ? Math.max(0, Number(selectedFundraiserProject?.budget || 0))
+                    : scopedProjects.reduce(
+                      (total, project) => total + Math.max(0, Number(project?.budget || 0)),
+                      0,
+                    );
 
                   return (
                     <>
+                      <RemainingBudgetScopeSelector
+                        value={newProject.transferSourceScope || 'overall'}
+                        fundraiserProjectCount={fundraiserProjects.length}
+                        onChange={(value) => setNewProject({
+                          ...newProject,
+                          transferSourceScope: value,
+                          transferFromProjectId: '',
+                          transferAmount: '',
+                        })}
+                      />
+
+                      {newProject.transferSourceScope === 'fundraiser' && (
+                        <div>
+                          <FieldLabel>Fundraiser Project *</FieldLabel>
+                          <Select
+                            value={newProject.transferFromProjectId || ''}
+                            onValueChange={(value) => setNewProject({
+                              ...newProject,
+                              transferFromProjectId: value,
+                              transferAmount: '',
+                            })}
+                          >
+                            <option value="">Select a completed fundraiser project</option>
+                            {fundraiserProjects.map((project) => (
+                              <option className='font-base text-base text-blue-600' key={project.id} value={project.id}>
+                                {project.title || 'Untitled project'} — ₱{Number(project.budget || 0).toLocaleString('en-PH', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                      )}
+
                       <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-                        Overall available remaining budget: <strong>₱{availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}</strong>
-                        <p className="mt-1 text-xs text-green-700">Funds will be combined automatically from completed projects when needed.</p>
+                        {newProject.transferSourceScope === 'fundraiser'
+                          ? `Available budget${selectedFundraiserProject ? ` — ${selectedFundraiserProject.title || 'Selected fundraiser'}` : ' for selected fundraiser'}`
+                          : 'Overall available remaining budget'}:{' '}
+                        <strong>₱{availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}</strong>
+                        <p className="mt-1 text-xs text-green-700">
+                          {newProject.transferSourceScope === 'fundraiser'
+                            ? 'The transfer will come only from the selected completed fundraiser project.'
+                            : 'Funds will be combined automatically from completed projects when needed.'}
+                        </p>
                       </div>
+
+                      {/* <div className="rounded-lg border border-gray-200 divide-y">
+                        {scopedProjects.map((project) => (
+                          <div key={project.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                            <span className="text-gray-700">{project.title || 'Untitled project'}</span>
+                            <strong className="whitespace-nowrap text-gray-900">
+                              ₱{Number(project.budget || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </strong>
+                          </div>
+                        ))}
+                      </div> */}
 
                       <div>
                         <FieldLabel>Transfer Amount *</FieldLabel>
@@ -839,9 +1011,10 @@ export function CreateProjectModal({
             disabled={
               !newProject.title ||
               !newProject.category ||
+              !newProject.type ||
               !newProject.description ||
               !newProject.objective ||
-              !newProject.venue ||
+              (newProject.type !== 'fundraiser' && !newProject.venue) ||
               !newProject.proposedBy ||
               isLoading
             }

@@ -10,8 +10,10 @@ use App\Models\CSG\DateChangeRequest;
 use App\Models\User;
 use App\Models\User\LedgerEntry;
 use App\Models\User\Project;
+use App\Services\ProjectBudgetTransferService;
 use App\Support\BlockchainService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -277,7 +279,6 @@ class AdviserApprovalController extends Controller
     private function approveProject(string $id, $userId, string $notes = '', $approvalCopy = null): void
     {
         $project = Project::where('id', $id)->where('archive', false)->firstOrFail();
-        $wasApproved = $project->approval_status === 'Approved';
 
         if (! $approvalCopy) {
             throw ValidationException::withMessages([
@@ -289,14 +290,28 @@ class AdviserApprovalController extends Controller
             $this->storeProjectProofOnInitialLedger($project, $approvalCopy);
         }
 
-        
-        $project->update([
-            'approval_status' => 'Approved',
-            'approve_by' => (string) $userId,
-            'approved_at' => now(),
-            'updated_by' => $userId,
-            'note' => $notes,
-        ]);
+        [$project, $wasApproved] = DB::transaction(function () use ($id, $userId, $notes): array {
+            $project = Project::query()
+                ->where('id', $id)
+                ->where('archive', false)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $wasApproved = $project->approval_status === 'Approved';
+
+            if (!$wasApproved) {
+                app(ProjectBudgetTransferService::class)->debitSourceBudgets((string) $project->id, $userId);
+            }
+
+            $project->update([
+                'approval_status' => 'Approved',
+                'approve_by' => (string) $userId,
+                'approved_at' => now(),
+                'updated_by' => $userId,
+                'note' => $notes,
+            ]);
+
+            return [$project, $wasApproved];
+        });
 
         // Create genesis block in blockchain for this project
         try {
@@ -349,23 +364,6 @@ class AdviserApprovalController extends Controller
                     }
                 }
 
-                $transferMetadata = json_decode($transferEntry->note, true);
-
-                if (is_array($transferMetadata)) {
-                    $sourceProjectId = $transferMetadata['transfer_source_project_id'] ?? null;
-                    $destinationProjectId = $transferMetadata['transfer_destination_project_id'] ?? null;
-
-                    if ($sourceProjectId && $destinationProjectId === $project->id && $transferEntry->project_id !== $project->id) {
-                        $sourceProject = Project::where('archive', false)->find($sourceProjectId);
-                        if ($sourceProject) {
-                            $amount = (float) $transferEntry->amount;
-                            $sourceProject->budget = max(0, (float) $sourceProject->budget - $amount);
-                            $sourceProject->updated_by = $userId;
-                            $sourceProject->updated_at = now();
-                            $sourceProject->save();
-                        }
-                    }
-                }
             }
         }
 
@@ -394,6 +392,12 @@ class AdviserApprovalController extends Controller
     private function rejectProject(string $id, string $reason, ?string $userId = null): void
     {
         $project = Project::where('id', $id)->where('archive', false)->firstOrFail();
+        if ($project->approval_status === 'Approved') {
+            throw ValidationException::withMessages([
+                'project' => ['An approved project cannot be rejected.'],
+            ]);
+        }
+
         $userId = $userId ?? Auth::id();
         $project->update([
             'approval_status' => 'Rejected',
@@ -891,6 +895,7 @@ class AdviserApprovalController extends Controller
             'status' => $status,
             'note' => $p->note ?? null,
             'category' => $p->category ?? '',
+            'project_type' => $p->type ?? '',
             'amount' => $p->budget !== null ? (float) $p->budget : null,
             'type' => 'project',
             'approvalType' => 'project',

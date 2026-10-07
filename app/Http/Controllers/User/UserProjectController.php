@@ -919,6 +919,7 @@ class UserProjectController extends Controller
                 'id' => $project->id,
                 'title' => $project->title,
                 'category' => $project->category ?: 'General',
+                'type' => $project->type,
                 'status' => $project->status ?: 'Draft',
                 'description' => $project->description,
                 'rating' => round($overallAvg, 1),

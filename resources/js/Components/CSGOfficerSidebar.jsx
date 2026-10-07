@@ -145,12 +145,22 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-20 h-20 rounded-lg flex items-center justify-center">
+          <div className="w-20 h-10 rounded-lg flex items-center justify-center">
             <img
              onClick={() => router.visit('/csg/dashboard')}
               src="/images/steplogoDark.svg" alt="Step Logo"
               className="w-full object-cover"/>
           </div>
+          <div aria-hidden="true" className="h-8 border-l border-gray-300 shrink-0" />
+          <a
+            href="https://kld.edu.ph"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Visit KLD website"
+            className="flex h-9 w-9 shrink-0 items-center justify-center"
+          >
+            <img src="/images/kldlogo.png" alt="KLD Logo" className="h-9 w-9 rounded-full object-contain" />
+          </a>
         </div>
         <Avatar className="w-8 h-8">
           <AvatarFallback 
@@ -189,28 +199,35 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
       <aside className={`lg:hidden fixed top-0 left-0 h-dvh flex w-72 flex-col bg-white border-r border-gray-200 shadow-xl z-50 transform transition-transform duration-300 ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        {/* Logo */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 overflow-hidden">
-                <img src="/images/Logo.svg" alt="Step Logo" className="w-full object-cover" />
-              </div>
-              <div className="flex-1 leading-none">
-                <div className="w-10 leading-none">
-                  <h1
-                      className="text-[#1F34B3] font-normal leading-none text-[14px]"
-                      style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
-                    >
-                      STEP
-                    </h1>
-                </div>
-                <p className="text-[10px] text-gray-500 leading-none mt-1">CSG Officer</p>
-              </div>
+      {/* Logo */}
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="h-10 w-10 shrink-0 overflow-hidden">
+              <img src="/images/Logo.svg" alt="STEP Logo" className="w-full object-cover" />
             </div>
-            
+            <div className="min-w-0 leading-none">
+              <h1
+                className="text-[#1F34B3] font-normal leading-none text-[14px]"
+                style={{ fontFamily: '"Ethnocentric Rg", "Segoe UI", sans-serif', margin: 0 }}
+              >
+                STEP
+              </h1>
+              <p className="mt-1 text-[10px] leading-none text-gray-500">CSG Officer</p>
+            </div>
           </div>
+          <div aria-hidden="true" className="h-8 shrink-0 border-l border-gray-300" />
+          <a
+            href="https://kld.edu.ph"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Visit KLD website"
+            className="shrink-0"
+          >
+            <img src="/images/kldlogo.png" alt="KLD Logo" className="h-9 w-9 rounded-full object-contain" />
+          </a>
         </div>
+      </div>
         
         {/* Navigation */}
         <nav className="min-h-0 flex-1 overscroll-contain overflow-y-auto p-4">
@@ -309,7 +326,7 @@ export default function CSGOfficerSidebar({ currentView = null, onNavigate = nul
                 <p className="text-[10px] text-gray-500 leading-none mt-1">CSG Officer</p>
               </div>
             </div>
-            <X className="w-4 h-4 text-gray-500" />
+            <div aria-hidden="true" className="h-8 border-l border-gray-300 shrink-0" />
                         <a
                           href="https://kld.edu.ph"
                           target="_blank"

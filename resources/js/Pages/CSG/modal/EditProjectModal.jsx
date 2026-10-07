@@ -288,12 +288,13 @@ export function EditProjectModal({
   };
 
   const handleSave = async () => {
-  if (!editForm.title || !editForm.category || !editForm.description || !editForm.proposedBy) {
+  if (!editForm.title || !editForm.category || !editForm.description || !editForm.proposedBy ||
+      (editForm.type !== 'fundraiser' && !editForm.venue)) {
     showToast('Please fill in all required fields', 'error');
     return;
   }
 
-  if (editForm.hasBudget && editForm.budgetSource === 'none') {
+  if (editForm.type !== 'fundraiser' && editForm.hasBudget && editForm.budgetSource === 'none') {
     const sourceOptions = editForm.budgetSourceOptions || getDefaultBudgetSourceOptions();
     const selectedSources = Object.entries(sourceOptions)
       .flatMap(([key, entries]) => (Array.isArray(entries) ? entries.map((entry) => ({ ...entry, key })) : []))
@@ -326,26 +327,36 @@ export function EditProjectModal({
     setEditForm({ ...editForm, budget: String(autoBudgetTotal) });
   }
 
-  if (editForm.hasBudget && editForm.budgetSource === 'past_project') {
+  if (editForm.type !== 'fundraiser' && editForm.hasBudget && editForm.budgetSource === 'past_project') {
     if (!editForm.transferAmount || parseFloat(editForm.transferAmount) <= 0) {
       showToast('Please enter a transfer amount greater than zero', 'error');
       return;
     }
 
     const eligibleProjects = (completedProjects || []).filter((p) => Number(p?.budget || 0) > 0);
-    const availableRemainingBudget = eligibleProjects.reduce(
-      (total, project) => total + Math.max(0, Number(project?.budget || 0)),
-      0,
+    const scopedProjects = editForm.transferSourceScope === 'fundraiser'
+      ? eligibleProjects.filter((p) => String(p?.type || '').toLowerCase() === 'fundraiser')
+      : eligibleProjects;
+    const selectedSourceProject = scopedProjects.find(
+      (p) => String(p?.id || '') === String(editForm.transferFromProjectId || ''),
     );
+    if (editForm.transferSourceScope === 'fundraiser' && !selectedSourceProject) {
+      showToast('Please choose a completed fundraiser project to transfer from', 'error');
+      return;
+    }
+    const availableRemainingBudget = editForm.transferSourceScope === 'fundraiser'
+      ? Math.max(0, Number(selectedSourceProject?.budget || 0))
+      : scopedProjects.reduce((total, project) => total + Math.max(0, Number(project?.budget || 0)), 0);
     const transferAmount = Number(editForm.transferAmount || 0);
 
     if (transferAmount > availableRemainingBudget) {
-      showToast(`Transfer amount cannot exceed the overall remaining balance of ₱${availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}`, 'error');
+      const scopeLabel = editForm.transferSourceScope === 'fundraiser' ? 'selected fundraiser budget' : 'overall remaining balance';
+      showToast(`Transfer amount cannot exceed the ${scopeLabel} of ₱${availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}`, 'error');
       return;
     }
   }
 
-    const hasPositiveBudget = editForm.hasBudget && (
+    const hasPositiveBudget = editForm.type !== 'fundraiser' && editForm.hasBudget && (
       (editForm.budgetSource === 'past_project' && parseFloat(editForm.transferAmount) > 0) ||
       (editForm.budgetSource !== 'past_project' && parseFloat(editForm.budget) > 0)
     );
@@ -385,18 +396,25 @@ export function EditProjectModal({
     formData.append('title', editForm.title);
     formData.append('description', editForm.description);
     formData.append('objective', editForm.objective || '');
-    formData.append('venue', editForm.venue || '');
+    formData.append('venue', editForm.type === 'fundraiser' ? '' : (editForm.venue || ''));
     formData.append('category', editForm.category);
-    formData.append('budget', submittedBudget);
-    formData.append('has_budget', editForm.hasBudget ? '1' : '0');
-    formData.append('budget_source', editForm.hasBudget ? (editForm.budgetSource || 'none') : 'none');
+    formData.append('type', editForm.type || 'event');
+    formData.append('budget', editForm.type === 'fundraiser' ? '0' : submittedBudget);
+    formData.append('has_budget', editForm.type !== 'fundraiser' && editForm.hasBudget ? '1' : '0');
+    formData.append('budget_source', editForm.type !== 'fundraiser' && editForm.hasBudget ? (editForm.budgetSource || 'none') : 'none');
+    formData.append('remaining_budget_scope', editForm.type !== 'fundraiser' && editForm.hasBudget && editForm.budgetSource === 'past_project'
+      ? (editForm.transferSourceScope || 'overall')
+      : 'overall');
     formData.append('budget_source_type', editForm.hasBudget && editForm.budgetSource === 'none' ? selectedBudgetSources.map((entry) => entry.key).join(',') : '');
     formData.append('budget_source_details', editForm.hasBudget && editForm.budgetSource === 'none' ? JSON.stringify({
       sponsorship: (editForm.budgetSourceOptions?.sponsorship || []).map((entry) => ({ name: String(entry?.name || '').trim(), amount: Number(entry?.amount || 0) })),
       donation: (editForm.budgetSourceOptions?.donation || []).map((entry) => ({ name: String(entry?.name || '').trim(), amount: Number(entry?.amount || 0) })),
     }) : '');
-    formData.append('transfer_from_project_id', editForm.transferFromProjectId || '');
-    formData.append('transfer_amount', editForm.transferAmount || '');
+    formData.append('transfer_from_project_id', editForm.type !== 'fundraiser' && editForm.hasBudget &&
+      editForm.budgetSource === 'past_project' && editForm.transferSourceScope === 'fundraiser'
+      ? (editForm.transferFromProjectId || '')
+      : '');
+    formData.append('transfer_amount', editForm.type === 'fundraiser' ? '' : (editForm.transferAmount || ''));
     formData.append('proposed_by', editForm.proposedBy);
     formData.append('start_date', editForm.startDate);
     formData.append('end_date', editForm.endDate);
@@ -467,7 +485,8 @@ export function EditProjectModal({
           />
         </div>
 
-        {/* Category */}
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+         {/* Category */}
         <div>
           <FieldLabel>Category *</FieldLabel>
           <Select value={editForm.category || ''} onValueChange={(value) => setEditForm({ ...editForm, category: value })}>
@@ -481,6 +500,31 @@ export function EditProjectModal({
             <option value="Health">Health</option>
           </Select>
         </div>
+
+        <div>
+          <FieldLabel>Project Type *</FieldLabel>
+          <Select
+            value={editForm.type || 'event'}
+            onValueChange={(value) => setEditForm({
+              ...editForm,
+              type: value,
+              ...(value === 'fundraiser' ? {
+                venue: '',
+                hasBudget: false,
+                budget: '0',
+                budgetSource: 'none',
+                transferSourceScope: 'overall',
+                transferFromProjectId: '',
+                transferAmount: '',
+              } : {}),
+            })}
+          >
+            <option value="fundraiser">Fundraiser</option>
+            <option value="merchandise">Merchandise</option>
+            <option value="event">Event</option>
+          </Select>
+        </div>
+       </div>
 
         {/* Objective */}
         <div>
@@ -506,18 +550,24 @@ export function EditProjectModal({
           />
         </div>
 
-        {/* Venue */}
-        <div>
-          <FieldLabel>Venue *</FieldLabel>
-          <Input
-            placeholder="Enter project venue/location"
-            value={editForm.venue || ''}
-            onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
-            className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
-          />
-        </div>
+        {editForm.type !== 'fundraiser' && (
+          <div>
+            <FieldLabel>Venue *</FieldLabel>
+            <Input
+              placeholder="Enter project venue/location"
+              value={editForm.venue || ''}
+              onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
+              className="w-full h-10 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white"
+            />
+          </div>
+        )}
 
         {/* Budget */}
+        {editForm.type === 'fundraiser' ? (
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+            Fundraiser projects have no venue and start with a budget of ₱0. Funds raised are recorded through the project ledger.
+          </div>
+        ) : (
         <div className="rounded-xl border border-gray-200 p-4 space-y-3">
           <FieldLabel>Project Budget</FieldLabel>
           <div className="flex flex-wrap gap-4">
@@ -556,9 +606,10 @@ export function EditProjectModal({
             </div>
           )}
         </div>
+        )}
 
         {/* Budget Source */}
-        {editForm.hasBudget && (
+        {editForm.type !== 'fundraiser' && editForm.hasBudget && (
           <div className="rounded-xl border border-gray-200 p-4 space-y-3">
             <FieldLabel>Budget Source</FieldLabel>
             <div className="flex flex-wrap gap-4">
@@ -723,25 +774,134 @@ export function EditProjectModal({
             {editForm.budgetSource === 'past_project' && (
               <div className="space-y-3">
                 {(() => {
-                  const eligibleProjects = (completedProjects || []).filter((p) => Number(p?.budget || 0) > 0);
-                  const availableRemainingBudget = eligibleProjects.reduce(
-                    (total, project) => total + Math.max(0, Number(project?.budget || 0)),
-                    0,
+                  const eligibleProjects = (completedProjects || []).filter((p) => {
+                    const hasTamperedMetadata = Number(p?.tamperedAlerts || 0) > 0 || p?.isTampered === true;
+                    const hasMismatchMetadata = p?.isBudgetMismatch === true || p?.budgetMismatch === true;
+                    return Number(p?.budget || 0) > 0 && !hasTamperedMetadata && !hasMismatchMetadata;
+                  });
+                  const fundraiserProjects = eligibleProjects.filter(
+                    (p) => String(p?.type || '').toLowerCase() === 'fundraiser',
                   );
+                  const scopedProjects = editForm.transferSourceScope === 'fundraiser'
+                    ? fundraiserProjects
+                    : eligibleProjects;
+                  const selectedFundraiserProject = fundraiserProjects.find(
+                    (p) => String(p?.id || '') === String(editForm.transferFromProjectId || ''),
+                  );
+                  const availableRemainingBudget = editForm.transferSourceScope === 'fundraiser'
+                    ? Math.max(0, Number(selectedFundraiserProject?.budget || 0))
+                    : scopedProjects.reduce((total, project) => total + Math.max(0, Number(project?.budget || 0)), 0);
 
-                  if (eligibleProjects.length === 0) {
+                  if (scopedProjects.length === 0) {
                     return (
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-                        No completed projects with a remaining budget are available right now.
-                      </div>
+                      <>
+                        <div className="flex flex-wrap gap-4">
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="radio"
+                              name="edit-remaining-budget-scope"
+                              checked={editForm.transferSourceScope !== 'fundraiser'}
+                              onChange={() => setEditForm({
+                                ...editForm,
+                                transferSourceScope: 'overall',
+                                transferFromProjectId: '',
+                                transferAmount: '',
+                              })}
+                            />
+                            Overall available remaining budget
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="radio"
+                              name="edit-remaining-budget-scope"
+                              checked={editForm.transferSourceScope === 'fundraiser'}
+                              onChange={() => setEditForm({
+                                ...editForm,
+                                transferSourceScope: 'fundraiser',
+                                transferFromProjectId: '',
+                                transferAmount: '',
+                              })}
+                            />
+                            Fundraiser projects ({fundraiserProjects.length})
+                          </label>
+                        </div>
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                          {editForm.transferSourceScope === 'fundraiser'
+                            ? 'No completed fundraiser projects with a remaining budget are available right now.'
+                            : 'No completed projects with a remaining budget are available right now.'}
+                        </div>
+                      </>
                     );
                   }
 
                   return (
                     <>
+                      <div className="flex flex-wrap gap-4">
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="radio"
+                            name="edit-remaining-budget-scope"
+                            checked={editForm.transferSourceScope !== 'fundraiser'}
+                            onChange={() => setEditForm({
+                              ...editForm,
+                              transferSourceScope: 'overall',
+                              transferFromProjectId: '',
+                              transferAmount: '',
+                            })}
+                          />
+                          Overall available remaining budget
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                          <input
+                            type="radio"
+                            name="edit-remaining-budget-scope"
+                            checked={editForm.transferSourceScope === 'fundraiser'}
+                            onChange={() => setEditForm({
+                              ...editForm,
+                              transferSourceScope: 'fundraiser',
+                              transferFromProjectId: '',
+                              transferAmount: '',
+                            })}
+                          />
+                          Fundraiser projects ({fundraiserProjects.length})
+                        </label>
+                      </div>
+
+                      {editForm.transferSourceScope === 'fundraiser' && (
+                        <div>
+                          <FieldLabel>Fundraiser Project *</FieldLabel>
+                          <Select
+                            value={editForm.transferFromProjectId || ''}
+                            onValueChange={(value) => setEditForm({
+                              ...editForm,
+                              transferFromProjectId: value,
+                              transferAmount: '',
+                              budget: '',
+                            })}
+                          >
+                            <option value="">Select a completed fundraiser project</option>
+                            {fundraiserProjects.map((project) => (
+                              <option key={project.id} value={project.id}>
+                                {project.title || 'Untitled project'} — ₱{Number(project.budget || 0).toLocaleString('en-PH', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                      )}
+
                       <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-                        Overall available remaining budget: <strong>₱{availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}</strong>
-                        <p className="mt-1 text-xs text-green-700">Funds will be combined automatically from completed projects when needed.</p>
+                        {editForm.transferSourceScope === 'fundraiser'
+                          ? `Available budget${selectedFundraiserProject ? ` — ${selectedFundraiserProject.title || 'Selected fundraiser'}` : ' for selected fundraiser'}`
+                          : 'Overall available remaining budget'}:{' '}
+                        <strong>₱{availableRemainingBudget.toLocaleString('en-PH', { maximumFractionDigits: 2 })}</strong>
+                        <p className="mt-1 text-xs text-green-700">
+                          {editForm.transferSourceScope === 'fundraiser'
+                            ? 'The transfer will come only from the selected completed fundraiser project.'
+                            : 'Funds will be combined automatically from completed projects when needed.'}
+                        </p>
                       </div>
 
                       <div>
@@ -774,7 +934,7 @@ export function EditProjectModal({
 
         {/* File Upload */}
         <div>
-          <FieldLabel>Project Budget Proof {editForm.hasBudget ? '(Required)' : '(Optional)'}</FieldLabel>
+          <FieldLabel>Project Budget Proof {editForm.type !== 'fundraiser' && editForm.hasBudget ? '(Required)' : '(Optional)'}</FieldLabel>
           <div className="flex flex-col items-center gap-3">
             <button
               type="button"
@@ -905,7 +1065,8 @@ export function EditProjectModal({
           <Button
             onClick={handleSave}
             className="text-white flex-1 rounded-xl bg-blue-600 hover:bg-blue-700"
-            disabled={!editForm.title || !editForm.category || !editForm.description || !editForm.proposedBy || isUploading}
+            disabled={!editForm.title || !editForm.category || !editForm.description || !editForm.proposedBy ||
+              (editForm.type !== 'fundraiser' && !editForm.venue) || isUploading}
           >
             {isUploading ? 'Saving...' : 'Save Changes'}
           </Button>

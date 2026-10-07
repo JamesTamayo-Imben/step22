@@ -24,11 +24,13 @@ class Concern extends Model
         'user_id',
         'concern',
         'favorite',
+        'is_done',
         'created_at',
     ];
 
     protected $casts = [
         'favorite' => 'boolean',
+        'is_done' => 'boolean',
         'created_at' => 'datetime',
     ];
 
