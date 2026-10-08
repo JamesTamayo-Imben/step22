@@ -534,7 +534,6 @@ export default function AdviserApprovalsPage() {
                   >
                     <option value="all">All Project Types</option>
                     <option value="fundraiser">Fundraiser</option>
-                    <option value="merchandise">Merchandise</option>
                     <option value="event">Event</option>
                   </select>
                 </div>

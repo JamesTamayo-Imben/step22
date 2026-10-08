@@ -516,7 +516,6 @@ export function CreateProjectModal({
           >
             <option value="">Select project type</option>
             <option value="fundraiser">Fundraiser</option>
-            <option value="merchandise">Merchandise</option>
             <option value="event">Event</option>
           </Select>
         </div>
