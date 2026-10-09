@@ -429,8 +429,7 @@ export default function RegisterStudentPage() {
               type="submit"
               disabled={isLoading}
               aria-busy={isLoading}
-              className={`w-full h-10 rounded-xl text-white font-medium transition ${isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
-              style={{ background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)" }}
+              className={`auth-primary-gradient w-full h-10 rounded-xl text-white font-medium transition ${isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
             >
               {isLoading ? 'Completing Registration...' : 'Complete Registration'}
             </button>
@@ -438,7 +437,7 @@ export default function RegisterStudentPage() {
 
           <p className="text-center text-sm text-gray-600 mt-6">
             Already have an account?{" "}
-            <a href="/login" className="text-blue-600 hover:underline">
+            <a href="/login" className="auth-link-blue text-blue-600 hover:underline">
               Login
             </a>
           </p>

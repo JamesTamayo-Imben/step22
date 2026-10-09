@@ -25,6 +25,7 @@ use App\Http\Controllers\SAdmin\SAdminAuditLogsController;
 use App\Http\Controllers\SAdmin\SAdminBlockchainController;
 use App\Http\Controllers\SAdmin\SAdminGlobalReportsController;
 use App\Http\Controllers\SAdmin\SAdminMasterDataController;
+use App\Http\Controllers\SAdmin\SystemThemeController;
 use App\Http\Controllers\SAdmin\UserManagementController;
 use App\Http\Controllers\User\UserProjectController;
 use App\Models\AuditLog;
@@ -47,6 +48,8 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 })->middleware('prevent_logged_in')->name('welcome');
+
+Route::get('/system/color-theme', [SystemThemeController::class, 'show'])->name('system.color-theme');
 
 Route::get('/contact', function () {
     return Inertia::render('ContactUs');
@@ -173,6 +176,11 @@ Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function ()  {
 
     Route::get('/sadmin/settings', [SAdminBlockchainController::class, 'index'])->name('sadmin.settings');
     Route::get('/sadmin/settings/blockchain/verify', [SAdminBlockchainController::class, 'verify'])->name('sadmin.settings.blockchain.verify');
+
+    Route::get('/sadmin/preferences', function () {
+        return Inertia::render('SAdmin/Settings');
+    })->name('sadmin.preferences');
+    Route::post('/sadmin/preferences/theme', [SystemThemeController::class, 'update'])->name('sadmin.preferences.theme.update');
 
     Route::get('/sadmin/engagement-rules', function () {
         return Inertia::render('SAdmin/EngagementRules');

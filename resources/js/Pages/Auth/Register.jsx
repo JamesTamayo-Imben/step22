@@ -536,7 +536,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
                 onChange={(e) => handleChange("agree", e.target.checked)}
                 className="rounded border-gray-300"
               />
-             <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+             <a href="/terms" target="_blank" rel="noopener noreferrer" className="auth-link-blue text-blue-600 hover:underline">
                 I agree to the Terms and Privacy Policy
               </a>
             </label>
@@ -546,8 +546,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
               type="submit"
               disabled={isLoading}
               aria-busy={isLoading}
-              className={`w-full h-10 rounded-xl text-white font-medium transition ${isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
-              style={{ background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)" }}
+              className={`auth-primary-gradient w-full h-10 rounded-xl text-white font-medium transition ${isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
             >
               {isLoading ? "Creating account..." : "Create Account"}
             </button>
@@ -556,7 +555,7 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
           {/* Login */}
           <p className="text-center text-sm text-gray-600 mt-6">
             Already have an account?{" "}
-            <button onClick={goToLogin} className="text-blue-600 hover:underline">
+            <button onClick={goToLogin} className="auth-link-blue text-blue-600 hover:underline">
               Login
             </button>
           </p>

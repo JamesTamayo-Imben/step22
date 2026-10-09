@@ -283,7 +283,7 @@ export default function Welcome() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
+    <div className="welcome-page min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
       <style>{animationStyles}</style>
       {/* Navigation Bar */}
       <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-gray-200 z-50">
@@ -320,8 +320,7 @@ export default function Welcome() {
               </Link>
               <Link
                 href={route('register')}
-                className="bg-[#2563EB] hover:bg-blue-700 text-white px-4 py-2 rounded-xl"
-                style={{background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)"}}
+                className="welcome-primary-gradient bg-[#2563EB] hover:bg-blue-700 text-white px-4 py-2 rounded-xl"
               >
                 Register
               </Link>
@@ -370,8 +369,7 @@ export default function Welcome() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={scrollToHowItWorks}
-              className="bg-[#2563EB] hover:bg-blue-700 text-white px-6 py-3 text-base rounded-xl flex items-center justify-center gap-2"
-              style={{background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)"}}
+              className="welcome-primary-gradient bg-[#2563EB] hover:bg-blue-700 text-white px-6 py-3 text-base rounded-xl flex items-center justify-center gap-2"
             >
               Get Started <ArrowRight className="w-5 h-5" />
             </button>
@@ -396,8 +394,8 @@ export default function Welcome() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Feature 1 */}
             <div className="p-8 rounded-[20px] shadow-lg hover:shadow-xl transition-shadow bg-white flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
-                <Shield className="w-8 h-8 text-[#2563EB]" />
+              <div className="welcome-feature-blue w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
+                <Shield className="welcome-feature-blue-icon w-8 h-8 text-[#2563EB]" />
               </div>
               <h3 className="text-xl text-gray-900 mb-3">Tamper Evident Ledger</h3>
               <p className="text-gray-600 leading-relaxed">
@@ -524,7 +522,7 @@ export default function Welcome() {
       </main>
 
       {/* KLD College Mission Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-600 to-blue-800">
+      <section className="welcome-mission-gradient py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-600 to-blue-800">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-3xl mx-auto text-white">
             <h2 className="text-4xl mb-6">Our Commitment to Transparency</h2>
@@ -582,7 +580,7 @@ export default function Welcome() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#2563EB] to-blue-700 relative">
+      <section className="welcome-cta-gradient py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#2563EB] to-blue-700 relative">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl text-white mb-6">
             Ready to Transform Your Student Governance?
@@ -635,10 +633,10 @@ export default function Welcome() {
             <style>{`
               @keyframes pulse-highlight {
                 0%, 100% {
-                  box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+                  box-shadow: 0 0 0 0 rgba(var(--welcome-accent-rgb, 37, 99, 235), 0.7);
                 }
                 50% {
-                  box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+                  box-shadow: 0 0 0 10px rgba(var(--welcome-accent-rgb, 37, 99, 235), 0);
                 }
               }
               .register-highlight {
@@ -661,7 +659,7 @@ export default function Welcome() {
               inset: -8px;
               border: 3px solid #2563EB;
               border-radius: 0.75rem;
-              box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2), 0 0 20px rgba(37, 99, 235, 0.5);
+              box-shadow: 0 0 0 3px rgba(var(--welcome-accent-rgb, 37, 99, 235), 0.2), 0 0 20px rgba(var(--welcome-accent-rgb, 37, 99, 235), 0.5);
               animation: pulse-highlight 2s infinite;
               pointer-events: none;
             }

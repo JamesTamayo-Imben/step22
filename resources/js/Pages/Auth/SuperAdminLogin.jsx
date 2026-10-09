@@ -322,8 +322,7 @@ export default function SuperAdminLoginPage() {
               type="submit"
               disabled={isLoading}
               aria-busy={isLoading}
-              className={`w-full h-10 rounded-xl text-white font-medium transition ${isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
-              style={{ background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)" }}
+              className={`auth-primary-gradient w-full h-10 rounded-xl text-white font-medium transition ${isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
             >
               {isLoading ? "Processing..." : otpStage ? "Verify & Login" : "Login as SuperAdmin"}
             </button>

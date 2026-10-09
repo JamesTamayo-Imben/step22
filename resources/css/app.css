@@ -1,3 +1,282 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* The Welcome page has its own blue gradients, so give each theme explicit stops. */
+.welcome-page {
+	--welcome-accent-rgb: 37, 99, 235;
+}
+
+.welcome-primary-gradient {
+	background-image: linear-gradient(90deg, #2563ea 0%, #1e3a8a 100%) !important;
+}
+
+.welcome-mission-gradient {
+	background-image: linear-gradient(to bottom right, #2563eb, #1e40af) !important;
+}
+
+.welcome-cta-gradient {
+	background-image: linear-gradient(to bottom right, #2563eb, #1d4ed8) !important;
+}
+
+.auth-primary-gradient {
+	background-image: linear-gradient(90deg, #2563ea 0%, #1e3a8a 100%) !important;
+}
+
+.auth-primary-gradient:hover {
+	background-image: linear-gradient(90deg, #1e3a8a 0%, #172554 100%) !important;
+}
+
+.auth-link-blue {
+	color: #2563eb !important;
+}
+
+.auth-link-blue:hover {
+	color: #1d4ed8 !important;
+}
+
+:root[data-sadmin-theme="kld"] .welcome-page {
+	--welcome-accent-rgb: 22, 101, 52;
+}
+
+:root[data-sadmin-theme="kld"] .welcome-primary-gradient {
+	background-image: linear-gradient(90deg, #166534 0%, #14532d 100%) !important;
+}
+
+:root[data-sadmin-theme="kld"] .welcome-mission-gradient {
+	background-image: linear-gradient(to bottom right, #166534, #14532d) !important;
+}
+
+:root[data-sadmin-theme="kld"] .welcome-cta-gradient {
+	background-image: linear-gradient(to bottom right, #166534, #14532d) !important;
+}
+
+:root[data-sadmin-theme="kld"] .auth-primary-gradient {
+	background-image: linear-gradient(90deg, #166534 0%, #14532d 100%) !important;
+}
+
+:root[data-sadmin-theme="kld"] .auth-primary-gradient:hover {
+	background-image: linear-gradient(90deg, #14532d 0%, #052e16 100%) !important;
+}
+
+/* KLD palette is global: blue Tailwind accents are green on every app page. */
+:root[data-sadmin-theme="kld"] .bg-blue-50,
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-50:hover {
+	background-color: #f0fdf4 !important;
+}
+
+:root[data-sadmin-theme="kld"] .bg-blue-100,
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-100:hover {
+	background-color: #dcfce7 !important;
+}
+
+:root[data-sadmin-theme="kld"] .bg-blue-200 { background-color: #bbf7d0 !important; }
+:root[data-sadmin-theme="kld"] .bg-blue-300 { background-color: #86efac !important; }
+:root[data-sadmin-theme="kld"] .bg-blue-400 { background-color: #4ade80 !important; }
+:root[data-sadmin-theme="kld"] .bg-blue-500 { background-color: #166534 !important; }
+
+:root[data-sadmin-theme="kld"] .bg-blue-600,
+:root[data-sadmin-theme="kld"] .bg-\[\#2563EB\] {
+	background-color: #166534 !important;
+}
+
+:root[data-sadmin-theme="kld"] .bg-blue-700,
+:root[data-sadmin-theme="kld"] .bg-blue-800,
+:root[data-sadmin-theme="kld"] .bg-blue-900,
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-600:hover,
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-700:hover,
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-800:hover {
+	background-color: #14532d !important;
+}
+
+:root[data-sadmin-theme="kld"] .text-blue-50 { color: #f0fdf4 !important; }
+:root[data-sadmin-theme="kld"] .text-blue-100 { color: #dcfce7 !important; }
+:root[data-sadmin-theme="kld"] .text-blue-200 { color: #bbf7d0 !important; }
+:root[data-sadmin-theme="kld"] .text-blue-300 { color: #86efac !important; }
+:root[data-sadmin-theme="kld"] .text-blue-400 { color: #4ade80 !important; }
+:root[data-sadmin-theme="kld"] .text-blue-500 { color: #166534 !important; }
+:root[data-sadmin-theme="kld"] .text-blue-600,
+:root[data-sadmin-theme="kld"] .text-blue-700,
+:root[data-sadmin-theme="kld"] .text-blue-800,
+:root[data-sadmin-theme="kld"] .text-blue-900,
+:root[data-sadmin-theme="kld"] .text-\[\#2563EB\] {
+	color: #166534 !important;
+}
+
+:root[data-sadmin-theme="kld"] .border-blue-50 { border-color: #f0fdf4 !important; }
+:root[data-sadmin-theme="kld"] .border-blue-100 { border-color: #dcfce7 !important; }
+:root[data-sadmin-theme="kld"] .border-blue-200 { border-color: #bbf7d0 !important; }
+:root[data-sadmin-theme="kld"] .border-blue-300 { border-color: #86efac !important; }
+:root[data-sadmin-theme="kld"] .border-blue-400 { border-color: #4ade80 !important; }
+:root[data-sadmin-theme="kld"] .border-blue-500,
+:root[data-sadmin-theme="kld"] .border-blue-600,
+:root[data-sadmin-theme="kld"] .border-blue-700,
+:root[data-sadmin-theme="kld"] .border-blue-800,
+:root[data-sadmin-theme="kld"] .border-blue-900,
+:root[data-sadmin-theme="kld"] .border-\[\#2563EB\] {
+	border-color: #166534 !important;
+}
+
+/* Directional border utilities set border-left-color independently. */
+:root[data-sadmin-theme="kld"] .border-l-blue-600 {
+	border-left-color: #166534 !important;
+}
+
+:root[data-sadmin-theme="kld"] .bg-gradient-to-r.from-blue-600.to-blue-800,
+:root[data-sadmin-theme="kld"] .bg-gradient-to-r.from-blue-600.to-blue-700 {
+	background-image: linear-gradient(to right, #166534, #14532d) !important;
+}
+
+/* Recolor Tailwind gradient stops, including the Welcome page's diagonal CTA. */
+:root[data-sadmin-theme="kld"] .from-blue-50 {
+	--tw-gradient-from: #f0fdf4 var(--tw-gradient-from-position) !important;
+	--tw-gradient-to: rgb(240 253 244 / 0) var(--tw-gradient-to-position) !important;
+}
+:root[data-sadmin-theme="kld"] .from-blue-600,
+:root[data-sadmin-theme="kld"] .from-\[\#2563EB\] {
+	--tw-gradient-from: #166534 var(--tw-gradient-from-position) !important;
+	--tw-gradient-to: rgb(22 101 52 / 0) var(--tw-gradient-to-position) !important;
+}
+:root[data-sadmin-theme="kld"] .to-blue-50 {
+	--tw-gradient-to: #f0fdf4 var(--tw-gradient-to-position) !important;
+}
+:root[data-sadmin-theme="kld"] .to-blue-700,
+:root[data-sadmin-theme="kld"] .to-blue-800,
+:root[data-sadmin-theme="kld"] .to-\[\#2563EB\] {
+	--tw-gradient-to: #14532d var(--tw-gradient-to-position) !important;
+}
+
+/* Login and registration split panels use custom Tailwind gradient stops. */
+:root[data-sadmin-theme="kld"] .from-\[\#155DFC\] {
+	--tw-gradient-from: #166534 var(--tw-gradient-from-position) !important;
+	--tw-gradient-to: rgb(22 101 52 / 0) var(--tw-gradient-to-position) !important;
+}
+:root[data-sadmin-theme="kld"] .to-\[\#193CB8\] {
+	--tw-gradient-to: #14532d var(--tw-gradient-to-position) !important;
+}
+
+/* Auth submit buttons have inline blue gradients; override only that exact accent. */
+:root[data-sadmin-theme="kld"] [style*="#2563EA"] {
+	background-image: linear-gradient(90deg, #166534 0%, #14532d 100%) !important;
+}
+
+/* A few Welcome-page buttons use inline gradients, which need explicit overrides. */
+:root[data-sadmin-theme="kld"] .bg-\[\#2563EB\][style*="linear-gradient"] {
+	background-image: linear-gradient(90deg, #166534 0%, #14532d 100%) !important;
+}
+:root[data-sadmin-theme="kld"] nav a[href*="register"]::after {
+	border-color: #166534 !important;
+	box-shadow: 0 0 0 3px rgb(22 101 52 / 20%), 0 0 20px rgb(22 101 52 / 50%) !important;
+}
+:root[data-sadmin-theme="kld"] .animated-gradient {
+	background-image: linear-gradient(-45deg, #166534, #14532d, #22c55e, #15803d) !important;
+}
+
+:root[data-sadmin-theme="kld"] .focus\:ring-blue-500:focus,
+:root[data-sadmin-theme="kld"] .focus\:ring-blue-600:focus {
+	--tw-ring-color: #166534 !important;
+}
+
+:root[data-sadmin-theme="kld"] .ring-blue-500,
+:root[data-sadmin-theme="kld"] .ring-blue-600 {
+	--tw-ring-color: #166534 !important;
+}
+
+/* This Welcome-page feature icon is intentionally blue in both themes. */
+.welcome-feature-blue {
+	background-color: #dbeafe !important;
+}
+
+.welcome-feature-blue-icon {
+	color: #2563eb !important;
+}
+
+:root[data-sadmin-theme="kld"] .welcome-feature-blue {
+	background-color: #dbeafe !important;
+}
+
+:root[data-sadmin-theme="kld"] .welcome-feature-blue-icon {
+	color: #2563eb !important;
+}
+
+/* KLD variant of the outlined Reassign Position action. */
+:root[data-sadmin-theme="kld"] button[data-slot="button"][class~="hover:bg-[#2563EB]"]:hover {
+	background-color: #166534 !important;
+	background-image: none !important;
+	border-color: #166534 !important;
+	color: #ffffff !important;
+}
+
+/* Legacy toast helpers set success colors inline (sky blue or system blue). */
+:root[data-sadmin-theme="kld"] .fixed[style*="rgb(14, 165, 233)"],
+:root[data-sadmin-theme="kld"] .fixed[style*="rgb(37, 99, 235)"] {
+	background: #166534 !important;
+}
+
+:root[data-sadmin-theme="kld"] .fixed[style*="rgb(14, 165, 233)"]:hover,
+:root[data-sadmin-theme="kld"] .fixed[style*="rgb(37, 99, 235)"]:hover {
+	background: #14532d !important;
+}
+
+/* Ensure KLD buttons and their interactive states never fall back to blue. */
+:root[data-sadmin-theme="kld"] .bg-\[\#155DFC\],
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-900:hover,
+:root[data-sadmin-theme="kld"] .hover\:bg-\[\#2563EB\]:hover,
+:root[data-sadmin-theme="kld"] .hover\:bg-\[\#155DFC\]:hover {
+	background-color: #14532d !important;
+}
+
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-50:hover { background-color: #dcfce7 !important; }
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-100:hover { background-color: #bbf7d0 !important; }
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-200:hover { background-color: #86efac !important; }
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-300:hover { background-color: #4ade80 !important; }
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-400:hover { background-color: #22c55e !important; }
+:root[data-sadmin-theme="kld"] .hover\:bg-blue-500:hover { background-color: #166534 !important; }
+
+:root[data-sadmin-theme="kld"] .hover\:text-blue-500:hover,
+:root[data-sadmin-theme="kld"] .hover\:text-blue-600:hover,
+:root[data-sadmin-theme="kld"] .hover\:text-blue-700:hover,
+:root[data-sadmin-theme="kld"] .hover\:text-\[\#2563EB\]:hover {
+	color: #14532d !important;
+}
+
+:root[data-sadmin-theme="kld"] .hover\:border-blue-500:hover,
+:root[data-sadmin-theme="kld"] .hover\:border-blue-600:hover,
+:root[data-sadmin-theme="kld"] .hover\:border-blue-700:hover,
+:root[data-sadmin-theme="kld"] .hover\:border-\[\#2563EB\]:hover {
+	border-color: #166534 !important;
+}
+
+:root[data-sadmin-theme="kld"] [style*="#2563EA"]:hover {
+	background-image: linear-gradient(90deg, #14532d 0%, #052e16 100%) !important;
+}
+
+:root[data-sadmin-theme="kld"] .welcome-primary-gradient:hover {
+	background-image: linear-gradient(90deg, #14532d 0%, #052e16 100%) !important;
+}
+
+/* These account-navigation links intentionally stay blue under the KLD theme. */
+:root[data-sadmin-theme="kld"] .auth-link-blue {
+	color: #2563eb !important;
+}
+
+:root[data-sadmin-theme="kld"] .auth-link-blue:hover {
+	color: #1d4ed8 !important;
+}
+
+/* Keep blue dashboard/statistic icon tiles and metric values blue in KLD mode. */
+:root[data-sadmin-theme="kld"] .bg-blue-50.rounded-xl:has(svg.text-blue-600) {
+	background-color: #eff6ff !important;
+}
+
+:root[data-sadmin-theme="kld"] .bg-blue-100.rounded-xl:has(svg.text-blue-600) {
+	background-color: #dbeafe !important;
+}
+
+:root[data-sadmin-theme="kld"] .bg-blue-50.rounded-xl:has(svg.text-blue-600) svg.text-blue-600,
+:root[data-sadmin-theme="kld"] .bg-blue-100.rounded-xl:has(svg.text-blue-600) svg.text-blue-600,
+:root[data-sadmin-theme="kld"] svg.lucide-activity.text-blue-600,
+:root[data-sadmin-theme="kld"] p.text-blue-600,
+:root[data-sadmin-theme="kld"] p.text-3xl.text-blue-900 {
+	color: #2563eb !important;
+}

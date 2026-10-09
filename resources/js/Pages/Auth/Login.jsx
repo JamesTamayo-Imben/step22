@@ -304,7 +304,7 @@ Bachelor of Science in Information Systems</p>
                 />
                 Remember me
               </label>
-              <Link href={route('password.request')} className="text-blue-600 hover:underline">
+              <Link href={route('password.request')} className="auth-link-blue text-blue-600 hover:underline">
                 Forgot password?
               </Link>
             </div>
@@ -312,8 +312,7 @@ Bachelor of Science in Information Systems</p>
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full h-10 rounded-xl text-white font-medium transition ${isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
-              style={{ background: "linear-gradient(90deg, #2563EA 0%, #1E3A8A 100%)" }}
+              className={`auth-primary-gradient w-full h-10 rounded-xl text-white font-medium transition ${isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
             >
               {isLoading ? "Logging in..." : "Login"}
             </button>
@@ -321,7 +320,7 @@ Bachelor of Science in Information Systems</p>
 
           <p className="text-center text-sm text-gray-600 mt-6">
             Don't have an account?{" "}
-            <button onClick={goToRegister} className="text-blue-600 hover:underline">
+            <button onClick={goToRegister} className="auth-link-blue text-blue-600 hover:underline">
               Sign up
             </button>
           </p>

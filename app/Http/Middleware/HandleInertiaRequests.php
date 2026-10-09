@@ -55,8 +55,17 @@ class HandleInertiaRequests extends Middleware
     ] : null,
 ] : null;
 
+        try {
+            $globalColorTheme = DB::table('system_settings')
+                ->where('key', 'color_theme')
+                ->value('value') === 'kld' ? 'kld' : 'system';
+        } catch (\Throwable $e) {
+            $globalColorTheme = 'system';
+        }
+
         return [
     ...parent::share($request),
+    'globalColorTheme' => $globalColorTheme,
     'auth' => [
         'user' => $authUser,
         'permissions' => $permissions,

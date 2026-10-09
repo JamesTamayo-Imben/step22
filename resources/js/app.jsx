@@ -9,6 +9,51 @@ import { useEffect, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { SupabaseProvider } from './context/SupabaseContext';
 
+function applyGlobalTheme(theme) {
+    const nextTheme = theme === 'kld' ? 'kld' : 'system';
+    const changed = document.documentElement.dataset.sadminTheme !== nextTheme;
+    document.documentElement.dataset.sadminTheme = nextTheme;
+
+    if (changed) {
+        window.dispatchEvent(new CustomEvent('step:global-theme-change', { detail: { theme: nextTheme } }));
+    }
+}
+
+function GlobalThemeSync({ initialTheme }) {
+    useEffect(() => {
+        let isMounted = true;
+        applyGlobalTheme(initialTheme);
+
+        const removePageListener = router.on('success', (event) => {
+            applyGlobalTheme(event.detail.page?.props?.globalColorTheme);
+        });
+
+        const refreshGlobalTheme = async () => {
+            try {
+                const response = await fetch('/system/color-theme', {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                    cache: 'no-store',
+                });
+                if (!response.ok || !isMounted) return;
+                const data = await response.json();
+                applyGlobalTheme(data.theme);
+            } catch {
+                // Keep the last shared theme if the network is temporarily unavailable.
+            }
+        };
+
+        const intervalId = window.setInterval(refreshGlobalTheme, 15000);
+        return () => {
+            isMounted = false;
+            window.clearInterval(intervalId);
+            removePageListener();
+        };
+    }, [initialTheme]);
+
+    return null;
+}
+
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 function RoleChangePrompt({ children }) {
@@ -119,9 +164,11 @@ createInertiaApp({
             import.meta.glob('./Pages/**/*.jsx')
         ),
     setup({ el, App, props }) {
+        applyGlobalTheme(props.initialPage?.props?.globalColorTheme);
         const root = createRoot(el);
         root.render(
             <SupabaseProvider>
+                <GlobalThemeSync initialTheme={props.initialPage?.props?.globalColorTheme} />
                 <RoleChangePrompt>
                     <App {...props} />
                 </RoleChangePrompt>

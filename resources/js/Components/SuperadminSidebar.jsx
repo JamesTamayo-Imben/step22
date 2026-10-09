@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   ChevronDown,
   ChevronUp,
+  Palette,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar';
 
@@ -46,6 +47,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     { id: 'master-data', label: 'Master Data', icon: BookOpenText },
     { id: 'global-reports', label: 'Global Reports', icon: FileText },
     { id: 'notifications', label: 'Notifications', icon: CalendarDays },
+    { id: 'settings', label: 'Settings', icon: Palette },
     // { id: 'profile', label: 'Profile', icon: Users },
   ];
 
@@ -68,6 +70,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
     if (p.startsWith('/sadmin/organizations')) return 'organizations';
     if (p.startsWith('/sadmin/global-reports')) return 'global-reports';
     if (p.startsWith('/sadmin/notifications')) return 'notifications';
+    if (p.startsWith('/sadmin/preferences')) return 'settings';
     if (p.startsWith('/sadmin/profile')) return 'profile';
     return 'dashboard';
   }
@@ -111,6 +114,7 @@ export default function SuperadminSidebar({ currentView = null, onNavigate = nul
       organizations: '/sadmin/organizations',
       'global-reports': '/sadmin/global-reports',
       notifications: '/sadmin/notifications',
+      settings: '/sadmin/preferences',
       profile: '/sadmin/profile',
     };
     return map[viewId] || '/sadmin';
