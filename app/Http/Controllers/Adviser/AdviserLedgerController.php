@@ -596,7 +596,8 @@ class AdviserLedgerController extends Controller
             null,
             'project',
             "Synchronized {$updatedCount} project budget(s) with approved ledger totals",
-            'ledger'
+            'ledger',
+            'fix'
         );
 
         //create notification for budget mismatch fix
@@ -621,7 +622,7 @@ class AdviserLedgerController extends Controller
         return $u?->name ?? 'Unknown';
     }
 
-    private function writeAudit(string $action, ?string $actionableId, ?string $actionableType, string $details, string $module): void
+    private function writeAudit(string $action, ?string $actionableId, ?string $actionableType, string $details, string $module, ?string $actionType = null): void
     {
         AuditLog::create([
             'id' => (string) Str::uuid(),
@@ -630,6 +631,7 @@ class AdviserLedgerController extends Controller
             'actionable_type' => $actionableType,
             'action' => $action,
             'module' => $module,
+            'action_type' => $actionType,
             'details' => $details,
             'ip_address' => request()->ip(),
             'browser_info' => substr((string) request()->userAgent(), 0, 500),

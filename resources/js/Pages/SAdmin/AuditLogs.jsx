@@ -79,6 +79,7 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
   const normalizedModules = Array.from(new Set((modules || []).map((module) => String(module || '').trim()).filter(Boolean))).sort();
   const formatModuleName = (module) => String(module || '').replace(/[_-]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
   const formatActionType = (actionType) => String(actionType || 'unknown').replace(/\b\w/g, (char) => char.toUpperCase());
+  const formatLinkedRecordType = (type) => String(type).toLowerCase() === 'blockchain' ? 'Chain' : type;
   const totalCount = summary.total ?? logs.length;
   const successCount = summary.success ?? logs.filter(l => l.status === 'Success').length;
   const failedCount = summary.failed ?? logs.filter(l => l.status === 'Failed').length;
@@ -339,7 +340,9 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
                     <TableCell className="text-xs text-gray-600 truncate">
                       {log.actionableType ? (
                         <div>
-                          <div className="font-medium text-gray-900 uppercase truncate">{log.actionableType}</div>
+                          <div className={`font-medium text-gray-900 truncate ${String(log.actionableType).toLowerCase() === 'blockchain' ? 'normal-case' : 'uppercase'}`}>
+                            {formatLinkedRecordType(log.actionableType)}
+                          </div>
                         </div>
                       ) : (
                         <span className="text-gray-400">N/A</span>
@@ -397,7 +400,9 @@ export function AuditLogsPage({ logs: initialLogs = { data: [] }, modules = [], 
 
               {log.actionableType && (
                 <div className="text-xs text-gray-500">
-                  Linked: <span className="font-medium text-gray-700 uppercase">{log.actionableType}</span> #{log.actionableId ?? 'N/A'}
+                  Linked: <span className={`font-medium text-gray-700 ${String(log.actionableType).toLowerCase() === 'blockchain' ? 'normal-case' : 'uppercase'}`}>
+                    {formatLinkedRecordType(log.actionableType)}
+                  </span> #{log.actionableId ?? 'N/A'}
                 </div>
               )}
 

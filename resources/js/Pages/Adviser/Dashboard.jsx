@@ -29,12 +29,7 @@ export function AdminAdviserDashboard({
   stats = {},
   approvalQueue = [],
   recentActivity = [],
-  heatmapDays = [],
-  heatmapMonth,
-  heatmapLabel,
-  prevHeatmapMonth,
-  nextHeatmapMonth,
-  canNavigateNext,
+  charts = {},
 }) {
   const s = {
     pendingApprovals: stats.pendingApprovals ?? 0,
@@ -73,7 +68,7 @@ export function AdminAdviserDashboard({
       }
     };
 
-  const heatmapDaysData = heatmapDays || [];
+  const heatmapDaysData = charts.heatmapDays || [];
 
   const getHeatmapCellStyles = (item) => {
     const tampering = Number(item.tamperingCount) || 0;
@@ -226,7 +221,7 @@ export function AdminAdviserDashboard({
           <div className="flex w-full items-center justify-between gap-1.5 sm:w-auto sm:justify-center">
             <button
               type="button"
-              onClick={() => router.get('/adviser', { heatmap_month: prevHeatmapMonth }, {
+              onClick={() => router.get('/adviser', { heatmap_month: charts.prevHeatmapMonth }, {
                 preserveScroll: true,
                 preserveState: true,
                 only: ['charts'],
@@ -236,12 +231,12 @@ export function AdminAdviserDashboard({
               ← Prev
             </button>
             <div className="flex-1 rounded-md bg-slate-100 px-3 py-1 text-center text-sm font-medium text-slate-800 sm:flex-none">
-              {heatmapLabel || heatmapMonth || 'This month'}
+              {charts.heatmapLabel || charts.heatmapMonth || 'This month'}
             </div>
-            {canNavigateNext ? (
+            {charts.canNavigateNext ? (
               <button
                 type="button"
-                onClick={() => router.get('/adviser', { heatmap_month: nextHeatmapMonth }, {
+                onClick={() => router.get('/adviser', { heatmap_month: charts.nextHeatmapMonth }, {
                   preserveScroll: true,
                   preserveState: true,
                   only: ['charts'],

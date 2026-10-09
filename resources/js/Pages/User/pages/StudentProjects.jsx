@@ -558,7 +558,7 @@ export default function StudentProjectsPage({ onNavigate, onViewDetails, project
           role={shareFeedback.type === 'error' ? 'alert' : 'status'}
           aria-live={shareFeedback.type === 'error' ? 'assertive' : 'polite'}
           className={`fixed bottom-6 left-1/2 z-[60] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-lg px-4 py-3 text-center text-sm text-white shadow-lg sm:left-auto sm:right-4 sm:translate-x-0 ${
-            shareFeedback.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+            shareFeedback.type === 'error' ? 'bg-red-600' : 'bg-[#0ea5e9]'
           }`}
         >
           {shareFeedback.message}

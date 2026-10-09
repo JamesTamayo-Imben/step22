@@ -3,16 +3,20 @@
 namespace App\Http\Controllers\Adviser;
 
 use App\Http\Controllers\Controller;
+use App\Models\StudentCsgOfficer;
 use App\Models\User\Notification;
 use App\Services\NotificationReadService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class AdviserNotificationController extends Controller
 {
     public function index()
     {
+        $canSendToAllUsers = auth()->user()->hasRole('Admin/SADU');
+
         $rows = app(NotificationReadService::class)->withReadState(Notification::query(), (string) auth()->id())
             ->where('notifications.archive', false)
             ->where(function ($query) {
@@ -53,6 +57,7 @@ class AdviserNotificationController extends Controller
         return Inertia::render('Adviser/Notifications', [
             'notificationsData' => $items,
             'unreadNotificationsCount' => $unread,
+            'canSendToAllUsers' => $canSendToAllUsers,
         ]);
     }
 
@@ -72,16 +77,55 @@ class AdviserNotificationController extends Controller
 
     public function store(Request $request)
     {
+        $canSendToAllUsers = $request->user()->hasRole('Admin/SADU');
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:150'],
             'message' => ['required', 'string', 'max:5000'],
+            'audience' => ['required', 'in:' . ($canSendToAllUsers ? 'csg,all' : 'csg')],
         ]);
 
-        $this->createNotification(
-            $validated['title'],
-            $validated['message'],
-            'system'
-        );
+        if ($validated['audience'] === 'all') {
+            $this->createNotification($validated['title'], $validated['message'], 'system');
+        } else {
+            $recipientIds = StudentCsgOfficer::query()
+                ->where('is_csg', true)
+                ->where('csg_is_active', true)
+                ->where('archive', false)
+                ->where('csg_position', '!=', 'Member')
+                ->whereNotNull('user_id')
+                ->whereHas('user', fn ($query) => $query->where('archive', false))
+                ->distinct()
+                ->pluck('user_id');
+
+            if ($recipientIds->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'audience' => 'There are no active CSG council members to notify.',
+                ]);
+            }
+
+            $senderId = (string) $request->user()->id;
+            DB::transaction(function () use ($recipientIds, $validated, $senderId) {
+                $this->createNotification(
+                    $validated['title'],
+                    $validated['message'],
+                    'system',
+                    $senderId
+                );
+
+                foreach ($recipientIds as $recipientId) {
+                    if ((string) $recipientId === $senderId) {
+                        continue;
+                    }
+
+                    $this->createNotification(
+                        $validated['title'],
+                        $validated['message'],
+                        'system',
+                        (string) $recipientId
+                    );
+                }
+            });
+        }
 
         return back()->with('success', 'Notice published.');
     }

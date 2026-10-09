@@ -311,12 +311,14 @@ $avgRating = $ratings->count() > 0
             ],
             'approvalQueue' => $queue->take(3)->values(),
             'recentActivity' => $recentActivity,
-            'heatmapDays' => $heatmapDays,
-            'heatmapMonth' => $heatmapStart->format('Y-m'),
-            'heatmapLabel' => $heatmapLabel,
-            'prevHeatmapMonth' => $prevMonth,
-            'nextHeatmapMonth' => $nextMonth,
-            'canNavigateNext' => $canNavigateNext,
+            'charts' => [
+                'heatmapDays' => $heatmapDays,
+                'heatmapMonth' => $heatmapStart->format('Y-m'),
+                'heatmapLabel' => $heatmapLabel,
+                'prevHeatmapMonth' => $prevMonth,
+                'nextHeatmapMonth' => $nextMonth,
+                'canNavigateNext' => $canNavigateNext,
+            ],
         ]);
     }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { Card } from '@/Components/ui/card';
 import { Bell, Star, AlertCircle, Calendar, FolderKanban, Award, TrendingUp, FileText, DollarSign, Check } from 'lucide-react';
 
@@ -32,10 +32,19 @@ const getIcon = (icon) => {
   }
 };
 
-export default function AdviserNotificationsPage({ notificationsData = [], unreadNotificationsCount = 0 }) {
+export default function AdviserNotificationsPage({
+  notificationsData = [],
+  unreadNotificationsCount = 0,
+  canSendToAllUsers = false,
+}) {
+  const { errors = {} } = usePage().props;
   const [notifications, setNotifications] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState('all');
-  const [notice, setNotice] = useState({ title: '', message: '' });
+  const [notice, setNotice] = useState({
+    title: '',
+    message: '',
+    audience: canSendToAllUsers ? 'all' : 'csg',
+  });
 
   useEffect(() => {
     setNotifications(Array.isArray(notificationsData) ? notificationsData.map((n) => ({
@@ -44,6 +53,12 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
       type: String(n.type || 'system').toLowerCase(),
     })) : []);
   }, [notificationsData]);
+
+  useEffect(() => {
+    if (!canSendToAllUsers) {
+      setNotice((current) => ({ ...current, audience: 'csg' }));
+    }
+  }, [canSendToAllUsers]);
 
   const filteredNotifications = selectedFilter === 'all'
     ? notifications
@@ -76,7 +91,7 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
     router.post(route('adviser.notifications.store'), notice, {
       preserveScroll: true,
       onSuccess: () => {
-        setNotice({ title: '', message: '' });
+        setNotice({ title: '', message: '', audience: canSendToAllUsers ? 'all' : 'csg' });
         router.reload({ preserveScroll: true });
       },
     });
@@ -128,6 +143,22 @@ export default function AdviserNotificationsPage({ notificationsData = [], unrea
             rows={3}
             className="w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500"
           />
+
+          <div>
+            <label htmlFor="notification-audience" className="mb-1 block text-sm font-medium text-gray-700">
+              Send to
+            </label>
+            <select
+              id="notification-audience"
+              value={notice.audience}
+              onChange={(event) => setNotice({ ...notice, audience: event.target.value })}
+              className="w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-blue-500"
+            >
+              <option value="csg">CSG council only</option>
+              {canSendToAllUsers && <option value="all">All users</option>}
+            </select>
+            {errors.audience && <p className="mt-1 text-sm text-red-600">{errors.audience}</p>}
+          </div>
 
           <div className="flex justify-end">
             <button

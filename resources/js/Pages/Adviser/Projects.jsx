@@ -167,7 +167,7 @@ const getProjectMonthDistance = (project, referenceDate = new Date()) => {
   return Math.min(diff, 12 - diff);
 };
 
-const isRecentCompletedProject = (project, referenceDate = new Date()) => {
+const isPreviousYearCompletedProject = (project, referenceDate = new Date()) => {
   const dateValue = project.end_date || project.endDate;
   if (!dateValue) {
     return false;
@@ -178,10 +178,8 @@ const isRecentCompletedProject = (project, referenceDate = new Date()) => {
     return false;
   }
 
-  const oneYearAgo = new Date(referenceDate);
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
-  return projectDate <= referenceDate && projectDate >= oneYearAgo;
+  return projectDate <= referenceDate
+    && projectDate.getFullYear() === referenceDate.getFullYear() - 1;
 };
 
 export default function AdviserProjectsPage() {
@@ -219,7 +217,7 @@ export default function AdviserProjectsPage() {
       .filter(isApprovedProject)
       .filter((project) => getCalculatedStatus(project) === 'Completed')
       .filter((project) => getAverageRatingValue(project) > 0)
-      .filter((project) => isRecentCompletedProject(project, now))
+      .filter((project) => isPreviousYearCompletedProject(project, now))
       .map((project) => ({
         ...project,
         averageRating: getAverageRatingValue(project),
@@ -364,7 +362,7 @@ export default function AdviserProjectsPage() {
           <div className="bg-white border p-4 rounded-xl">
             <h1 className="text-blue-700">Project Recommendations</h1>
             {recommendedProjects.length === 0 ? (
-              <p className="text-base text-gray-700">There are no recommended projects as of now because the cycle has not begun yet.</p>
+              <p className="text-base text-gray-700">There are no completed projects from the previous calendar year to recommend.</p>
             ) : (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">

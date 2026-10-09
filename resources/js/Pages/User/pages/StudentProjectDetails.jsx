@@ -411,9 +411,20 @@ const getMoneyTypeColor = (type) => {
         return;
       }
 
-      window.location.reload();
+      setCurrentProject((current) => ({
+        ...current,
+        currentUserRating: {
+          satisfaction_rating: satisfactionRating,
+          completeness_rating: completenessRating,
+          engagement_rating: engagementRating,
+          comment,
+        },
+      }));
+      setShowRatingModal(false);
+      showToast('Rating is submitted successfully.');
     } catch (error) {
       console.error(error);
+      showToast('Unable to submit your rating right now.', 'error');
     } finally {
       setIsSubmitting(false);
     }

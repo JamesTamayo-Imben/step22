@@ -261,8 +261,7 @@ class CSGDashboardController extends Controller
         return $projects
             ->filter(function ($project) use ($ratingsByProject, $now) {
                 return $this->isCompletedProject($project, $now)
-                    && $this->getAverageRatingValue($project, $ratingsByProject) > 0
-                    && $this->getProjectMonthDistance($project, $now) <= 1;
+                    && $this->getAverageRatingValue($project, $ratingsByProject) > 0;
             })
             ->map(function ($project) use ($ratingsByProject, $ledgerSums) {
                 return [
@@ -295,7 +294,8 @@ class CSGDashboardController extends Controller
 
         try {
             $endDate = \Carbon\Carbon::parse($project->end_date)->endOfDay();
-            return $referenceDate->gte($endDate);
+            return $referenceDate->gte($endDate)
+                && $endDate->year === $referenceDate->year - 1;
         } catch (\Exception $e) {
             return false;
         }
@@ -320,21 +320,4 @@ class CSGDashboardController extends Controller
         return round($sum / $ratings->count(), 1);
     }
 
-    private function getProjectMonthDistance($project, $referenceDate)
-    {
-        $dateValue = $project->start_date ?? $project->end_date;
-
-        if (! $dateValue) {
-            return PHP_INT_MAX;
-        }
-
-        try {
-            $projectDate = \Carbon\Carbon::parse($dateValue);
-        } catch (\Exception $e) {
-            return PHP_INT_MAX;
-        }
-
-        $monthDiff = abs($projectDate->month - $referenceDate->month);
-        return min($monthDiff, 12 - $monthDiff);
-    }
 }
