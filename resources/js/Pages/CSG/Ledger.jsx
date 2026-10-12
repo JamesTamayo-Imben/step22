@@ -523,7 +523,9 @@ const totalShortfall = Math.max(0, -rawTotalBudget);
   );
   const hasTamperedEntries = isDataLoaded && tamperedProjectIds.size > 0;
   const hasBudgetMismatchAlert = isDataLoaded && (mismatchedProjectIds.size > 0 || isBudgetTampered);
-  const isProjectLocked = (projectId) => tamperedProjectIds.has(String(projectId || ''));
+  const isProjectLocked = (projectId) =>
+    tamperedProjectIds.has(String(projectId || '')) ||
+    mismatchedProjectIds.has(String(projectId || ''));
 
   // Projects eligible for NEW or EDITED ledger entries (excludes locked + long-completed projects)
   const ledgerSelectableProjects = projects.filter(
@@ -745,6 +747,11 @@ const handleAddEntry = async () => {
     return;
   }
 
+  if (isProjectLocked(ledgerForm.project_id)) {
+    showToast('Transactions are disabled for projects with tampered or mismatched ledger data.', 'error');
+    return;
+  }
+
   // Check if amount is valid (either from budget breakdown or manual entry)
     const isAssetUsage = ledgerForm.type === 'Asset' && assetMode === 'use';
     const totalAmount = calculateTotalBudget();
@@ -850,6 +857,11 @@ setIsLoading(true);
 const handleEditEntry = async () => {
   if (!selectedEntry) return;
 
+  if (isProjectLocked(selectedEntry.project_id) || isProjectLocked(ledgerForm.project_id)) {
+    showToast('Transactions are disabled for projects with tampered or mismatched ledger data.', 'error');
+    return;
+  }
+
   if (!ledgerForm.description || !ledgerForm.project_id) {
     showToast('Please fill in required fields', 'error');
     return;
@@ -944,6 +956,11 @@ const handleEditEntry = async () => {
 const handleDeleteEntry = async () => {
   if (!selectedEntry) return;
 
+  if (isProjectLocked(selectedEntry.project_id)) {
+    showToast('Transactions are disabled for projects with tampered or mismatched ledger data.', 'error');
+    return;
+  }
+
   try {
     const response = await fetch(`/api/ledger-entries/${selectedEntry.id}`, {
       method: 'DELETE',
@@ -975,6 +992,12 @@ const handleDeleteEntry = async () => {
 
 // Update handleSubmitForApproval to use API
 const handleSubmitForApproval = async (id) => {
+  const entry = ledgerEntries.find((item) => item.id === id);
+  if (entry && isProjectLocked(entry.project_id)) {
+    showToast('Transactions are disabled for projects with tampered or mismatched ledger data.', 'error');
+    return;
+  }
+
   try {
     const response = await fetch(`/api/ledger-entries/${id}/submit`, {
       method: 'POST',
@@ -1239,8 +1262,8 @@ const getTypeAmountColor = (type) => {
             <Button
             onClick={() => setShowAddModal(true)}
             className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={allProjects.length === 0}
-            title={allProjects.length === 0 ? 'No projects available. Create a project first.' : undefined}
+            disabled={ledgerSelectableProjects.length === 0}
+            title={ledgerSelectableProjects.length === 0 ? 'No projects are available for ledger transactions.' : undefined}
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Ledger Entry
@@ -1251,8 +1274,8 @@ const getTypeAmountColor = (type) => {
               onClick={() => setShowBulkModal(true)}
               variant="outline"
               className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={allProjects.length === 0}
-              title={allProjects.length === 0 ? 'No projects available. Create a project first.' : 'Upload a CSV of line items — grouped automatically into one entry per type'}
+              disabled={ledgerSelectableProjects.length === 0}
+              title={ledgerSelectableProjects.length === 0 ? 'No projects are available for ledger transactions.' : 'Upload a CSV of line items — grouped automatically into one entry per type'}
             >
               <Upload className="w-4 h-4 mr-2" />
               Bulk Upload (CSV)
@@ -1428,14 +1451,14 @@ const getTypeAmountColor = (type) => {
       {/* Ledger Cards Grid - Fixed Layout  */}
        <div className="space-y-3">
         {currentItems.map((entry) => {
-          // const entryLocked = isProjectLocked(entry.project_id);
-          const isInitialEntry = ['initial', 'initial transfer'].includes((entry.type || '').toLowerCase()) || (entry.type || '').toLowerCase() === 'transfer';
-         const entryLocked = isProjectLocked(entry.project_id) && !isInitialEntry;
+         const isInitialEntry = ['initial', 'initial transfer'].includes((entry.type || '').toLowerCase()) || (entry.type || '').toLowerCase() === 'transfer';
+         const entryLocked = isProjectLocked(entry.project_id);
+         const entryLockLabel = tamperedProjectIds.has(String(entry.project_id || '')) ? 'Tampered' : 'Budget mismatch';
           return (
-         <div key={entry.id} className="relative">
-         <Card className={`rounded-xl border-0 shadow-sm transition-all duration-200 overflow-x-auto ${
-           entry.verificationState?.tampered ? 'ring-2 ring-red-200 bg-red-50' : ''
-         } ${entryLocked ? 'opacity-70 pointer-events-none' : 'hover:shadow-md'}`}>
+        <div key={entry.id} className="relative">
+        <Card className={`rounded-xl border-0 shadow-sm transition-all duration-200 overflow-x-auto ${
+          entryLocked ? 'ring-2 ring-red-200 bg-red-50' : 'hover:shadow-md'
+        }`}>
              <div className="p-4 min-w-0">
               {/* Tamper Alert Banner for individual entry */}
               {/* {entryLocked && (
@@ -1462,6 +1485,11 @@ const getTypeAmountColor = (type) => {
                 <div className="flex flex-col min-w-0">
                   <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">Project Title</p>
                   <p className="text-xs text-gray-700 font-medium truncate">{entry.projectName || '—'}</p>
+                  {entryLocked && (
+                    <Badge className="mt-1 w-fit border border-red-200 bg-red-100 text-[10px] text-red-700">
+                      {entryLockLabel}
+                    </Badge>
+                  )}
                 </div>
                 </div>
 
@@ -1651,8 +1679,8 @@ const getTypeAmountColor = (type) => {
                           <Button
                             onClick={() => setShowAddModal(true)}
                              className="text-white rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={allProjects.length === 0}
-            title={allProjects.length === 0 ? 'No projects available. Create a project first.' : undefined}
+            disabled={ledgerSelectableProjects.length === 0}
+            title={ledgerSelectableProjects.length === 0 ? 'No projects are available for ledger transactions.' : undefined}
                           >
                             <Plus className="w-4 h-4 mr-2" />
                             Add Ledger Entry

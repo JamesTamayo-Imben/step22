@@ -894,13 +894,25 @@ function CSGProjectsPageInner() {
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 auto-rows-fr gap-6">
         {currentItems.map((project) => (
-          <Card key={project.id} className="h-full rounded-[20px] border-0 shadow-sm p-6 hover:shadow-md transition-all">
+          <Card
+            key={project.id}
+            className={`h-full rounded-[20px] shadow-sm p-6 hover:shadow-md transition-all ${
+              isProjectLocked(project.id)
+                ? 'border border-red-200 bg-red-50/60'
+                : 'border-0 bg-white'
+            }`}
+          >
             {/* Header */}
             <div className="mb-4">
               <div className="flex items-start justify-between mb-2">
                 <h3 className="font-semibold text-gray-900 flex-1 truncate">{project.title}</h3>
               </div>
               <div className="flex flex-wrap gap-2">
+                {isProjectLocked(project.id) && (
+                  <Badge className="rounded-lg border border-red-200 bg-red-100 text-red-700">
+                    Tampered
+                  </Badge>
+                )}
                 <Badge className="bg-gray-100 text-gray-700 rounded-lg">{project.category}</Badge>
                 <Badge className={`rounded-lg ${getApprovalStatusColor(project.approvalStatus)}`}>
                   {project.approvalStatus}
