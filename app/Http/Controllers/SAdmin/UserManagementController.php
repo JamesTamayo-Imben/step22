@@ -3,18 +3,21 @@
 namespace App\Http\Controllers\SAdmin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Student;
-use App\Models\Teacher;
 use App\Models\Role;
+use App\Models\Student;
 use App\Models\StudentCsgOfficer;
+use App\Models\Teacher;
+use App\Models\User;
+use App\Services\PasswordGeneratorService;
+use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Inertia\Inertia;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class UserManagementController extends Controller
 {
@@ -85,7 +88,7 @@ class UserManagementController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -101,7 +104,7 @@ class UserManagementController extends Controller
             $query->where('status', $status);
         }
 
-$users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $page);
+        $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $page);
 
         // Format the users for frontend
         $formattedUsers = $users->items();
@@ -139,7 +142,7 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
     {
         $role = Role::find($roleId);
 
-        if (!$role) {
+        if (! $role) {
             return response()->json(['error' => 'Role not found'], 404);
         }
 
@@ -236,8 +239,8 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
     {
         // Get the role first to validate role-specific fields
         $role = Role::find($request->role_id);
-        
-        if (!$role) {
+
+        if (! $role) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid role selected',
@@ -249,7 +252,7 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', Rule::unique('users')],
-            'password' => ['required', 'string', 'min:6', 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/', 'confirmed'],
+            'password' => array_merge(['required', 'confirmed'], PasswordPolicy::rules(), ['regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/']),
             'password_confirmation' => ['required', 'same:password'],
             'phone' => ['nullable', 'string', 'max:20'],
             'role_id' => ['required', 'exists:roles,id'],
@@ -270,7 +273,7 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
 
         try {
             $validated = $request->validate($rules);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
@@ -342,7 +345,7 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create user: ' . $e->getMessage(),
+                'message' => 'Failed to create user: '.$e->getMessage(),
                 'errors' => [],
             ], 500);
         }
@@ -388,7 +391,7 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
     {
         // In a real app, you'd send a password reset email
         // For now, we'll just return success
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Password reset email sent',
@@ -476,7 +479,7 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
 
     /**
      * Bulk create users with auto-generated passwords and send invitation emails
-     * Passwords are generated as: username + KLD + current_year (e.g., lpcalibusoKLD2026)
+     * Passwords are randomly generated with PasswordGeneratorService.
      */
     public function bulkCreate(Request $request)
     {
@@ -488,7 +491,7 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
         ]);
 
         $role = Role::find($validated['role_id']);
-        if (!$role) {
+        if (! $role) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid role selected',
@@ -504,30 +507,32 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
                     $email = $userData['email'];
 
                     // Validate email format
-                    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                         $errors[$index] = "Invalid email format: {$email}";
+
                         continue;
                     }
 
                     // Validate email domain - exact match only
                     $domain = strtolower(explode('@', $email)[1] ?? '');
                     $validDomains = ['kld.edu.ph', 'kld.com.ph', 'step.edu.ph'];
-                    
-                    if (!in_array($domain, $validDomains, true)) {
+
+                    if (! in_array($domain, $validDomains, true)) {
                         $errors[$index] = "Email must use institutional domain (kld.edu.ph, kld.com.ph, or step.edu.ph): {$email}";
+
                         continue;
                     }
 
                     // Check if user already exists
                     if (User::where('email', $email)->exists()) {
                         $errors[$index] = "Email already in use: {$email}";
+
                         continue;
                     }
 
-                    // Generate password from email: extract username before @ and append KLDyear
-                    $username = explode('@', $email)[0]; // Get part before @
-                    $year = now()->year;
-                    $generatedPassword = $username . 'KLD' . $year;
+                    // Generate a cryptographically secure temporary password
+                    // instead of a predictable {username}KLD{year} pattern.
+                    $generatedPassword = app(PasswordGeneratorService::class)->generate(12);
 
                     // Extract first and last name from full name
                     $nameParts = explode(' ', $userData['name'], 2);
@@ -548,7 +553,7 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
                     ]);
 
                     // Prepare email data with role-specific signup link
-                    $signupLink = $role->name === 'Student' 
+                    $signupLink = $role->name === 'Student'
                         ? route('register.student', [
                             'email' => $user->email,
                             'password' => $generatedPassword,
@@ -570,10 +575,10 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
                             'signupLink' => $signupLink,
                         ], function ($message) use ($user) {
                             $message->to($user->email)
-                                    ->subject('Welcome! Complete Your Registration');
+                                ->subject('Welcome! Complete Your Registration');
                         });
                     } catch (\Exception $mailError) {
-                        Log::warning("Failed to send invitation email to {$user->email}: " . $mailError->getMessage());
+                        Log::warning("Failed to send invitation email to {$user->email}: ".$mailError->getMessage());
                         // Continue anyway - user was created, email just failed
                     }
 
@@ -611,7 +616,7 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bulk creation failed: ' . $e->getMessage(),
+                'message' => 'Bulk creation failed: '.$e->getMessage(),
                 'errors' => [$e->getMessage()],
             ], 500);
         }
@@ -627,16 +632,16 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
             $supabaseUrl = env('VITE_SUPABASE_URL');
             $serviceRoleKey = env('SUPABASE_SERVICE_ROLE_KEY');
 
-            if (!$supabaseUrl || !$serviceRoleKey) {
+            if (! $supabaseUrl || ! $serviceRoleKey) {
                 // Silently skip if Supabase not configured
                 return;
             }
 
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $serviceRoleKey,
+                'Authorization' => 'Bearer '.$serviceRoleKey,
                 'Content-Type' => 'application/json',
                 'apikey' => $serviceRoleKey,
-            ])->post($supabaseUrl . '/auth/v1/admin/users', [
+            ])->post($supabaseUrl.'/auth/v1/admin/users', [
                 'email' => $email,
                 'password' => $password,
                 'email_confirm' => true,
@@ -654,6 +659,7 @@ $users = $query->orderBy('created_at', 'desc')->paginate(20, ['*'], 'page', $pag
                     'email' => $email,
                     'status' => $response->status(),
                 ]);
+
                 return;
             }
 

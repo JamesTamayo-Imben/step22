@@ -82,6 +82,15 @@ export default function LoginPage({ onLogin, onNavigateToRegister, archivedMessa
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 429) {
+          const seconds = Number(data.retry_after || 0);
+          const minutes = Math.max(1, Math.ceil(seconds / 60));
+          throw new Error(
+            data.message ||
+              `Too many login attempts. Please try again in ${minutes} minute(s).`
+          );
+        }
+
         throw new Error(data.message || "Login failed. Please check your credentials.");
       }
 

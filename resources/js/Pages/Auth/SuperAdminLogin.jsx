@@ -36,6 +36,14 @@ export default function SuperAdminLoginPage() {
         return false;
       }
 
+      if (response.status === 429) {
+        const seconds = Number(data.retry_after || 0);
+        const minutes = Math.max(1, Math.ceil(seconds / 60));
+        throw new Error(
+          data.message || `Too many attempts. Please try again in ${minutes} minute(s).`
+        );
+      }
+
       throw new Error(data.message || 'Unable to send the verification code.');
     }
 

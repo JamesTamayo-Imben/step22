@@ -1,42 +1,48 @@
 <?php
 
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ApiLoginController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\InstituteController;
 use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\OTPController;
 use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\Auth\PasswordGeneratorController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
-use App\Http\Controllers\Auth\OTPController;
-use App\Http\Controllers\Auth\GoogleAuthController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 // Auth routes - Guests only (prevent logged-in users from accessing)
 Route::middleware('prevent_logged_in')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::post('register', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:register');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
-    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::post('login', [AuthenticatedSessionController::class, 'store'])
+        ->middleware('throttle:login');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->middleware('throttle:password-reset')
         ->name('password.email');
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
         ->name('password.reset');
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
+        ->middleware('throttle:password-reset')
         ->name('password.store');
 });
 
@@ -46,14 +52,14 @@ Route::group([], function () {
     // This endpoint accepts JSON and returns JSON with user role and redirect URL
     // Used by the React Login component for step2 database authentication
     Route::post('api/login', [ApiLoginController::class, 'login'])
-        ->middleware('throttle:10,1');
+        ->middleware('throttle:login');
 
     Route::post('api/superadmin/login/send-otp', [ApiLoginController::class, 'sendSuperAdminLoginOTP'])
-        ->middleware('throttle:5,1');
+        ->middleware('throttle:login');
 
     Route::post('api/superadmin/login/verify-otp', [ApiLoginController::class, 'verifySuperAdminLoginOTP'])
-        ->middleware('throttle:5,1');
-    
+        ->middleware('throttle:otp');
+
     // Test endpoint to verify API is responding
     Route::get('api/test', function () {
         return response()->json(['message' => 'API is working', 'timestamp' => now()]);
@@ -61,12 +67,18 @@ Route::group([], function () {
     // ===========================================================
 
     // ========== OTP-BASED REGISTRATION ENDPOINTS ==========
-    Route::middleware('throttle:5,1')->group(function () {
+    Route::middleware('throttle:otp')->group(function () {
         Route::post('api/otp/send', [OTPController::class, 'sendOTP']);
         Route::post('api/otp/verify', [OTPController::class, 'verifyOTP']);
         Route::post('api/otp/resend', [OTPController::class, 'resendOTP']);
     });
     // ======================================================
+
+    // ========== PASSWORD GENERATOR ENDPOINT ==========
+    // Lets the sign up forms offer a strong, randomly generated password.
+    Route::post('api/password/generate', [PasswordGeneratorController::class, 'generate'])
+        ->middleware('throttle:password-generate');
+    // ================================================
 });
 
 // ========== GOOGLE OAUTH ENDPOINTS ==========
@@ -82,7 +94,7 @@ Route::get('institutes/{id}', [InstituteController::class, 'show']);
 
 // OAuth callback route - accessible to everyone (will be handled by OAuthCallback component)
 Route::get('callback', function () {
-    return \Inertia\Inertia::render('Auth/OAuthCallback');
+    return Inertia::render('Auth/OAuthCallback');
 })->name('auth.callback');
 
 // ==========================================

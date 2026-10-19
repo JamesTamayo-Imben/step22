@@ -47,13 +47,42 @@ return new class extends Migration
             $table->index(['project_id', 'status']);
         });
 
-        DB::statement("ALTER TABLE ledger_entries MODIFY type ENUM('Income','Expense','Asset','Canvas','Donation','Sponsorship','Initial','Transfer','Initial Transfer') NOT NULL");
+        $this->addAssetEnumValue();
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE ledger_entries MODIFY type ENUM('Income','Expense','Canvas','Donation','Sponsorship','Initial','Transfer','Initial Transfer') NOT NULL");
+        $this->removeAssetEnumValue();
+
         Schema::dropIfExists('asset_usages');
         Schema::dropIfExists('assets');
+    }
+
+    /**
+     * Add the "Asset" value to the ledger_entries.type enum.
+     *
+     * MySQL needs raw DDL for this, SQLite cannot ALTER a column type so the
+     * statement is skipped there (SQLite stores the column as a string and
+     * therefore accepts the new value without any change).
+     */
+    private function addAssetEnumValue(): void
+    {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
+        DB::statement("ALTER TABLE ledger_entries MODIFY type ENUM('Income','Expense','Asset','Canvas','Donation','Sponsorship','Initial','Transfer','Initial Transfer') NOT NULL");
+    }
+
+    /**
+     * Remove the "Asset" value from the ledger_entries.type enum.
+     */
+    private function removeAssetEnumValue(): void
+    {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
+        DB::statement("ALTER TABLE ledger_entries MODIFY type ENUM('Income','Expense','Canvas','Donation','Sponsorship','Initial','Transfer','Initial Transfer') NOT NULL");
     }
 };

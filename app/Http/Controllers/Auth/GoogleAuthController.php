@@ -3,19 +3,19 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\Role;
+use App\Models\User;
 use App\Services\CsgOnlineStatusService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class GoogleAuthController extends Controller
 {
     /**
      * Create or update user in step2 DB after Google OAuth authentication
-     * 
+     *
      * Expected request body:
      * {
      *   "id": "supabase-user-id",
@@ -23,7 +23,7 @@ class GoogleAuthController extends Controller
      *   "name": "John Doe",
      *   "avatar_url": "https://lh3.googleusercontent.com/...",
      * }
-     * 
+     *
      * Returns:
      * {
      *   "success": true,
@@ -62,6 +62,7 @@ class GoogleAuthController extends Controller
                     'email' => $email,
                     'user_id' => $user->id,
                 ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'This account is no longer available.',
@@ -71,13 +72,13 @@ class GoogleAuthController extends Controller
             if ($user) {
                 // Update existing user
                 Log::info('📝 Updating existing Google user', ['email' => $email, 'id' => $supabaseId]);
-                
+
                 $user->update([
                     'avatar_url' => $avatarUrl,
                     'email_verified_at' => $user->email_verified_at ?? now(),
                     'last_login_at' => now(),
                 ]);
-                
+
                 $message = 'User updated successfully';
             } else {
                 // Create new user with SAME ID as Supabase
@@ -85,12 +86,13 @@ class GoogleAuthController extends Controller
                     'email' => $email,
                     'supabase_id' => $supabaseId,
                 ]);
-                
+
                 // Get default role (Student)
                 $defaultRole = Role::where('slug', 'student')->first();
-                
-                if (!$defaultRole) {
+
+                if (! $defaultRole) {
                     Log::warning('⚠️  Default student role not found');
+
                     return response()->json([
                         'success' => false,
                         'message' => 'Default role not configured',
@@ -114,7 +116,7 @@ class GoogleAuthController extends Controller
                     'user_id' => $user->id,
                     'email' => $user->email,
                 ]);
-                
+
                 $message = 'User created successfully';
             }
 
@@ -127,6 +129,7 @@ class GoogleAuthController extends Controller
                     'email' => $user->email,
                     'user_id' => $user->id,
                 ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Access denied. Try to use another account.',
@@ -135,6 +138,10 @@ class GoogleAuthController extends Controller
 
             // ✅ Authenticate the user in Laravel session
             Auth::login($user);
+
+            // Regenerate the session id to prevent session fixation.
+            $request->session()->regenerate();
+
             Log::info('✅ User authenticated in Laravel session', [
                 'user_id' => $user->id,
                 'email' => $user->email,
@@ -163,11 +170,11 @@ class GoogleAuthController extends Controller
                 'message' => $message,
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             Log::warning('❌ Google OAuth validation error', [
                 'errors' => $e->errors(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
@@ -179,7 +186,7 @@ class GoogleAuthController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Google login could not be completed at this time.',

@@ -5,17 +5,19 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Mail\OTPMail;
 use App\Models\User;
+use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 
 class PasswordResetController extends Controller
 {
     /**
      * Step 1: Send OTP to user's email for password reset
-     * 
+     *
      * Request body:
      * {
      *   "email": "user@kld.edu.ph"
@@ -32,7 +34,7 @@ class PasswordResetController extends Controller
 
             // Check if user exists
             $user = User::where('email', $email)->first();
-            if (!$user) {
+            if (! $user) {
                 // Don't reveal if email exists or not (security best practice)
                 return response()->json([
                     'success' => true,
@@ -70,7 +72,7 @@ class PasswordResetController extends Controller
                 'message' => 'OTP sent to your email',
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
@@ -78,6 +80,7 @@ class PasswordResetController extends Controller
             ], 422);
         } catch (\Exception $e) {
             Log::error('Send password reset OTP failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred',
@@ -87,7 +90,7 @@ class PasswordResetController extends Controller
 
     /**
      * Step 2: Verify OTP sent to email
-     * 
+     *
      * Request body:
      * {
      *   "email": "user@kld.edu.ph",
@@ -108,8 +111,9 @@ class PasswordResetController extends Controller
             // Retrieve OTP from cache
             $otpData = Cache::get("password_reset_otp_{$email}");
 
-            if (!$otpData) {
+            if (! $otpData) {
                 Log::warning('❌ OTP not found or expired', ['email' => $email]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'OTP expired. Please request a new one.',
@@ -119,6 +123,7 @@ class PasswordResetController extends Controller
             // Verify OTP
             if ($otpData['otp'] !== $otp) {
                 Log::warning('❌ Invalid OTP', ['email' => $email]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid OTP code. Please try again.',
@@ -142,7 +147,7 @@ class PasswordResetController extends Controller
                 'verification_token' => $verificationToken,
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
@@ -150,6 +155,7 @@ class PasswordResetController extends Controller
             ], 422);
         } catch (\Exception $e) {
             Log::error('Verify password reset OTP failed', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred',
@@ -159,7 +165,7 @@ class PasswordResetController extends Controller
 
     /**
      * Step 3: Reset password after OTP verification
-     * 
+     *
      * Request body:
      * {
      *   "email": "user@kld.edu.ph",
@@ -173,7 +179,7 @@ class PasswordResetController extends Controller
             $request->validate([
                 'email' => 'required|email',
                 'otp' => 'required|string|size:6',
-                'password' => 'required|string|min:8|confirmed',
+                'password' => array_merge(['required', 'confirmed'], PasswordPolicy::rules()),
             ]);
 
             $email = $request->email;
@@ -183,8 +189,9 @@ class PasswordResetController extends Controller
             // Check if OTP is verified
             $verifiedData = Cache::get("password_reset_verified_{$email}");
 
-            if (!$verifiedData) {
+            if (! $verifiedData) {
                 Log::warning('❌ No verified OTP found for reset', ['email' => $email]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Verification expired. Please start over.',
@@ -194,6 +201,7 @@ class PasswordResetController extends Controller
             // Double-check OTP
             if ($verifiedData['otp'] !== $otp) {
                 Log::warning('❌ OTP mismatch during reset', ['email' => $email]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid request',
@@ -203,8 +211,9 @@ class PasswordResetController extends Controller
             // Find user and update password
             $user = User::find($verifiedData['user_id']);
 
-            if (!$user) {
+            if (! $user) {
                 Log::error('❌ User not found during password reset', ['email' => $email]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'User not found',
@@ -230,16 +239,17 @@ class PasswordResetController extends Controller
                 'message' => 'Password reset successfully. Please log in with your new password.',
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            Log::error('❌ Reset Password Error: ' . $e->getMessage(), [
+            Log::error('❌ Reset Password Error: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while resetting password',

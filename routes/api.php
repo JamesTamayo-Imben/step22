@@ -1,17 +1,20 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\ChatbotController;
 use App\Http\Controllers\Api\ConcernController;
+use App\Http\Controllers\Auth\BulkRegistrationController;
+use App\Http\Controllers\Auth\OnboardingController;
+use App\Http\Controllers\Auth\OTPController;
 // Import your controllers here
+use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\CSG\LedgerEntryController;
 use App\Http\Controllers\CSG\ProjectController;
-use App\Http\Controllers\Auth\OTPController;
-use App\Http\Controllers\Auth\OnboardingController;
-use App\Http\Controllers\Auth\BulkRegistrationController;
-use App\Http\Controllers\Auth\PasswordResetController;
+use App\Models\Course;
+use App\Models\Institute;
+use App\Models\Role;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 /*
@@ -46,7 +49,7 @@ Route::middleware([
 /**
  * AUTHENTICATION - OTP Routes (No auth required)
  */
-Route::middleware('throttle:5,1')->group(function () {
+Route::middleware('throttle:otp')->group(function () {
     Route::post('/send-otp', [OTPController::class, 'sendOTP']);
     Route::post('/verify-otp', [OTPController::class, 'verifyOTP']);
     Route::post('/resend-otp', [OTPController::class, 'resendOTP']);
@@ -55,7 +58,7 @@ Route::middleware('throttle:5,1')->group(function () {
 /**
  * PASSWORD RESET - OTP-based password reset (No auth required)
  */
-Route::prefix('password-reset')->middleware('throttle:5,1')->group(function () {
+Route::prefix('password-reset')->middleware('throttle:password-reset')->group(function () {
     Route::post('/send-otp', [PasswordResetController::class, 'sendOTP']);
     Route::post('/verify-otp', [PasswordResetController::class, 'verifyOTP']);
     Route::post('/reset', [PasswordResetController::class, 'resetPassword']);
@@ -64,7 +67,7 @@ Route::prefix('password-reset')->middleware('throttle:5,1')->group(function () {
 /**
  * BULK REGISTRATION - Role Specific Registration (No auth required)
  */
-Route::middleware('throttle:5,1')->group(function () {
+Route::middleware('throttle:register')->group(function () {
     Route::post('/auth/register-teacher', [BulkRegistrationController::class, 'registerTeacher']);
     Route::post('/auth/register-student', [BulkRegistrationController::class, 'registerStudent']);
 });
@@ -73,7 +76,7 @@ Route::middleware('throttle:5,1')->group(function () {
  * DATA PROVIDERS - Courses and Institutes (No auth required)
  */
 Route::get('/registration-roles', function () {
-    $roles = \App\Models\Role::query()
+    $roles = Role::query()
         ->whereIn('slug', ['student', 'teacher'])
         ->where('archive', false)
         ->select('id', 'name', 'slug')
@@ -85,14 +88,16 @@ Route::get('/registration-roles', function () {
 Route::get('/institutes', function () {
     try {
         Log::info('Fetching institutes from table: institute');
-        $institutes = \App\Models\Institute::where('archive', 0)->select('id', 'name')->get();
+        $institutes = Institute::where('archive', 0)->select('id', 'name')->get();
         Log::info('Institutes fetched successfully', ['count' => count($institutes)]);
+
         return response()->json(['institutes' => $institutes]);
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         Log::error('Failed to fetch institutes', ['error' => $e->getMessage()]);
+
         return response()->json([
             'error' => 'Unable to fetch institutes at this time.',
-            'institutes' => []
+            'institutes' => [],
         ], 500);
     }
 })->middleware('throttle:120,1');
@@ -100,14 +105,16 @@ Route::get('/institutes', function () {
 Route::get('/courses', function () {
     try {
         Log::info('Fetching courses from table: course');
-        $courses = \App\Models\Course::where('archive', 0)->select('id', 'name')->get();
+        $courses = Course::where('archive', 0)->select('id', 'name')->get();
         Log::info('Courses fetched successfully', ['count' => count($courses)]);
+
         return response()->json(['courses' => $courses]);
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         Log::error('Failed to fetch courses', ['error' => $e->getMessage()]);
+
         return response()->json([
             'error' => 'Unable to fetch courses at this time.',
-            'courses' => []
+            'courses' => [],
         ], 500);
     }
 })->middleware('throttle:120,1');
@@ -136,7 +143,6 @@ Route::prefix('onboarding')->middleware('throttle:60,1')->group(function () {
 /**
  * CSG FINANCIAL SYSTEM ROUTES
  */
-
 Route::middleware([
     EnsureFrontendRequestsAreStateful::class,
     'auth:sanctum',
@@ -162,6 +168,6 @@ Route::middleware([
     Route::get('/projects/{projectId}/verify-chain', [LedgerEntryController::class, 'verifyChain']);
 
     Route::apiResource('projects', ProjectController::class, [
-        'only' => ['index', 'store', 'show', 'update', 'destroy']
+        'only' => ['index', 'store', 'show', 'update', 'destroy'],
     ]);
 });

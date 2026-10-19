@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { User, Mail, Lock, Eye, EyeOff, Shield, ArrowLeftIcon } from "lucide-react";
+import { User, Mail, Shield, ArrowLeftIcon } from "lucide-react";
 import { useSupabase } from "../../context/SupabaseContext";
 import VerifyOTPPage from "./VerifyOTP";
+import PasswordField from "../../Components/PasswordField";
 import { Link } from '@inertiajs/react';
 
 const animationStyles = `
@@ -54,8 +55,6 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
   });
 
   const [courseList, setCourseList] = useState([]);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -192,6 +191,15 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
         }
 
         console.error("❌ OTP Send Error Response:", errorData);
+
+        if (response.status === 429) {
+          const seconds = Number(errorData.retry_after || 0);
+          const minutes = Math.max(1, Math.ceil(seconds / 60));
+          throw new Error(
+            errorData.message ||
+              `Too many attempts. Please wait ${minutes} minute(s) before trying again.`
+          );
+        }
 
         // Show detailed validation errors if available
         if (errorData.errors) {
@@ -426,53 +434,26 @@ export default function RegisterPage({ onRegister, onNavigateToLogin }) {
 
             {/* Passwords */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Min. 8 characters"
-                    value={form.password}
-                    onChange={(e) => handleChange("password", e.target.value)}
-                    className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
+              <PasswordField
+                id="register-password"
+                label="Password"
+                required
+                value={form.password}
+                onChange={(value) => handleChange("password", value)}
+                placeholder="Min. 8 characters"
+                hint="Tip: use the wand icon to generate a strong password."
+              />
 
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Confirm Password <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type={showConfirm ? "text" : "password"}
-                    placeholder="Re-enter password"
-                    value={form.confirmPassword}
-                    onChange={(e) => handleChange("confirmPassword", e.target.value)}
-                    className="w-full h-10 pl-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  >
-                    {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
+              <PasswordField
+                id="register-password-confirmation"
+                label="Confirm Password"
+                required
+                value={form.confirmPassword}
+                onChange={(value) => handleChange("confirmPassword", value)}
+                placeholder="Re-enter password"
+                showMeter={false}
+                showGenerator={false}
+              />
             </div>
 
             {/* Role Selection */}

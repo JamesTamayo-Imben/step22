@@ -3,15 +3,17 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\Role;
 use App\Models\Student;
 use App\Models\Teacher;
-use App\Models\Role;
+use App\Models\User;
+use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
 // use Illuminate\Validation\Rule;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class BulkRegistrationController extends Controller
 {
@@ -23,7 +25,7 @@ class BulkRegistrationController extends Controller
     {
         // Check if this is an invited teacher using a token
         $invitationToken = $request->input('invitation_token');
-        
+
         if ($invitationToken) {
             return $this->completeTeacherRegistration($request, $invitationToken);
         }
@@ -41,10 +43,10 @@ class BulkRegistrationController extends Controller
         // Validate only password and phone for invited registration
         try {
             $validated = $request->validate([
-                'password' => ['required', 'string', 'min:8'],
-                'phone' => ['nullable', 'string', 'max:20'],
+                'password' => array_merge(['required'], PasswordPolicy::rules()),
+                'phone' => 'nullable|string|max:20',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
@@ -56,7 +58,7 @@ class BulkRegistrationController extends Controller
             // Find user by valid invitation token
             $user = User::findByValidToken($invitationToken);
 
-            if (!$user) {
+            if (! $user) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid or expired invitation link. Please contact admin to request a new link.',
@@ -64,7 +66,7 @@ class BulkRegistrationController extends Controller
             }
 
             // Verify user is a teacher
-            if (!$user->hasAnyRole(['Ordinary Teacher', 'Admin/Adviser'])) {
+            if (! $user->hasAnyRole(['Ordinary Teacher', 'Admin/Adviser'])) {
                 return response()->json([
                     'success' => false,
                     'message' => 'This invitation link is not for a teacher account.',
@@ -116,7 +118,7 @@ class BulkRegistrationController extends Controller
             'firstName' => ['required', 'string', 'max:255'],
             'lastName' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8'],
+            'password' => array_merge(['required'], PasswordPolicy::rules()),
             'employeeId' => ['required', 'string', 'max:50'],
             'institute' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
@@ -130,8 +132,8 @@ class BulkRegistrationController extends Controller
             // Validate email domain - exact match only
             $domain = strtolower(explode('@', $email)[1] ?? '');
             $validDomains = ['kld.edu.ph'];
-            
-            if (!in_array($domain, $validDomains, true)) {
+
+            if (! in_array($domain, $validDomains, true)) {
                 return response()->json([
                     'success' => false,
                     'message' => "Email must use institutional domain (kld.edu.ph): {$email}",
@@ -140,12 +142,12 @@ class BulkRegistrationController extends Controller
 
             // Check if email is already registered to ANY user
             $existingUser = User::where('email', $email)->first();
-            
+
             // Determine the role based on the requested registration type
             $roleName = $validated['role'] === 'teacher' ? 'Ordinary Teacher' : 'Admin/Adviser';
             $role = Role::where('name', $roleName)->first();
 
-            if (!$role) {
+            if (! $role) {
                 return response()->json([
                     'success' => false,
                     'message' => "Role '{$roleName}' not found",
@@ -165,7 +167,7 @@ class BulkRegistrationController extends Controller
             if ($existingUser) {
                 // Email exists - update the existing user record
                 $existingUser->update([
-                    'name' => $validated['firstName'] . ' ' . $validated['lastName'],
+                    'name' => $validated['firstName'].' '.$validated['lastName'],
                     'password' => bcrypt($validated['password']),
                     'role_id' => $validated['role'] === 'teacher' ? Role::where('name', 'Ordinary Teacher')->first()->id : Role::where('name', 'Admin/Adviser')->first()->id,
                     // 'role_id' => $role->id,
@@ -188,7 +190,7 @@ class BulkRegistrationController extends Controller
                 // Create user in local database
                 $user = User::create([
                     'id' => Str::uuid(),
-                    'name' => $validated['firstName'] . ' ' . $validated['lastName'],
+                    'name' => $validated['firstName'].' '.$validated['lastName'],
                     'email' => $validated['email'],
                     'password' => bcrypt($validated['password']),
                     'role_id' => $role->id,
@@ -245,7 +247,7 @@ class BulkRegistrationController extends Controller
             'firstName' => ['required', 'string', 'max:255'],
             'lastName' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8'],
+            'password' => array_merge(['required'], PasswordPolicy::rules()),
             'studentId' => ['required', 'string', 'max:50'],
             'course' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
@@ -259,8 +261,8 @@ class BulkRegistrationController extends Controller
             // Validate email domain - exact match only
             $domain = strtolower(explode('@', $email)[1] ?? '');
             $validDomains = ['kld.edu.ph'];
-            
-            if (!in_array($domain, $validDomains, true)) {
+
+            if (! in_array($domain, $validDomains, true)) {
                 return response()->json([
                     'success' => false,
                     'message' => "Email must use institutional domain (kld.edu.ph): {$email}",
@@ -279,12 +281,10 @@ class BulkRegistrationController extends Controller
             // Check if email is already registered. If so, update existing user instead of failing.
             $existingUser = User::where('email', $email)->first();
 
-            
-
             // Get the student role
             $role = Role::where('name', 'Student')->first();
 
-            if (!$role) {
+            if (! $role) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Student role not found',
@@ -294,7 +294,7 @@ class BulkRegistrationController extends Controller
             if ($existingUser) {
                 // Update existing user record created earlier (e.g., by admin bulk invite)
                 $existingUser->update([
-                    'name' => $validated['firstName'] . ' ' . $validated['lastName'],
+                    'name' => $validated['firstName'].' '.$validated['lastName'],
                     'password' => bcrypt($validated['password']),
                     'role_id' => $role->id,
                     'status' => 'active',
@@ -316,7 +316,7 @@ class BulkRegistrationController extends Controller
                 // Create user in local database
                 $user = User::create([
                     'id' => Str::uuid(),
-                    'name' => $validated['firstName'] . ' ' . $validated['lastName'],
+                    'name' => $validated['firstName'].' '.$validated['lastName'],
                     'email' => $validated['email'],
                     'password' => bcrypt($validated['password']),
                     'role_id' => $role->id,
@@ -366,16 +366,16 @@ class BulkRegistrationController extends Controller
             $supabaseUrl = env('VITE_SUPABASE_URL');
             $serviceRoleKey = env('SUPABASE_SERVICE_ROLE_KEY');
 
-            if (!$supabaseUrl || !$serviceRoleKey) {
+            if (! $supabaseUrl || ! $serviceRoleKey) {
                 // Silently skip if Supabase not configured
                 return;
             }
 
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $serviceRoleKey,
+                'Authorization' => 'Bearer '.$serviceRoleKey,
                 'Content-Type' => 'application/json',
                 'apikey' => $serviceRoleKey,
-            ])->post($supabaseUrl . '/auth/v1/admin/users', [
+            ])->post($supabaseUrl.'/auth/v1/admin/users', [
                 'email' => $email,
                 'password' => $password,
                 'email_confirm' => true,
@@ -389,16 +389,17 @@ class BulkRegistrationController extends Controller
 
             if ($response->failed()) {
                 // Log error but don't throw - Supabase is non-critical
-                \Illuminate\Support\Facades\Log::warning('Failed to create Supabase Auth user', [
+                Log::warning('Failed to create Supabase Auth user', [
                     'email' => $email,
                     'status' => $response->status(),
                 ]);
+
                 return;
             }
 
         } catch (\Exception $e) {
             // Log exception but don't throw - Supabase is non-critical
-            \Illuminate\Support\Facades\Log::warning('Exception creating Supabase Auth user', [
+            Log::warning('Exception creating Supabase Auth user', [
                 'email' => $email,
                 'error' => $e->getMessage(),
             ]);

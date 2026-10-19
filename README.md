@@ -223,6 +223,66 @@ Or run all three concurrently via `composer dev`.
 
 ---
 
+## 🔐 Authentication Security
+
+All thresholds live in `config/security.php` and can be tuned through the
+environment variables listed in `.env.example`.
+
+### Rate limiting
+
+Named rate limiters are registered in `AppServiceProvider` and applied to every
+login and sign up route. Each limiter combines three buckets:
+
+| Bucket | Protects against |
+|---|---|
+| `ip:{ip}` | A single host flooding the server (campus NAT friendly) |
+| `email:{email}\|ip:{ip}\|path:{path}` | Repeated attempts on one account from one host, per endpoint |
+| `account:{email}` | Brute force spread over many IP addresses |
+
+| Limiter | Applied to |
+|---|---|
+| `login` | `POST /login`, `POST /api/login`, `POST /api/superadmin/login/send-otp` |
+| `register` | `POST /register`, `POST /api/auth/register-teacher`, `POST /api/auth/register-student` |
+| `otp` | `POST /api/send-otp`, `/verify-otp`, `/resend-otp`, `POST /api/otp/*`, `POST /api/password-reset/*` |
+| `password-reset` | `POST /forgot-password`, `POST /reset-password` |
+| `password-generate` | `POST /api/password/generate` |
+| `api` | Every route in the `/api` group |
+
+Exceeding a limit returns `429` with a `Retry-After` header and a JSON body
+containing `message` and `retry_after`. The React pages surface that message
+directly to the user.
+
+### Account lockout
+
+`App\Services\LoginThrottleService` adds an account level lockout on top of
+the route limiters. After `AUTH_LOCKOUT_MAX_ATTEMPTS` consecutive failed logins
+the account is locked for `AUTH_LOCKOUT_DECAY_MINUTES`, regardless of the IP
+address used. A successful login clears the counter. The lockout is enforced
+by `ApiLoginController` and `LoginRequest`, and it fires Laravel's
+`Illuminate\Auth\Events\Lockout` event.
+
+### Password generation
+
+`App\Services\PasswordGeneratorService` creates cryptographically secure
+passwords with `random_int()` and always guarantees at least one character
+from each enabled class. It can also build memorable passphrases
+(`amber-river-lantern-42`).
+
+- `POST /api/password/generate` — JSON endpoint used by the sign up forms.
+- `resources/js/Components/PasswordField.jsx` — password input with a
+  "generate" button and a live strength meter.
+- Temporary passwords mailed out during onboarding and bulk user creation are
+  now randomly generated instead of the predictable `{email}KLD{year}` pattern.
+
+### Password policy
+
+`App\Support\PasswordPolicy` is the single source of truth for password
+validation rules. Set `PASSWORD_REQUIRE_MIXED_CASE`, `PASSWORD_REQUIRE_NUMBERS`
+and `PASSWORD_REQUIRE_SYMBOLS` to `true` to enforce a stronger policy
+everywhere at once (off by default so existing accounts keep working).
+
+---
+
 ## 🚀 Development Workflow & CI/CD
 
 **Current state: there is no CI/CD pipeline in this repository today** (no `.github/workflows`, no containerization). The steps below are what's runnable locally now, followed by the recommended pipeline this project should adopt before any production deployment.

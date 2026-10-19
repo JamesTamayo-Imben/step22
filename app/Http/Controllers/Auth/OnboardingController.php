@@ -4,28 +4,31 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Mail\OnboardingWelcomeMail;
-use App\Models\User;
 use App\Models\Role;
 use App\Models\StudentCsgOfficer;
 use App\Models\TeacherAdviser;
+use App\Models\User;
+use App\Services\PasswordGeneratorService;
+use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 
 class OnboardingController extends Controller
 {
     /**
      * Complete the first step of onboarding
-     * 
+     *
      * Uses a Database Transaction to ensure atomicity:
      * Step A: Update the user record (role_id, phone)
      * Step B: If student → insert into students_csg_officers with course_id
      * Step C: If professor → insert into teacher_adviser with institute_id
      * Step D: Mark profile_completed = true
-     * 
+     *
      * Request body:
      * {
      *   "user_id": "uuid",
@@ -65,7 +68,7 @@ class OnboardingController extends Controller
     //         $validated = $request->validate([
     //             'user_id'      => 'required|string|uuid',
     //             'email'        => 'required|email',
-    //             'role'         => 'required|string', 
+    //             'role'         => 'required|string',
     //             'phone_number' => 'nullable|string',
     //             // Relationships
     //             'student_id'   => 'required_if:role,student|string',
@@ -268,26 +271,26 @@ class OnboardingController extends Controller
     //     }
     // }
 
-public function complete(Request $request)
+    public function complete(Request $request)
     {
         try {
             Log::info('🎯 Onboarding Start', $request->all());
 
             // 1. Validate based on your SQL table types
             $validated = $request->validate([
-                'user_id'      => 'required|string|uuid',
-                'email'        => 'required|email',
-                'role'         => 'required|string', 
+                'user_id' => 'required|string|uuid',
+                'email' => 'required|email',
+                'role' => 'required|string',
                 'phone_number' => 'nullable|string',
                 // Relationships
-                'student_id'   => 'nullable|required_if:role,student|string',
-                'course_id'    => 'nullable|required_if:role,student|string',
-                'employee_id'  => 'nullable|required_if:role,teacher,professor|string',
+                'student_id' => 'nullable|required_if:role,student|string',
+                'course_id' => 'nullable|required_if:role,student|string',
+                'employee_id' => 'nullable|required_if:role,teacher,professor|string',
                 'institute_id' => 'nullable|required_if:role,teacher,professor|string',
             ]);
 
             $userId = $validated['user_id'];
-            $role   = strtolower($validated['role']); // Force lowercase to match slugs
+            $role = strtolower($validated['role']); // Force lowercase to match slugs
 
             if ((string) Auth::id() !== (string) $userId) {
                 return response()->json([
@@ -303,10 +306,10 @@ public function complete(Request $request)
                 // Step A: Update User Role & Profile Status
                 // Maps 'student' -> role_id for student, 'professor' -> role_id for teacher
                 $roleRecord = Role::where('slug', $role === 'professor' ? 'teacher' : $role)->first();
-                
+
                 $user->update([
-                    'role_id'           => $roleRecord->id ?? $user->role_id,
-                    'phone'             => $validated['phone_number'] ?? $user->phone,
+                    'role_id' => $roleRecord->id ?? $user->role_id,
+                    'phone' => $validated['phone_number'] ?? $user->phone,
                     'profile_completed' => true,
                 ]);
 
@@ -316,12 +319,13 @@ public function complete(Request $request)
                     StudentCsgOfficer::updateOrCreate(
                         ['user_id' => $userId],
                         [
-                            'id'            => $validated['student_id'],
-                            'course_id'     => $validated['course_id'],
-                            'is_csg'        => false,
+                            'id' => $validated['student_id'],
+                            'course_id' => $validated['course_id'],
+                            'is_csg' => false,
                             'csg_is_active' => true,
                         ]
                     );
+
                     return ['type' => 'student', 'message' => 'Student linked to course successfully'];
                 }
 
@@ -336,7 +340,7 @@ public function complete(Request $request)
                             ->where('id', $teacherInstituteId)
                             ->exists();
 
-                        if (!$isValidForeignKey) {
+                        if (! $isValidForeignKey) {
                             Log::warning('⚠️ Onboarding teacher institute_id does not exist in institute table. Saving as NULL.', [
                                 'user_id' => $userId,
                                 'provided_institute_id' => $teacherInstituteId,
@@ -348,11 +352,12 @@ public function complete(Request $request)
                     TeacherAdviser::updateOrCreate(
                         ['user_id' => $userId],
                         [
-                            'id'           => $validated['employee_id'],
+                            'id' => $validated['employee_id'],
                             'institute_id' => $teacherInstituteId,
-                            'is_adviser'   => false,
+                            'is_adviser' => false,
                         ]
                     );
+
                     return ['type' => 'teacher', 'message' => 'Teacher linked to institute successfully'];
                 }
             });
@@ -360,14 +365,11 @@ public function complete(Request $request)
             // After successful onboarding, send welcome email with temporary password
             try {
                 $user = User::find($userId);
-                
-                // Generate temporary password from email
-                // Format: {localpart of email}{KLD2026}
-                // Example: jttamayo@kld.edu.ph → jttamayoKLD2026
-                $emailParts = explode('@', $user->email);
-                $emailLocal = $emailParts[0]; // Get part before @
-                $temporaryPassword = $emailLocal . 'KLD' . date('Y');
-                
+
+                // Generate a cryptographically secure temporary password.
+                // It is emailed to the user and must be changed on first login.
+                $temporaryPassword = app(PasswordGeneratorService::class)->generate(12);
+
                 // 🔐 Store hashed temporary password in database ONLY if user doesn't already have a password
                 // This prevents overwriting a password that the user may have already changed
                 if ($user->password === null) {
@@ -375,12 +377,12 @@ public function complete(Request $request)
                         'password' => Hash::make($temporaryPassword),
                     ]);
                 }
-                
+
                 Log::info('✅ Temporary password stored in database', [
                     'user_id' => $userId,
                     'email' => $user->email,
                 ]);
-                
+
                 $studentId = null;
                 $employeeId = null;
 
@@ -395,7 +397,7 @@ public function complete(Request $request)
                 }
 
                 // Send onboarding welcome email with temporary password
-                Mail::to($user->email)->send(new \App\Mail\OnboardingWelcomeMail(
+                Mail::to($user->email)->send(new OnboardingWelcomeMail(
                     $user->name,
                     $user->email,
                     $temporaryPassword,
@@ -425,14 +427,15 @@ public function complete(Request $request)
                 'user_onboarded' => true,
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            Log::error('❌ Onboarding Error: ' . $e->getMessage());
+            Log::error('❌ Onboarding Error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to complete onboarding at this time.',
@@ -442,10 +445,10 @@ public function complete(Request $request)
 
     /**
      * Skip the onboarding profile setup
-     * 
+     *
      * Marks the user's profile as completed without linking them to a student/course or teacher/institute.
      * Sends a welcome email with a temporary password.
-     * 
+     *
      * Request body:
      * {
      *   "user_id": "uuid",
@@ -487,12 +490,9 @@ public function complete(Request $request)
 
             // Send welcome email with temporary password even when skipping
             try {
-                // Generate temporary password from email
-                // Format: {localpart of email}KLD{year}
-                // Example: jttamayo@kld.edu.ph → jttamayoKLD2026
-                $emailParts = explode('@', $user->email);
-                $emailLocal = $emailParts[0]; // Get part before @
-                $temporaryPassword = $emailLocal . 'KLD' . date('Y');
+                // Generate a cryptographically secure temporary password.
+                // It is emailed to the user and must be changed on first login.
+                $temporaryPassword = app(PasswordGeneratorService::class)->generate(12);
 
                 // 🔐 Store hashed temporary password in database ONLY if user doesn't already have a password
                 // This prevents overwriting a password that the user may have already changed
@@ -501,7 +501,7 @@ public function complete(Request $request)
                         'password' => Hash::make($temporaryPassword),
                     ]);
                 }
-                
+
                 Log::info('✅ Temporary password stored in database (skip flow)', [
                     'user_id' => $userId,
                     'email' => $user->email,
@@ -539,16 +539,17 @@ public function complete(Request $request)
                 'user_onboarded' => true,
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            Log::error('❌ Onboarding Skip Error: ' . $e->getMessage(), [
+            Log::error('❌ Onboarding Skip Error: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to skip onboarding at this time.',
@@ -559,7 +560,7 @@ public function complete(Request $request)
     /**
      * Set password for user (Step D of onboarding)
      * Allows users to set a STEP account password for shared device access
-     * 
+     *
      * Request body:
      * {
      *   "user_id": "uuid",
@@ -576,12 +577,13 @@ public function complete(Request $request)
 
             $validated = $request->validate([
                 'user_id' => 'required|string|uuid',
-                'password' => 'required|string|min:8|confirmed',
+                'password' => array_merge(['required', 'confirmed'], PasswordPolicy::rules()),
             ]);
 
             $user = User::find($validated['user_id']);
-            if (!$user) {
+            if (! $user) {
                 Log::error('❌ User not found', ['user_id' => $validated['user_id']]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'User not found',
@@ -613,7 +615,7 @@ public function complete(Request $request)
                 'user_id' => $user->id,
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             Log::warning('❌ Password validation error', [
                 'errors' => $e->errors(),
             ]);
@@ -664,17 +666,18 @@ public function complete(Request $request)
     // }
 
     public function getCourses()
-{
-    try {
-        // Force the correct table name from your SQL
-        $courses = DB::table('course')->where('archive', 0)->get();
-        return response()->json(['success' => true, 'courses' => $courses], 200);
-    } catch (\Exception $e) {
-        Log::error('Get courses error', ['error' => $e->getMessage()]);
-        return response()->json(['success' => false, 'message' => 'Unable to fetch courses.'], 500);
-    }
-}
+    {
+        try {
+            // Force the correct table name from your SQL
+            $courses = DB::table('course')->where('archive', 0)->get();
 
+            return response()->json(['success' => true, 'courses' => $courses], 200);
+        } catch (\Exception $e) {
+            Log::error('Get courses error', ['error' => $e->getMessage()]);
+
+            return response()->json(['success' => false, 'message' => 'Unable to fetch courses.'], 500);
+        }
+    }
 
     /**
      * Get institutes for dropdown (used by frontend)
@@ -703,16 +706,16 @@ public function complete(Request $request)
     // }
 
     public function getInstitutes()
-{
-    try {
-        // Force the correct table name from your SQL
-        $institutes = DB::table('institute')->where('archive', 0)->get();
-        return response()->json(['success' => true, 'institutes' => $institutes], 200);
-    } catch (\Exception $e) {
-        Log::error('Get institutes error', ['error' => $e->getMessage()]);
-        return response()->json(['success' => false, 'message' => 'Unable to fetch institutes.'], 500);
+    {
+        try {
+            // Force the correct table name from your SQL
+            $institutes = DB::table('institute')->where('archive', 0)->get();
+
+            return response()->json(['success' => true, 'institutes' => $institutes], 200);
+        } catch (\Exception $e) {
+            Log::error('Get institutes error', ['error' => $e->getMessage()]);
+
+            return response()->json(['success' => false, 'message' => 'Unable to fetch institutes.'], 500);
+        }
     }
-}
-
-
 }

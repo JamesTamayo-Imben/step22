@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Mail\OTPMail;
 use App\Models\User;
+use App\Services\LoginThrottleService;
+use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ApiLoginController extends Controller
@@ -19,7 +22,7 @@ class ApiLoginController extends Controller
      * Handle an incoming API login request.
      * Authenticates user against step2 database and returns JSON response with role and redirect URL
      */
-    public function login(Request $request)
+    public function login(Request $request, LoginThrottleService $throttle)
     {
         // Validate incoming request
         $validated = $request->validate([
@@ -27,20 +30,39 @@ class ApiLoginController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        $email = $validated['email'];
+
+        // Account lockout: blocks the account even when the attacker rotates IPs.
+        if ($throttle->tooManyAttempts($email)) {
+            return $this->lockedOutResponse($request, $throttle->availableIn($email), $email);
+        }
+
         // Log the login attempt for debugging
         Log::info('Login attempt', [
-            'email' => $validated['email'],
+            'email' => $email,
             'timestamp' => now(),
         ]);
 
         // Find user by email from step2 database
-        $user = User::with('role')->where('email', $validated['email'])->first();
+        $user = User::with('role')->where('email', $email)->first();
 
         // Debug: Log if user was found
-        if (!$user) {
+        if (! $user) {
+            // Hash a throw-away value so an unknown e-mail takes the same time
+            // as a known one and the response cannot be used to enumerate users.
+            $this->burnPasswordCheckTime($validated['password']);
+
+            $attempts = $throttle->hit($email);
+
             Log::warning('User not found during login attempt', [
-                'email' => $validated['email'],
+                'email' => $email,
+                'attempts' => $attempts,
             ]);
+
+            if ($attempts > $throttle->maxAttempts()) {
+                return $this->lockedOutResponse($request, $throttle->availableIn($email), $email);
+            }
+
             return response()->json([
                 'message' => 'Invalid email or password',
             ], 401);
@@ -49,22 +71,33 @@ class ApiLoginController extends Controller
         // Debug: Log user found and password check
         $passwordValid = Hash::check($validated['password'], $user->password);
         Log::info('User found, checking password', [
-            'email' => $validated['email'],
+            'email' => $email,
             'user_id' => $user->id,
             'password_valid' => $passwordValid,
             'user_status' => $user->status,
         ]);
 
         // Check if user exists and password is correct
-        if (!$passwordValid) {
+        if (! $passwordValid) {
+            $attempts = $throttle->hit($email);
+
             Log::warning('Invalid password during login attempt', [
-                'email' => $validated['email'],
+                'email' => $email,
                 'user_id' => $user->id,
+                'attempts' => $attempts,
             ]);
+
+            if ($attempts > $throttle->maxAttempts()) {
+                return $this->lockedOutResponse($request, $throttle->availableIn($email), $email);
+            }
+
             return response()->json([
                 'message' => 'Invalid email or password',
             ], 401);
         }
+
+        // A correct password clears the failure counter.
+        $throttle->clear($email);
 
         // Check if user is archived
         if ($user->archive) {
@@ -72,6 +105,7 @@ class ApiLoginController extends Controller
                 'email' => $validated['email'],
                 'user_id' => $user->id,
             ]);
+
             return response()->json([
                 'message' => 'This account is no longer available.',
             ], 404);
@@ -83,8 +117,9 @@ class ApiLoginController extends Controller
                 'email' => $validated['email'],
                 'status' => $user->status,
             ]);
+
             return response()->json([
-                'message' => 'Your account is ' . $user->status . '. Please contact an administrator.',
+                'message' => 'Your account is '.$user->status.'. Please contact an administrator.',
             ], 403);
         }
 
@@ -95,11 +130,12 @@ class ApiLoginController extends Controller
         $isSuperAdminAttempt = $request->input('isSuperAdmin', false);
 
         // Prevent superadmin from logging in through regular login form
-        if ($role === 'superadmin' && !$isSuperAdminAttempt) {
+        if ($role === 'superadmin' && ! $isSuperAdminAttempt) {
             Log::warning('Superadmin login attempt through regular login portal', [
                 'email' => $validated['email'],
                 'user_id' => $user->id,
             ]);
+
             return response()->json([
                 'message' => 'Access denied.',
             ], 403);
@@ -112,6 +148,7 @@ class ApiLoginController extends Controller
                 'user_id' => $user->id,
                 'role' => $role,
             ]);
+
             return response()->json([
                 'message' => 'Only superadmin accounts can access this portal. Your account does not have superadmin privileges.',
             ], 403);
@@ -119,6 +156,9 @@ class ApiLoginController extends Controller
 
         // Authenticate the user for session
         Auth::login($user);
+
+        // Regenerate the session id to prevent session fixation.
+        $request->session()->regenerate();
 
         // Update last login timestamp
         $user->update(['last_login_at' => now()]);
@@ -150,7 +190,7 @@ class ApiLoginController extends Controller
     /**
      * Send a superadmin login OTP challenge to the user's email.
      */
-    public function sendSuperAdminLoginOTP(Request $request)
+    public function sendSuperAdminLoginOTP(Request $request, LoginThrottleService $throttle)
     {
         try {
             $validated = $request->validate([
@@ -158,21 +198,38 @@ class ApiLoginController extends Controller
                 'password' => ['required', 'string'],
             ]);
 
-            $user = User::with('role')->where('email', $validated['email'])->first();
+            $email = $validated['email'];
 
-            if (!$user) {
+            if ($throttle->tooManyAttempts($email)) {
+                return $this->lockedOutResponse($request, $throttle->availableIn($email), $email);
+            }
+
+            $user = User::with('role')->where('email', $email)->first();
+
+            if (! $user) {
+                $this->burnPasswordCheckTime($validated['password']);
+                $throttle->hit($email);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid email or password.',
                 ], 401);
             }
 
-            if (!Hash::check($validated['password'], $user->password)) {
+            if (! Hash::check($validated['password'], $user->password)) {
+                $attempts = $throttle->hit($email);
+
+                if ($attempts > $throttle->maxAttempts()) {
+                    return $this->lockedOutResponse($request, $throttle->availableIn($email), $email);
+                }
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid email or password.',
                 ], 401);
             }
+
+            $throttle->clear($email);
 
             if ($user->archive) {
                 return response()->json([
@@ -184,7 +241,7 @@ class ApiLoginController extends Controller
             if ($user->status !== 'active') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Your account is ' . $user->status . '. Please contact an administrator.',
+                    'message' => 'Your account is '.$user->status.'. Please contact an administrator.',
                 ], 403);
             }
 
@@ -196,7 +253,7 @@ class ApiLoginController extends Controller
             }
 
             $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            $cacheKey = 'superadmin_login_otp_' . strtolower($user->email);
+            $cacheKey = 'superadmin_login_otp_'.strtolower($user->email);
 
             Cache::put($cacheKey, [
                 'otp' => $otp,
@@ -236,7 +293,7 @@ class ApiLoginController extends Controller
     /**
      * Verify the OTP sent to the superadmin and complete the login.
      */
-    public function verifySuperAdminLoginOTP(Request $request)
+    public function verifySuperAdminLoginOTP(Request $request, LoginThrottleService $throttle)
     {
         try {
             $validated = $request->validate([
@@ -245,21 +302,38 @@ class ApiLoginController extends Controller
                 'otp' => ['required', 'string', 'size:6'],
             ]);
 
-            $user = User::with('role')->where('email', $validated['email'])->first();
+            $email = $validated['email'];
 
-            if (!$user) {
+            if ($throttle->tooManyAttempts($email)) {
+                return $this->lockedOutResponse($request, $throttle->availableIn($email), $email);
+            }
+
+            $user = User::with('role')->where('email', $email)->first();
+
+            if (! $user) {
+                $this->burnPasswordCheckTime($validated['password']);
+                $throttle->hit($email);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid email or password.',
                 ], 401);
             }
 
-            if (!Hash::check($validated['password'], $user->password)) {
+            if (! Hash::check($validated['password'], $user->password)) {
+                $attempts = $throttle->hit($email);
+
+                if ($attempts > $throttle->maxAttempts()) {
+                    return $this->lockedOutResponse($request, $throttle->availableIn($email), $email);
+                }
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid email or password.',
                 ], 401);
             }
+
+            $throttle->clear($email);
 
             if (($user->role?->slug ?? '') !== 'superadmin') {
                 return response()->json([
@@ -268,10 +342,10 @@ class ApiLoginController extends Controller
                 ], 403);
             }
 
-            $cacheKey = 'superadmin_login_otp_' . strtolower($user->email);
+            $cacheKey = 'superadmin_login_otp_'.strtolower($user->email);
             $otpData = Cache::get($cacheKey);
 
-            if (!$otpData) {
+            if (! $otpData) {
                 return response()->json([
                     'success' => false,
                     'message' => 'The verification code has expired. Please request a new one.',
@@ -288,6 +362,10 @@ class ApiLoginController extends Controller
             Cache::forget($cacheKey);
 
             Auth::login($user);
+
+            // Regenerate the session id to prevent session fixation.
+            $request->session()->regenerate();
+
             $user->update(['last_login_at' => now()]);
 
             Log::info('Superadmin login verified successfully', [
@@ -329,7 +407,7 @@ class ApiLoginController extends Controller
      */
     private function getRedirectUrlByRole($role): string
     {
-        return match($role) {
+        return match ($role) {
             'superadmin' => '/sadmin/dashboard',
             'admin' => '/adviser/dashboard',
             'admin-sadu' => '/adviser/dashboard',
@@ -337,7 +415,7 @@ class ApiLoginController extends Controller
             'student' => '/user/dashboard',
             'teacher' => '/user/dashboard',
             default => '/dashboard',
-        };  
+        };
     }
 
     /**
@@ -345,7 +423,7 @@ class ApiLoginController extends Controller
      */
     public function getUser(Request $request)
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return response()->json([
                 'authenticated' => false,
             ], 401);
@@ -379,5 +457,46 @@ class ApiLoginController extends Controller
             'success' => true,
             'message' => 'Logged out successfully',
         ], 200);
+    }
+
+    /**
+     * Build the 429 response used when an account is locked out.
+     */
+    private function lockedOutResponse(Request $request, int $seconds, string $email)
+    {
+        event(new Lockout($request));
+
+        Log::warning('Login blocked by account lockout', [
+            'email' => $email,
+            'ip' => $request->ip(),
+            'retry_after' => $seconds,
+        ]);
+
+        $minutes = max(1, (int) ceil($seconds / 60));
+
+        return response()->json([
+            'success' => false,
+            'message' => "Too many failed login attempts. Please try again in {$minutes} minute(s).",
+            'retry_after' => $seconds,
+        ], 429, [
+            'Retry-After' => $seconds,
+        ]);
+    }
+
+    /**
+     * Spend roughly the same amount of time hashing as a real login attempt
+     * so that an unknown e-mail cannot be detected through response timing.
+     */
+    private function burnPasswordCheckTime(string $password): void
+    {
+        static $dummyHash = null;
+
+        if ($dummyHash === null) {
+            // Hashing uses the configured bcrypt rounds, so the cost matches a
+            // real password check performed against an existing account.
+            $dummyHash = Hash::make(Str::random(40));
+        }
+
+        Hash::check($password, $dummyHash);
     }
 }

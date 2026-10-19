@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle, BookOpen, Phone } from "lucide-react";
+import { Mail, User, AlertCircle, CheckCircle, BookOpen, Phone } from "lucide-react";
+import PasswordField from "../../Components/PasswordField";
 
 export default function RegisterStudentPage() {
   const [form, setForm] = useState({
@@ -13,7 +14,6 @@ export default function RegisterStudentPage() {
   });
   const [invitationToken, setInvitationToken] = useState('');
 
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -180,6 +180,15 @@ export default function RegisterStudentPage() {
           window.location.href = '/csg/dashboard';
         }, 2000);
       } else {
+        if (response.status === 429) {
+          const seconds = Number(data.retry_after || 0);
+          const minutes = Math.max(1, Math.ceil(seconds / 60));
+          throw new Error(
+            data.message ||
+              `Too many attempts. Please wait ${minutes} minute(s) before trying again.`
+          );
+        }
+
         throw new Error(data.message || 'Registration failed');
       }
     } catch (err) {
@@ -376,27 +385,14 @@ export default function RegisterStudentPage() {
             </div>
 
             {/* password field is pre-filled but hidden, with a note to change it after login */}
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                Password (Pre-filled, change after login)
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={form.password}
-                  onChange={(e) => handleChange('password', e.target.value)}
-                  className="w-full h-10 pl-9 pr-9 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:border-gray-300 focus:ring-2 focus:ring-gray-200 outline-none transition"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
+            <PasswordField
+              id="register-student-password"
+              label="Password (Pre-filled, change after login)"
+              value={form.password}
+              onChange={(value) => handleChange('password', value)}
+              placeholder="Min. 8 characters"
+              hint="Tip: use the wand icon to generate a strong password."
+            />
 
 
             {/* Phone (Optional) */}

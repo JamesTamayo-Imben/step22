@@ -3,20 +3,23 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Student;
-use App\Models\Teacher;
-use App\Models\Role;
-use App\Models\StudentCsgOfficer;
 use App\Mail\OTPMail;
+use App\Models\Role;
+use App\Models\Student;
+use App\Models\StudentCsgOfficer;
+use App\Models\Teacher;
+use App\Models\User;
+use App\Support\PasswordPolicy;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class OTPController extends Controller
 {
@@ -31,17 +34,17 @@ class OTPController extends Controller
                 'email' => 'required|email|unique:users',
                 'firstName' => 'required|string',
                 'lastName' => 'required|string',
-                'password' => 'required|string|min:8',
+                'password' => array_merge(['required'], PasswordPolicy::rules()),
                 'role_id' => 'required|exists:roles,id',
                 'student_id' => 'nullable|string',
                 'course_id' => 'nullable|string',
-            ], [
+            ], array_merge(PasswordPolicy::messages(), [
                 'email.unique' => 'This email address is already registered. Please use a different email or login to your existing account.',
-            ]);
+            ]));
 
             // Get the student role ID for validation
             $studentRole = Role::where('slug', 'student')->first();
-            
+
             // Additional validation for student role
             if ($request->role_id == $studentRole?->id) {
                 $request->validate([
@@ -58,26 +61,29 @@ class OTPController extends Controller
                     Log::warning('❌ Student ID already registered', [
                         'student_id' => $request->student_id,
                     ]);
+
                     return response()->json([
                         'success' => false,
                         'message' => 'This Student ID is already registered. Please use a different Student ID.',
                         'errors' => [
-                            'student_id' => ['This Student ID is already registered. Please use a different Student ID.']
-                        ]
+                            'student_id' => ['This Student ID is already registered. Please use a different Student ID.'],
+                        ],
                     ], 422);
                 }
             }
 
             // Generate 6-digit OTP
             $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            
+
             // Store OTP in cache with 10 minutes expiration
             // Key format: otp_{email}
+            // The password is encrypted so it is never stored in clear text in
+            // the cache store while the user confirms the code.
             Cache::put("otp_{$request->email}", [
                 'otp' => $otp,
                 'firstName' => $request->firstName,
                 'lastName' => $request->lastName,
-                'password' => $request->password,
+                'password' => encrypt($request->password),
                 'role_id' => $request->role_id,
                 'student_id' => $request->student_id,
                 'course_id' => $request->course_id,
@@ -91,11 +97,12 @@ class OTPController extends Controller
                 'message' => 'OTP sent successfully to your email',
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             Log::error('Send OTP Validation Error:', [
                 'email' => $request->email ?? 'N/A',
                 'errors' => $e->errors(),
             ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
@@ -103,6 +110,7 @@ class OTPController extends Controller
             ], 422);
         } catch (\Exception $e) {
             Log::error('Send OTP Error:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to send OTP at this time. Please try again later.',
@@ -124,7 +132,7 @@ class OTPController extends Controller
             // Retrieve OTP data from cache
             $otpData = Cache::get("otp_{$request->email}");
 
-            if (!$otpData) {
+            if (! $otpData) {
                 return response()->json([
                     'success' => false,
                     'message' => 'OTP expired or invalid. Please request a new one.',
@@ -140,11 +148,22 @@ class OTPController extends Controller
             }
 
             // Create user account in STEP2 database
+            try {
+                $plainPassword = decrypt($otpData['password']);
+            } catch (DecryptException) {
+                Cache::forget("otp_{$request->email}");
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'OTP expired or invalid. Please request a new one.',
+                ], 400);
+            }
+
             $user = User::create([
                 'id' => Str::uuid(),
-                'name' => $otpData['firstName'] . ' ' . $otpData['lastName'],
+                'name' => $otpData['firstName'].' '.$otpData['lastName'],
                 'email' => $request->email,
-                'password' => Hash::make($otpData['password']),
+                'password' => Hash::make($plainPassword),
                 'role_id' => $otpData['role_id'],
                 'status' => 'active',
                 'email_verified_at' => now(),
@@ -155,7 +174,7 @@ class OTPController extends Controller
             // Create Supabase Auth user
             $this->createSupabaseAuthUser(
                 $request->email,
-                $otpData['password'],
+                $plainPassword,
                 $otpData['firstName'],
                 $otpData['lastName']
             );
@@ -170,7 +189,7 @@ class OTPController extends Controller
                     'is_csg' => false,
                     'csg_is_active' => true,
                 ]);
-                
+
                 Log::info('✅ StudentCsgOfficer record created during registration', [
                     'student_id' => $otpData['student_id'],
                     'user_id' => $user->id,
@@ -184,6 +203,9 @@ class OTPController extends Controller
             // Log the user in
             Auth::login($user);
 
+            // Regenerate the session id to prevent session fixation.
+            $request->session()->regenerate();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Email verified successfully! Your account has been created.',
@@ -192,7 +214,7 @@ class OTPController extends Controller
                 'redirect' => 'complete-profile', // Redirect to profile completion page
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
@@ -200,6 +222,7 @@ class OTPController extends Controller
             ], 422);
         } catch (\Exception $e) {
             Log::error('Verify OTP Error:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to verify OTP at this time. Please try again later.',
@@ -220,7 +243,7 @@ class OTPController extends Controller
             // Retrieve OTP data from cache
             $otpData = Cache::get("otp_{$request->email}");
 
-            if (!$otpData) {
+            if (! $otpData) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No pending OTP found. Please register again.',
@@ -229,7 +252,7 @@ class OTPController extends Controller
 
             // Generate new 6-digit OTP
             $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            
+
             // Update OTP in cache
             $otpData['otp'] = $otp;
             Cache::put("otp_{$request->email}", $otpData, now()->addMinutes(10));
@@ -242,7 +265,7 @@ class OTPController extends Controller
                 'message' => 'New OTP sent to your email',
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
@@ -250,6 +273,7 @@ class OTPController extends Controller
             ], 422);
         } catch (\Exception $e) {
             Log::error('Resend OTP Error:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to resend OTP at this time. Please try again later.',
@@ -274,11 +298,11 @@ class OTPController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error("❌ Failed to send OTP email to $email: " . $e->getMessage(), [
+            Log::error("❌ Failed to send OTP email to $email: ".$e->getMessage(), [
                 'exception' => get_class($e),
-                'email' => $email
+                'email' => $email,
             ]);
-            
+
             // Never write the OTP to logs; the caller must retry delivery.
         }
     }
@@ -294,12 +318,13 @@ class OTPController extends Controller
             // Gravatar is linked to Gmail accounts and provides consistent avatars
             $hash = md5(strtolower(trim($email)));
             $gravatarUrl = "https://www.gravatar.com/avatar/{$hash}?s=400&d=identicon";
-            
+
             return $gravatarUrl;
         } catch (\Exception $e) {
             Log::warning("Failed to get Gravatar profile picture for: $email", ['error' => $e->getMessage()]);
+
             // Return a default avatar URL if Gravatar fails
-            return "https://www.gravatar.com/avatar/default?s=400&d=identicon";
+            return 'https://www.gravatar.com/avatar/default?s=400&d=identicon';
         }
     }
 
@@ -316,7 +341,7 @@ class OTPController extends Controller
 
             $user = Auth::user();
 
-            if (!$user) {
+            if (! $user) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized. Please log in first.',
@@ -339,7 +364,7 @@ class OTPController extends Controller
                 'profile_completed' => true,
             ], 200);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
@@ -347,6 +372,7 @@ class OTPController extends Controller
             ], 422);
         } catch (\Exception $e) {
             Log::error('Complete Profile Error:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to complete your profile at this time.',
@@ -362,13 +388,13 @@ class OTPController extends Controller
         try {
             // Get role name to determine which table to create profile in
             $role = $user->role;
-            
+
             if ($role && $role->name === 'student') {
                 // Create student profile if it doesn't exist
                 Student::firstOrCreate(
                     ['user_id' => $user->id],
                     [
-                        'id' => 'STU_' . $user->id,
+                        'id' => 'STU_'.$user->id,
                         'adviser_id' => null,
                         'archived' => false,
                     ]
@@ -378,7 +404,7 @@ class OTPController extends Controller
                 Teacher::firstOrCreate(
                     ['user_id' => $user->id],
                     [
-                        'id' => 'TEA_' . $user->id,
+                        'id' => 'TEA_'.$user->id,
                         'department' => null,
                         'archived' => false,
                     ]
@@ -398,7 +424,7 @@ class OTPController extends Controller
         try {
             $user = Auth::user();
 
-            if (!$user) {
+            if (! $user) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Unauthorized. Please log in first.',
@@ -413,6 +439,7 @@ class OTPController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Check Profile Status Error:', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to check profile status at this time.',
@@ -430,21 +457,22 @@ class OTPController extends Controller
             $supabaseUrl = env('VITE_SUPABASE_URL');
             $serviceRoleKey = env('SUPABASE_SERVICE_ROLE_KEY');
 
-            if (!$supabaseUrl || !$serviceRoleKey) {
+            if (! $supabaseUrl || ! $serviceRoleKey) {
                 Log::warning('Supabase credentials not configured', [
-                    'supabaseUrl' => !empty($supabaseUrl),
-                    'serviceRoleKey' => !empty($serviceRoleKey),
+                    'supabaseUrl' => ! empty($supabaseUrl),
+                    'serviceRoleKey' => ! empty($serviceRoleKey),
                 ]);
+
                 return; // Skip if not configured
             }
 
             Log::info("🔐 Creating Supabase Auth user for: $email");
 
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $serviceRoleKey,
+                'Authorization' => 'Bearer '.$serviceRoleKey,
                 'Content-Type' => 'application/json',
                 'apikey' => $serviceRoleKey,
-            ])->post($supabaseUrl . '/auth/v1/admin/users', [
+            ])->post($supabaseUrl.'/auth/v1/admin/users', [
                 'email' => $email,
                 'password' => $password,
                 'email_confirm' => true,
@@ -462,12 +490,13 @@ class OTPController extends Controller
                     'status' => $response->status(),
                     'response' => $response->json(),
                 ]);
+
                 return;
             }
 
             Log::info("✅ Supabase Auth user created successfully for: $email");
         } catch (\Exception $e) {
-            Log::error('Exception creating Supabase Auth user: ' . $e->getMessage(), [
+            Log::error('Exception creating Supabase Auth user: '.$e->getMessage(), [
                 'email' => $email,
                 'exception' => $e,
             ]);
@@ -481,7 +510,7 @@ class OTPController extends Controller
     private function getStudentRoleId()
     {
         $studentRole = Role::where('slug', 'student')->first();
+
         return $studentRole ? $studentRole->id : null;
     }
 }
-
