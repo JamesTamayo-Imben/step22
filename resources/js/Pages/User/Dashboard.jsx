@@ -29,6 +29,7 @@ export default function UserDashboard() {
   const userRatingMap = props.userRatingMap || {};
   const dashboardStats = props.dashboardStats || {};
   const activeProjects = props.activeProjects || [];
+  const projectTimelines = props.projectTimelines || [];
   const recentBadges = props.recentBadges || [];
   const upcomingMeetings = props.upcomingMeetings || [];
   const leaderboardSummary = props.leaderboardSummary || null;
@@ -138,6 +139,7 @@ export default function UserDashboard() {
                 onViewProject={handleViewProjectDetails}
                 stats={dashboardStats}
                 activeProjects={activeProjects}
+                projectTimelines={projectTimelines}
                 recentBadges={recentBadges}
                 upcomingMeetings={upcomingMeetings}
                 leaderboardSummary={leaderboardSummary}

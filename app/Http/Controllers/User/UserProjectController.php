@@ -52,6 +52,7 @@ class UserProjectController extends Controller
             'userRatingMap' => $this->getUserRatingMap($user?->id),
             'dashboardStats' => $dashboardData['stats'],
             'activeProjects' => $dashboardData['activeProjects'],
+            'projectTimelines' => $dashboardData['projectTimelines'],
             'recentBadges' => $dashboardData['recentBadges'],
             'upcomingMeetings' => $dashboardData['upcomingMeetings'],
             'meetingsUpcoming' => $meetPayload['upcoming'],
@@ -520,7 +521,10 @@ class UserProjectController extends Controller
         ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'completeness_rating')
         ->withAvg(['ratings' => fn ($q) => $q->where('archive', 0)], 'engagement_rating')
         ->withCount(['ratings' => fn ($q) => $q->where('archive', 0)])
-        ->with(['ledgerEntries' => fn ($query) => $query->where('approval_status', 'Approved')])
+        ->with(['ledgerEntries' => fn ($query) => $query
+            ->where('archive', 0)
+            ->where('approval_status', 'Approved')
+            ->orderBy('created_at')])
         ->orderByDesc('updated_at')
         ->get();
 
@@ -599,6 +603,71 @@ class UserProjectController extends Controller
                 ];
             });
 
+        $projectTimelines = $allProjects->map(function ($project) {
+            $events = collect([
+                [
+                    'id' => 'project-created-' . $project->id,
+                    'label' => 'Project Created',
+                    'description' => 'Project created by CSG.',
+                    'date' => optional($project->created_at)->format('Y-m-d H:i'),
+                    'type' => 'project',
+                    'status' => 'Complete',
+                ],
+            ])->merge(
+                ($project->ledgerEntries ?? collect())->map(function ($entry) {
+                    $description = trim((string) ($entry->description ?? ''));
+                    $displayNote = trim($entry->getDisplayNote());
+                    $entryType = trim((string) ($entry->type ?: 'Entry'));
+
+                    if (str_contains(strtolower($entryType), 'transfer') && $displayNote !== '') {
+                        $description = $displayNote;
+                    } elseif ($description === '' && $displayNote !== '') {
+                        $description = $displayNote;
+                    } elseif (
+                        $displayNote !== ''
+                        && !str_contains($description, $displayNote)
+                        && !str_contains($displayNote, $description)
+                    ) {
+                        $description = $description !== ''
+                            ? $description . ' — ' . $displayNote
+                            : $displayNote;
+                    }
+
+                    $labelType = strcasecmp($entryType, 'Initial Transfer') === 0 ? 'Transfer' : $entryType;
+
+                    return [
+                        'id' => 'ledger-' . $entry->id,
+                        'label' => 'Ledger Entry ' . $labelType,
+                        'description' => $description !== '' ? $description : 'No description provided.',
+                        'date' => optional($entry->created_at)->format('Y-m-d H:i'),
+                        'type' => 'ledger',
+                        'category' => $entry->category ?: null,
+                        'amount' => $entry->amount !== null ? (float) $entry->amount : null,
+                        'status' => $entry->approval_status ?: 'Pending',
+                    ];
+                })
+            )->push([
+                'id' => 'project-status-' . $project->id,
+                'label' => 'Project Status Updated',
+                'description' => sprintf(
+                    'Current status: %s / Approval: %s',
+                    $project->status ?: 'Draft',
+                    $project->approval_status ?: 'Pending'
+                ),
+                'date' => optional($project->updated_at)->format('Y-m-d H:i'),
+                'type' => 'project-status',
+                'status' => 'Current',
+            ]);
+
+            return [
+                'id' => $project->id,
+                'title' => $project->title,
+                'status' => $this->calculateProjectStatus($project),
+                'approvalStatus' => $project->approval_status ?: 'Pending',
+                'events' => $events->sortBy('date')->values(),
+            ];
+        })->values();
+
         $leaderboard = $this->getLeaderboardData($user);
         $stats = [
              'name' => $user->name ?? 'User',
@@ -612,6 +681,7 @@ class UserProjectController extends Controller
         return [
             'stats' => $stats,
             'activeProjects' => $activeProjects,
+            'projectTimelines' => $projectTimelines,
             'recentBadges' => $recentBadges,
             'upcomingMeetings' => $upcomingMeetings->values(),
         ];
